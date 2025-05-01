@@ -382,7 +382,16 @@ void GameEventMgr::LoadEvents()
                 pGameEvent.HolidayId = HOLIDAY_NONE;
             }
 
+            {
+                std::tm* tm_local = std::localtime(&pGameEvent.Start);
+
+                LOG_ERROR("sql.sql", "`game_event` game event id ({}) #1 next start {:%Y-%m-%d %H:%M:%S}.", eventId, *tm_local);
+            }
             SetHolidayEventTime(pGameEvent);
+            {
+                std::tm* tm_local = std::localtime(&pGameEvent.Start);
+                LOG_ERROR("sql.sql", "`game_event` game event id ({}) #2 next start {:%Y-%m-%d %H:%M:%S}.", eventId, *tm_local);
+            }
         }
     } while (result->NextRow());
 
