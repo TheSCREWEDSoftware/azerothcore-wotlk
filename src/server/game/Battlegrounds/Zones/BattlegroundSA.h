@@ -349,7 +349,7 @@ enum BG_SA_Graveyards
     BG_SA_MAX_GY
 };
 
-const uint32 BG_SA_GYEntries[BG_SA_MAX_GY] =
+uint32 const BG_SA_GYEntries[BG_SA_MAX_GY] =
 {
     1350,
     1349,
@@ -382,7 +382,7 @@ struct BG_SA_RoundScore
     Milliseconds time;
 };
 
-const float SOTADefPortalDest[5][4] =
+float const SOTADefPortalDest[5][4] =
 {
     { 1388.94f, 103.067f, 34.49f, 5.4571f },
     { 1043.69f, -87.95f, 87.12f, 0.003f },

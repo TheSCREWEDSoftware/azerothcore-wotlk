@@ -55,7 +55,7 @@ enum ZeppelinMaster
     NPC_KRENDLE_BIGPOCKETS = 34766,
 };
 
-const float SEARCH_RANGE_ZEPPELIN_MASTER = 32.0f;
+float const SEARCH_RANGE_ZEPPELIN_MASTER = 32.0f;
 
 enum ZeppelinPassenger
 {

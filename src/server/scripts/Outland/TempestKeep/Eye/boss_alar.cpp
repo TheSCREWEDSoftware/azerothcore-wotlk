@@ -46,7 +46,7 @@ enum Spells
 };
 
 // @todo: Alar doesnt seem to move to waypoints but instead to the triggers in p1
-const Position alarPoints[9] =
+Position const alarPoints[9] =
 {
     {335.638f, 59.4879f, 17.9319f, 4.60f}, //first platform
     {388.751007f, 31.731199f, 20.263599f, 1.61f},
@@ -90,7 +90,7 @@ enum qruseoftheAshtongue
     QUEST_RUSE_OF_THE_ASHTONGUE = 10946,
 };
 
-const float INNER_CIRCLE_RADIUS = 60.0f;
+float const INNER_CIRCLE_RADIUS = 60.0f;
 
 struct boss_alar : public BossAI
 {

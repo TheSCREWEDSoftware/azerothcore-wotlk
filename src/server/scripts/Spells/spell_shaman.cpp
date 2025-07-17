@@ -1087,7 +1087,7 @@ class spell_sha_flurry_proc : public AuraScript
         if (SpellInfo const* spellInfo = eventInfo.GetSpellInfo())
         {
             constexpr std::array<uint32, 2> spellIcons = {SPELL_SHAMAN_STORMSTRIKE, SPELL_SHAMAN_LAVA_LASH};
-            const auto found = std::find(std::begin(spellIcons), std::end(spellIcons), spellInfo->Id);
+            auto const found = std::find(std::begin(spellIcons), std::end(spellIcons), spellInfo->Id);
 
             if ((spellInfo->SpellFamilyName == SPELLFAMILY_SHAMAN && (spellInfo->SpellFamilyFlags[0] & 0x00800000) != 0) || found != std::end(spellIcons))
             {

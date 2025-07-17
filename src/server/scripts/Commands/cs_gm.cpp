@@ -200,7 +200,7 @@ public:
             return true;
         }
 
-        const uint32 VISUAL_AURA = 37800;
+        uint32 const VISUAL_AURA = 37800;
 
         if (*visibleArg)
         {

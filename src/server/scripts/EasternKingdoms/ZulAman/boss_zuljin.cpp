@@ -102,7 +102,7 @@ enum CreatureEntries
     NPC_SPIRIT_DRAGONHAWK = 23879
 };
 
-const Position CenterPosition = { 120.148811f, 703.713684f, 45.111477f };
+Position const CenterPosition = { 120.148811f, 703.713684f, 45.111477f };
 
 struct SpiritInfoStruct
 {

@@ -216,7 +216,7 @@ enum PlayerHook
 class PlayerScript : public ScriptObject
 {
 protected:
-    PlayerScript(const char* name, std::vector<uint16> enabledHooks = std::vector<uint16>());
+    PlayerScript(char const* name, std::vector<uint16> enabledHooks = std::vector<uint16>());
 
 public:
     // Called when a player dies

@@ -37,7 +37,7 @@ ObjectData const creatureData[] =
     { 0,                          0                           }
 };
 
-const uint32 anzuSummonEventId = 14797;
+uint32 const anzuSummonEventId = 14797;
 
 class instance_sethekk_halls : public InstanceMapScript
 {

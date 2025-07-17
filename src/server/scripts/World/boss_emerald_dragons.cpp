@@ -323,7 +323,7 @@ public:
                 auto const& attackers = me->GetThreatMgr().GetThreatList();
                 uint8 attackersCount = 0;
 
-                for (const auto attacker : attackers)
+                for (auto const attacker : attackers)
                 {
                     if ((*attacker)->ToPlayer() && (*attacker)->IsAlive())
                         ++attackersCount;

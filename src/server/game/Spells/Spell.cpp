@@ -1453,10 +1453,10 @@ void Spell::SelectImplicitCasterDestTargets(SpellEffIndex effIndex, SpellImplici
                     float beforewaterz = 0.0f;
                     bool inwater = false;
                     bool wcol = false;
-                    const float  step = 2.0f;
-                    const uint8 numChecks = std::ceil(std::fabs(distance / step));
-                    const float DELTA_X = (destx - pos.GetPositionX()) / numChecks;
-                    const float DELTA_Y = (desty - pos.GetPositionY()) / numChecks;
+                    float const  step = 2.0f;
+                    uint8 const numChecks = std::ceil(std::fabs(distance / step));
+                    float const DELTA_X = (destx - pos.GetPositionX()) / numChecks;
+                    float const DELTA_Y = (desty - pos.GetPositionY()) / numChecks;
                     int j = 1;
                     for (; j < (numChecks + 1); j++)
                     {
@@ -1917,10 +1917,10 @@ void Spell::SelectImplicitTrajTargets(SpellEffIndex effIndex, SpellImplicitTarge
             if (m_caster == *itr || m_caster->IsOnVehicle(unitTarget) || (unitTarget)->GetVehicle())//(*itr)->IsOnVehicle(m_caster))
                 continue;
 
-        const float size = std::max((*itr)->GetObjectSize() * 0.7f, 1.0f); // 1/sqrt(3)
+        float const size = std::max((*itr)->GetObjectSize() * 0.7f, 1.0f); // 1/sqrt(3)
         /// @todo: all calculation should be based on src instead of m_caster
-        const float objDist2d = std::fabs(m_targets.GetSrcPos()->GetExactDist2d(*itr) * cos(m_targets.GetSrcPos()->GetRelativeAngle(*itr)));
-        const float dz = std::fabs((*itr)->GetPositionZ() - m_targets.GetSrcPos()->m_positionZ);
+        float const objDist2d = std::fabs(m_targets.GetSrcPos()->GetExactDist2d(*itr) * cos(m_targets.GetSrcPos()->GetRelativeAngle(*itr)));
+        float const dz = std::fabs((*itr)->GetPositionZ() - m_targets.GetSrcPos()->m_positionZ);
 
         LOG_DEBUG("spells", "Spell::SelectTrajTargets: check {}, dist between {} {}, height between {} {}.",
             (*itr)->GetEntry(), objDist2d - size, objDist2d + size, dz - size, dz + size);
@@ -2962,7 +2962,7 @@ void Spell::DoAllEffectOnTarget(TargetInfo* target)
 
             // Unsure if there are more spells that are not supposed to stop enemy from
             // regenerating HP from food, so for now it stays as an ID.
-            const uint32 SPELL_PREMEDITATION = 14183;
+            uint32 const SPELL_PREMEDITATION = 14183;
             if (m_spellInfo->Id != SPELL_PREMEDITATION)
             {
                 if (!effectUnit->IsStandState())

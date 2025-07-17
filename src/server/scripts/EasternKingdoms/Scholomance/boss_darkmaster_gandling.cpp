@@ -58,10 +58,10 @@ enum Timers
  };
 
  // don't change the order of these 3 arrays. The order of the arrays should match and match also with scholomance.cpp
- const uint32 GandlingGateIds[] = {GO_GATE_GANDLING_DOWN_NORTH, GO_GATE_GANDLING_DOWN_EAST, GO_GATE_GANDLING_DOWN_SOUTH,
+ uint32 const GandlingGateIds[] = {GO_GATE_GANDLING_DOWN_NORTH, GO_GATE_GANDLING_DOWN_EAST, GO_GATE_GANDLING_DOWN_SOUTH,
                                 GO_GATE_GANDLING_UP_NORTH, GO_GATE_GANDLING_UP_EAST, GO_GATE_GANDLING_UP_SOUTH, GO_GATE_GANDLING_ENTRANCE};
 
- const uint32 GandlingPortalSpells[] = {SPELL_SHADOW_PORTAL_DOWN_NORTH, SPELL_SHADOW_PORTAL_DOWN_EAST, SPELL_SHADOW_PORTAL_DOWN_SOUTH,
+ uint32 const GandlingPortalSpells[] = {SPELL_SHADOW_PORTAL_DOWN_NORTH, SPELL_SHADOW_PORTAL_DOWN_EAST, SPELL_SHADOW_PORTAL_DOWN_SOUTH,
                                             SPELL_SHADOW_PORTAL_UP_NORTH, SPELL_SHADOW_PORTAL_UP_EAST, SPELL_SHADOW_PORTAL_UP_SOUTH};
 
  Position const SummonPos[3 * 6] =

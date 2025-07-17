@@ -56,7 +56,7 @@ enum Groups
     GROUP_PRECOMBAT_TALK        = 0
 };
 
-const Position GuestsPosition[4] =
+Position const GuestsPosition[4] =
 {
     {-10987.38f, -1883.38f, 81.73f, 1.50f},
     {-10989.60f, -1881.27f, 81.73f, 0.73f},
@@ -64,7 +64,7 @@ const Position GuestsPosition[4] =
     {-10976.38f, -1882.59f, 81.73f, 2.31f}
 };
 
-const uint32 GuestEntries[6] =
+uint32 const GuestEntries[6] =
 {
     17007, 19872, 19873,
     19874, 19875, 19876

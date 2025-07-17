@@ -155,26 +155,26 @@ enum AchievCriteria
 ** POSITIONS AND WAYPOINTS:
 **************/
 
-const Position guardMovePosition = {1806.955566f, 803.851807f, 44.363323f, 0.0f};
-const Position playerTeleportPosition = {1830.531006f, 803.939758f, 44.340508f, 6.281611f};
-const Position sinclariOutsidePosition = {1817.315674f, 804.060608f, 44.363998f, 0.0f};
-const Position MiddleRoomPortalSaboLocation = {1896.622925f, 804.854126f, 38.504772f, 3.139621f};
+Position const guardMovePosition = {1806.955566f, 803.851807f, 44.363323f, 0.0f};
+Position const playerTeleportPosition = {1830.531006f, 803.939758f, 44.340508f, 6.281611f};
+Position const sinclariOutsidePosition = {1817.315674f, 804.060608f, 44.363998f, 0.0f};
+Position const MiddleRoomPortalSaboLocation = {1896.622925f, 804.854126f, 38.504772f, 3.139621f};
 
-const Position BossStartMove1  = {1894.684448f, 739.390503f, 47.668003f, 0.0f};
-const Position BossStartMove2  = {1875.173950f, 860.832703f, 43.333565f, 0.0f};
-const Position BossStartMove21 = {1858.854614f, 855.071411f, 43.333565f, 0.0f};
-const Position BossStartMove22 = {1891.926636f, 863.388977f, 43.333565f, 0.0f};
-const Position BossStartMove3  = {1916.138062f, 778.152222f, 35.772308f, 0.0f};
-const Position BossStartMove4  = {1853.618286f, 758.557617f, 38.657505f, 0.0f};
-const Position BossStartMove5  = {1906.683960f, 842.348022f, 38.637459f, 0.0f};
-const Position BossStartMove6  = {1928.207031f, 852.864441f, 47.200813f, 0.0f};
+Position const BossStartMove1  = {1894.684448f, 739.390503f, 47.668003f, 0.0f};
+Position const BossStartMove2  = {1875.173950f, 860.832703f, 43.333565f, 0.0f};
+Position const BossStartMove21 = {1858.854614f, 855.071411f, 43.333565f, 0.0f};
+Position const BossStartMove22 = {1891.926636f, 863.388977f, 43.333565f, 0.0f};
+Position const BossStartMove3  = {1916.138062f, 778.152222f, 35.772308f, 0.0f};
+Position const BossStartMove4  = {1853.618286f, 758.557617f, 38.657505f, 0.0f};
+Position const BossStartMove5  = {1906.683960f, 842.348022f, 38.637459f, 0.0f};
+Position const BossStartMove6  = {1928.207031f, 852.864441f, 47.200813f, 0.0f};
 
-const Position CyanigosasSpawnLocation = {1930.281250f, 804.407715f, 52.410946f, 3.139621f};
-const Position MiddleRoomLocation = {1892.291260f, 805.696838f, 38.438862f, 3.139621f};
+Position const CyanigosasSpawnLocation = {1930.281250f, 804.407715f, 52.410946f, 3.139621f};
+Position const MiddleRoomLocation = {1892.291260f, 805.696838f, 38.438862f, 3.139621f};
 
-const uint8 PLocWPCount[6] = {6, 9, 8, 9, 6, 4};
+uint8 const PLocWPCount[6] = {6, 9, 8, 9, 6, 4};
 
-const Position PortalLocations[] =
+Position const PortalLocations[] =
 {
     {1877.51f, 850.104f, 44.6599f, 4.78220f},
     {1918.37f, 853.437f, 47.1624f, 4.12294f},
@@ -184,7 +184,7 @@ const Position PortalLocations[] =
     {1908.31f, 809.657f, 38.7037f, 3.08701f},
 };
 
-const float FirstPortalTrashWPs [6][3] =
+float const FirstPortalTrashWPs [6][3] =
 {
     {1877.670288f, 842.280273f, 43.333591f},
     {1877.338867f, 834.615356f, 38.762287f},
@@ -194,7 +194,7 @@ const float FirstPortalTrashWPs [6][3] =
     {1843.707153f, 805.807739f, 44.135197f},
 };
 
-const float SecondPortalTrashWPs1 [9][3] =
+float const SecondPortalTrashWPs1 [9][3] =
 {
     {1902.561401f, 853.334656f, 47.106117f},
     {1895.486084f, 855.376404f, 44.334591f},
@@ -207,7 +207,7 @@ const float SecondPortalTrashWPs1 [9][3] =
     {1843.707153f, 805.807739f, 44.135197f},
 };
 
-const float SecondPortalTrashWPs2 [8][3] =
+float const SecondPortalTrashWPs2 [8][3] =
 {
     {1929.392212f, 837.614990f, 47.136166f},
     {1928.290649f, 824.750427f, 45.474411f},
@@ -219,7 +219,7 @@ const float SecondPortalTrashWPs2 [8][3] =
     {1843.707153f, 805.807739f, 44.135197f},
 };
 
-const float ThirdPortalTrashWPs [8][3] =
+float const ThirdPortalTrashWPs [8][3] =
 {
     {1934.049438f, 815.778503f, 52.408699f},
     {1928.290649f, 824.750427f, 45.474411f},
@@ -231,7 +231,7 @@ const float ThirdPortalTrashWPs [8][3] =
     {1843.707153f, 805.807739f, 44.135197f},
 };
 
-const float FourthPortalTrashWPs [9][3] =
+float const FourthPortalTrashWPs [9][3] =
 {
     {1921.658447f, 761.657043f, 50.866741f},
     {1910.559814f, 755.780457f, 47.701447f},
@@ -244,7 +244,7 @@ const float FourthPortalTrashWPs [9][3] =
     {1845.577759f, 800.681152f, 44.104248f},
 };
 
-const float FifthPortalTrashWPs [6][3] =
+float const FifthPortalTrashWPs [6][3] =
 {
     {1887.398804f, 763.633240f, 47.666851f},
     {1879.020386f, 775.396973f, 38.705990f},
@@ -254,7 +254,7 @@ const float FifthPortalTrashWPs [6][3] =
     {1845.577759f, 800.681152f, 44.104248f},
 };
 
-const float SixthPoralTrashWPs [4][3] =
+float const SixthPoralTrashWPs [4][3] =
 {
     {1888.861084f, 805.074768f, 38.375790f},
     {1869.793823f, 804.135804f, 38.647018f},
@@ -262,37 +262,37 @@ const float SixthPoralTrashWPs [4][3] =
     {1843.567017f, 804.288208f, 44.139091f},
 };
 
-const float SaboteurFinalPos1[3][3] =
+float const SaboteurFinalPos1[3][3] =
 {
     {1892.502319f, 777.410767f, 38.630402f},
     {1891.165161f, 762.969421f, 47.666920f},
     {1893.168091f, 740.919189f, 47.666920f}
 };
 
-const float SaboteurFinalPos2[3][3] =
+float const SaboteurFinalPos2[3][3] =
 {
     {1882.242676f, 834.818726f, 38.646786f},
     {1879.220825f, 842.224854f, 43.333641f},
     {1873.842896f, 863.892456f, 43.333641f}
 };
 
-const float SaboteurFinalPos3[2][3] =
+float const SaboteurFinalPos3[2][3] =
 {
     {1904.298340f, 792.400391f, 38.646782f},
     {1935.716919f, 758.437073f, 30.627895f}
 };
 
-const float SaboteurFinalPos4[3] =
+float const SaboteurFinalPos4[3] =
 {
     1855.006104f, 760.641724f, 38.655266f
 };
 
-const float SaboteurFinalPos5[3] =
+float const SaboteurFinalPos5[3] =
 {
     1906.667358f, 841.705566f, 38.637894f
 };
 
-const float SaboteurFinalPos6[5][3] =
+float const SaboteurFinalPos6[5][3] =
 {
     {1911.437012f, 821.289246f, 38.684128f},
     {1920.734009f, 822.978027f, 41.525414f},

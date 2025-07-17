@@ -32,7 +32,7 @@ class MPQArchive
 public:
     mpq_archive_s* mpq_a;
 
-    MPQArchive(const char* filename);
+    MPQArchive(char const* filename);
     ~MPQArchive() { if (isOpened()) close(); }
 
     void GetFileListTo(vector<string>& filelist)
@@ -83,7 +83,7 @@ class MPQFile
     void operator=(const MPQFile& /*f*/) {}
 
 public:
-    MPQFile(const char* filename);    // filenames are not case sensitive
+    MPQFile(char const* filename);    // filenames are not case sensitive
     ~MPQFile() { close(); }
     std::size_t read(void* dest, std::size_t bytes);
     std::size_t getSize() { return size; }

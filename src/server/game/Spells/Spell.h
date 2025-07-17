@@ -242,7 +242,7 @@ enum SpellEffectHandleMode
 // Xinef: special structure containing data for channel target spells
 struct ChannelTargetData
 {
-    ChannelTargetData(ObjectGuid cguid, const SpellDestination* dst) : channelGUID(cguid)
+    ChannelTargetData(ObjectGuid cguid, SpellDestination const* dst) : channelGUID(cguid)
     {
         if (dst)
             spellDst = *dst;
@@ -267,7 +267,7 @@ struct TargetInfo
     int32  damage;
 };
 
-static const uint32 SPELL_INTERRUPT_NONPLAYER = 32747;
+static uint32 const SPELL_INTERRUPT_NONPLAYER = 32747;
 
 struct TriggeredByAuraSpellData
 {

@@ -271,7 +271,7 @@ enum eTexts
     SAY_STAGE_4_07            = 18,
 };
 
-const Position Locs[] =
+Position const Locs[] =
 {
     {563.8f, 216.1f, 395.1f, 3 * M_PI / 2},             // 0
     {563.93f, 178.37f, 394.49f, 3 * M_PI / 2},          // 1
@@ -319,7 +319,7 @@ enum LocNames
     LOC_MAGE,
 };
 
-const Position FactionChampionLoc[] =
+Position const FactionChampionLoc[] =
 {
     {514.231f, 105.569f, 418.234f, 0},                  // 0 - Horde Initial Pos 0
     {508.334f, 115.377f, 418.234f, 0},                  // 1 - Horde Initial Pos 1
@@ -379,8 +379,8 @@ enum eAchievementCriteria
     ACHIEV_CRITERIA_REALM_FIRST_GRAND_CRUSADER              = 12350,
 };
 
-const uint32 dIIc = 405;
-const uint32 dedicatedInsanityItems[405] =
+uint32 const dIIc = 405;
+uint32 const dedicatedInsanityItems[405] =
 {
     47658, 47659, 47660, 47661, 47662, 47664, 47665, 47666, 47667, 47668, 47670, 47671, 47672, 47673, 47674, 47675, 47677, 47678, 47681, 47682, 47684, 47685, 47686, 47687, 47688, 47689, 47690, 47691, 47692, 47693,
     47694, 47695, 47696, 47697, 47698, 47699, 47701, 47702, 47704, 47705, 47706, 47707, 47708, 47709, 47710, 47712, 47713, 47714, 47715, 47716, 47729, 47730, 47731, 47732, 47733, 47734, 47735, 47753, 47754, 47755,

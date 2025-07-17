@@ -23,7 +23,7 @@
 class ItemScript : public ScriptObject
 {
 protected:
-    ItemScript(const char* name);
+    ItemScript(char const* name);
 
 public:
     [[nodiscard]] bool IsDatabaseBound() const override { return true; }

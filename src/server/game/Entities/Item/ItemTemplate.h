@@ -533,7 +533,7 @@ enum ItemSubclassGlyph
 
 #define MAX_ITEM_SUBCLASS_GLYPH                   12
 
-const uint32 MaxItemSubclassValues[MAX_ITEM_CLASS] =
+uint32 const MaxItemSubclassValues[MAX_ITEM_CLASS] =
 {
     MAX_ITEM_SUBCLASS_CONSUMABLE,
     MAX_ITEM_SUBCLASS_CONTAINER,
@@ -782,7 +782,7 @@ struct ItemTemplate
 
     [[nodiscard]] uint32 GetSkill() const
     {
-        const static uint32 item_weapon_skills[MAX_ITEM_SUBCLASS_WEAPON] =
+        static const uint32 item_weapon_skills[MAX_ITEM_SUBCLASS_WEAPON] =
         {
             SKILL_AXES,     SKILL_2H_AXES,  SKILL_BOWS,          SKILL_GUNS,      SKILL_MACES,
             SKILL_2H_MACES, SKILL_POLEARMS, SKILL_SWORDS,        SKILL_2H_SWORDS, 0,
@@ -791,7 +791,7 @@ struct ItemTemplate
             SKILL_FISHING
         };
 
-        const static uint32 item_armor_skills[MAX_ITEM_SUBCLASS_ARMOR] =
+        static const uint32 item_armor_skills[MAX_ITEM_SUBCLASS_ARMOR] =
         {
             0, SKILL_CLOTH, SKILL_LEATHER, SKILL_MAIL, SKILL_PLATE_MAIL, 0, SKILL_SHIELD, 0, 0, 0, 0
         };

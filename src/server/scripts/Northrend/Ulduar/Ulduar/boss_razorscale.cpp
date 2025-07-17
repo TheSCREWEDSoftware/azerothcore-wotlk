@@ -142,8 +142,8 @@ enum Misc
     NPC_TEXT_COMMANDER                      = 40100,
 };
 
-const Position CORDS_GROUND                 = {588.0f, -166.0f, 391.1f};
-const Position CORDS_AIR                    = {588.0f, -178.0f, 490.0f};
+Position const CORDS_GROUND                 = {588.0f, -166.0f, 391.1f};
+Position const CORDS_AIR                    = {588.0f, -178.0f, 490.0f};
 
 class boss_razorscale : public CreatureScript
 {

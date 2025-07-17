@@ -39,7 +39,7 @@ enum RemoveMethod : uint8;
 class GroupScript : public ScriptObject
 {
 protected:
-    GroupScript(const char* name, std::vector<uint16> enabledHooks = std::vector<uint16>());
+    GroupScript(char const* name, std::vector<uint16> enabledHooks = std::vector<uint16>());
 
 public:
     [[nodiscard]] bool IsDatabaseBound() const override { return false; }

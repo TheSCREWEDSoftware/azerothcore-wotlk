@@ -266,7 +266,7 @@ public:
         }
     }
 
-    void HandleWhelpSpam(const uint32 diff)
+    void HandleWhelpSpam(uint32 const diff)
     {
         if (whelpSpam)
         {

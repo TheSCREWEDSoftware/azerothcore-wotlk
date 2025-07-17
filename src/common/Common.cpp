@@ -39,7 +39,7 @@ bool IsLocaleValid(std::string const& locale)
     return false;
 }
 
-LocaleConstant GetLocaleByName(const std::string& name)
+LocaleConstant GetLocaleByName(std::string const& name)
 {
     for (uint32 i = 0; i < TOTAL_LOCALES; ++i)
         if (name == localeNames[i])
@@ -48,7 +48,7 @@ LocaleConstant GetLocaleByName(const std::string& name)
     return LOCALE_enUS;                                     // including enGB case
 }
 
-const std::string GetNameByLocaleConstant(LocaleConstant localeConstant)
+std::string const GetNameByLocaleConstant(LocaleConstant localeConstant)
 {
     if (localeConstant < TOTAL_LOCALES)
     {

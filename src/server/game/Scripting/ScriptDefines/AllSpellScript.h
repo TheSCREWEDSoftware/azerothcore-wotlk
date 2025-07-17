@@ -48,7 +48,7 @@ enum SpellEffIndex : uint8;
 class AllSpellScript : public ScriptObject
 {
 protected:
-    AllSpellScript(const char* name, std::vector<uint16> enabledHooks = std::vector<uint16>());
+    AllSpellScript(char const* name, std::vector<uint16> enabledHooks = std::vector<uint16>());
 
 public:
     [[nodiscard]] bool IsDatabaseBound() const override { return false; }

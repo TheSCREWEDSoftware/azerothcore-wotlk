@@ -54,7 +54,7 @@ enum Groups
     GROUP_GEYSER                = 2
 };
 
-const Position positions[MAX_SUMMONS] =
+Position const positions[MAX_SUMMONS] =
 {
     {2.8553810f, -459.823914f, -19.182686f, 0.0f},
     {12.400000f, -466.042267f, -19.182686f, 0.0f},

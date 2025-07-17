@@ -280,7 +280,7 @@ public:
             return true;
         }
 
-        const uint8 maxSeasonId = 8;
+        uint8 const maxSeasonId = 8;
         if (seasonId > maxSeasonId)
         {
             handler->PSendSysMessage("Invalid season id.");

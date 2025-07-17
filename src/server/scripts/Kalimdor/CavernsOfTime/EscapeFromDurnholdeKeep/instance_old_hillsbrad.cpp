@@ -29,7 +29,7 @@ static Position const instancePositions[INSTANCE_POSITIONS_COUNT] =
     { 2172.76f, 149.54f, 87.981f, 4.19f }     // Lieutenant Drake Summon Position
 };
 
-const Position thrallPositions[THRALL_POSITIONS_COUNT] =
+Position const thrallPositions[THRALL_POSITIONS_COUNT] =
 {
     {2181.37f, 119.15f, 89.45f, 5.75f},     // After wearing armor
     {2096.09f, 195.91f, 65.22f, 2.45f},     // After Fourth Ambush

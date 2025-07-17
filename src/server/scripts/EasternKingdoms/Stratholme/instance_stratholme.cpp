@@ -21,7 +21,7 @@
 #include "ScriptedCreature.h"
 #include "stratholme.h"
 
-const Position BlackGuardPos[10] =
+Position const BlackGuardPos[10] =
 {
     {4032.73f + 0.0f, -3378.26f + 0.0f, 119.76f, 4.67f},
     {4032.73f + 2.0f, -3378.26f + 2.0f, 119.76f, 4.67f},
@@ -37,13 +37,13 @@ const Position BlackGuardPos[10] =
 };
 
 // Creatures to be spawned during the trap events
-static const uint32 aPlaguedCritters[] =
+static uint32 const aPlaguedCritters[] =
 {
     NPC_PLAGUED_RAT, NPC_PLAGUED_MAGGOT, NPC_PLAGUED_INSECT
 };
 
 // Positions of the two Gate Traps
-static const Position aGateTrap[] =
+static Position const aGateTrap[] =
 {
     {3612.29f, -3335.39f, 124.077f, 3.14159f},  // Scarlet side
     {3919.88f, -3547.34f, 134.269f, 2.94961f}   // Undead side
@@ -278,7 +278,7 @@ public:
             for (uint8 i = 0; i < 30; ++i)
             {
                 float x, y, z;
-                const Position pPos = { player->GetPositionX(), player->GetPositionY(), player->GetPositionZ(), player->GetOrientation() };
+                Position const pPos = { player->GetPositionX(), player->GetPositionY(), player->GetPositionZ(), player->GetOrientation() };
                 player->GetRandomPoint(pPos, 8.0f, x, y, z);
                 z = player->GetPositionZ() + 1;
                 player->SummonCreature(uiEntry, x, y, z, 0, TEMPSUMMON_DEAD_DESPAWN, 0)->AI()->AttackStart(player);
@@ -475,8 +475,8 @@ public:
                 }
             }
 
-            const int GATE1 = 0;
-            const int GATE2 = 1;
+            int const GATE1 = 0;
+            int const GATE2 = 1;
 
             switch (events.ExecuteEvent())
             {

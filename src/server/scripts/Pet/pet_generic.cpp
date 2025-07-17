@@ -125,7 +125,7 @@ struct argentPonyBanner
 {
     uint32 achievement;
     uint32 spell;
-    const char* text;
+    char const* text;
 };
 
 static argentPonyBanner argentBanners[MAX_RACES] =

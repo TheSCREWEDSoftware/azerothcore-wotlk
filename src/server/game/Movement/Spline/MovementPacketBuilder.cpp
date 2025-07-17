@@ -21,7 +21,7 @@
 
 namespace Movement
 {
-    inline void operator << (ByteBuffer& b, const Vector3& v)
+    inline void operator << (ByteBuffer& b, Vector3 const& v)
     {
         b << v.x << v.y << v.z;
     }
@@ -40,7 +40,7 @@ namespace Movement
         MonsterMoveFacingAngle  = 4
     };
 
-    void PacketBuilder::WriteCommonMonsterMovePart(const MoveSpline& move_spline, ByteBuffer& data)
+    void PacketBuilder::WriteCommonMonsterMovePart(MoveSpline const& move_spline, ByteBuffer& data)
     {
         MoveSplineFlag splineflags = move_spline.splineflags;
 
@@ -99,7 +99,7 @@ namespace Movement
     void WriteLinearPath(const Spline<int32>& spline, ByteBuffer& data)
     {
         uint32 last_idx = spline.getPointCount() - 3;
-        const Vector3* real_path = &spline.getPoint(1);
+        Vector3 const* real_path = &spline.getPoint(1);
 
         data << last_idx;
         data << real_path[last_idx];   // destination
@@ -139,7 +139,7 @@ namespace Movement
         }
     }
 
-    void PacketBuilder::WriteMonsterMove(const MoveSpline& move_spline, ByteBuffer& data)
+    void PacketBuilder::WriteMonsterMove(MoveSpline const& move_spline, ByteBuffer& data)
     {
         WriteCommonMonsterMovePart(move_spline, data);
 
@@ -156,7 +156,7 @@ namespace Movement
             WriteLinearPath(spline, data);
     }
 
-    void PacketBuilder::WriteCreate(const MoveSpline& move_spline, ByteBuffer& data)
+    void PacketBuilder::WriteCreate(MoveSpline const& move_spline, ByteBuffer& data)
     {
         //WriteClientStatus(mov, data);
         //data.append<float>(&mov.m_float_values[SpeedWalk], SpeedMaxCount);

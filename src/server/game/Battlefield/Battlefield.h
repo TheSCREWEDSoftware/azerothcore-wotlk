@@ -55,7 +55,7 @@ enum BattlefieldSounds
 
 constexpr auto BATTLEFIELD_OBJECTIVE_UPDATE_INTERVAL = 1000;
 
-const uint32 BattlefieldFactions[PVP_TEAMS_COUNT] =
+uint32 const BattlefieldFactions[PVP_TEAMS_COUNT] =
 {
     1732, // Alliance
     1735  // Horde
@@ -340,7 +340,7 @@ public:
     /// Return if we can use mount in battlefield
     bool CanFlyIn() { return !m_isActive; }
 
-    void SendAreaSpiritHealerQueryOpcode(Player* player, const ObjectGuid& guid);
+    void SendAreaSpiritHealerQueryOpcode(Player* player, ObjectGuid const& guid);
 
     void StartBattle();
     void EndBattle(bool endByTimer);

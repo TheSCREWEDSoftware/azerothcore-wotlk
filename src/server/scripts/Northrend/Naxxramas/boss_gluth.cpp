@@ -59,7 +59,7 @@ enum Emotes
     EMOTE_BERSERK                       = 4
 };
 
-const Position zombiePos[3] =
+Position const zombiePos[3] =
 {
     {3267.9f, -3172.1f, 297.42f, 0.94f},
     {3253.2f, -3132.3f, 297.42f, 0},

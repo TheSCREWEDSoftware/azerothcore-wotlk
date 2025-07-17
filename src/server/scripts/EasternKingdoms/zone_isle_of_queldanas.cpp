@@ -89,7 +89,7 @@ enum ThalorienTexts
 };
 
 #define SUNWELL_DEFENDER_NUM 10
-const Position SunwellDefenderPos[SUNWELL_DEFENDER_NUM] =
+Position const SunwellDefenderPos[SUNWELL_DEFENDER_NUM] =
 {
     {11801.6f, -7070.91f, 25.5347f, 2.7428f},
     {11800.8f, -7073.11f, 25.7903f, 2.78207f},

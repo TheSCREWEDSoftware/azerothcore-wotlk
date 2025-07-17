@@ -54,7 +54,7 @@ namespace VMAP
     void VMapMgr2::InitializeThreadUnsafe(const std::vector<uint32>& mapIds)
     {
         // the caller must pass the list of all mapIds that will be used in the VMapMgr2 lifetime
-        for (const uint32& mapId : mapIds)
+        for (uint32 const& mapId : mapIds)
         {
             iInstanceMapTrees.emplace(mapId, nullptr);
         }
@@ -65,7 +65,7 @@ namespace VMAP
     Vector3 VMapMgr2::convertPositionToInternalRep(float x, float y, float z) const
     {
         Vector3 pos;
-        const float mid = 0.5f * MAX_NUMBER_OF_GRIDS * SIZE_OF_GRIDS;
+        float const mid = 0.5f * MAX_NUMBER_OF_GRIDS * SIZE_OF_GRIDS;
         pos.x = mid - x;
         pos.y = mid - y;
         pos.z = z;
@@ -95,7 +95,7 @@ namespace VMAP
         return fname.str();
     }
 
-    int VMapMgr2::loadMap(const char* basePath, unsigned int mapId, int x, int y)
+    int VMapMgr2::loadMap(char const* basePath, unsigned int mapId, int x, int y)
     {
         int result = VMAP_LOAD_RESULT_IGNORED;
         if (isMapLoadingEnabled())
@@ -114,7 +114,7 @@ namespace VMAP
     }
 
     // load one tile (internal use only)
-    bool VMapMgr2::_loadMap(uint32 mapId, const std::string& basePath, uint32 tileX, uint32 tileY)
+    bool VMapMgr2::_loadMap(uint32 mapId, std::string const& basePath, uint32 tileX, uint32 tileY)
     {
         InstanceTreeMap::iterator instanceTree = iInstanceMapTrees.find(mapId);
         if (instanceTree == iInstanceMapTrees.end())
@@ -337,7 +337,7 @@ namespace VMAP
         }
     }
 
-    WorldModel* VMapMgr2::acquireModelInstance(const std::string& basepath, const std::string& filename, uint32 flags/* Only used when creating the model */)
+    WorldModel* VMapMgr2::acquireModelInstance(std::string const& basepath, std::string const& filename, uint32 flags/* Only used when creating the model */)
     {
         //! Critical section, thread safe access to iLoadedModelFiles
         std::lock_guard<std::mutex> lock(LoadedModelFilesLock);
@@ -363,7 +363,7 @@ namespace VMAP
         return model->second.getModel();
     }
 
-    void VMapMgr2::releaseModelInstance(const std::string& filename)
+    void VMapMgr2::releaseModelInstance(std::string const& filename)
     {
         //! Critical section, thread safe access to iLoadedModelFiles
         std::lock_guard<std::mutex> lock(LoadedModelFilesLock);
@@ -382,7 +382,7 @@ namespace VMAP
         }
     }
 
-    LoadResult VMapMgr2::existsMap(const char* basePath, unsigned int mapId, int x, int y)
+    LoadResult VMapMgr2::existsMap(char const* basePath, unsigned int mapId, int x, int y)
     {
         return StaticMapTree::CanLoadMap(std::string(basePath), mapId, x, y);
     }

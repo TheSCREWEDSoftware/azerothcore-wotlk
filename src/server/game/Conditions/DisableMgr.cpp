@@ -315,7 +315,7 @@ void DisableMgr::CheckQuestDisables()
     // check only quests, rest already done at startup
     for (DisableTypeMap::iterator itr = m_DisableMap[DISABLE_TYPE_QUEST].begin(); itr != m_DisableMap[DISABLE_TYPE_QUEST].end();)
     {
-        const uint32 entry = itr->first;
+        uint32 const entry = itr->first;
         if (!sObjectMgr->GetQuestTemplate(entry))
         {
             LOG_ERROR("sql.sql", "Quest entry {} from `disables` doesn't exist, skipped.", entry);

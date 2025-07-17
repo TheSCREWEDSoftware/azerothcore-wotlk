@@ -21,10 +21,10 @@
 #include "Language.h"
 #include "OutdoorPvP.h"
 
-const uint8 OutdoorPvPZMBuffZonesNum = 5;
+uint8 const OutdoorPvPZMBuffZonesNum = 5;
 
 // the buff is cast in these zones
-const uint32 OutdoorPvPZMBuffZones[OutdoorPvPZMBuffZonesNum] =
+uint32 const OutdoorPvPZMBuffZones[OutdoorPvPZMBuffZonesNum] =
 {
     AREA_ZANGARMARSH,
     AREA_SERPENTSHRINE_CAVERN,
@@ -34,10 +34,10 @@ const uint32 OutdoorPvPZMBuffZones[OutdoorPvPZMBuffZonesNum] =
 };
 
 // linked when the central tower is controlled
-const uint32 ZM_GRAVEYARD_ZONE = AREA_ZANGARMARSH;
+uint32 const ZM_GRAVEYARD_ZONE = AREA_ZANGARMARSH;
 
 // linked when the central tower is controlled
-const uint32 ZM_GRAVEYARD_ID = 969;
+uint32 const ZM_GRAVEYARD_ID = 969;
 
 enum OutdoorPvPZMSpells
 {
@@ -54,15 +54,15 @@ enum OutdoorPvPZMSpells
 };
 
 // banners 182527, 182528, 182529, gotta check them ingame
-const go_type ZM_Banner_A = { 182527, MAP_OUTLAND, 253.54f, 7083.81f, 36.7728f, -0.017453f, 0.0f, 0.0f, 0.008727f, -0.999962f };
-const go_type ZM_Banner_H = { 182528, MAP_OUTLAND, 253.54f, 7083.81f, 36.7728f, -0.017453f, 0.0f, 0.0f, 0.008727f, -0.999962f };
-const go_type ZM_Banner_N = { 182529, MAP_OUTLAND, 253.54f, 7083.81f, 36.7728f, -0.017453f, 0.0f, 0.0f, 0.008727f, -0.999962f };
+go_type const ZM_Banner_A = { 182527, MAP_OUTLAND, 253.54f, 7083.81f, 36.7728f, -0.017453f, 0.0f, 0.0f, 0.008727f, -0.999962f };
+go_type const ZM_Banner_H = { 182528, MAP_OUTLAND, 253.54f, 7083.81f, 36.7728f, -0.017453f, 0.0f, 0.0f, 0.008727f, -0.999962f };
+go_type const ZM_Banner_N = { 182529, MAP_OUTLAND, 253.54f, 7083.81f, 36.7728f, -0.017453f, 0.0f, 0.0f, 0.008727f, -0.999962f };
 
 // horde field scout spawn data
-const creature_type ZM_HordeFieldScout = {18564, MAP_OUTLAND, 296.625f, 7818.4f, 42.6294f, 5.18363f};
+creature_type const ZM_HordeFieldScout = {18564, MAP_OUTLAND, 296.625f, 7818.4f, 42.6294f, 5.18363f};
 
 // alliance field scout spawn data
-const creature_type ZM_AllianceFieldScout = {18581, MAP_OUTLAND, 374.395f, 6230.08f, 22.8351f, 0.593412f};
+creature_type const ZM_AllianceFieldScout = {18581, MAP_OUTLAND, 374.395f, 6230.08f, 22.8351f, 0.593412f};
 
 enum ZMCreatureTypes
 {
@@ -93,37 +93,37 @@ enum ZM_BeaconType
     ZM_NUM_BEACONS
 };
 
-const zm_beacon ZMBeaconInfo[ZM_NUM_BEACONS] =
+zm_beacon const ZMBeaconInfo[ZM_NUM_BEACONS] =
 {
     {2533, 2535, 2534, 2560, 2559, 2558, 2652, 2651, 2650, 11807, 11806},
     {2527, 2529, 2528, 2557, 2556, 2555, 2646, 2645, 2644, 11805, 11804}
 };
 
-const uint32 ZMBeaconCaptureA[ZM_NUM_BEACONS] =
+uint32 const ZMBeaconCaptureA[ZM_NUM_BEACONS] =
 {
     LANG_OPVP_ZM_CAPTURE_EAST_A,
     LANG_OPVP_ZM_CAPTURE_WEST_A
 };
 
-const uint32 ZMBeaconCaptureH[ZM_NUM_BEACONS] =
+uint32 const ZMBeaconCaptureH[ZM_NUM_BEACONS] =
 {
     LANG_OPVP_ZM_CAPTURE_EAST_H,
     LANG_OPVP_ZM_CAPTURE_WEST_H
 };
 
-const uint32 ZMBeaconLoseA[ZM_NUM_BEACONS] =
+uint32 const ZMBeaconLoseA[ZM_NUM_BEACONS] =
 {
     LANG_OPVP_ZM_LOSE_EAST_A,
     LANG_OPVP_ZM_LOSE_WEST_A
 };
 
-const uint32 ZMBeaconLoseH[ZM_NUM_BEACONS] =
+uint32 const ZMBeaconLoseH[ZM_NUM_BEACONS] =
 {
     LANG_OPVP_ZM_LOSE_EAST_H,
     LANG_OPVP_ZM_LOSE_WEST_H
 };
 
-const go_type ZMCapturePoints[ZM_NUM_BEACONS] =
+go_type const ZMCapturePoints[ZM_NUM_BEACONS] =
 {
     {182523, MAP_OUTLAND, 303.243f, 6841.36f, 40.1245f, -1.58825f, 0.0f, 0.0f, 0.71325f, -0.700909f},
     {182522, MAP_OUTLAND, 336.466f, 7340.26f, 41.4984f, -1.58825f, 0.0f, 0.0f, 0.71325f, -0.700909f}

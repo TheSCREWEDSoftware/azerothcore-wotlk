@@ -234,8 +234,8 @@ public:
         uint16 addSpawnTimer{ 0 };
 
         // Used to make Hodir disengage whenever he leaves his room
-        const Position ENTRANCE_DOOR{ 1999.160034f, -297.792999f, 431.960999f, 0 };
-        const Position EXIT_DOOR{ 1999.709961f, -166.259003f, 432.822998f, 0 };
+        Position const ENTRANCE_DOOR{ 1999.160034f, -297.792999f, 431.960999f, 0 };
+        Position const EXIT_DOOR{ 1999.709961f, -166.259003f, 432.822998f, 0 };
 
         void Reset() override
         {
@@ -1279,7 +1279,7 @@ class spell_hodir_biting_cold_player_aura : public AuraScript
                 }
             }
 
-            const int32 dmg = 200 * pow(2.0f, GetStackAmount());
+            int32 const dmg = 200 * pow(2.0f, GetStackAmount());
             target->CastCustomSpell(target, SPELL_BITING_COLD_DAMAGE, &dmg, 0, 0, true);
         }
     }

@@ -97,7 +97,7 @@ private:
     std::unique_ptr<T[]> buf_;
     std::size_t head_ = 0;
     std::size_t tail_ = 0;
-    const std::size_t max_size_;
+    std::size_t const max_size_;
     bool full_ = false;
 };
 #endif

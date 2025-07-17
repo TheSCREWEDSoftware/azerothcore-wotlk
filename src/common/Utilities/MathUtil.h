@@ -38,7 +38,7 @@ inline T standard_deviation(Container&& c)
     }
 
     T accum = T();
-    for (const auto d : c)
+    for (auto const d : c)
     {
         accum += (d - mean) * (d - mean);
     }

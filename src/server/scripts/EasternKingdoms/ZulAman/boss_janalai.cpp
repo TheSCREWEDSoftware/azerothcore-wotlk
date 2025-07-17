@@ -72,12 +72,12 @@ enum Creatures
     NPC_FIRE_BOMB               = 23920
 };
 
-const int area_dx = 44;
-const int area_dy = 51;
+int const area_dx = 44;
+int const area_dy = 51;
 
-const Position janalainPos = {-33.93f, 1149.27f, 19.0f, 0.0f};
+Position const janalainPos = {-33.93f, 1149.27f, 19.0f, 0.0f};
 
-const Position fireWallCoords[4] =
+Position const fireWallCoords[4] =
 {
     {-10.13f, 1149.27f, 19, 3.1415f},
     {-33.93f, 1123.90f, 19, 0.5f * 3.1415f},
@@ -85,7 +85,7 @@ const Position fireWallCoords[4] =
     {-33.93f, 1175.68f, 19, 1.5f * 3.1415f}
 };
 
-const Position hatcherway[2][5] =
+Position const hatcherway[2][5] =
 {
     {
         {-87.46f, 1170.09f, 6.0f, 0.0f},

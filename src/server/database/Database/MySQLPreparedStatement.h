@@ -44,19 +44,19 @@ public:
     uint32 GetParameterCount() const { return m_paramCount; }
 
 protected:
-    void SetParameter(const uint8 index, bool value);
-    void SetParameter(const uint8 index, std::nullptr_t /*value*/);
-    void SetParameter(const uint8 index, std::string const& value);
-    void SetParameter(const uint8 index, std::vector<uint8> const& value);
+    void SetParameter(uint8 const index, bool value);
+    void SetParameter(uint8 const index, std::nullptr_t /*value*/);
+    void SetParameter(uint8 const index, std::string const& value);
+    void SetParameter(uint8 const index, std::vector<uint8> const& value);
 
     template<typename T>
-    void SetParameter(const uint8 index, T value);
+    void SetParameter(uint8 const index, T value);
 
     MySQLStmt* GetSTMT() { return m_Mstmt; }
     MySQLBind* GetBind() { return m_bind; }
     PreparedStatementBase* m_stmt;
     void ClearParameters();
-    void AssertValidIndex(const uint8 index);
+    void AssertValidIndex(uint8 const index);
     std::string getQueryString() const;
 
 private:

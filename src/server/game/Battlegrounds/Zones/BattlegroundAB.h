@@ -175,11 +175,11 @@ enum BG_AB_Misc
     BG_AB_BANNER_UPDATE_TIME            = 2000
 };
 
-const uint32 BG_AB_TickIntervals[BG_AB_DYNAMIC_NODES_COUNT + 1] = {0, 12000, 9000, 6000, 3000, 1000};
-const uint32 BG_AB_TickPoints[BG_AB_DYNAMIC_NODES_COUNT + 1] = {0, 10, 10, 10, 10, 30};
-const uint32 BG_AB_GraveyardIds[BG_AB_ALL_NODES_COUNT] = {895, 894, 893, 897, 896, 898, 899};
+uint32 const BG_AB_TickIntervals[BG_AB_DYNAMIC_NODES_COUNT + 1] = {0, 12000, 9000, 6000, 3000, 1000};
+uint32 const BG_AB_TickPoints[BG_AB_DYNAMIC_NODES_COUNT + 1] = {0, 10, 10, 10, 10, 30};
+uint32 const BG_AB_GraveyardIds[BG_AB_ALL_NODES_COUNT] = {895, 894, 893, 897, 896, 898, 899};
 
-const float BG_AB_BuffPositions[BG_AB_DYNAMIC_NODES_COUNT][4] =
+float const BG_AB_BuffPositions[BG_AB_DYNAMIC_NODES_COUNT][4] =
 {
     {1185.71f, 1185.24f, -56.36f, 2.56f},                   // stables
     {990.75f, 1008.18f, -42.60f, 2.43f},                    // blacksmith
@@ -188,7 +188,7 @@ const float BG_AB_BuffPositions[BG_AB_DYNAMIC_NODES_COUNT][4] =
     {1146.62f, 816.94f, -98.49f, 6.14f}                     // gold mine
 };
 
-const float BG_AB_NodePositions[BG_AB_DYNAMIC_NODES_COUNT][4] =
+float const BG_AB_NodePositions[BG_AB_DYNAMIC_NODES_COUNT][4] =
 {
     {1166.785f, 1200.132f, -56.70859f, 0.9075713f},         // stables
     {977.0156f, 1046.616f, -44.80923f, -2.600541f},         // blacksmith
@@ -197,13 +197,13 @@ const float BG_AB_NodePositions[BG_AB_DYNAMIC_NODES_COUNT][4] =
     {1146.923f, 848.1782f, -110.917f, -0.7330382f}          // gold mine
 };
 
-const float BG_AB_DoorPositions[2][8] =
+float const BG_AB_DoorPositions[2][8] =
 {
     {1284.597f, 1281.167f, -15.97792f, 0.7068594f, 0.012957f, -0.060288f, 0.344959f, 0.93659f},
     {708.0903f, 708.4479f, -17.8342f, -2.391099f, 0.050291f, 0.015127f, 0.929217f, -0.365784f}
 };
 
-const float BG_AB_SpiritGuidePos[BG_AB_ALL_NODES_COUNT][4] =
+float const BG_AB_SpiritGuidePos[BG_AB_ALL_NODES_COUNT][4] =
 {
     {1200.03f, 1171.09f, -56.47f, 5.15f},                   // stables
     {1017.43f, 960.61f, -42.95f, 4.88f},                    // blacksmith

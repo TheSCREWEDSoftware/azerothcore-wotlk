@@ -108,9 +108,9 @@ enum Yells
     RANDOM_SOUND_WHISPER                        = 8663,
 };
 
-const Position StomachPosition = { -8562.0f, 2037.0f, -70.0f, 5.05f };
+Position const StomachPosition = { -8562.0f, 2037.0f, -70.0f, 5.05f };
 
-const Position FleshTentaclePos[2] =
+Position const FleshTentaclePos[2] =
 {
     { -8571.0f, 1990.0f, -98.0f, 1.22f},
     { -8525.0f, 1994.0f, -98.0f, 2.12f},
@@ -128,7 +128,7 @@ public:
 };
 
 //Kick out position
-const Position KickPos = { -8545.0f, 1984.0f, -96.0f, 0.0f};
+Position const KickPos = { -8545.0f, 1984.0f, -96.0f, 0.0f};
 
 struct boss_eye_of_cthun : public BossAI
 {

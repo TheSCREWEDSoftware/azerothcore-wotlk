@@ -107,7 +107,7 @@ TEST_F(ArenaSeasonRewardDistributorTest, ManyTeamsTwoRewardsDistribution)
     ArenaTeamMgr::ArenaTeamContainer arenaTeams;
     std::vector<ArenaSeasonRewardGroup> rewardGroups;
 
-    const int numTeams = 1000;
+    int const numTeams = 1000;
     ArenaTeam teams[numTeams + 1]; // used just to prevent teams deletion
     for (int i = 1; i <= numTeams; i++)
     {

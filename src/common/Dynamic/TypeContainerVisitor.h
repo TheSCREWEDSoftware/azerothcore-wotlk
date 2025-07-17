@@ -90,7 +90,7 @@ public:
         VisitorHelper(i_visitor, c);
     }
 
-    void Visit(const TYPE_CONTAINER& c) const
+    void Visit(TYPE_CONTAINER const& c) const
     {
         VisitorHelper(i_visitor, c);
     }

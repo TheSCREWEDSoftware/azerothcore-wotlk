@@ -538,7 +538,7 @@ class spell_item_essence_of_life : public AuraScript
     }
 };
 
-const uint32 crazyAlchemistTable[5] =
+uint32 const crazyAlchemistTable[5] =
 {
     53909, // Wild Magic
     53908, // Potion of Speed

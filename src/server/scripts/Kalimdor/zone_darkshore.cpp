@@ -260,7 +260,7 @@ public:
         }
     };
 
-    bool OnQuestAccept(Player* player, Creature* creature, const Quest* quest) override
+    bool OnQuestAccept(Player* player, Creature* creature, Quest const* quest) override
     {
         if (quest->GetQuestId() == QUEST_SLEEPER_AWAKENED)
         {
@@ -392,7 +392,7 @@ public:
         }
     };
 
-    bool OnQuestAccept(Player* player, Creature* creature, const Quest* quest) override
+    bool OnQuestAccept(Player* player, Creature* creature, Quest const* quest) override
     {
         if (quest->GetQuestId() == QUEST_ABSENT_MINDED_PT2)
         {
@@ -612,7 +612,7 @@ public:
         float      _facing;
     };
 
-    bool OnQuestReward(Player* player, Creature* creature, const Quest* _Quest, uint32 /*slot*/) override
+    bool OnQuestReward(Player* player, Creature* creature, Quest const* _Quest, uint32 /*slot*/) override
     {
         if (_Quest->GetQuestId() == QUEST_PLAGUED_LANDS)
         {

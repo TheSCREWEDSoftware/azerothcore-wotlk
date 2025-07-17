@@ -92,24 +92,24 @@ enum Misc
     NPC_WORLD_TRIGGER_RIGHT     = 25358
 };
 
-const Position LeftSideLanes[3] =
+Position const LeftSideLanes[3] =
 {
     { 1494.745f,  704.0001f,  50.084652f, 4.7472f }, // top
     { 1469.923f,  703.23914f, 50.08592f,  4.7472f }, // middle
     { 1446.5154f, 701.5184f,  50.085438f, 4.7472f } // bottom
 };
 
-const Position RightSideLanes[3] =
+Position const RightSideLanes[3] =
 {
     { 1492.82f,   515.668f,  50.0833f,   1.4486f }, // top
     { 1466.7322f, 515.5953f, 50.571518f, 1.4486f }, // middle
     { 1441.64f,   520.52f,   50.0833f,   1.4486f } // bottom
 };
 
-const Position RightSide = { 1458.5555f, 502.1995f, 59.899513f, 1.605702f };
-const Position LeftSide = { 1469.0642f, 729.5854f, 59.823853f, 4.6774f };
-const Position LandingLeftPos = { 1476.77f, 665.094f, 20.6423f };
-const Position LandingRightPos = { 1469.93f, 557.009f, 22.631699f };
+Position const RightSide = { 1458.5555f, 502.1995f, 59.899513f, 1.605702f };
+Position const LeftSide = { 1469.0642f, 729.5854f, 59.823853f, 4.6774f };
+Position const LandingLeftPos = { 1476.77f, 665.094f, 20.6423f };
+Position const LandingRightPos = { 1469.93f, 557.009f, 22.631699f };
 
 class CorruptTriggers : public BasicEvent
 {
@@ -190,7 +190,7 @@ struct boss_felmyst : public BossAI
             Talk(YELL_KILL);
     }
 
-    void SpellHitTarget(Unit* target, const SpellInfo* spell) override
+    void SpellHitTarget(Unit* target, SpellInfo const* spell) override
     {
         if (spell->Id == SPELL_STRAFE_TOP || spell->Id == SPELL_STRAFE_MIDDLE || spell->Id == SPELL_STRAFE_BOTTOM)
             target->CastSpell(target, SPELL_FOG_OF_CORRUPTION, true);

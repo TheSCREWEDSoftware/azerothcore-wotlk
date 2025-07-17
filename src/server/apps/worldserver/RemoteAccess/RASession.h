@@ -24,7 +24,7 @@
 
 using boost::asio::ip::tcp;
 
-const std::size_t bufferSize = 4096;
+std::size_t const bufferSize = 4096;
 
 class RASession : public std::enable_shared_from_this<RASession>
 {
@@ -34,14 +34,14 @@ public:
 
     void Start();
 
-    const std::string GetRemoteIpAddress() const { return _socket.remote_endpoint().address().to_string(); }
+    std::string const GetRemoteIpAddress() const { return _socket.remote_endpoint().address().to_string(); }
     unsigned short GetRemotePort() const { return _socket.remote_endpoint().port(); }
 
 private:
     int Send(std::string_view data);
     std::string ReadString();
-    bool CheckAccessLevel(const std::string& user);
-    bool CheckPassword(const std::string& user, const std::string& pass);
+    bool CheckAccessLevel(std::string const& user);
+    bool CheckPassword(std::string const& user, std::string const& pass);
     bool ProcessCommand(std::string& command);
 
     static void CommandPrint(void* callbackArg, std::string_view text);

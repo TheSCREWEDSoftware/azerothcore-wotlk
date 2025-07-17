@@ -535,7 +535,7 @@ public:
         {
             if (CreatureGroup* formation = me->GetFormation())
             {
-                const CreatureGroup::CreatureGroupMemberType& members = formation->GetMembers();
+                CreatureGroup::CreatureGroupMemberType const& members = formation->GetMembers();
                 for (CreatureGroup::CreatureGroupMemberType::const_iterator itr = members.begin(); itr != members.end(); ++itr)
                 {
                     if (itr->first && itr->first->GetOriginalEntry() == PRECIOUS_NORMAL_ENTRY)

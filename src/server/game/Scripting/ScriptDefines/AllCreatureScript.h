@@ -23,7 +23,7 @@
 class AllCreatureScript : public ScriptObject
 {
 protected:
-    AllCreatureScript(const char* name);
+    AllCreatureScript(char const* name);
 
 public:
     // Called from End of Creature Update.

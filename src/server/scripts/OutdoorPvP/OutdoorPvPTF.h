@@ -21,9 +21,9 @@
 #include "OutdoorPvP.h"
 #include "WorldStateDefines.h"
 
-const uint8 OutdoorPvPTFBuffZonesNum = 5;
+uint8 const OutdoorPvPTFBuffZonesNum = 5;
 
-const uint32 OutdoorPvPTFBuffZones[OutdoorPvPTFBuffZonesNum] =
+uint32 const OutdoorPvPTFBuffZones[OutdoorPvPTFBuffZonesNum] =
 {
     AREA_TEROKKAR_FOREST,
     AREA_SETHEKK_HALLS,
@@ -33,16 +33,16 @@ const uint32 OutdoorPvPTFBuffZones[OutdoorPvPTFBuffZonesNum] =
 };
 
 // locked for 6 hours after capture
-const uint32 TF_LOCK_TIME = 6 * HOUR * IN_MILLISECONDS;
+uint32 const TF_LOCK_TIME = 6 * HOUR * IN_MILLISECONDS;
 
 // update lock timer every 1/4 minute (overkill, but this way it's sure the timer won't "jump" 2 minutes at once.)
-const uint32 TF_LOCK_TIME_UPDATE = 15 * IN_MILLISECONDS;
+uint32 const TF_LOCK_TIME_UPDATE = 15 * IN_MILLISECONDS;
 
 // blessing of auchindoun
 #define TF_CAPTURE_BUFF 33377
 
-const uint32 TF_ALLY_QUEST = 11505;
-const uint32 TF_HORDE_QUEST = 11506;
+uint32 const TF_ALLY_QUEST = 11505;
+uint32 const TF_HORDE_QUEST = 11506;
 
 enum OutdoorPvPTF_TowerType
 {
@@ -54,7 +54,7 @@ enum OutdoorPvPTF_TowerType
     TF_TOWER_NUM
 };
 
-const go_type TFCapturePoints[TF_TOWER_NUM] =
+go_type const TFCapturePoints[TF_TOWER_NUM] =
 {
     {183104, MAP_OUTLAND, -3081.65f, 5335.03f, 17.1853f, -2.14675f, 0.0f, 0.0f, 0.878817f, -0.477159f},
     {183411, MAP_OUTLAND, -2939.9f, 4788.73f, 18.987f, 2.77507f, 0.0f, 0.0f, 0.983255f, 0.182236f},
@@ -70,7 +70,7 @@ struct tf_tower_world_state
     uint32 a;
 };
 
-const tf_tower_world_state TFTowerWorldStates[TF_TOWER_NUM] =
+tf_tower_world_state const TFTowerWorldStates[TF_TOWER_NUM] =
 {
     {WORLD_STATE_OPVP_TF_TOWER_NUM_00, WORLD_STATE_OPVP_TF_TOWER_NUM_01, WORLD_STATE_OPVP_TF_TOWER_NUM_02},
     {WORLD_STATE_OPVP_TF_TOWER_NUM_05, WORLD_STATE_OPVP_TF_TOWER_NUM_04, WORLD_STATE_OPVP_TF_TOWER_NUM_03},

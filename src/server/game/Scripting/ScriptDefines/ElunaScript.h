@@ -23,7 +23,7 @@
 class ElunaScript : public ScriptObject
 {
 protected:
-    ElunaScript(const char* name);
+    ElunaScript(char const* name);
 
 public:
     /**

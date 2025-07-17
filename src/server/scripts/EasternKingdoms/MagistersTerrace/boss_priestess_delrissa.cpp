@@ -43,7 +43,7 @@ enum Misc
     MAX_HELPERS_COUNT              = 8
 };
 
-const Position helpersLocations[MAX_ACTIVE_HELPERS] =
+Position const helpersLocations[MAX_ACTIVE_HELPERS] =
 {
     {123.77f, 17.6007f, -19.921f, 4.98f},
     {131.731f, 15.0827f, -19.921f, 4.98f},
@@ -51,7 +51,7 @@ const Position helpersLocations[MAX_ACTIVE_HELPERS] =
     {129.988f, 17.2355f, -19.921f, 4.98f},
 };
 
-const uint32 helpersEntries[MAX_HELPERS_COUNT] =
+uint32 const helpersEntries[MAX_HELPERS_COUNT] =
 {
     24557,                                                  //Kagani Nightstrike
     24558,                                                  //Elris Duskhallow
@@ -224,7 +224,7 @@ struct boss_priestess_lackey_commonAI : public ScriptedAI
         float unimportant_dist = (aiType == AI_TYPE_MELEE ? 5.0f : 25.0f);
         if (dist > unimportant_dist) dist -= unimportant_dist;
         else dist = 0.0f;
-        const float dist_factor = (aiType == AI_TYPE_MELEE ? 15.0f : 25.0f);
+        float const dist_factor = (aiType == AI_TYPE_MELEE ? 15.0f : 25.0f);
         float mod_dist = dist_factor / (dist_factor + dist); // 0.2 .. 1.0
         float mod_health = health > 20000 ? 2.0f : (40000 - health) / 10000.0f; // 2.0 .. 4.0
         float mod_armor = aiType == AI_TYPE_MELEE ? Unit::CalcArmorReducedDamage(me, target, 10000, nullptr) / 10000.0f : 1.0f;

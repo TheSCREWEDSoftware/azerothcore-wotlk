@@ -136,7 +136,7 @@ public:
         uint32 m_algalonTimer;
 
         // Ancient Gate
-        const Position triggerAncientGatePosition = { 1883.65f, 269.272f, 418.406f };
+        Position const triggerAncientGatePosition = { 1883.65f, 269.272f, 418.406f };
 
         // Shared
         EventMap _events;
@@ -1256,7 +1256,7 @@ public:
     };
 };
 
-const Position vehiclePositions[30] =
+Position const vehiclePositions[30] =
 {
     // Start Positions
     // Siege

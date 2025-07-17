@@ -231,7 +231,7 @@ private:
 
         MessageBuffer& packet = GetReadBuffer();
 
-        const int minimumProxyProtocolV2Size = 28;
+        int const minimumProxyProtocolV2Size = 28;
         if (packet.GetActiveSize() < minimumProxyProtocolV2Size)
         {
             AsyncReadProxyHeader();
@@ -240,8 +240,8 @@ private:
 
         uint8* readPointer = packet.GetReadPointer();
 
-        const uint8 signatureSize = 12;
-        const uint8 expectedSignature[signatureSize] = {0x0D, 0x0A, 0x0D, 0x0A, 0x00, 0x0D, 0x0A, 0x51, 0x55, 0x49, 0x54, 0x0A};
+        uint8 const signatureSize = 12;
+        uint8 const expectedSignature[signatureSize] = {0x0D, 0x0A, 0x0D, 0x0A, 0x00, 0x0D, 0x0A, 0x51, 0x55, 0x49, 0x54, 0x0A};
         if (memcmp(packet.GetReadPointer(), expectedSignature, signatureSize) != 0)
         {
             _proxyHeaderReadingState = PROXY_HEADER_READING_STATE_FAILED;
@@ -249,8 +249,8 @@ private:
             return;
         }
 
-        const uint8 version = (readPointer[signatureSize] & 0xF0) >> 4;
-        const uint8 command = (readPointer[signatureSize] & 0xF);
+        uint8 const version = (readPointer[signatureSize] & 0xF0) >> 4;
+        uint8 const command = (readPointer[signatureSize] & 0xF);
 
         if (version != 2)
         {
@@ -259,8 +259,8 @@ private:
             return;
         }
 
-        const uint8 addressFamily = readPointer[13];
-        const uint16 len = (readPointer[14] << 8) | readPointer[15];
+        uint8 const addressFamily = readPointer[13];
+        uint16 const len = (readPointer[14] << 8) | readPointer[15];
         if (static_cast<size_t>(len+16) > packet.GetActiveSize())
         {
             AsyncReadProxyHeader();

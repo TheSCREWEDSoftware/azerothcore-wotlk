@@ -177,7 +177,7 @@ enum Events
     EVENT_MINIDRAKE_SPEECH                      = 34,
 };
 
-const Position portalPos[4] =
+Position const portalPos[4] =
 {
     { 3247.29f, 529.804f, 58.9595f, 0.0f },
     { 3248.62f, 646.739f, 85.2939f, 0.0f },
@@ -187,7 +187,7 @@ const Position portalPos[4] =
 
 // 0 = Tenebron normal
 // 1 = Tenebron was called by Sartharion
-const Position TenebronEggsPos[2][MAX_TENEBORN_EGGS_SUMMONS] =
+Position const TenebronEggsPos[2][MAX_TENEBORN_EGGS_SUMMONS] =
 {
     // Teneborn normal
     {
@@ -209,7 +209,7 @@ const Position TenebronEggsPos[2][MAX_TENEBORN_EGGS_SUMMONS] =
     }
 };
 
-const Position CycloneSummonPos[MAX_CYCLONE_COUNT] =
+Position const CycloneSummonPos[MAX_CYCLONE_COUNT] =
 {
     { 3235.28f, 591.180f, 57.0833f, 0.59037f },
     { 3200.97f, 480.929f, 57.0833f, 5.86197f },
@@ -218,13 +218,13 @@ const Position CycloneSummonPos[MAX_CYCLONE_COUNT] =
     { 3286.42f, 585.010f, 57.0833f, 4.10307f },
 };
 
-const Position AreaTriggerSummonPos[MAX_AREA_TRIGGER_COUNT] =
+Position const AreaTriggerSummonPos[MAX_AREA_TRIGGER_COUNT] =
 {
     { 3244.14f, 512.597f, 58.6534f, 0.0f },
     { 3242.84f, 553.979f, 58.8272f, 0.0f },
 };
 
-const float SartharionBoundary[MAX_BOUNDARY_POSITIONS] =
+float const SartharionBoundary[MAX_BOUNDARY_POSITIONS] =
 {
     3218.86f,   // South X
     3275.69f,   // North X
@@ -232,9 +232,9 @@ const float SartharionBoundary[MAX_BOUNDARY_POSITIONS] =
     572.4f      // West Y
 };
 
-const Position bigIslandMiddlePos = { 3242.822754f, 477.279816f, 57.430473f };
+Position const bigIslandMiddlePos = { 3242.822754f, 477.279816f, 57.430473f };
 
-const uint32 dragons[MAX_DRAGONS] = { DATA_TENEBRON, DATA_VESPERON, DATA_SHADRON };
+uint32 const dragons[MAX_DRAGONS] = { DATA_TENEBRON, DATA_VESPERON, DATA_SHADRON };
 
 /////////////////////////////
 // SARTHARION

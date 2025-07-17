@@ -56,11 +56,11 @@ class GameObjectModel
 public:
     std::string name;
 
-    [[nodiscard]] const G3D::AABox& GetBounds() const { return iBound; }
+    [[nodiscard]] G3D::AABox const& GetBounds() const { return iBound; }
 
     ~GameObjectModel();
 
-    [[nodiscard]] const G3D::Vector3& GetPosition() const { return iPos; }
+    [[nodiscard]] G3D::Vector3 const& GetPosition() const { return iPos; }
 
     /** Enables\disables collision. */
     void disable() { phasemask = 0; }
@@ -69,7 +69,7 @@ public:
     [[nodiscard]] bool isEnabled() const { return phasemask != 0; }
     [[nodiscard]] bool IsMapObject() const { return isWmo; }
 
-    bool intersectRay(const G3D::Ray& Ray, float& MaxDist, bool StopAtFirstHit, uint32 ph_mask, VMAP::ModelIgnoreFlags ignoreFlags) const;
+    bool intersectRay(G3D::Ray const& Ray, float& MaxDist, bool StopAtFirstHit, uint32 ph_mask, VMAP::ModelIgnoreFlags ignoreFlags) const;
     void IntersectPoint(G3D::Vector3 const& point, VMAP::AreaInfo& info, uint32 ph_mask) const;
     bool GetLocationInfo(G3D::Vector3 const& point, VMAP::LocationInfo& info, uint32 ph_mask) const;
     bool GetLiquidLevel(G3D::Vector3 const& point, VMAP::LocationInfo& info, float& liqHeight) const;

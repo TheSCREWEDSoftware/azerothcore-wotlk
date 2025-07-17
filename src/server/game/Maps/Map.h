@@ -198,7 +198,7 @@ public:
     void GameObjectRelocation(GameObject* go, float x, float y, float z, float o);
     void DynamicObjectRelocation(DynamicObject* go, float x, float y, float z, float o);
 
-    template<class T, class CONTAINER> void Visit(const Cell& cell, TypeContainerVisitor<T, CONTAINER>& visitor);
+    template<class T, class CONTAINER> void Visit(Cell const& cell, TypeContainerVisitor<T, CONTAINER>& visitor);
 
     bool IsGridLoaded(GridCoord const& gridCoord) const;
     bool IsGridLoaded(float x, float y) const
@@ -279,7 +279,7 @@ public:
 
     virtual EnterState CannotEnter(Player* /*player*/, bool /*loginCheck = false*/) { return CAN_ENTER; }
 
-    [[nodiscard]] const char* GetMapName() const;
+    [[nodiscard]] char const* GetMapName() const;
 
     // have meaning only for instanced map (that have set real difficulty)
     [[nodiscard]] Difficulty GetDifficulty() const { return Difficulty(GetSpawnMode()); }
@@ -307,7 +307,7 @@ public:
 
     void AddObjectToRemoveList(WorldObject* obj);
     void AddObjectToSwitchList(WorldObject* obj, bool on);
-    virtual void DelayedUpdate(const uint32 diff);
+    virtual void DelayedUpdate(uint32 const diff);
 
     void resetMarkedCells() { marked_cells.reset(); }
     bool isCellMarked(uint32 pCellId) { return marked_cells.test(pCellId); }
@@ -396,9 +396,9 @@ public:
     bool CanReachPositionAndGetValidCoords(WorldObject const* source, float startX, float startY, float startZ, float &destX, float &destY, float &destZ, bool failOnCollision = true, bool failOnSlopes = true) const;
     bool CheckCollisionAndGetValidCoords(WorldObject const* source, float startX, float startY, float startZ, float &destX, float &destY, float &destZ, bool failOnCollision = true) const;
     void Balance() { _dynamicTree.balance(); }
-    void RemoveGameObjectModel(const GameObjectModel& model) { _dynamicTree.remove(model); }
-    void InsertGameObjectModel(const GameObjectModel& model) { _dynamicTree.insert(model); }
-    [[nodiscard]] bool ContainsGameObjectModel(const GameObjectModel& model) const { return _dynamicTree.contains(model);}
+    void RemoveGameObjectModel(GameObjectModel const& model) { _dynamicTree.remove(model); }
+    void InsertGameObjectModel(GameObjectModel const& model) { _dynamicTree.insert(model); }
+    [[nodiscard]] bool ContainsGameObjectModel(GameObjectModel const& model) const { return _dynamicTree.contains(model);}
     [[nodiscard]] DynamicMapTree const& GetDynamicMapTree() const { return _dynamicTree; }
     bool GetObjectHitPos(uint32 phasemask, float x1, float y1, float z1, float x2, float y2, float z2, float& rx, float& ry, float& rz, float modifyDist);
     [[nodiscard]] float GetGameObjectFloor(uint32 phasemask, float x, float y, float z, float maxSearchDist = DEFAULT_HEIGHT_SEARCH) const
@@ -560,13 +560,13 @@ protected:
     TransportsContainer::iterator _transportsUpdateIter;
 
 private:
-    Player* _GetScriptPlayerSourceOrTarget(Object* source, Object* target, const ScriptInfo* scriptInfo) const;
-    Creature* _GetScriptCreatureSourceOrTarget(Object* source, Object* target, const ScriptInfo* scriptInfo, bool bReverse = false) const;
-    Unit* _GetScriptUnit(Object* obj, bool isSource, const ScriptInfo* scriptInfo) const;
-    Player* _GetScriptPlayer(Object* obj, bool isSource, const ScriptInfo* scriptInfo) const;
-    Creature* _GetScriptCreature(Object* obj, bool isSource, const ScriptInfo* scriptInfo) const;
-    WorldObject* _GetScriptWorldObject(Object* obj, bool isSource, const ScriptInfo* scriptInfo) const;
-    void _ScriptProcessDoor(Object* source, Object* target, const ScriptInfo* scriptInfo) const;
+    Player* _GetScriptPlayerSourceOrTarget(Object* source, Object* target, ScriptInfo const* scriptInfo) const;
+    Creature* _GetScriptCreatureSourceOrTarget(Object* source, Object* target, ScriptInfo const* scriptInfo, bool bReverse = false) const;
+    Unit* _GetScriptUnit(Object* obj, bool isSource, ScriptInfo const* scriptInfo) const;
+    Player* _GetScriptPlayer(Object* obj, bool isSource, ScriptInfo const* scriptInfo) const;
+    Creature* _GetScriptCreature(Object* obj, bool isSource, ScriptInfo const* scriptInfo) const;
+    WorldObject* _GetScriptWorldObject(Object* obj, bool isSource, ScriptInfo const* scriptInfo) const;
+    void _ScriptProcessDoor(Object* source, Object* target, ScriptInfo const* scriptInfo) const;
     GameObject* _FindGameObject(WorldObject* pWorldObject, ObjectGuid::LowType guid) const;
 
     //used for fast base_map (e.g. MapInstanced class object) search for

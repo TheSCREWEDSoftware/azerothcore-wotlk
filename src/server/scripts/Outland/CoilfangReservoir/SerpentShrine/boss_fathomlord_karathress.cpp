@@ -72,7 +72,7 @@ enum Misc
     ACTION_RESET_ADDS               = 1
 };
 
-const Position olumWalk = { 456.17194f, -544.31866f, -7.5470476f, 0.00f };
+Position const olumWalk = { 456.17194f, -544.31866f, -7.5470476f, 0.00f };
 
 struct boss_fathomlord_karathress : public BossAI
 {

@@ -380,7 +380,7 @@ enum BG_AV_OBJECTS
     AV_OPLACE_MAX                         = 161
 };
 
-const float BG_AV_ObjectPos[AV_OPLACE_MAX][4] =
+float const BG_AV_ObjectPos[AV_OPLACE_MAX][4] =
 {
     {638.592f, -32.422f, 46.0608f, -1.62316f }, //firstaid station
     {669.007f, -294.078f, 30.2909f, 2.77507f }, //stormpike
@@ -746,7 +746,7 @@ std::tuple<uint32, Position, std::array<float, 4>> const BG_AV_HallowsEndObjectP
     { 180427, {   636.71f, -62.2118f, 69.4788f,  2.19911f }, { 0.0f, 0.0f,   0.891006f,  0.453991f } }, // 46248
 };
 
-const float BG_AV_DoorPositons[2][4] =
+float const BG_AV_DoorPositons[2][4] =
 {
     {780.487f, -493.024f, 99.9553f, 3.0976f},   //alliance
     {-1375.193f, -538.981f, 55.2824f, 0.72178f} //horde
@@ -846,7 +846,7 @@ enum BG_AV_CreaturePlace
 };
 
 //x, y, z, o
-const float BG_AV_CreaturePos[AV_CPLACE_MAX][4] =
+float const BG_AV_CreaturePos[AV_CPLACE_MAX][4] =
 {
     //spiritguides
     {643.000000f, 44.000000f, 69.740196f, -0.001854f},
@@ -1259,7 +1259,7 @@ enum BG_AV_CreatureIds
     AV_NPC_INFO_MAX        = 48
 };
 
-const uint32 BG_AV_CreatureInfo[AV_NPC_INFO_MAX] =
+uint32 const BG_AV_CreatureInfo[AV_NPC_INFO_MAX] =
 {
     12050, // Stormpike Defender
     13326, // Seasoned Defender
@@ -1319,7 +1319,7 @@ const uint32 BG_AV_CreatureInfo[AV_NPC_INFO_MAX] =
 };
 
 //x, y, z, o, static_creature_info-id
-const float BG_AV_StaticCreaturePos[AV_STATICCPLACE_MAX][5] =
+float const BG_AV_StaticCreaturePos[AV_STATICCPLACE_MAX][5] =
 {
     //static creatures
     {-1235.31f, -340.777f, 60.5088f, 3.31613f, 0 }, //2225 - Zora Guthrek
@@ -1447,7 +1447,7 @@ const float BG_AV_StaticCreaturePos[AV_STATICCPLACE_MAX][5] =
     {-1370.9f, -219.793f, 98.4258f, 5.04381f, 47}, //drek thar
 };
 
-const uint32 BG_AV_StaticCreatureInfo[51] =
+uint32 const BG_AV_StaticCreatureInfo[51] =
 {
     2225,  // Zora Guthrek
     3343,  // Grelkor
@@ -1515,7 +1515,7 @@ enum BG_AV_Graveyards
     AV_GRAVE_MAIN_HORDE        = 610
 };
 
-const uint32 BG_AV_GraveyardIds[9] =
+uint32 const BG_AV_GraveyardIds[9] =
 {
     AV_GRAVE_STORM_AID,
     AV_GRAVE_STORM_GRAVE,
@@ -1545,14 +1545,14 @@ enum BG_AV_States
 };
 
 //alliance_control neutral_control horde_control
-const uint32 BG_AV_MineWorldStates[2][3] =
+uint32 const BG_AV_MineWorldStates[2][3] =
 {
     {WORLD_STATE_BATTLEGROUND_AV_N_MINE_A, WORLD_STATE_BATTLEGROUND_AV_N_MINE_N, WORLD_STATE_BATTLEGROUND_AV_N_MINE_H},
     {WORLD_STATE_BATTLEGROUND_AV_S_MINE_A, WORLD_STATE_BATTLEGROUND_AV_S_MINE_N, WORLD_STATE_BATTLEGROUND_AV_S_MINE_H}
 };
 
 //alliance_control alliance_assault h_control h_assault
-const uint32 BG_AV_NodeWorldStates[16][4] =
+uint32 const BG_AV_NodeWorldStates[16][4] =
 {
     //Stormpike first aid station
     {WORLD_STATE_BATTLEGROUND_AV_AID_A_C, WORLD_STATE_BATTLEGROUND_AV_AID_A_A, WORLD_STATE_BATTLEGROUND_AV_AID_H_C, WORLD_STATE_BATTLEGROUND_AV_AID_H_A},

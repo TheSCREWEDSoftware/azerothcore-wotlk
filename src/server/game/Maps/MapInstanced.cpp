@@ -41,7 +41,7 @@ void MapInstanced::InitVisibilityDistance()
     }
 }
 
-void MapInstanced::Update(const uint32 t, const uint32 s_diff, bool /*thread*/)
+void MapInstanced::Update(uint32 const t, uint32 const s_diff, bool /*thread*/)
 {
     // take care of loaded GridMaps (when unused, unload it!)
     Map::Update(t, s_diff, false);
@@ -70,7 +70,7 @@ void MapInstanced::Update(const uint32 t, const uint32 s_diff, bool /*thread*/)
     }
 }
 
-void MapInstanced::DelayedUpdate(const uint32 diff)
+void MapInstanced::DelayedUpdate(uint32 const diff)
 {
     for (InstancedMaps::iterator i = m_InstancedMaps.begin(); i != m_InstancedMaps.end(); ++i)
         i->second->DelayedUpdate(diff);
@@ -107,7 +107,7 @@ void MapInstanced::UnloadAll()
 - create the instance if it's not created already
 - the player is not actually added to the instance (only in InstanceMap::Add)
 */
-Map* MapInstanced::CreateInstanceForPlayer(const uint32 mapId, Player* player)
+Map* MapInstanced::CreateInstanceForPlayer(uint32 const mapId, Player* player)
 {
     if (GetId() != mapId || !player)
         return nullptr;

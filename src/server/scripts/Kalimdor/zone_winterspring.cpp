@@ -224,7 +224,7 @@ private:
     uint32 _actionTimer;
 };
 
-const DialogueEntry introDialogue[] =
+DialogueEntry const introDialogue[] =
 {
     {SAY_REACH_ALTAR_1,         NPC_RANSHALLA,          2000},
     {SAY_REACH_ALTAR_2,         NPC_RANSHALLA,          3000},

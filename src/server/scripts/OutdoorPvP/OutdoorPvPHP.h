@@ -23,7 +23,7 @@
 
 #define OutdoorPvPHPBuffZonesNum 6
 
-const uint32 OutdoorPvPHPBuffZones[OutdoorPvPHPBuffZonesNum] =
+uint32 const OutdoorPvPHPBuffZones[OutdoorPvPHPBuffZonesNum] =
 {
     AREA_HELLFIRE_PENINSULA,
     AREA_HELLFIRE_CITADEL,
@@ -49,32 +49,32 @@ enum OutdoorPvPHPTowerType
     HP_TOWER_NUM = 3
 };
 
-const uint32 HP_CREDITMARKER[HP_TOWER_NUM] = {19032, 19028, 19029};
+uint32 const HP_CREDITMARKER[HP_TOWER_NUM] = {19032, 19028, 19029};
 
 //const uint32 HP_CapturePointEvent_Enter[HP_TOWER_NUM] = {11404, 11396, 11388};
 
 //const uint32 HP_CapturePointEvent_Leave[HP_TOWER_NUM] = {11403, 11395, 11387};
 
-const uint32 HP_MAP_N[HP_TOWER_NUM] = {WORLD_STATE_OPVP_HP_BROKENHILL_N, WORLD_STATE_OPVP_HP_OVERLOOK_N, WORLD_STATE_OPVP_HP_STADIUM_N };
+uint32 const HP_MAP_N[HP_TOWER_NUM] = {WORLD_STATE_OPVP_HP_BROKENHILL_N, WORLD_STATE_OPVP_HP_OVERLOOK_N, WORLD_STATE_OPVP_HP_STADIUM_N };
 
-const uint32 HP_MAP_A[HP_TOWER_NUM] = {WORLD_STATE_OPVP_HP_BROKENHILL_A, WORLD_STATE_OPVP_HP_OVERLOOK_A, WORLD_STATE_OPVP_HP_STADIUM_A };
+uint32 const HP_MAP_A[HP_TOWER_NUM] = {WORLD_STATE_OPVP_HP_BROKENHILL_A, WORLD_STATE_OPVP_HP_OVERLOOK_A, WORLD_STATE_OPVP_HP_STADIUM_A };
 
-const uint32 HP_MAP_H[HP_TOWER_NUM] = {WORLD_STATE_OPVP_HP_BROKENHILL_H, WORLD_STATE_OPVP_HP_OVERLOOK_H, WORLD_STATE_OPVP_HP_STADIUM_H };
+uint32 const HP_MAP_H[HP_TOWER_NUM] = {WORLD_STATE_OPVP_HP_BROKENHILL_H, WORLD_STATE_OPVP_HP_OVERLOOK_H, WORLD_STATE_OPVP_HP_STADIUM_H };
 
-const uint32 HP_TowerArtKit_A[HP_TOWER_NUM] = {65, 62, 67};
+uint32 const HP_TowerArtKit_A[HP_TOWER_NUM] = {65, 62, 67};
 
-const uint32 HP_TowerArtKit_H[HP_TOWER_NUM] = {64, 61, 68};
+uint32 const HP_TowerArtKit_H[HP_TOWER_NUM] = {64, 61, 68};
 
-const uint32 HP_TowerArtKit_N[HP_TOWER_NUM] = {66, 63, 69};
+uint32 const HP_TowerArtKit_N[HP_TOWER_NUM] = {66, 63, 69};
 
-const go_type HPCapturePoints[HP_TOWER_NUM] =
+go_type const HPCapturePoints[HP_TOWER_NUM] =
 {
     {182175, MAP_OUTLAND, -471.462f, 3451.09f, 34.6432f, 0.174533f, 0.0f, 0.0f, 0.087156f, 0.996195f},      // 0 - Broken Hill
     {182174, MAP_OUTLAND, -184.889f, 3476.93f, 38.205f, -0.017453f, 0.0f, 0.0f, 0.008727f, -0.999962f},     // 1 - Overlook
     {182173, MAP_OUTLAND, -290.016f, 3702.42f, 56.6729f, 0.034907f, 0.0f, 0.0f, 0.017452f, 0.999848f}     // 2 - Stadium
 };
 
-const go_type HPTowerFlags[HP_TOWER_NUM] =
+go_type const HPTowerFlags[HP_TOWER_NUM] =
 {
     {183514, MAP_OUTLAND, -467.078f, 3528.17f, 64.7121f, 3.14159f, 0.0f, 0.0f, 1.0f, 0.0f},  // 0 broken hill
     {182525, MAP_OUTLAND, -187.887f, 3459.38f, 60.0403f, -3.12414f, 0.0f, 0.0f, 0.999962f, -0.008727f}, // 1 overlook

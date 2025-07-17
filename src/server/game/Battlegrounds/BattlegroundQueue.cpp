@@ -81,7 +81,7 @@ void BattlegroundQueue::SelectionPool::Init()
 }
 
 // returns true if we kicked more than requested
-bool BattlegroundQueue::SelectionPool::KickGroup(const uint32 size)
+bool BattlegroundQueue::SelectionPool::KickGroup(uint32 const size)
 {
     if (SelectedGroups.empty())
         return false;
@@ -376,7 +376,7 @@ bool BattlegroundQueue::IsPlayerInvitedToRatedArena(ObjectGuid pl_guid)
 }
 
 //returns true when player pl_guid is in queue and is invited to bgInstanceGuid
-bool BattlegroundQueue::IsPlayerInvited(ObjectGuid pl_guid, const uint32 bgInstanceGuid, const uint32 removeTime)
+bool BattlegroundQueue::IsPlayerInvited(ObjectGuid pl_guid, uint32 const bgInstanceGuid, uint32 const removeTime)
 {
     auto qItr = m_QueuedPlayers.find(pl_guid);
     return qItr != m_QueuedPlayers.end() && qItr->second->IsInvitedToBGInstanceGUID == bgInstanceGuid && qItr->second->RemoveInviteTime == removeTime;

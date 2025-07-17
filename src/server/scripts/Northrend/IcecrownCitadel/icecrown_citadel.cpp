@@ -1762,8 +1762,8 @@ public:
                 Position myPos = me->GetPosition();
                 me->NearTeleportTo(c->GetPositionX(), c->GetPositionY(), c->GetPositionZ(), c->GetOrientation());
                 c->NearTeleportTo(myPos.GetPositionX(), myPos.GetPositionY(), myPos.GetPositionZ(), myPos.GetOrientation());
-                const ThreatContainer::StorageType me_tl = me->GetThreatMgr().GetThreatList();
-                const ThreatContainer::StorageType target_tl = c->GetThreatMgr().GetThreatList();
+                ThreatContainer::StorageType const me_tl = me->GetThreatMgr().GetThreatList();
+                ThreatContainer::StorageType const target_tl = c->GetThreatMgr().GetThreatList();
                 DoResetThreatList();
                 for (ThreatContainer::StorageType::const_iterator iter = target_tl.begin(); iter != target_tl.end(); ++iter)
                     me->GetThreatMgr().AddThreat((*iter)->getTarget(), (*iter)->GetThreat());
@@ -2970,8 +2970,8 @@ struct npc_icc_spire_frostwyrm : public ScriptedAI
 
     void DoAction(int32 action) override
     {
-        const Position posHordeMove = { -433.667084f, 2080.347412f, 191.253860f, 3.825093f };
-        const Position posAllianceMove = { -433.589508f, 2344.564697f, 191.253616f, 2.543328f };
+        Position const posHordeMove = { -433.667084f, 2080.347412f, 191.253860f, 3.825093f };
+        Position const posAllianceMove = { -433.589508f, 2344.564697f, 191.253616f, 2.543328f };
 
         bool hordeSide = action == HORDE_AREATRIGGER || action == HORDE_AREATRIGGER + 1;
         Position landingPosition = hordeSide ? posHordeMove : posAllianceMove;
@@ -3024,7 +3024,7 @@ struct npc_icc_spire_frostwyrm : public ScriptedAI
 };
 
 #define VENGEFUL_WP_COUNT 8
-const Position VengefulWP[VENGEFUL_WP_COUNT] =
+Position const VengefulWP[VENGEFUL_WP_COUNT] =
 {
     {4432.21f, 3041.5f, 372.783f, 0.0f},
     {4408.67f, 3041.81f, 372.48f, 0.0f},
@@ -3634,8 +3634,8 @@ public:
         if (player->GetInstanceScript()->GetPersistentData(DATA_SPIRE_FROSTWYRM) != DONE)
         {
             player->GetInstanceScript()->StorePersistentData(DATA_SPIRE_FROSTWYRM, DONE);
-            const Position posHordeWyrm = { -375.538879f, 2120.774658f, 242.256775f, 3.714352f };
-            const Position posAllianceWyrm = { -361.154358f, 2305.821289f, 244.771713f, 2.704335f };
+            Position const posHordeWyrm = { -375.538879f, 2120.774658f, 242.256775f, 3.714352f };
+            Position const posAllianceWyrm = { -361.154358f, 2305.821289f, 244.771713f, 2.704335f };
 
             bool hordeSide = areaTrigger->entry == HORDE_AREATRIGGER || areaTrigger->entry == HORDE_AREATRIGGER + 1;
 

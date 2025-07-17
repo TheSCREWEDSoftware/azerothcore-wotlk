@@ -163,10 +163,10 @@ enum eIntroTexts // Before Cave
     SAY_SYLVANAS_INTRO_4                        = 13,
 };
 
-const Position PortalPos = {424.46f, 212.16f, 528.8f, 0.0f};
-const Position LeaderIntroPos = {440.788f, 213.76f, 528.711f, 0.0f};
-const Position NecrolytePos1 = {506.304f, 211.78f, 528.71f, M_PI};
-const Position NecrolytePos2 = {506.127f, 231.46f, 528.71f, M_PI};
+Position const PortalPos = {424.46f, 212.16f, 528.8f, 0.0f};
+Position const LeaderIntroPos = {440.788f, 213.76f, 528.711f, 0.0f};
+Position const NecrolytePos1 = {506.304f, 211.78f, 528.71f, M_PI};
+Position const NecrolytePos2 = {506.127f, 231.46f, 528.71f, M_PI};
 
 struct ChampionPosition
 {
@@ -174,7 +174,7 @@ struct ChampionPosition
     Position endPosition;
 };
 
-const ChampionPosition introPositions[] =
+ChampionPosition const introPositions[] =
 {
     { { NPC_CHAMPION_1_ALLIANCE, NPC_CHAMPION_1_HORDE }, { 452.884f, 209.141f, 528.84f, 0.0f } },
     { { NPC_CHAMPION_1_ALLIANCE, NPC_CHAMPION_1_HORDE }, { 450.541f, 212.28f, 528.84f, 0.0f } },
@@ -210,7 +210,7 @@ enum eFBSTexts
     SAY_TYRANNUS_GARFROST                       = 0,
 };
 
-const Position FBSSpawnPos = {695.685f, -118.825f, 513.877f, 3 * M_PI / 2};
+Position const FBSSpawnPos = {695.685f, -118.825f, 513.877f, 3 * M_PI / 2};
 
 struct FBSPosition
 {
@@ -218,7 +218,7 @@ struct FBSPosition
     uint32 pathId;
 };
 
-const FBSPosition FBSData[] =
+FBSPosition const FBSData[] =
 {
     { NPC_HORDE_SLAVE_1, PATH_BEGIN_VALUE + 0 },
     { NPC_HORDE_SLAVE_1, PATH_BEGIN_VALUE + 1 },
@@ -236,10 +236,10 @@ const FBSPosition FBSData[] =
 *** SECOND BOSS SCENE:
 ************/
 
-const Position KrickCenterPos = {836.65f, 115.08f, 510.0f, 0.0f};
-const Position SBSTyrannusStartPos = {781.127f, 265.825f, 552.31f, 0.0f};
-const Position SBSLeaderStartPos = {772.716f, 111.517f, 510.81f, 0.0f};
-const Position SBSLeaderEndPos = {823.2f, -4.4497f, 509.49f, 0.86f};
+Position const KrickCenterPos = {836.65f, 115.08f, 510.0f, 0.0f};
+Position const SBSTyrannusStartPos = {781.127f, 265.825f, 552.31f, 0.0f};
+Position const SBSLeaderStartPos = {772.716f, 111.517f, 510.81f, 0.0f};
+Position const SBSLeaderEndPos = {823.2f, -4.4497f, 509.49f, 0.86f};
 
 enum eSBSTexts // Ick outro
 {
@@ -261,9 +261,9 @@ enum eSBSTexts // Ick outro
 *** PRE_TYRANNUS SCENES (WAVES OF TRASH):
 ************/
 
-const Position PTSTyrannusWaitPos1 = {923.45f, 82.65f, 582.44f, 3.59f};
-const Position PTSTyrannusWaitPos2 = {907.27f, -53.86f, 617.31f, 1.69f};
-const Position PTSTyrannusWaitPos3 = {1117.93f, -125.16f, 760.34f, 0.10f};
+Position const PTSTyrannusWaitPos1 = {923.45f, 82.65f, 582.44f, 3.59f};
+Position const PTSTyrannusWaitPos2 = {907.27f, -53.86f, 617.31f, 1.69f};
+Position const PTSTyrannusWaitPos3 = {1117.93f, -125.16f, 760.34f, 0.10f};
 
 enum ePTSTexts
 {
@@ -276,14 +276,14 @@ enum ePTSTexts
 *** TYRANNUS SCENE:
 ************/
 
-const Position TSSpawnPos = {1069.49f, 88.99f, 631.5f, 2.0f};
-const Position TSMidPos = {1051.475f, 126.56f, 628.157f, 2.02f};
-const float TSHeight = 628.157f;
-const Position TSLeaderSpawnPos = {1064.3761f, 99.10f, 631.0f, 2.1f};
-const Position TSCenterPos = {990.48f, 165.37f, 628.157f, 5.7f};
-const Position TSDistCheckPos = {1009.29f, 163.15f, 628.157f, 0.0f};
-const Position TSSindragosaPos1 = {919.10f, 249.83f, 556.34f, 5.49f};
-const Position TSSindragosaPos2 = {948.39f, 215.47f, 653.71f, 5.51f};
+Position const TSSpawnPos = {1069.49f, 88.99f, 631.5f, 2.0f};
+Position const TSMidPos = {1051.475f, 126.56f, 628.157f, 2.02f};
+float const TSHeight = 628.157f;
+Position const TSLeaderSpawnPos = {1064.3761f, 99.10f, 631.0f, 2.1f};
+Position const TSCenterPos = {990.48f, 165.37f, 628.157f, 5.7f};
+Position const TSDistCheckPos = {1009.29f, 163.15f, 628.157f, 0.0f};
+Position const TSSindragosaPos1 = {919.10f, 249.83f, 556.34f, 5.49f};
+Position const TSSindragosaPos2 = {948.39f, 215.47f, 653.71f, 5.51f};
 
 struct TSPosition
 {
@@ -291,7 +291,7 @@ struct TSPosition
     float x, y;
 };
 
-const TSPosition TSData[] =
+TSPosition const TSData[] =
 {
     { NPC_FREED_SLAVE_3_HORDE, 1047.8f, 126.01f },
     { NPC_FREED_SLAVE_3_HORDE, 1049.21f, 127.10f },

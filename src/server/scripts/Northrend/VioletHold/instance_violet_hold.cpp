@@ -209,7 +209,7 @@ public:
                     {
                         if (data)
                             bDefensesUsed = true;
-                        const Position pos = {1919.09546f, 812.29724f, 86.2905f, M_PI};
+                        Position const pos = {1919.09546f, 812.29724f, 86.2905f, M_PI};
                         instance->SummonCreature(NPC_DEFENSE_SYSTEM, pos, 0, 6499);
                     }
                     break;

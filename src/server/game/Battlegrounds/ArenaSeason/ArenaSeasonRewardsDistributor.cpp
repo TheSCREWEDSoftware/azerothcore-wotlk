@@ -35,7 +35,7 @@ void ArenaSeasonTeamRewarderImpl::RewardWithMail(ArenaTeam* arenaTeam, ArenaSeas
     if (rewardGroup.itemRewards.empty() && rewardGroup.goldReward == 0)
         return;
 
-    const uint32 npcKingDondSender = 18897;
+    uint32 const npcKingDondSender = 18897;
 
     CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
     for (auto const& member : arenaTeam->GetMembers())

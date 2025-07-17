@@ -85,7 +85,7 @@ enum Events
     EVENT_SORROWGRAVE_FINISH_RITUAL     = 15,
 };
 
-const Position RitualChannelerLoc[3] =
+Position const RitualChannelerLoc[3] =
 {
     {296.42f, -355.01f, 90.94f, 0.0f},
     {302.36f, -352.01f, 90.54f, 0.0f},

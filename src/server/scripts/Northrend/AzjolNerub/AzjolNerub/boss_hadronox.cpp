@@ -69,7 +69,7 @@ enum Misc
     ACTION_START_EVENT          = 2
 };
 
-const Position hadronoxSteps[4] =
+Position const hadronoxSteps[4] =
 {
     {607.9f, 512.8f, 695.3f, 0.0f},
     {611.67f, 564.11f, 720.0f, 0.0f},

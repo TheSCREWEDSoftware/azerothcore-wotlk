@@ -33,7 +33,7 @@ class AC_SHARED_API ByteBufferException : public std::exception
 public:
     ~ByteBufferException() noexcept override = default;
 
-    [[nodiscard]] char const* what() const noexcept override { return msg_.c_str(); }
+    [[nodiscard]] char const* what() noexcept const override { return msg_.c_str(); }
 
 protected:
     std::string & message() noexcept { return msg_; }
@@ -469,7 +469,7 @@ public:
         return append((uint8 const*)src, cnt);
     }
 
-    template<class T> void append(const T* src, std::size_t cnt)
+    template<class T> void append(T const* src, std::size_t cnt)
     {
         return append((uint8 const*)src, cnt * sizeof(T));
     }

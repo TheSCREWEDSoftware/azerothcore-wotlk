@@ -77,7 +77,7 @@ public:
     static bool IsCharmedCreature(WorldObject* obj);
     static bool IsGameObject(WorldObject* obj);
 
-    void OnUpdate(const uint32 diff);
+    void OnUpdate(uint32 const diff);
     void OnMoveInLineOfSight(Unit* who);
 
     Unit* DoSelectLowestHpFriendly(float range, uint32 MinHPDiff) const;

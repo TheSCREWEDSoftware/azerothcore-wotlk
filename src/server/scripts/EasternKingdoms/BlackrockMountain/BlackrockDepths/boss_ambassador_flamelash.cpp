@@ -35,9 +35,9 @@ enum AmbassadorEvents
     EVENT_KILL_SPIRIT       = 3
 };
 
-const uint32 NPC_FIRE_SPIRIT = 9178;
+uint32 const NPC_FIRE_SPIRIT = 9178;
 
-const Position SummonPositions[7] =
+Position const SummonPositions[7] =
 {
     {1028.786987f, -224.787186f, -61.840500f, 3.617599f},
     {1045.144775f, -241.108292f, -61.967422f, 3.617599f},

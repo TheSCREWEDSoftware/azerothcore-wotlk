@@ -83,7 +83,7 @@ bool SmartAI::IsAIControlled() const
     return !mIsCharmed;
 }
 
-void SmartAI::UpdateDespawn(const uint32 diff)
+void SmartAI::UpdateDespawn(uint32 const diff)
 {
     if (mDespawnState <= 1 || mDespawnState > 3)
         return;
@@ -389,7 +389,7 @@ void SmartAI::ReturnToLastOOCPos()
     me->GetMotionMaster()->MovePoint(SMART_ESCORT_LAST_OOC_POINT, x, y, z);
 }
 
-void SmartAI::UpdatePath(const uint32 diff)
+void SmartAI::UpdatePath(uint32 const diff)
 {
     if (!HasEscortState(SMART_ESCORT_ESCORTING))
         return;
@@ -471,7 +471,7 @@ void SmartAI::UpdatePath(const uint32 diff)
     }
 }
 
-void SmartAI::CheckConditions(const uint32 diff)
+void SmartAI::CheckConditions(uint32 const diff)
 {
     Vehicle* vehicle = me->GetVehicleKit();
     if (!vehicle)

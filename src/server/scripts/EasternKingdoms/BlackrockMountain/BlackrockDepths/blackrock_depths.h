@@ -143,7 +143,7 @@ enum eChallenge
     NPC_THELDREN  = 16059,
 };
 
-const uint32 theldrenTeam[] = {16053, 16055, 16050, 16051, 16049, 16052, 16054, 16058};
+uint32 const theldrenTeam[] = {16053, 16055, 16050, 16051, 16049, 16052, 16054, 16058};
 
 template <class AI, class T>
 inline AI* GetBlackrockDepthsAI(T* obj)

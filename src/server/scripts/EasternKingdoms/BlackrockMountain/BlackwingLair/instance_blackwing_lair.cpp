@@ -507,7 +507,7 @@ enum orb_of_command_misc
     QUEST_BLACKHANDS_COMMAND = 7761
 };
 
-const Position orbOfCommandTP = { -7672.46f, -1107.19f, 396.65f, 0.59f };
+Position const orbOfCommandTP = { -7672.46f, -1107.19f, 396.65f, 0.59f };
 
 class at_orb_of_command : public AreaTriggerScript
 {

@@ -61,7 +61,7 @@ enum Misc
     EVENT_KILL_TALK                             = 8
 };
 
-const Position SpawnLoc[] =
+Position const SpawnLoc[] =
 {
     {1783.81f, 646.637f, 133.948f, 3.71755f},
     {1775.03f, 606.586f, 134.165f, 1.43117f},

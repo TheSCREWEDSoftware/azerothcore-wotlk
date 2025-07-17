@@ -280,7 +280,7 @@ Position const GossipKeepersPos[4] =
     {2028.8219f, -65.73573f, 411.44257f, 2.460914f}  // Thorim
 };
 
-const Position KeepersPos[4] =
+Position const KeepersPos[4] =
 {
     {1939.32f,   42.165f, 338.415f, 5.17955f}, // Freya
     {1939.13f, -90.8332f, 338.415f, 1.00123f}, // Hodir
@@ -288,9 +288,9 @@ const Position KeepersPos[4] =
     {2036.59f, -73.8499f, 338.415f, 2.34819f}  // Thorim
 };
 
-const uint32 TABLE_KEEPER_ENTRY[4] = {NPC_FREYA_KEEPER, NPC_HODIR_KEEPER, NPC_MIMIRON_KEEPER, NPC_THORIM_KEEPER};
-const uint32 TABLE_GOSSIP_ENTRY[4] = {NPC_FREYA_GOSSIP, NPC_HODIR_GOSSIP, NPC_MIMIRON_GOSSIP, NPC_THORIM_GOSSIP};
-const uint32 TABLE_KEEPER_TYPE[4]  = {TYPE_FREYA,             TYPE_HODIR,       TYPE_MIMIRON,       TYPE_THORIM};
+uint32 const TABLE_KEEPER_ENTRY[4] = {NPC_FREYA_KEEPER, NPC_HODIR_KEEPER, NPC_MIMIRON_KEEPER, NPC_THORIM_KEEPER};
+uint32 const TABLE_GOSSIP_ENTRY[4] = {NPC_FREYA_GOSSIP, NPC_HODIR_GOSSIP, NPC_MIMIRON_GOSSIP, NPC_THORIM_GOSSIP};
+uint32 const TABLE_KEEPER_TYPE[4]  = {TYPE_FREYA,             TYPE_HODIR,       TYPE_MIMIRON,       TYPE_THORIM};
 
 static LocationsXY yoggPortalLoc[] =
 {
@@ -367,7 +367,7 @@ enum Texts
     SAY_YOGG_6                          = 4,
 };
 
-const Position Middle = {1980.28f, -25.5868f, 329.397f, M_PI * 1.5f};
+Position const Middle = {1980.28f, -25.5868f, 329.397f, M_PI * 1.5f};
 
 class boss_yoggsaron_sara : public CreatureScript
 {
@@ -1965,7 +1965,7 @@ public:
             _step = 0;
         }
 
-        void NextStep(const uint32 time)
+        void NextStep(uint32 const time)
         {
             _step++;
             _checkTimer = time;
@@ -2052,7 +2052,7 @@ public:
             _step = 0;
         }
 
-        void NextStep(const uint32 time)
+        void NextStep(uint32 const time)
         {
             _step++;
             _checkTimer = time;
@@ -2147,7 +2147,7 @@ public:
             _step = 0;
         }
 
-        void NextStep(const uint32 time)
+        void NextStep(uint32 const time)
         {
             _step++;
             _checkTimer = time;
@@ -2662,7 +2662,7 @@ class spell_yogg_saron_sanity_well_aura : public AuraScript
     }
 };
 
-const Position SanityWellsPos[5] =
+Position const SanityWellsPos[5] =
 {
     {2042.56f,  -40.3667f,  329.274f,  0.0f},
     {1975.89f,   40.0216f,    331.1f,  0.0f},

@@ -48,7 +48,7 @@ enum MiscHook
 class MiscScript : public ScriptObject
 {
 protected:
-    MiscScript(const char* name, std::vector<uint16> enabledHooks = std::vector<uint16>());
+    MiscScript(char const* name, std::vector<uint16> enabledHooks = std::vector<uint16>());
 
 public:
     [[nodiscard]] bool IsDatabaseBound() const override { return false; }

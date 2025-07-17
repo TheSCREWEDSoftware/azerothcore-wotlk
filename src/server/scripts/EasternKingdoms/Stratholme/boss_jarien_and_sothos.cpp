@@ -67,7 +67,7 @@ enum Actions
     ACTION_PARTNER_DEAD = 0
 };
 
-const Position heirloomsPosition = { 3423.389893f, -3055.571045f, 136.49837f, 5.707379f };
+Position const heirloomsPosition = { 3423.389893f, -3055.571045f, 136.49837f, 5.707379f };
 
 void HandleBothDead(Creature* creature, bool jarien, Unit* killer)
 {

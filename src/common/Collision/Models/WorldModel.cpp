@@ -26,21 +26,21 @@ using G3D::Ray;
 
 template<> struct BoundsTrait<VMAP::GroupModel>
 {
-    static void GetBounds(const VMAP::GroupModel& obj, G3D::AABox& out) { out = obj.GetBound(); }
+    static void GetBounds(VMAP::GroupModel const& obj, G3D::AABox& out) { out = obj.GetBound(); }
 };
 
 namespace VMAP
 {
-    bool IntersectTriangle(const MeshTriangle& tri, std::vector<Vector3>::const_iterator points, const G3D::Ray& ray, float& distance)
+    bool IntersectTriangle(MeshTriangle const& tri, std::vector<Vector3>::const_iterator points, G3D::Ray const& ray, float& distance)
     {
-        static const float EPS = 1e-5f;
+        static float const EPS = 1e-5f;
 
         // See RTR2 ch. 13.7 for the algorithm.
 
-        const Vector3 e1 = points[tri.idx1] - points[tri.idx0];
-        const Vector3 e2 = points[tri.idx2] - points[tri.idx0];
-        const Vector3 p(ray.direction().cross(e2));
-        const float a = e1.dot(p);
+        Vector3 const e1 = points[tri.idx1] - points[tri.idx0];
+        Vector3 const e2 = points[tri.idx2] - points[tri.idx0];
+        Vector3 const p(ray.direction().cross(e2));
+        float const a = e1.dot(p);
 
         if (std::fabs(a) < EPS)
         {
@@ -48,9 +48,9 @@ namespace VMAP
             return false;
         }
 
-        const float f = 1.0f / a;
-        const Vector3 s(ray.origin() - points[tri.idx0]);
-        const float u = f * s.dot(p);
+        float const f = 1.0f / a;
+        Vector3 const s(ray.origin() - points[tri.idx0]);
+        float const u = f * s.dot(p);
 
         if ((u < 0.0f) || (u > 1.0f))
         {
@@ -58,8 +58,8 @@ namespace VMAP
             return false;
         }
 
-        const Vector3 q(s.cross(e1));
-        const float v = f * ray.direction().dot(q);
+        Vector3 const q(s.cross(e1));
+        float const v = f * ray.direction().dot(q);
 
         if ((v < 0.0f) || ((u + v) > 1.0f))
         {
@@ -67,7 +67,7 @@ namespace VMAP
             return false;
         }
 
-        const float t = f * e2.dot(q);
+        float const t = f * e2.dot(q);
 
         if ((t > 0.0f) && (t < distance))
         {
@@ -88,7 +88,7 @@ namespace VMAP
     {
     public:
         TriBoundFunc(std::vector<Vector3>& vert): vertices(vert.begin()) { }
-        void operator()(const MeshTriangle& tri, G3D::AABox& out) const
+        void operator()(MeshTriangle const& tri, G3D::AABox& out) const
         {
             G3D::Vector3 lo = vertices[tri.idx0];
             G3D::Vector3 hi = lo;
@@ -104,7 +104,7 @@ namespace VMAP
 
     // ===================== WmoLiquid ==================================
 
-    WmoLiquid::WmoLiquid(uint32 width, uint32 height, const Vector3& corner, uint32 type):
+    WmoLiquid::WmoLiquid(uint32 width, uint32 height, Vector3 const& corner, uint32 type):
         iTilesX(width), iTilesY(height), iCorner(corner), iType(type)
     {
         if (width && height)
@@ -119,7 +119,7 @@ namespace VMAP
         }
     }
 
-    WmoLiquid::WmoLiquid(const WmoLiquid& other): iHeight(0), iFlags(0)
+    WmoLiquid::WmoLiquid(WmoLiquid const& other): iHeight(0), iFlags(0)
     {
         *this = other; // use assignment operator...
     }
@@ -130,7 +130,7 @@ namespace VMAP
         delete[] iFlags;
     }
 
-    WmoLiquid& WmoLiquid::operator=(const WmoLiquid& other)
+    WmoLiquid& WmoLiquid::operator=(WmoLiquid const& other)
     {
         if (this == &other)
         {
@@ -163,7 +163,7 @@ namespace VMAP
         return *this;
     }
 
-    bool WmoLiquid::GetLiquidHeight(const Vector3& pos, float& liqHeight) const
+    bool WmoLiquid::GetLiquidHeight(Vector3 const& pos, float& liqHeight) const
     {
         // simple case
         if (!iFlags)
@@ -214,7 +214,7 @@ namespace VMAP
             return false;
         }
 
-        const uint32 rowOffset = iTilesX + 1;
+        uint32 const rowOffset = iTilesX + 1;
         if (dx > dy) // case (a)
         {
             float sx = iHeight[tx + 1 +  ty    * rowOffset] - iHeight[tx   + ty * rowOffset];
@@ -311,7 +311,7 @@ namespace VMAP
 
     // ===================== GroupModel ==================================
 
-    GroupModel::GroupModel(const GroupModel& other):
+    GroupModel::GroupModel(GroupModel const& other):
         iBound(other.iBound), iMogpFlags(other.iMogpFlags), iGroupWMOID(other.iGroupWMOID),
         vertices(other.vertices), triangles(other.triangles), meshTree(other.meshTree), iLiquid(0)
     {
@@ -428,7 +428,7 @@ namespace VMAP
     {
         GModelRayCallback(const std::vector<MeshTriangle>& tris, const std::vector<Vector3>& vert):
             vertices(vert.begin()), triangles(tris.begin()), hit(false) { }
-        bool operator()(const G3D::Ray& ray, uint32 entry, float& distance, bool /*StopAtFirstHit*/)
+        bool operator()(G3D::Ray const& ray, uint32 entry, float& distance, bool /*StopAtFirstHit*/)
         {
             bool result = IntersectTriangle(triangles[entry], vertices, ray, distance);
             if (result) { hit = true; }
@@ -439,7 +439,7 @@ namespace VMAP
         bool hit;
     };
 
-    bool GroupModel::IntersectRay(const G3D::Ray& ray, float& distance, bool stopAtFirstHit) const
+    bool GroupModel::IntersectRay(G3D::Ray const& ray, float& distance, bool stopAtFirstHit) const
     {
         if (triangles.empty())
         {
@@ -451,7 +451,7 @@ namespace VMAP
         return callback.hit;
     }
 
-    bool GroupModel::IsInsideObject(const Vector3& pos, const Vector3& down, float& z_dist) const
+    bool GroupModel::IsInsideObject(Vector3 const& pos, Vector3 const& down, float& z_dist) const
     {
         if (triangles.empty() || !iBound.contains(pos))
         {
@@ -468,7 +468,7 @@ namespace VMAP
         return hit;
     }
 
-    bool GroupModel::GetLiquidLevel(const Vector3& pos, float& liqHeight) const
+    bool GroupModel::GetLiquidLevel(Vector3 const& pos, float& liqHeight) const
     {
         if (iLiquid)
         {
@@ -504,7 +504,7 @@ namespace VMAP
     struct WModelRayCallBack
     {
         WModelRayCallBack(const std::vector<GroupModel>& mod): models(mod.begin()), hit(false) { }
-        bool operator()(const G3D::Ray& ray, uint32 entry, float& distance, bool StopAtFirstHit)
+        bool operator()(G3D::Ray const& ray, uint32 entry, float& distance, bool StopAtFirstHit)
         {
             bool result = models[entry].IntersectRay(ray, distance, StopAtFirstHit);
             if (result) { hit = true; }
@@ -514,7 +514,7 @@ namespace VMAP
         bool hit;
     };
 
-    bool WorldModel::IntersectRay(const G3D::Ray& ray, float& distance, bool stopAtFirstHit, ModelIgnoreFlags ignoreFlags) const
+    bool WorldModel::IntersectRay(G3D::Ray const& ray, float& distance, bool stopAtFirstHit, ModelIgnoreFlags ignoreFlags) const
     {
         // If the caller asked us to ignore certain objects we should check flags
         if ((ignoreFlags & ModelIgnoreFlags::M2) != ModelIgnoreFlags::Nothing)
@@ -541,14 +541,14 @@ namespace VMAP
     class WModelAreaCallback
     {
     public:
-        WModelAreaCallback(const std::vector<GroupModel>& vals, const Vector3& down):
+        WModelAreaCallback(std::vector const<GroupModel>& vals, Vector3 const& down):
             prims(vals.begin()), hit(vals.end()), minVol(G3D::inf()), zDist(G3D::inf()), zVec(down) { }
         std::vector<GroupModel>::const_iterator prims;
         std::vector<GroupModel>::const_iterator hit;
         float minVol;
         float zDist;
         Vector3 zVec;
-        void operator()(const Vector3& point, uint32 entry)
+        void operator()(Vector3 const& point, uint32 entry)
         {
             float group_Z;
             //float pVol = prims[entry].GetBound().volume();
@@ -565,7 +565,7 @@ namespace VMAP
                     hit = prims + entry;
                 }
 #ifdef VMAP_DEBUG
-                const GroupModel& gm = prims[entry];
+                GroupModel const& gm = prims[entry];
                 printf("%10u %8X %7.3f, %7.3f, %7.3f | %7.3f, %7.3f, %7.3f | z=%f, p_z=%f\n", gm.GetWmoID(), gm.GetMogpFlags(),
                        gm.GetBound().low().x, gm.GetBound().low().y, gm.GetBound().low().z,
                        gm.GetBound().high().x, gm.GetBound().high().y, gm.GetBound().high().z, group_Z, point.z);
@@ -576,7 +576,7 @@ namespace VMAP
         }
     };
 
-    bool WorldModel::IntersectPoint(const G3D::Vector3& p, const G3D::Vector3& down, float& dist, AreaInfo& info) const
+    bool WorldModel::IntersectPoint(G3D::Vector3 const& p, G3D::Vector3 const& down, float& dist, AreaInfo& info) const
     {
         if (groupModels.empty())
         {
@@ -597,7 +597,7 @@ namespace VMAP
         return false;
     }
 
-    bool WorldModel::GetLocationInfo(const G3D::Vector3& p, const G3D::Vector3& down, float& dist, LocationInfo& info) const
+    bool WorldModel::GetLocationInfo(G3D::Vector3 const& p, G3D::Vector3 const& down, float& dist, LocationInfo& info) const
     {
         if (groupModels.empty())
         {
@@ -616,7 +616,7 @@ namespace VMAP
         return false;
     }
 
-    bool WorldModel::writeFile(const std::string& filename)
+    bool WorldModel::writeFile(std::string const& filename)
     {
         FILE* wf = fopen(filename.c_str(), "wb");
         if (!wf)
@@ -653,7 +653,7 @@ namespace VMAP
         return result;
     }
 
-    bool WorldModel::readFile(const std::string& filename)
+    bool WorldModel::readFile(std::string const& filename)
     {
         FILE* rf = fopen(filename.c_str(), "rb");
         if (!rf)

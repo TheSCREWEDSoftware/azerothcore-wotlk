@@ -297,7 +297,7 @@ enum Nerubar
     SPELL_FREED_WARSONG_PEON                = 45532
 };
 
-const uint32 nerubarVictims[3] =
+uint32 const nerubarVictims[3] =
 {
     SPELL_FREED_WARSONG_MAGE, SPELL_FREED_WARSONG_SHAMAN, SPELL_FREED_WARSONG_WARRIOR
 };

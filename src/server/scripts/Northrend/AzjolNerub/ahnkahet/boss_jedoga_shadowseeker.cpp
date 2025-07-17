@@ -115,7 +115,7 @@ enum Actions
     ACTION_SACRAFICE,
 };
 
-const Position JedogaPosition[3] =
+Position const JedogaPosition[3] =
 {
     { 372.330994f,  -705.278015f,   -2.459692f  },     // POINT_DOWN
     { 372.330994f,  -705.278015f,   -16.179716f },     // POINT_UP
@@ -123,7 +123,7 @@ const Position JedogaPosition[3] =
 };
 
 // Combat summon locations
-const Position VolunteerSpotPositions[MAX_COMBAT_INITIATES][2] =
+Position const VolunteerSpotPositions[MAX_COMBAT_INITIATES][2] =
 {
         //        Spawn position           ||            Move position
     { { 400.7701f, -784.8928f, -31.60143f }, { 365.9514f, -719.1235f, -16.17974f } },

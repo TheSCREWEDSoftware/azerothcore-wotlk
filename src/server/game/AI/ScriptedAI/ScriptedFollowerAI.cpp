@@ -20,7 +20,7 @@
 #include "Player.h"
 #include "ScriptedCreature.h"
 
-const float MAX_PLAYER_DISTANCE = 100.0f;
+float const MAX_PLAYER_DISTANCE = 100.0f;
 
 enum ePoints
 {
@@ -257,7 +257,7 @@ void FollowerAI::MovementInform(uint32 motionType, uint32 pointId)
     }
 }
 
-void FollowerAI::StartFollow(Player* player, uint32 factionForFollower, const Quest* quest, bool inheritWalkState, bool inheritSpeed)
+void FollowerAI::StartFollow(Player* player, uint32 factionForFollower, Quest const* quest, bool inheritWalkState, bool inheritSpeed)
 {
     if (me->GetVictim())
     {

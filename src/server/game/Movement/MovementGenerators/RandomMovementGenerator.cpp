@@ -274,7 +274,7 @@ void RandomMovementGenerator<Creature>::DoFinalize(Creature* creature)
 }
 
 template<>
-bool RandomMovementGenerator<Creature>::DoUpdate(Creature* creature, const uint32 diff)
+bool RandomMovementGenerator<Creature>::DoUpdate(Creature* creature, uint32 const diff)
 {
     if (creature->HasUnitState(UNIT_STATE_NOT_MOVE) || creature->IsMovementPreventedByCasting())
     {

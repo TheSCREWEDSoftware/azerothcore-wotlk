@@ -98,7 +98,7 @@ enum EnslavedProtoDrake
     POINT_LAST              = 5,
 };
 
-const Position protodrakeCheckPos = {206.24f, -190.28f, 200.11f, 0.f};
+Position const protodrakeCheckPos = {206.24f, -190.28f, 200.11f, 0.f};
 
 struct npc_enslaved_proto_drake : public ScriptedAI
 {

@@ -116,7 +116,7 @@ void MySQLPreparedStatement::AssertValidIndex(uint8 index)
 }
 
 template<typename T>
-void MySQLPreparedStatement::SetParameter(const uint8 index, T value)
+void MySQLPreparedStatement::SetParameter(uint8 const index, T value)
 {
     AssertValidIndex(index);
     m_paramsSet[index] = true;
@@ -133,12 +133,12 @@ void MySQLPreparedStatement::SetParameter(const uint8 index, T value)
     memcpy(param->buffer, &value, len);
 }
 
-void MySQLPreparedStatement::SetParameter(const uint8 index, bool value)
+void MySQLPreparedStatement::SetParameter(uint8 const index, bool value)
 {
     SetParameter(index, uint8(value ? 1 : 0));
 }
 
-void MySQLPreparedStatement::SetParameter(const uint8 index, std::nullptr_t /*value*/)
+void MySQLPreparedStatement::SetParameter(uint8 const index, std::nullptr_t /*value*/)
 {
     AssertValidIndex(index);
     m_paramsSet[index] = true;

@@ -32,19 +32,19 @@ struct LivingPoisonData
     uint32 DespawnTime {};
 };
 
-static const LivingPoisonData LivingPoisonDataList[3]
+static LivingPoisonData const LivingPoisonDataList[3]
 {
     { Position { 3128.59, -3118.81, 293.346, 4.76754 }, Position { 3130.322, -3156.51,  293.324 }, 15200 },
     { Position { 3154.25, -3125.7,  293.43,  4.47694 }, Position { 3144.779, -3158.416, 293.324 }, 14800 },
     { Position { 3175.42, -3134.86, 293.34,  4.284   }, Position { 3158.778, -3164.201, 293.312 }, 14800 }
 };
 
-static const float HeiganPos[2]
+static float const HeiganPos[2]
 {
     2796, -3707
 };
 
-static const float HeiganEruptionSlope[3]
+static float const HeiganEruptionSlope[3]
 {
     (-3685 - HeiganPos[1]) / (2724 - HeiganPos[0]),
     (-3647 - HeiganPos[1]) / (2749 - HeiganPos[0]),

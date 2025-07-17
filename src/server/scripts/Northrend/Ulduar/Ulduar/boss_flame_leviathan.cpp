@@ -191,7 +191,7 @@ enum Misc
     ACTION_DESTROYED_TURRET             = 6,
 };
 
-const Position homePos = {322.39f, -14.5f, 409.8f, 3.14f};
+Position const homePos = {322.39f, -14.5f, 409.8f, 3.14f};
 
 class boss_flame_leviathan : public CreatureScript
 {

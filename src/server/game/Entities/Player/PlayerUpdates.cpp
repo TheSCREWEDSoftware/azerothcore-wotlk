@@ -907,7 +907,7 @@ bool Player::UpdateFishingSkill()
 // bonus abilities in sSkillLineAbilityStore
 // Used only to avoid scan DBC at each skill grow
 static uint32       bonusSkillLevels[] = {75, 150, 225, 300, 375, 450};
-static const std::size_t bonusSkillLevelsSize =
+static std::size_t const bonusSkillLevelsSize =
     sizeof(bonusSkillLevels) / sizeof(uint32);
 
 bool Player::UpdateSkillPro(uint16 SkillId, int32 Chance, uint32 step)
@@ -2328,9 +2328,9 @@ bool Player::CanExecutePendingSpellCastRequest(SpellInfo const* spellInfo)
     return true;
 }
 
-const PendingSpellCastRequest* Player::GetCastRequest(uint32 category) const
+PendingSpellCastRequest const* Player::GetCastRequest(uint32 category) const
 {
-    for (const PendingSpellCastRequest& request : SpellQueue)
+    for (PendingSpellCastRequest const& request : SpellQueue)
         if (request.category == category)
             return &request;
     return nullptr;

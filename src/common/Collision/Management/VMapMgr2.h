@@ -83,7 +83,7 @@ namespace VMAP
         // Mutex for iLoadedModelFiles
         std::mutex LoadedModelFilesLock;
 
-        bool _loadMap(uint32 mapId, const std::string& basePath, uint32 tileX, uint32 tileY);
+        bool _loadMap(uint32 mapId, std::string const& basePath, uint32 tileX, uint32 tileY);
         /* void _unloadMap(uint32 pMapId, uint32 x, uint32 y); */
 
         static uint32 GetLiquidFlagsDummy(uint32) { return 0; }
@@ -101,7 +101,7 @@ namespace VMAP
 
         void InitializeThreadUnsafe(const std::vector<uint32>& mapIds);
 
-        int loadMap(const char* pBasePath, unsigned int mapId, int x, int y) override;
+        int loadMap(char const* pBasePath, unsigned int mapId, int x, int y) override;
 
         void unloadMap(unsigned int mapId, int x, int y) override;
         void unloadMap(unsigned int mapId) override;
@@ -119,15 +119,15 @@ namespace VMAP
         bool GetLiquidLevel(uint32 pMapId, float x, float y, float z, uint8 reqLiquidType, float& level, float& floor, uint32& type, uint32& mogpFlags) const override;
         void GetAreaAndLiquidData(uint32 mapId, float x, float y, float z, uint8 reqLiquidType, AreaAndLiquidData& data) const override;
 
-        WorldModel* acquireModelInstance(const std::string& basepath, const std::string& filename, uint32 flags);
-        void releaseModelInstance(const std::string& filename);
+        WorldModel* acquireModelInstance(std::string const& basepath, std::string const& filename, uint32 flags);
+        void releaseModelInstance(std::string const& filename);
 
         // what's the use of this? o.O
         [[nodiscard]] std::string getDirFileName(unsigned int mapId, int /*x*/, int /*y*/) const override
         {
             return getMapFileName(mapId);
         }
-        LoadResult existsMap(const char* basePath, unsigned int mapId, int x, int y) override;
+        LoadResult existsMap(char const* basePath, unsigned int mapId, int x, int y) override;
         void GetInstanceMapTree(InstanceTreeMap& instanceMapTree);
 
         typedef uint32(*GetLiquidFlagsFn)(uint32 liquidType);

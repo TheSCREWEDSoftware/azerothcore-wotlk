@@ -554,7 +554,7 @@ void BattlegroundAB::ApplyPhaseMask()
         if (_capturePointInfo[i]._ownerTeamId != TEAM_NEUTRAL)
             phaseMask |= 1 << (i * 2 + 1 + _capturePointInfo[i]._ownerTeamId);
 
-    const BattlegroundPlayerMap& bgPlayerMap = GetPlayers();
+    BattlegroundPlayerMap const& bgPlayerMap = GetPlayers();
 
     for (auto const& itr : bgPlayerMap)
     {

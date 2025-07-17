@@ -24,7 +24,7 @@
 class CreatureScript : public ScriptObject, public UpdatableScript<Creature>
 {
 protected:
-    CreatureScript(const char* name);
+    CreatureScript(char const* name);
 
 public:
     [[nodiscard]] bool IsDatabaseBound() const override { return true; }

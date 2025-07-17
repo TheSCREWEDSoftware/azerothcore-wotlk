@@ -1328,7 +1328,7 @@ class spell_pos_empowered_blizzard_aura : public AuraScript
     }
 };
 
-const Position slaveFreePos[4] =
+Position const slaveFreePos[4] =
 {
     {699.82f, -82.68f, 512.6f, 0.0f},
     {643.51f, 79.20f, 511.57f, 0.0f},

@@ -253,7 +253,7 @@ enum ThorimEvents
     EVENT_DR_COMMONER_LB                    = 141,
 };
 
-const Position ArenaNPCs[] =
+Position const ArenaNPCs[] =
 {
     {2178.5f,  -300.2f,  441.97f, 2.5f},
     {2188.12f, -295.1f,  443.75,  2.5f},
@@ -321,9 +321,9 @@ enum Misc
     DATA_LOSE_YOUR_ILLUSION     = 2,
 };
 
-const Position Middle = {2134.68f, -263.13f, 419.44f, M_PI * 1.5f};
+Position const Middle = {2134.68f, -263.13f, 419.44f, M_PI * 1.5f};
 
-const uint32 RollTable[3] = { 32877, 32878, 32876 };
+uint32 const RollTable[3] = { 32877, 32878, 32876 };
 
 class boss_thorim : public CreatureScript
 {

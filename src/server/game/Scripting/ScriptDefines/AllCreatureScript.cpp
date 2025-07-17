@@ -49,7 +49,7 @@ void ScriptMgr::OnCreatureSaveToDB(Creature* creature)
     });
 }
 
-void ScriptMgr::OnBeforeCreatureSelectLevel(const CreatureTemplate* cinfo, Creature* creature, uint8& level)
+void ScriptMgr::OnBeforeCreatureSelectLevel(CreatureTemplate const* cinfo, Creature* creature, uint8& level)
 {
     ExecuteScript<AllCreatureScript>([&](AllCreatureScript* script)
     {
@@ -57,7 +57,7 @@ void ScriptMgr::OnBeforeCreatureSelectLevel(const CreatureTemplate* cinfo, Creat
     });
 }
 
-void ScriptMgr::Creature_SelectLevel(const CreatureTemplate* cinfo, Creature* creature)
+void ScriptMgr::Creature_SelectLevel(CreatureTemplate const* cinfo, Creature* creature)
 {
     ExecuteScript<AllCreatureScript>([&](AllCreatureScript* script)
     {
@@ -78,7 +78,7 @@ void ScriptMgr::Creature_SelectLevel(const CreatureTemplate* cinfo, Creature* cr
 //    return true;
 //}
 
-AllCreatureScript::AllCreatureScript(const char* name) :
+AllCreatureScript::AllCreatureScript(char const* name) :
     ScriptObject(name)
 {
     ScriptRegistry<AllCreatureScript>::AddScript(this);

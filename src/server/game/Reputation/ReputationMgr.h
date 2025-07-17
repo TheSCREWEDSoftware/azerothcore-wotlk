@@ -63,9 +63,9 @@ public:                                                 // constructors and glob
     void SaveToDB(CharacterDatabaseTransaction trans);
     void LoadFromDB(PreparedQueryResult result);
 public:                                                 // statics
-    static const int32 PointsInRank[MAX_REPUTATION_RANK];
-    static const int32 Reputation_Cap;
-    static const int32 Reputation_Bottom;
+    static int32 const PointsInRank[MAX_REPUTATION_RANK];
+    static int32 const Reputation_Cap;
+    static int32 const Reputation_Bottom;
 
     static ReputationRank ReputationToRank(int32 standing);
     static int32 ReputationRankToStanding(ReputationRank rank);

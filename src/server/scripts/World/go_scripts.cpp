@@ -123,7 +123,7 @@ enum EthereumPrison
     SPELL_REP_SPOR      = 39476
 };
 
-const uint32 NpcPrisonEntry[] =
+uint32 const NpcPrisonEntry[] =
 {
     22810, 22811, 22812, 22813, 22814, 22815,               //good guys
     20783, 20784, 20785, 20786, 20788, 20789, 20790         //bad guys
@@ -180,7 +180,7 @@ public:
 ## go_ethereum_stasis
 ######*/
 
-const uint32 NpcStasisEntry[] =
+uint32 const NpcStasisEntry[] =
 {
     22825, 20888, 22827, 22826, 22828
 };

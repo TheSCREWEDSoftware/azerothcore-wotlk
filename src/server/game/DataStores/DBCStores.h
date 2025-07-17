@@ -194,6 +194,6 @@ extern DBCStorage <WMOAreaTableEntry>            sWMOAreaTableStore;
 //extern DBCStorage <WorldMapAreaEntry>           sWorldMapAreaStore; -- use Zone2MapCoordinates and Map2ZoneCoordinates
 extern DBCStorage <WorldMapOverlayEntry>         sWorldMapOverlayStore;
 
-void LoadDBCStores(const std::string& dataPath);
+void LoadDBCStores(std::string const& dataPath);
 
 #endif

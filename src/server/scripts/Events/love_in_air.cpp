@@ -106,7 +106,7 @@ enum hotOnTrail
     SPELL_SNIVEL_GUN                = 71715,
 };
 
-const uint32 spellTable[6] = {71713, 71745, 71752, 71759, 71760, 71758};
+uint32 const spellTable[6] = {71713, 71745, 71752, 71759, 71760, 71758};
 
 struct npc_love_in_air_snivel : public NullCreatureAI
 {

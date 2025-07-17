@@ -23,7 +23,7 @@
 #include "Object.h"
 #include "WorldStateDefines.h"
 
-const uint32 BG_IC_Factions[PVP_TEAMS_COUNT] =
+uint32 const BG_IC_Factions[PVP_TEAMS_COUNT] =
 {
     1732, // Alliance
     1735  // Horde
@@ -472,7 +472,7 @@ enum BG_IC_MaxSpawns
     MAX_CAPTAIN_SPAWNS_PER_FACTION                      = 2,
 };
 
-const ICNpc BG_IC_NpcSpawnlocs[MAX_NORMAL_NPCS_SPAWNS] =
+ICNpc const BG_IC_NpcSpawnlocs[MAX_NORMAL_NPCS_SPAWNS] =
 {
     {BG_IC_NPC_OVERLORD_AGMAR, NPC_OVERLORD_AGMAR, 1295.44f, -765.733f, 70.0541f, 0.0f}, //Overlord Agmar 1
     {BG_IC_NPC_HIGH_COMMANDER_HALFORD_WYRMBANE, NPC_HIGH_COMMANDER_HALFORD_WYRMBANE, 224.983f, -831.573f, 60.9034f, 0.0f}, //High Commander Halford Wyrmbane 2
@@ -514,7 +514,7 @@ const ICNpc BG_IC_NpcSpawnlocs[MAX_NORMAL_NPCS_SPAWNS] =
     {BG_IC_NPC_KEEP_CANNON_25, NPC_KEEP_CANNON, 1166.13f, -858.391f, 87.9653f, 5.63741f} // 35
 };
 
-const Position BG_IC_WorkshopVehicles[5] =
+Position const BG_IC_WorkshopVehicles[5] =
 {
     {751.8281f, -852.732666f, 12.5250978f, 1.46607661f}, // Demolisher
     {761.809f, -854.2274f, 12.5263243f, 1.46607661f}, // Demolisher
@@ -523,13 +523,13 @@ const Position BG_IC_WorkshopVehicles[5] =
     {773.680542f, -884.092041f, 16.8090363f, 1.58824956f} // Siege Engine
 };
 
-const Position BG_IC_DocksVehiclesGlaives[2] =
+Position const BG_IC_DocksVehiclesGlaives[2] =
 {
     {779.3125f, -342.972229f, 12.2104874f, 4.712389f}, // Glaive Throwers
     {790.029541f, -342.899323f, 12.2128582f, 4.71238f}, // Glaive Throwers
 };
 
-const Position BG_IC_DocksVehiclesCatapults[4] =
+Position const BG_IC_DocksVehiclesCatapults[4] =
 {
     {757.283f, -341.7795f, 12.2113762f, 4.729842f}, // Catapults
     {766.947937f, -342.053833f, 12.2009945f, 4.694f}, // Catapults
@@ -537,27 +537,27 @@ const Position BG_IC_DocksVehiclesCatapults[4] =
     {810.7257f, -342.083344f, 12.1675768f, 4.6600f}, // Catapults
 };
 
-const Position BG_IC_HangarTeleporters[3] =
+Position const BG_IC_HangarTeleporters[3] =
 {
     {827.9219f, -993.3249f, 134.1972f, 3.141593f}, // Gunship Portal
     {739.0226f, -1106.661f, 134.7551f, 2.426008f}, // Gunship Portal
     {672.0799f, -1156.776f, 133.7057f, 1.832595f} // Gunship Portal
 };
 
-const Position BG_IC_HangarTeleporterEffects[3] =
+Position const BG_IC_HangarTeleporterEffects[3] =
 {
     {827.9236f, -993.2986f, 134.2002f, 3.141593f}, // Gunship Portal Effect
     {739.0139f, -1106.661f, 134.7548f, 3.141593f}, // Gunship Portal Effect
     {672.0868f, -1156.786f, 133.7057f, 3.141593f} // Gunship Portal Effect
 };
 
-const Position BG_IC_HangarTrigger[2] =
+Position const BG_IC_HangarTrigger[2] =
 {
     {-25.73f, -0.09f, 26.1f, 3.211406f},
     {7.305609f, -0.095246f, 40.51022f, 3.159046f}
 };
 
-const Position BG_IC_HangarCaptains[4] =
+Position const BG_IC_HangarCaptains[4] =
 {
     {825.6667f, -994.00520f, 134.3569f, 3.403392f},
     {53.65112f, -0.1139221f, 30.09546f, 3.106686f},
@@ -575,7 +575,7 @@ struct ICGo
     float o;
 };
 
-const ICGo BG_IC_Teleporters[MAX_FORTRESS_TELEPORTERS_SPAWNS] =
+ICGo const BG_IC_Teleporters[MAX_FORTRESS_TELEPORTERS_SPAWNS] =
 {
     {BG_IC_GO_TELEPORTER_1_1, GO_TELEPORTER_1, 1143.25f, -779.599f, 48.629f, 1.64061f}, // Teleporter
     {BG_IC_GO_TELEPORTER_1_2, GO_TELEPORTER_1, 1236.53f, -669.415f, 48.2729f, 0.104719f}, // Teleporter
@@ -591,7 +591,7 @@ const ICGo BG_IC_Teleporters[MAX_FORTRESS_TELEPORTERS_SPAWNS] =
     {BG_IC_GO_TELEPORTER_2_3, GO_TELEPORTER_2, 1158.76f, -746.182f, 48.6277f, -1.51844f} // Teleporter
 };
 
-const ICGo BG_IC_TeleporterEffects[MAX_FORTRESS_TELEPORTER_EFFECTS_SPAWNS] =
+ICGo const BG_IC_TeleporterEffects[MAX_FORTRESS_TELEPORTER_EFFECTS_SPAWNS] =
 {
     {BG_IC_GO_TELEPORTER_EFFECTS_A_1, GO_TELEPORTER_EFFECTS_A, 425.686f, -857.092f, 48.51f, -1.62316f}, // Teleporter Effects (Alliance)
     {BG_IC_GO_TELEPORTER_EFFECTS_A_2, GO_TELEPORTER_EFFECTS_A, 324.634f, -749.148f, 49.359f, 0.0174525f}, // Teleporter Effects (Alliance)
@@ -608,7 +608,7 @@ const ICGo BG_IC_TeleporterEffects[MAX_FORTRESS_TELEPORTER_EFFECTS_SPAWNS] =
     {BG_IC_GO_TELEPORTER_EFFECTS_H_6, GO_TELEPORTER_EFFECTS_H, 1235.6f, -683.806f, 49.3028f, -3.07177f} // Teleporter Effects (Horde)
 };
 
-const ICGo BG_IC_ObjSpawnlocs[MAX_NORMAL_GAMEOBJECTS_SPAWNS] =
+ICGo const BG_IC_ObjSpawnlocs[MAX_NORMAL_GAMEOBJECTS_SPAWNS] =
 {
     {BG_IC_GO_ALLIANCE_GATE_1, GO_ALLIANCE_GATE_1, 351.615f, -762.75f, 48.9162f, -1.5708f}, // Alliance Gate || Left
     {BG_IC_GO_ALLIANCE_GATE_2, GO_ALLIANCE_GATE_2, 351.024f, -903.326f, 48.9247f, 1.5708f}, // Alliance Gate || Right
@@ -702,7 +702,7 @@ const ICGo BG_IC_ObjSpawnlocs[MAX_NORMAL_GAMEOBJECTS_SPAWNS] =
     {BG_IC_GO_DOODAD_ND_WINTERORC_WALL_GATEFX_DOOR03, GO_DOODAD_ND_WINTERORC_WALL_GATEFX_DOOR01, 1218.743f, -851.1545f, 48.25328f, 4.712392f}
 };
 
-const Position workshopBombs[2] =
+Position const workshopBombs[2] =
 {
     {750.601f, -864.597f, 13.4754f, 1.93731f},
     {785.509f, -864.715f, 13.3993f, 2.47837f}
@@ -778,9 +778,9 @@ enum ICNodeState
     NODE_STATE_CONTROLLED_H
 };
 
-const uint32 BG_IC_GraveyardIds[MAX_NODE_TYPES + 2] = {0, 0, 1480, 1481, 1482, 1485, 1486, 1483, 1484};
+uint32 const BG_IC_GraveyardIds[MAX_NODE_TYPES + 2] = {0, 0, 1480, 1481, 1482, 1485, 1486, 1483, 1484};
 
-const float BG_IC_SpiritGuidePos[MAX_NODE_TYPES + 2][4] =
+float const BG_IC_SpiritGuidePos[MAX_NODE_TYPES + 2][4] =
 {
     {0.0f, 0.0f, 0.0f, 0.0f},                     // no grave
     {0.0f, 0.0f, 0.0f, 0.0f},                     // no grave
@@ -838,7 +838,7 @@ struct ICNodePoint
     ICNodeState nodeState;
 };
 
-const ICNodePoint nodePointInitial[MAX_NODE_TYPES] =
+ICNodePoint const nodePointInitial[MAX_NODE_TYPES] =
 {
     {BG_IC_GO_REFINERY_BANNER, GO_REFINERY_BANNER, TEAM_NEUTRAL, NODE_TYPE_REFINERY, {GO_ALLIANCE_BANNER_REFINERY, GO_ALLIANCE_BANNER_REFINERY_CONT, GO_HORDE_BANNER_REFINERY, GO_HORDE_BANNER_REFINERY_CONT}, false, 0, 0, {WORLD_STATE_BATTLEGROUND_IC_REFINERY_UNCONTROLLED, WORLD_STATE_BATTLEGROUND_IC_REFINERY_CONFLICT_A, WORLD_STATE_BATTLEGROUND_IC_REFINERY_CONFLICT_H, WORLD_STATE_BATTLEGROUND_IC_REFINERY_CONTROLLED_A, WORLD_STATE_BATTLEGROUND_IC_REFINERY_CONTROLLED_H}, NODE_STATE_UNCONTROLLED},
     {BG_IC_GO_QUARRY_BANNER, GO_QUARRY_BANNER, TEAM_NEUTRAL, NODE_TYPE_QUARRY, {GO_ALLIANCE_BANNER_QUARRY, GO_ALLIANCE_BANNER_QUARRY_CONT, GO_HORDE_BANNER_QUARRY, GO_HORDE_BANNER_QUARRY_CONT}, false, 0, 0, {WORLD_STATE_BATTLEGROUND_IC_QUARRY_UNCONTROLLED, WORLD_STATE_BATTLEGROUND_IC_QUARRY_CONFLICT_A, WORLD_STATE_BATTLEGROUND_IC_QUARRY_CONFLICT_H, WORLD_STATE_BATTLEGROUND_IC_QUARRY_CONTROLLED_A, WORLD_STATE_BATTLEGROUND_IC_QUARRY_CONTROLLED_H}, NODE_STATE_UNCONTROLLED},

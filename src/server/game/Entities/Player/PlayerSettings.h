@@ -20,7 +20,7 @@
 
 class Player;
 
-const std::string AzerothcorePSSource = "ac_default";
+std::string const AzerothcorePSSource = "ac_default";
 
 enum CharacterSettingIndexes : uint8
 {

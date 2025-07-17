@@ -21,7 +21,7 @@
 #include "World.h"
 #include "soapStub.h"
 
-void ACSoapThread(const std::string& host, uint16 port)
+void ACSoapThread(std::string const& host, uint16 port)
 {
     struct soap soap;
     soap_init(&soap);

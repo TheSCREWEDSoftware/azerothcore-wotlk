@@ -33,7 +33,7 @@ struct VisibilitySettingData
 // feel free to add more intervals, change existing ones or move to conf file :P
 #define VISIBILITY_SETTINGS_PLAYER_INTERVAL 500
 #define VISIBILITY_SETTINGS_MAX_INTERVAL_NUM 7
-const VisibilitySettingData VisibilitySettings[VISIBILITY_SETTINGS_MAX_INTERVAL_NUM][5] =
+VisibilitySettingData const VisibilitySettings[VISIBILITY_SETTINGS_MAX_INTERVAL_NUM][5] =
 {
     { {300, 150, 1.0f}, {300, 150, 1.0f}, {300, 150, 1.0f}, {300, 150, 1.0f}, {300, 150, 1.0f} }, // 0-499
     { {400, 200, 2.25f}, {400, 200, 2.25f}, {400, 200, 2.25f}, {300, 150, 1.0f}, {300, 150, 1.0f} }, // 500-999

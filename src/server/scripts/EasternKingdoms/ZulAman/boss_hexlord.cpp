@@ -114,7 +114,7 @@ enum Spells
     SPELL_DK_BLOOD_WORMS            = 97630
 };
 
-const Position AddPosition[4] =
+Position const AddPosition[4] =
 {
     { 128.48448f, 923.04285f, 33.97255f,  1.588249564170837402f },
     { 122.60526f, 923.24536f, 33.97256f,  1.570796370506286621f },

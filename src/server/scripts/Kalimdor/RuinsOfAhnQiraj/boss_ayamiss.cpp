@@ -74,8 +74,8 @@ enum Points
     POINT_PARALYZE                          = 2
 };
 
-const Position AyamissAirPos  = { -9689.292f, 1547.912f, 48.02729f, 0.0f };
-const Position AltarPos       = { -9717.18f, 1517.72f, 27.4677f, 0.0f };
+Position const AyamissAirPos  = { -9689.292f, 1547.912f, 48.02729f, 0.0f };
+Position const AltarPos       = { -9717.18f, 1517.72f, 27.4677f, 0.0f };
 
 struct boss_ayamiss : public BossAI
 {

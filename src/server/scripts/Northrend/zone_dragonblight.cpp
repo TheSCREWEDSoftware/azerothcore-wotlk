@@ -100,7 +100,7 @@ public:
             oachanoaGUID.Clear();
         }
 
-        void NextStep(const uint32 time)
+        void NextStep(uint32 const time)
         {
             step++;
             timer = time;

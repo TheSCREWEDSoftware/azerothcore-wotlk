@@ -636,7 +636,7 @@ namespace MMAP
     static uint16 holetab_v[4] = {0x000F, 0x00F0, 0x0F00, 0xF000};
 
     /**************************************************************************/
-    bool TerrainBuilder::isHole(int square, const uint16 holes[16][16])
+    bool TerrainBuilder::isHole(int square, uint16 const holes[16][16])
     {
         int row = square / 128;
         int col = square % 128;
@@ -651,7 +651,7 @@ namespace MMAP
     }
 
     /**************************************************************************/
-    uint8 TerrainBuilder::getLiquidType(int square, const uint8 liquid_type[16][16])
+    uint8 TerrainBuilder::getLiquidType(int square, uint8 const liquid_type[16][16])
     {
         int row = square / 128;
         int col = square % 128;
@@ -922,7 +922,7 @@ namespace MMAP
     }
 
     /**************************************************************************/
-    void TerrainBuilder::loadOffMeshConnections(uint32 mapID, uint32 tileX, uint32 tileY, MeshData& meshData, const char* offMeshFilePath)
+    void TerrainBuilder::loadOffMeshConnections(uint32 mapID, uint32 tileX, uint32 tileY, MeshData& meshData, char const* offMeshFilePath)
     {
         // no meshfile input given?
         if (!offMeshFilePath)

@@ -23,7 +23,7 @@
 class AllGameObjectScript : public ScriptObject
 {
 protected:
-    AllGameObjectScript(const char* name);
+    AllGameObjectScript(char const* name);
 
 public:
     /**

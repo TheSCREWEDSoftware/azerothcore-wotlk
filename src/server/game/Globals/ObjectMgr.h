@@ -1151,7 +1151,7 @@ public:
         if (map_itr == _mailLevelRewardStore.end())
             return nullptr;
 
-        for (const auto & set_itr : map_itr->second)
+        for (auto const & set_itr : map_itr->second)
             if (set_itr.raceMask & raceMask)
                 return &set_itr;
 

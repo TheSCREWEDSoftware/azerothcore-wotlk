@@ -314,7 +314,7 @@ enum CommanderDawnforgeData
 };
 
 // Entries of Arcanist Ardonis, Commander Dawnforge, Pathaleon the Curators Image
-const uint32 CreatureEntry[3] =
+uint32 const CreatureEntry[3] =
 {
     19830,                                                // Ardonis
     19831,                                                // Dawnforge
@@ -764,7 +764,7 @@ public:
         }
     };
 
-    bool OnQuestAccept(Player* player, Creature* creature, const Quest* quest) override
+    bool OnQuestAccept(Player* player, Creature* creature, Quest const* quest) override
     {
         if (quest->GetQuestId() == QUEST_MARK_V_IS_ALIVE)
         {

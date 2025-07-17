@@ -51,7 +51,7 @@ class npc_daphne_stilwell : public CreatureScript
 public:
     npc_daphne_stilwell() : CreatureScript("npc_daphne_stilwell") { }
 
-    bool OnQuestAccept(Player* player, Creature* creature, const Quest* quest) override
+    bool OnQuestAccept(Player* player, Creature* creature, Quest const* quest) override
     {
         if (quest->GetQuestId() == QUEST_TOME_VALOR)
         {
@@ -162,7 +162,7 @@ public:
                 Talk(textCounter++, GetPlayerForEscort());
         }
 
-        void Update(const uint32 diff)
+        void Update(uint32 const diff)
         {
             npc_escortAI::UpdateAI(diff);
 

@@ -28,26 +28,26 @@ enum OutdoorPvPSISpells
     SI_CENARION_FAVOR = 30754
 };
 
-const uint32 SI_MAX_RESOURCES = 200;
+uint32 const SI_MAX_RESOURCES = 200;
 
-const uint8 OutdoorPvPSIBuffZonesNum = 3;
+uint8 const OutdoorPvPSIBuffZonesNum = 3;
 
-const uint32 OutdoorPvPSIBuffZones[OutdoorPvPSIBuffZonesNum] =
+uint32 const OutdoorPvPSIBuffZones[OutdoorPvPSIBuffZonesNum] =
 {
     AREA_SILITHUS,
     AREA_AHN_QIRAJ,
     AREA_RUINS_OF_AHN_QIRAJ
 };
 
-const uint32 SI_AREATRIGGER_H = 4168;
+uint32 const SI_AREATRIGGER_H = 4168;
 
-const uint32 SI_AREATRIGGER_A = 4162;
+uint32 const SI_AREATRIGGER_A = 4162;
 
-const uint32 SI_TURNIN_QUEST_CM_A = 17090;
+uint32 const SI_TURNIN_QUEST_CM_A = 17090;
 
-const uint32 SI_TURNIN_QUEST_CM_H = 18199;
+uint32 const SI_TURNIN_QUEST_CM_H = 18199;
 
-const uint32 SI_SILITHYST_MOUND = 181597;
+uint32 const SI_SILITHYST_MOUND = 181597;
 
 class OutdoorPvPSI : public OutdoorPvP
 {

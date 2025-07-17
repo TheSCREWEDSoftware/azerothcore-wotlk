@@ -42,7 +42,7 @@ enum Misc
     WAYPOINTS_COUNT          = 4
 };
 
-const Position startPath[WAYPOINTS_COUNT] =
+Position const startPath[WAYPOINTS_COUNT] =
 {
     {2008.38f, 281.57f, 65.70f, 0.0f},
     {2035.71f, 271.38f, 63.495f, 0.0f},

@@ -23,7 +23,7 @@
 class AllItemScript : public ScriptObject
 {
 protected:
-    AllItemScript(const char* name);
+    AllItemScript(char const* name);
 
 public:
     // Called when a player accepts a quest from the item.

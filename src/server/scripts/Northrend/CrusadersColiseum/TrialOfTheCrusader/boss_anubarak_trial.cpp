@@ -48,7 +48,7 @@ enum AnubNPCs
     NPC_SPIKE                                   = 34660,
 };
 
-const Position AnubLocs[] =
+Position const AnubLocs[] =
 {
     // scarab's beginning pos
     {722.65f, 135.41f, 142.16f, M_PI},

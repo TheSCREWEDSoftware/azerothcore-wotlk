@@ -272,7 +272,7 @@ enum LightOfDawnSpells
     SPELL_THE_LIGHT_OF_DAWN_Q           = 53606
 };
 
-const Position LightOfDawnPos[] =
+Position const LightOfDawnPos[] =
 {
     {2304.2f, -5290.7f, 82.01f, 4.56f},         // 0  First Home Pos
     {2253.5f, -5310.6f, 82.17f, 5.28f},         // 1  Second Home Pos
@@ -292,7 +292,7 @@ const Position LightOfDawnPos[] =
     {2270.99f, -5278.00f, 81.89f, 0}            // 15 Tirion Fordring loc4
 };
 
-const Position LightOfDawnFightPos[] =
+Position const LightOfDawnFightPos[] =
 {
     {2279.68f, -5256.75f, 79.79f, 4.8f},
     {2280.40f, -5276.56f, 82.11f, 4.8f},

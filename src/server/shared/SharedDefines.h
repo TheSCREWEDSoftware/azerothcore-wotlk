@@ -350,7 +350,7 @@ enum SpellVisualKit
     SPELL_VISUAL_KIT_DRINK          = 438
 };
 
-const uint32 ItemQualityColors[MAX_ITEM_QUALITY] =
+uint32 const ItemQualityColors[MAX_ITEM_QUALITY] =
 {
     0xff9d9d9d,        //GREY
     0xffffffff,        //WHITE

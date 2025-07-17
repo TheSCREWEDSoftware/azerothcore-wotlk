@@ -475,8 +475,8 @@ void MotionTransport::MoveToNextWaypoint()
 float MotionTransport::CalculateSegmentPos(float now)
 {
     KeyFrame const& frame = *_currentFrame;
-    const float speed = float(m_goInfo->moTransport.moveSpeed);
-    const float accel = float(m_goInfo->moTransport.accelRate);
+    float const speed = float(m_goInfo->moTransport.moveSpeed);
+    float const accel = float(m_goInfo->moTransport.accelRate);
     float timeSinceStop = frame.TimeFrom + (now - (1.0f / IN_MILLISECONDS) * frame.DepartureTime);
     float timeUntilStop = frame.TimeTo - (now - (1.0f / IN_MILLISECONDS) * frame.DepartureTime);
     float segmentPos, dist;

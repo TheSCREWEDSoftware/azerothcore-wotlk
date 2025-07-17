@@ -140,15 +140,15 @@ enum Actions
     ACTION_KILLED_MALGANIS                      = 9,
 };
 
-const Position LeaderIntroPos1 = {1938.05f, 1289.79f, 145.38f, 3.18f};
-const Position LeaderIntroPos2 = {2050.66f, 1287.33f, 142.67f, M_PI};
-const Position LeaderIntroPos2special = {2092.15f, 1276.65f, 140.52f, 0.22f};
-const Position LeaderIntroPos3 = {2365.63f, 1194.84f, 131.97f, 0.0f};
-const Position LeaderIntroPos4 = {2423.12f, 1119.43f, 148.07f, 0.0f};
-const Position LeaderIntroPos5 = {2540.48f, 1129.06f, 130.86f, 0.0f};
-const Position LeaderIntroPos6 = {2327.39f, 1412.47f, 127.69f, 0.0f};
+Position const LeaderIntroPos1 = {1938.05f, 1289.79f, 145.38f, 3.18f};
+Position const LeaderIntroPos2 = {2050.66f, 1287.33f, 142.67f, M_PI};
+Position const LeaderIntroPos2special = {2092.15f, 1276.65f, 140.52f, 0.22f};
+Position const LeaderIntroPos3 = {2365.63f, 1194.84f, 131.97f, 0.0f};
+Position const LeaderIntroPos4 = {2423.12f, 1119.43f, 148.07f, 0.0f};
+Position const LeaderIntroPos5 = {2540.48f, 1129.06f, 130.86f, 0.0f};
+Position const LeaderIntroPos6 = {2327.39f, 1412.47f, 127.69f, 0.0f};
 
-const Position EventPos[] =
+Position const EventPos[] =
 {
     {1813.298f, 1283.578f, 142.326f, 3.878161f},    // chromie
     {1809.46f,  1286.05f,  142.62f,  4.8f},         // hourglass

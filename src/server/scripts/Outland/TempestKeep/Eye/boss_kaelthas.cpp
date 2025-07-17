@@ -207,7 +207,7 @@ enum KTSpellGroups
     GROUP_NETHER_BEAM                   = 3
 };
 
-const Position triggersPos[6] =
+Position const triggersPos[6] =
 {
     {799.11f, -38.95f, 85.0f, 0.0f},
     {800.16f, 37.65f, 85.0f, 0.0f},

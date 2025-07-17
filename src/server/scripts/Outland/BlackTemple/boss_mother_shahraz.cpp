@@ -200,7 +200,7 @@ class spell_mother_shahraz_saber_lash_aura : public AuraScript
 constexpr float minTeleportDistSq = 30.f * 30.f;
 constexpr float maxTeleportDistSq = 50.f * 50.f;
 
-const Position teleportPositions[79] =
+Position const teleportPositions[79] =
 {
     {918.581, 110.065, 192.849},
     {943.493, 108.279, 192.847},

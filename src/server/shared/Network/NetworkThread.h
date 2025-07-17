@@ -146,7 +146,7 @@ protected:
                 continue;
             }
 
-            const auto proxyHeaderReadingState = sock->GetProxyHeaderReadingState();
+            auto const proxyHeaderReadingState = sock->GetProxyHeaderReadingState();
             if (proxyHeaderReadingState == PROXY_HEADER_READING_STATE_STARTED)
                 continue;
 

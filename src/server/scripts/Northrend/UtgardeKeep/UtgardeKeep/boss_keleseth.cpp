@@ -61,7 +61,7 @@ struct npc_frost_tomb : public NullCreatureAI
                 PrisonerGUID = summonerUnit->GetGUID();
                 if (me->GetInstanceScript() && me->GetInstanceScript()->instance->IsHeroic())
                 {
-                    const int32 dmg = 2000;
+                    int32 const dmg = 2000;
                     c->CastCustomSpell(summonerUnit, SPELL_FROST_TOMB_AURA, nullptr, &dmg, nullptr, true);
                 }
                 else

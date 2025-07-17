@@ -50,11 +50,11 @@ union u_map_magic
     uint32 asUInt;
 };
 
-const u_map_magic MapMagic        = { {'M', 'A', 'P', 'S'} };
-const uint32 MapVersionMagic      = 9;
-const u_map_magic MapAreaMagic    = { {'A', 'R', 'E', 'A'} };
-const u_map_magic MapHeightMagic  = { {'M', 'H', 'G', 'T'} };
-const u_map_magic MapLiquidMagic  = { {'M', 'L', 'I', 'Q'} };
+u_map_magic const MapMagic        = { {'M', 'A', 'P', 'S'} };
+uint32 const MapVersionMagic      = 9;
+u_map_magic const MapAreaMagic    = { {'A', 'R', 'E', 'A'} };
+u_map_magic const MapHeightMagic  = { {'M', 'H', 'G', 'T'} };
+u_map_magic const MapLiquidMagic  = { {'M', 'L', 'I', 'Q'} };
 
 struct map_fileheader
 {

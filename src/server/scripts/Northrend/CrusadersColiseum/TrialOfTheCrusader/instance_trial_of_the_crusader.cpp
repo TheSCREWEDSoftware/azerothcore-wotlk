@@ -89,7 +89,7 @@ public:
                 }
 
                 // move corpses
-                const ObjectGuid npcs[4] = { NPC_IcehowlGUID, NPC_JaraxxusGUID, NPC_LightbaneGUID, NPC_DarkbaneGUID };
+                ObjectGuid const npcs[4] = { NPC_IcehowlGUID, NPC_JaraxxusGUID, NPC_LightbaneGUID, NPC_DarkbaneGUID };
                 for (ObjectGuid const& i : npcs)
                 {
                     if (Creature* c = instance->GetCreature(i))

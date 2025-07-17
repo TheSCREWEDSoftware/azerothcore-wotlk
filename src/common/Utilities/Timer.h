@@ -76,7 +76,7 @@ inline TimePoint GetApplicationStartTime()
 {
     using namespace std::chrono;
 
-    static const TimePoint ApplicationStartTime = steady_clock::now();
+    static TimePoint const ApplicationStartTime = steady_clock::now();
 
     return ApplicationStartTime;
 }
@@ -268,7 +268,7 @@ public:
     {
     }
 
-    bool Update(const uint32 diff)
+    bool Update(uint32 const diff)
     {
         if ((i_expireTime -= diff) > 0)
         {

@@ -1419,7 +1419,7 @@ class npc_cos_chromie_start : public CreatureScript
 public:
     npc_cos_chromie_start() : CreatureScript("npc_cos_chromie_start") { }
 
-    bool OnQuestAccept(Player*, Creature* creature, const Quest* pQuest)
+    bool OnQuestAccept(Player*, Creature* creature, Quest const* pQuest)
     {
         if (pQuest->GetQuestId() == QUEST_DISPELLING_ILLUSIONS)
         {
@@ -1477,7 +1477,7 @@ class npc_cos_chromie_middle : public CreatureScript
 public:
     npc_cos_chromie_middle() : CreatureScript("npc_cos_chromie_middle") { }
 
-    bool OnQuestAccept(Player*, Creature* creature, const Quest* pQuest) override
+    bool OnQuestAccept(Player*, Creature* creature, Quest const* pQuest) override
     {
         if (pQuest->GetQuestId() == QUEST_A_ROYAL_ESCORT)
             if (InstanceScript* pInstance = creature->GetInstanceScript())

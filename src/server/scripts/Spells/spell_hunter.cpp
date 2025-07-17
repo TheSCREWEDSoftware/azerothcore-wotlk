@@ -1066,7 +1066,7 @@ class spell_hun_glyph_of_arcane_shot : public AuraScript
         if (Unit* procTarget = eventInfo.GetProcTarget())
         {
             // Find Serpent Sting, Viper Sting, Scorpid Sting, Wyvern Sting
-            const auto found = std::find_if(std::begin(procTarget->GetAppliedAuras()), std::end(procTarget->GetAppliedAuras()),
+            auto const found = std::find_if(std::begin(procTarget->GetAppliedAuras()), std::end(procTarget->GetAppliedAuras()),
                 [&](std::pair<uint32, AuraApplication*> pair)
                 {
                     Aura const* aura = pair.second->GetBase();

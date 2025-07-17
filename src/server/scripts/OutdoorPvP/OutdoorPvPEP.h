@@ -21,22 +21,22 @@
 #include "DBCStructure.h"
 #include "OutdoorPvP.h"
 
-const uint32 EP_AllianceBuffs[4] = {11413, 11414, 11415, 1386};
+uint32 const EP_AllianceBuffs[4] = {11413, 11414, 11415, 1386};
 
-const uint32 EP_HordeBuffs[4] = {30880, 30683, 30682, 29520};
+uint32 const EP_HordeBuffs[4] = {30880, 30683, 30682, 29520};
 
-const uint32 EP_GraveyardZone = AREA_EASTERN_PLAGUELANDS;
+uint32 const EP_GraveyardZone = AREA_EASTERN_PLAGUELANDS;
 
-const uint32 EP_GraveyardId = 927;
+uint32 const EP_GraveyardId = 927;
 
-const uint8 EPBuffZonesNum = 3;
+uint8 const EPBuffZonesNum = 3;
 
-const uint32 EP_EWT_CM = 17690;
-const uint32 EP_CGT_CM = 17689;
-const uint32 EP_NPT_CM = 17696;
-const uint32 EP_PWT_CM = 17698;
+uint32 const EP_EWT_CM = 17690;
+uint32 const EP_CGT_CM = 17689;
+uint32 const EP_NPT_CM = 17696;
+uint32 const EP_PWT_CM = 17698;
 
-const uint32 EPBuffZones[EPBuffZonesNum] =
+uint32 const EPBuffZones[EPBuffZonesNum] =
 {
     AREA_EASTERN_PLAGUELANDS,
     AREA_STRATHOLME,
@@ -79,7 +79,7 @@ enum EP_Towers
     EP_TOWER_NUM
 };
 
-const go_type EPCapturePoints[EP_TOWER_NUM] =
+go_type const EPCapturePoints[EP_TOWER_NUM] =
 {
     {182097, MAP_EASTERN_KINGDOMS, 2574.51f, -4794.89f, 144.704f, -1.45003f, -0.097056f, 0.095578f, -0.656229f, 0.742165f},
     {181899, MAP_EASTERN_KINGDOMS, 3181.08f, -4379.36f, 174.123f, -2.03472f, -0.065392f, 0.119494f, -0.842275f, 0.521553f},
@@ -87,7 +87,7 @@ const go_type EPCapturePoints[EP_TOWER_NUM] =
     {182096, MAP_EASTERN_KINGDOMS, 1860.85f, -3731.23f, 196.716f, -2.53214f, 0.033967f, -0.131914f, 0.944741f, -0.298177f}
 };
 
-const go_type EPTowerFlags[EP_TOWER_NUM] =
+go_type const EPTowerFlags[EP_TOWER_NUM] =
 {
     {182106, MAP_EASTERN_KINGDOMS, 2569.60f, -4772.93f, 115.399f, 2.72271f, 0.0f, 0.0f, 0.978148f, 0.207912f},
     {182106, MAP_EASTERN_KINGDOMS, 3148.17f, -4365.51f, 145.029f, 1.53589f, 0.0f, 0.0f, 0.694658f, 0.71934f},
@@ -99,12 +99,12 @@ const go_type EPTowerFlags[EP_TOWER_NUM] =
 
 //const uint32 EPTowerPlayerLeaveEvents[EP_TOWER_NUM] = {10692, 10698, 10700, 10704};
 
-const uint8 EP_NUM_CREATURES = 6;
-const uint8 EP_EWT_NUM_CREATURES = 5;
+uint8 const EP_NUM_CREATURES = 6;
+uint8 const EP_EWT_NUM_CREATURES = 5;
 
 // one lordaeron commander, 4 soldiers
 // should be spawned at EWT and follow a path, but trans-grid pathing isn't safe, so summon them directly at NPT
-const creature_type EP_EWT_Summons_A[EP_EWT_NUM_CREATURES] =
+creature_type const EP_EWT_Summons_A[EP_EWT_NUM_CREATURES] =
 {
     {17635, MAP_EASTERN_KINGDOMS, 3167.61f, -4352.09f, 138.20f, 4.5811f},
     {17647, MAP_EASTERN_KINGDOMS, 3172.74f, -4352.99f, 139.14f, 4.9873f},
@@ -113,7 +113,7 @@ const creature_type EP_EWT_Summons_A[EP_EWT_NUM_CREATURES] =
     {17647, MAP_EASTERN_KINGDOMS, 3169.91f, -4349.68f, 138.37f, 0.7444f}
 };
 
-const creature_type EP_EWT_Summons_H[EP_EWT_NUM_CREATURES] =
+creature_type const EP_EWT_Summons_H[EP_EWT_NUM_CREATURES] =
 {
     {17995, MAP_EASTERN_KINGDOMS, 3167.61f, -4352.09f, 138.20f, 4.5811f},
     {17996, MAP_EASTERN_KINGDOMS, 3172.74f, -4352.99f, 139.14f, 4.9873f},
@@ -134,10 +134,10 @@ enum EP_TowerStates
 };
 
 // when spawning, pay attention at setting the faction manually!
-const creature_type EP_PWT_FlightMaster = {17209, MAP_EASTERN_KINGDOMS, 2987.5f, -3049.11f, 120.126f, 5.75959f};
+creature_type const EP_PWT_FlightMaster = {17209, MAP_EASTERN_KINGDOMS, 2987.5f, -3049.11f, 120.126f, 5.75959f};
 
 // after spawning, modify the faction so that only the controller will be able to use it with SetUInt32Value(GAMEOBJECT_FACTION, faction_id);
-const go_type EP_NPT_LordaeronShrine = {181682, MAP_EASTERN_KINGDOMS, 3167.72f, -4355.91f, 138.785f, 1.69297f, 0.0f, 0.0f, 0.748956f, 0.66262f};
+go_type const EP_NPT_LordaeronShrine = {181682, MAP_EASTERN_KINGDOMS, 3167.72f, -4355.91f, 138.785f, 1.69297f, 0.0f, 0.0f, 0.748956f, 0.66262f};
 
 class OutdoorPvPEP;
 

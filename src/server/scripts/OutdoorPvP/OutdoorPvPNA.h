@@ -30,23 +30,23 @@ enum OutdoorPvPNASpells
 };
 
 // kill credit for pks
-const uint32 NA_CREDIT_MARKER = 24867;
+uint32 const NA_CREDIT_MARKER = 24867;
 
-const uint32 NA_GUARDS_MAX = 15;
+uint32 const NA_GUARDS_MAX = 15;
 
-const uint32 NA_BUFF_ZONE = AREA_NAGRAND;
+uint32 const NA_BUFF_ZONE = AREA_NAGRAND;
 
-const uint32 NA_HALAA_GRAVEYARD = 993;
+uint32 const NA_HALAA_GRAVEYARD = 993;
 
-const uint32 NA_HALAA_GRAVEYARD_ZONE = AREA_NAGRAND; // need to add zone id, not area id
+uint32 const NA_HALAA_GRAVEYARD_ZONE = AREA_NAGRAND; // need to add zone id, not area id
 
-const uint32 NA_RESPAWN_TIME = 3600000; // one hour to capture after defeating all guards
+uint32 const NA_RESPAWN_TIME = 3600000; // one hour to capture after defeating all guards
 
-const uint32 NA_GUARD_CHECK_TIME = 500; // every half second
+uint32 const NA_GUARD_CHECK_TIME = 500; // every half second
 
-const uint32 NA_HALAA_BOMB = 24538; // Item id Bomb throwed in Halaa
+uint32 const NA_HALAA_BOMB = 24538; // Item id Bomb throwed in Halaa
 
-const uint32 FLIGHT_NODES_NUM = 4;
+uint32 const FLIGHT_NODES_NUM = 4;
 
 // used to access the elements of Horde/AllyControlGOs
 enum ControlGOTypes
@@ -69,8 +69,8 @@ enum ControlGOTypes
     NA_CONTROL_GO_NUM = 12
 };
 
-const uint32 FlightPathStartNodes[FLIGHT_NODES_NUM] = {103, 105, 107, 109};
-const uint32 FlightPathEndNodes[FLIGHT_NODES_NUM] = {104, 106, 108, 110};
+uint32 const FlightPathStartNodes[FLIGHT_NODES_NUM] = {103, 105, 107, 109};
+uint32 const FlightPathEndNodes[FLIGHT_NODES_NUM] = {104, 106, 108, 110};
 
 enum FlightSpellsNA
 {
@@ -95,7 +95,7 @@ enum HalaaCreaturesSpawn
 };
 
 // spawned when the alliance is attacking, horde is in control
-const go_type HordeControlGOs[NA_CONTROL_GO_NUM] =
+go_type const HordeControlGOs[NA_CONTROL_GO_NUM] =
 {
     {182267, MAP_OUTLAND, -1815.8f, 8036.51f, -26.2354f, -2.89725f, 0.0f, 0.0f, 0.992546f, -0.121869f}, //ALLY_ROOST_SOUTH
     {182280, MAP_OUTLAND, -1507.95f, 8132.1f, -19.5585f, -1.3439f, 0.0f, 0.0f, 0.622515f, -0.782608f}, //ALLY_ROOST_WEST
@@ -114,7 +114,7 @@ const go_type HordeControlGOs[NA_CONTROL_GO_NUM] =
 };
 
 // spawned when the horde is attacking, alliance is in control
-const go_type AllianceControlGOs[NA_CONTROL_GO_NUM] =
+go_type const AllianceControlGOs[NA_CONTROL_GO_NUM] =
 {
     {182301, MAP_OUTLAND, -1815.8f, 8036.51f, -26.2354f, -2.89725f, 0.0f, 0.0f, 0.992546f, -0.121869f}, //HORDE_ROOST_SOUTH
     {182302, MAP_OUTLAND, -1507.95f, 8132.1f, -19.5585f, -1.3439f, 0.0f, 0.0f, 0.622515f, -0.782608f}, //HORDE_ROOST_WEST
@@ -137,7 +137,7 @@ struct HalaaIds
     uint32 idPatrol;
 };
 
-const HalaaIds PatrolCreatureEntry[NA_HALAA_CREATURES] =
+HalaaIds const PatrolCreatureEntry[NA_HALAA_CREATURES] =
 {
     // Horde
     {18192},

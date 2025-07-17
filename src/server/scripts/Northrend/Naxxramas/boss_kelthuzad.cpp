@@ -101,7 +101,7 @@ enum Event
     EVENT_MINION_BLOOD_TAP                  = 19
 };
 
-const Position SummonGroups[12] =
+Position const SummonGroups[12] =
 {
     // Portals
     {3783.272705f, -5062.697266f, 143.711203f, 3.617599f}, // LEFT_FAR
@@ -120,7 +120,7 @@ const Position SummonGroups[12] =
     {3665.30f, -5141.55f, 143.1846f, 0.566f}
 };
 
-const Position SpawnPool[7] =
+Position const SpawnPool[7] =
 {
     // Portals
     {3783.272705f, -5062.697266f, 143.711203f, 3.617599f}, // LEFT_FAR

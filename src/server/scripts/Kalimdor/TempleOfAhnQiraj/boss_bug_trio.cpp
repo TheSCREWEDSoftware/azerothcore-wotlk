@@ -59,7 +59,7 @@ enum Misc
     VEM_WAYPOINT_PATH    = 876030
 };
 
-const Position resetPoint = { -8582.0f, 2047.0f, -1.62f }; // Taken from CMangos
+Position const resetPoint = { -8582.0f, 2047.0f, -1.62f }; // Taken from CMangos
 
 struct boss_bug_trio : public BossAI
 {

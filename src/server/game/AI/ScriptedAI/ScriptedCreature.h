@@ -243,7 +243,7 @@ struct ScriptedAI : public CreatureAI
      * Hodir is in room until his Y position is below the Door position:
      * IsInRoom(doorPosition, AXIS_Y, false);
      */
-    bool IsInRoom(const Position* pos, Axis axis, bool above)
+    bool IsInRoom(Position const* pos, Axis axis, bool above)
     {
         if (!pos)
         {
@@ -385,7 +385,7 @@ struct ScriptedAI : public CreatureAI
     bool Is25ManRaid() const { return _difficulty & RAID_DIFFICULTY_MASK_25MAN; }
 
     template<class T> inline
-    const T& DUNGEON_MODE(const T& normal5, const T& heroic10) const
+    T const& DUNGEON_MODE(T const& normal5, T const& heroic10) const
     {
         switch (_difficulty)
         {
@@ -401,7 +401,7 @@ struct ScriptedAI : public CreatureAI
     }
 
     template<class T> inline
-    const T& RAID_MODE(const T& normal10, const T& normal25) const
+    T const& RAID_MODE(T const& normal10, T const& normal25) const
     {
         switch (_difficulty)
         {
@@ -417,7 +417,7 @@ struct ScriptedAI : public CreatureAI
     }
 
     template<class T> inline
-    const T& RAID_MODE(const T& normal10, const T& normal25, const T& heroic10, const T& heroic25) const
+    T const& RAID_MODE(T const& normal10, T const& normal25, T const& heroic10, T const& heroic25) const
     {
         switch (_difficulty)
         {

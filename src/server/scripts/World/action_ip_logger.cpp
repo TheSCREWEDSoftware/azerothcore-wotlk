@@ -216,7 +216,7 @@ public:
         // We declare all the required variables
         uint32 playerGuid = player->GetSession()->GetAccountId();
         ObjectGuid::LowType characterGuid = player->GetGUID().GetCounter();
-        const std::string currentIp = player->GetSession()->GetRemoteAddress();
+        std::string const currentIp = player->GetSession()->GetRemoteAddress();
         std::string systemNote = "ERROR"; // "ERROR" is a placeholder here. We change it...
 
         // ... with this switch, so that we have a more accurate phrasing of what type it is

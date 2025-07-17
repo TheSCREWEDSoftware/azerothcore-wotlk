@@ -1040,7 +1040,7 @@ void GameObject::SaveToDB(bool saveAddon /*= false*/)
 
 void GameObject::SaveToDB(uint32 mapid, uint8 spawnMask, uint32 phaseMask, bool saveAddon /*= false*/)
 {
-    const GameObjectTemplate* goI = GetGOInfo();
+    GameObjectTemplate const* goI = GetGOInfo();
 
     if (!goI)
         return;
@@ -1435,7 +1435,7 @@ void GameObject::SetGoArtKit(uint8 kit)
 
 void GameObject::SetGoArtKit(uint8 artkit, GameObject* go, ObjectGuid::LowType lowguid)
 {
-    const GameObjectData* data = nullptr;
+    GameObjectData const* data = nullptr;
     if (go)
     {
         go->SetGoArtKit(artkit);
@@ -2204,10 +2204,10 @@ std::string const& GameObject::GetNameForLocaleIdx(LocaleConstant loc_idx) const
 
 void GameObject::UpdatePackedRotation()
 {
-    static const int32 PACK_YZ = 1 << 20;
-    static const int32 PACK_X = PACK_YZ << 1;
-    static const int32 PACK_YZ_MASK = (PACK_YZ << 1) - 1;
-    static const int32 PACK_X_MASK = (PACK_X << 1) - 1;
+    static int32 const PACK_YZ = 1 << 20;
+    static int32 const PACK_X = PACK_YZ << 1;
+    static int32 const PACK_YZ_MASK = (PACK_YZ << 1) - 1;
+    static int32 const PACK_X_MASK = (PACK_X << 1) - 1;
     int8 w_sign = (m_localRotation.w >= 0.f ? 1 : -1);
     int64 x = int32(m_localRotation.x * PACK_X)  * w_sign & PACK_X_MASK;
     int64 y = int32(m_localRotation.y * PACK_YZ) * w_sign & PACK_YZ_MASK;
@@ -2775,7 +2775,7 @@ void GameObject::BuildValuesUpdate(uint8 updateType, ByteBuffer* data, Player* t
                             dynFlags |= GO_DYNFLAG_LO_SPARKLE;
                         break;
                     case GAMEOBJECT_TYPE_TRANSPORT:
-                        if (const StaticTransport* t = ToStaticTransport())
+                        if (StaticTransport const* t = ToStaticTransport())
                             if (t->GetPauseTime())
                             {
                                 if (GetGoState() == GO_STATE_READY)
@@ -2792,7 +2792,7 @@ void GameObject::BuildValuesUpdate(uint8 updateType, ByteBuffer* data, Player* t
                         // else it's ignored
                         break;
                     case GAMEOBJECT_TYPE_MO_TRANSPORT:
-                        if (const MotionTransport* t = ToMotionTransport())
+                        if (MotionTransport const* t = ToMotionTransport())
                             pathProgress = int16(float(t->GetPathProgress()) / float(t->GetPeriod()) * 65535.0f);
                         break;
                     default:

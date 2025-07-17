@@ -529,7 +529,7 @@ void Map::UpdatePlayerZoneStats(uint32 oldZone, uint32 newZone)
     ++_zonePlayerCountMap[newZone];
 }
 
-void Map::Update(const uint32 t_diff, const uint32 s_diff, bool  /*thread*/)
+void Map::Update(uint32 const t_diff, uint32 const s_diff, bool  /*thread*/)
 {
     if (t_diff)
         _dynamicTree.update(t_diff);
@@ -1817,7 +1817,7 @@ uint32 Map::ApplyDynamicModeRespawnScaling(WorldObject const* obj, uint32 respaw
     return std::max<uint32>(std::ceil(respawnDelay * adjustFactor), timeMinimum);
 }
 
-void Map::DelayedUpdate(const uint32 t_diff)
+void Map::DelayedUpdate(uint32 const t_diff)
 {
     for (_transportsUpdateIter = _transports.begin(); _transportsUpdateIter != _transports.end();)
     {
@@ -2211,7 +2211,7 @@ bool InstanceMap::AddPlayerToMap(Player* player)
     return true;
 }
 
-void InstanceMap::Update(const uint32 t_diff, const uint32 s_diff, bool /*thread*/)
+void InstanceMap::Update(uint32 const t_diff, uint32 const s_diff, bool /*thread*/)
 {
     Map::Update(t_diff, s_diff);
 
@@ -2734,7 +2734,7 @@ void Map::LogEncounterFinished(EncounterCreditType type, uint32 creditEntry)
         if (Player* p = itr->GetSource())
         {
             std::string auraStr;
-            const Unit::AuraApplicationMap& a = p->GetAppliedAuras();
+            Unit::AuraApplicationMap const& a = p->GetAppliedAuras();
             for (auto iterator = a.begin(); iterator != a.end(); ++iterator)
             {
                 snprintf(buffer2, 255, "%u(%u) ", iterator->first, iterator->second->GetEffectMask());

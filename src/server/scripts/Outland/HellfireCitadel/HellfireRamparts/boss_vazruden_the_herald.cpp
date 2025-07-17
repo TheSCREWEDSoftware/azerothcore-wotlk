@@ -55,7 +55,7 @@ enum GroupPhase
     GROUP_PHASE_2               = 1
 };
 
-const Position NazanPos[3] =
+Position const NazanPos[3] =
 {
     {-1430.37f, 1710.03f, 111.0f, 0.0f},
     {-1428.40f, 1772.09f, 111.0f, 0.0f},

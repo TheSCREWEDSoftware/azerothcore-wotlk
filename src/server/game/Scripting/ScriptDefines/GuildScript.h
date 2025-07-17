@@ -42,7 +42,7 @@ enum GuildHook
 class GuildScript : public ScriptObject
 {
 protected:
-    GuildScript(const char* name, std::vector<uint16> enabledHooks = std::vector<uint16>());
+    GuildScript(char const* name, std::vector<uint16> enabledHooks = std::vector<uint16>());
 
 public:
     [[nodiscard]] bool IsDatabaseBound() const override { return false; }

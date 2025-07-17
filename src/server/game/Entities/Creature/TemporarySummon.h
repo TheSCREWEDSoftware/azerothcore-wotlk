@@ -61,7 +61,7 @@ public:
     void SetVisibleBySummonerOnly(bool visibleBySummonerOnly) { _visibleBySummonerOnly = visibleBySummonerOnly; }
     [[nodiscard]] bool IsVisibleBySummonerOnly() const { return _visibleBySummonerOnly; }
 
-    const SummonPropertiesEntry* const m_Properties;
+    SummonPropertiesEntry const* m_Properties const;
 
     std::string GetDebugInfo() const override;
 
@@ -88,7 +88,7 @@ public:
 
     std::string GetDebugInfo() const override;
 protected:
-    const ObjectGuid m_owner;
+    ObjectGuid const m_owner;
     float m_followAngle;
 };
 
@@ -121,7 +121,7 @@ public:
     void RemoveFromWorld() override;
 protected:
     [[nodiscard]] Player* GetOwner() const;
-    const ObjectGuid m_owner;
+    ObjectGuid const m_owner;
 };
 
 class ForcedUnsummonDelayEvent : public BasicEvent

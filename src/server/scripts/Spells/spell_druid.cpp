@@ -1154,8 +1154,8 @@ class spell_dru_berserk : public SpellScript
         if (caster->IsPlayer())
         {
             // Remove tiger fury / mangle(bear)
-            const uint32 TigerFury[6] = { 5217, 6793, 9845, 9846, 50212, 50213 };
-            const uint32 DireMaul[6] = { 33878, 33986, 33987, 48563, 48564 };
+            uint32 const TigerFury[6] = { 5217, 6793, 9845, 9846, 50212, 50213 };
+            uint32 const DireMaul[6] = { 33878, 33986, 33987, 48563, 48564 };
 
             // remove aura
             for (auto& i : TigerFury)

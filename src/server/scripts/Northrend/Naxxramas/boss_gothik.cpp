@@ -115,7 +115,7 @@ enum Events
     EVENT_INTRO_4                   = 17
 };
 
-const uint32 gothikWaves[24][2] =
+uint32 const gothikWaves[24][2] =
 {
     {NPC_LIVING_TRAINEE,    20000},
     {NPC_LIVING_TRAINEE,    20000},
@@ -143,7 +143,7 @@ const uint32 gothikWaves[24][2] =
     {0, 0}
 };
 
-const Position PosSummonLiving[6] =
+Position const PosSummonLiving[6] =
 {
     {2669.7f, -3428.76f, 268.56f, 1.6f},
     {2692.1f, -3428.76f, 268.56f, 1.6f},
@@ -153,7 +153,7 @@ const Position PosSummonLiving[6] =
     {2714.4f, -3431.67f, 268.56f, 1.6f}
 };
 
-const Position PosSummonDead[5] =
+Position const PosSummonDead[5] =
 {
     {2725.1f, -3310.0f, 268.85f, 3.4f},
     {2699.3f, -3322.8f, 268.60f, 3.3f},

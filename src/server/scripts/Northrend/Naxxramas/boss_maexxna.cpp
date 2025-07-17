@@ -64,7 +64,7 @@ enum Misc
     NPC_MAEXXNA_SPIDERLING              = 17055
 };
 
-const Position PosWrap[7] =
+Position const PosWrap[7] =
 {
     {3496.615f,  -3834.182f,  320.7863f},
     {3509.108f,  -3833.922f,  320.4750f},

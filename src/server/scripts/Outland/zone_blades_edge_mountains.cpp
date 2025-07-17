@@ -319,7 +319,7 @@ public:
         {
             if (spell->Id == SPELL_T_PHASE_MODULATOR && caster->IsPlayer())
             {
-                const uint32 entry_list[4] = {ENTRY_PROTO, ENTRY_ADOLE, ENTRY_MATUR, ENTRY_NIHIL};
+                uint32 const entry_list[4] = {ENTRY_PROTO, ENTRY_ADOLE, ENTRY_MATUR, ENTRY_NIHIL};
                 int cid = rand() % (4 - 1);
 
                 if (entry_list[cid] == me->GetEntry())

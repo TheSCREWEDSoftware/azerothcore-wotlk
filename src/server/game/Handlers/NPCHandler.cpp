@@ -90,7 +90,7 @@ void WorldSession::SendTrainerList(ObjectGuid guid)
     SendTrainerList(guid, str);
 }
 
-void WorldSession::SendTrainerList(ObjectGuid guid, const std::string& strTitle)
+void WorldSession::SendTrainerList(ObjectGuid guid, std::string const& strTitle)
 {
     LOG_DEBUG("network", "WORLD: SendTrainerList");
 

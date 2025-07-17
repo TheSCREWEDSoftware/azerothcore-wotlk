@@ -28,10 +28,10 @@ namespace Movement
     float terminalVelocity = 60.148003f;
     float terminalSafefallVelocity = 7.0f;
 
-    const float terminal_length = float(terminalVelocity* terminalVelocity) / (2.0f * gravity);
-    const float terminal_safeFall_length = (terminalSafefallVelocity* terminalSafefallVelocity) / (2.0f * gravity);
-    const float terminal_fallTime = float(terminalVelocity / gravity); // the time that needed to reach terminalVelocity
-    const float terminal_safeFall_fallTime = float(terminalSafefallVelocity / gravity); // the time that needed to reach terminalVelocity with safefall
+    float const terminal_length = float(terminalVelocity* terminalVelocity) / (2.0f * gravity);
+    float const terminal_safeFall_length = (terminalSafefallVelocity* terminalSafefallVelocity) / (2.0f * gravity);
+    float const terminal_fallTime = float(terminalVelocity / gravity); // the time that needed to reach terminalVelocity
+    float const terminal_safeFall_fallTime = float(terminalSafefallVelocity / gravity); // the time that needed to reach terminalVelocity with safefall
 
     float computeFallTime(float path_length, bool isSafeFall)
     {

@@ -822,7 +822,7 @@ public:
             ScriptedAI::EnterEvadeMode(why);
         }
 
-        void HandleIntroSpeech(const uint32 diff)
+        void HandleIntroSpeech(uint32 const diff)
         {
             if (me->IsInCombat() || me->isDead())
                 return;

@@ -36,7 +36,7 @@ enum Events
     EVENT_THRASH                    = 2,
 };
 
-const Position SummonLocation = { -167.9561f, -411.7844f, 76.23057f, 1.53589f };
+Position const SummonLocation = { -167.9561f, -411.7844f, 76.23057f, 1.53589f };
 
 class boss_halycon : public CreatureScript
 {

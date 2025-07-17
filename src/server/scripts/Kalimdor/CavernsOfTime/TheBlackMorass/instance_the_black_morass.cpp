@@ -21,7 +21,7 @@
 #include "WorldStateDefines.h"
 #include "the_black_morass.h"
 
-const Position PortalLocation[4] =
+Position const PortalLocation[4] =
 {
     { -2030.8318f, 7024.9443f, 23.071817f, 3.14159f },
     { -1961.7335f, 7029.5280f, 21.811401f, 2.12931f },

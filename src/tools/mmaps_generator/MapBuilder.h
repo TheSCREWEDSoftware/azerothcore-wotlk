@@ -194,7 +194,7 @@ namespace MMAP
 
         bool m_debugOutput;
 
-        const char* m_offMeshFilePath;
+        char const* m_offMeshFilePath;
         unsigned int m_threads;
         bool m_skipContinents;
         bool m_skipJunkMaps;

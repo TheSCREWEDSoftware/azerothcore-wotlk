@@ -1391,7 +1391,7 @@ void ObjectMgr::LoadGameObjectAddons()
 
         ObjectGuid::LowType guid = fields[0].Get<uint32>();
 
-        const GameObjectData* goData = GetGameObjectData(guid);
+        GameObjectData const* goData = GetGameObjectData(guid);
         if (!goData)
         {
             LOG_ERROR("sql.sql", "GameObject (GUID: {}) does not exist but has a record in `gameobject_addon`", guid);
@@ -1659,7 +1659,7 @@ CreatureModel const* ObjectMgr::ChooseDisplayId(CreatureTemplate const* cinfo, C
     return cinfo->GetFirstInvisibleModel();
 }
 
-void ObjectMgr::ChooseCreatureFlags(const CreatureTemplate* cinfo, uint32& npcflag, uint32& unit_flags, uint32& dynamicflags, const CreatureData* data /*= nullptr*/)
+void ObjectMgr::ChooseCreatureFlags(CreatureTemplate const* cinfo, uint32& npcflag, uint32& unit_flags, uint32& dynamicflags, CreatureData const* data /*= nullptr*/)
 {
     npcflag = cinfo->npcflag;
     unit_flags = cinfo->unit_flags;
@@ -1947,7 +1947,7 @@ void ObjectMgr::LoadLinkedRespawn()
         {
             case CREATURE_TO_CREATURE:
                 {
-                    const CreatureData* slave = GetCreatureData(guidLow);
+                    CreatureData const* slave = GetCreatureData(guidLow);
                     if (!slave)
                     {
                         LOG_ERROR("sql.sql", "LinkedRespawn: Creature (guid) {} not found in creature table", guidLow);
@@ -1955,7 +1955,7 @@ void ObjectMgr::LoadLinkedRespawn()
                         break;
                     }
 
-                    const CreatureData* master = GetCreatureData(linkedGuidLow);
+                    CreatureData const* master = GetCreatureData(linkedGuidLow);
                     if (!master)
                     {
                         LOG_ERROR("sql.sql", "LinkedRespawn: Creature (linkedGuid) {} not found in creature table", linkedGuidLow);
@@ -1984,7 +1984,7 @@ void ObjectMgr::LoadLinkedRespawn()
                 }
             case CREATURE_TO_GO:
                 {
-                    const CreatureData* slave = GetCreatureData(guidLow);
+                    CreatureData const* slave = GetCreatureData(guidLow);
                     if (!slave)
                     {
                         LOG_ERROR("sql.sql", "LinkedRespawn: Creature (guid) {} not found in creature table", guidLow);
@@ -1992,7 +1992,7 @@ void ObjectMgr::LoadLinkedRespawn()
                         break;
                     }
 
-                    const GameObjectData* master = GetGameObjectData(linkedGuidLow);
+                    GameObjectData const* master = GetGameObjectData(linkedGuidLow);
                     if (!master)
                     {
                         LOG_ERROR("sql.sql", "LinkedRespawn: Gameobject (linkedGuid) {} not found in gameobject table", linkedGuidLow);
@@ -2021,7 +2021,7 @@ void ObjectMgr::LoadLinkedRespawn()
                 }
             case GO_TO_GO:
                 {
-                    const GameObjectData* slave = GetGameObjectData(guidLow);
+                    GameObjectData const* slave = GetGameObjectData(guidLow);
                     if (!slave)
                     {
                         LOG_ERROR("sql.sql", "LinkedRespawn: Gameobject (guid) {} not found in gameobject table", guidLow);
@@ -2029,7 +2029,7 @@ void ObjectMgr::LoadLinkedRespawn()
                         break;
                     }
 
-                    const GameObjectData* master = GetGameObjectData(linkedGuidLow);
+                    GameObjectData const* master = GetGameObjectData(linkedGuidLow);
                     if (!master)
                     {
                         LOG_ERROR("sql.sql", "LinkedRespawn: Gameobject (linkedGuid) {} not found in gameobject table", linkedGuidLow);
@@ -2058,7 +2058,7 @@ void ObjectMgr::LoadLinkedRespawn()
                 }
             case GO_TO_CREATURE:
                 {
-                    const GameObjectData* slave = GetGameObjectData(guidLow);
+                    GameObjectData const* slave = GetGameObjectData(guidLow);
                     if (!slave)
                     {
                         LOG_ERROR("sql.sql", "LinkedRespawn: Gameobject (guid) {} not found in gameobject table", guidLow);
@@ -2066,7 +2066,7 @@ void ObjectMgr::LoadLinkedRespawn()
                         break;
                     }
 
-                    const CreatureData* master = GetCreatureData(linkedGuidLow);
+                    CreatureData const* master = GetCreatureData(linkedGuidLow);
                     if (!master)
                     {
                         LOG_ERROR("sql.sql", "LinkedRespawn: Creature (linkedGuid) {} not found in creature table", linkedGuidLow);
@@ -7020,12 +7020,12 @@ void ObjectMgr::LoadAccessRequirements()
             {
                 Field* progression_requirement_row = progression_requirements_results->Fetch();
 
-                const uint8 requirement_type             = progression_requirement_row[0].Get<uint8>();
-                const uint32 requirement_id              = progression_requirement_row[1].Get<uint32>();
-                const std::string requirement_note       = progression_requirement_row[2].Get<std::string>();
-                const uint8 requirement_faction          = progression_requirement_row[3].Get<uint8>();
-                const uint8 requirement_priority         = progression_requirement_row[4].IsNull() ? UINT8_MAX : progression_requirement_row[4].Get<uint8>();
-                const bool requirement_checkLeaderOnly   = progression_requirement_row[5].Get<bool>();
+                uint8 const requirement_type             = progression_requirement_row[0].Get<uint8>();
+                uint32 const requirement_id              = progression_requirement_row[1].Get<uint32>();
+                std::string const requirement_note       = progression_requirement_row[2].Get<std::string>();
+                uint8 const requirement_faction          = progression_requirement_row[3].Get<uint8>();
+                uint8 const requirement_priority         = progression_requirement_row[4].IsNull() ? UINT8_MAX : progression_requirement_row[4].Get<uint8>();
+                bool const requirement_checkLeaderOnly   = progression_requirement_row[5].Get<bool>();
 
                 ProgressionRequirement* progression_requirement = new ProgressionRequirement();
                 progression_requirement->id              = requirement_id;
@@ -7101,7 +7101,7 @@ void ObjectMgr::LoadAccessRequirements()
         }
 
         //Sort all arrays for priority
-        auto sortFunction = [](const ProgressionRequirement* const a, const ProgressionRequirement* const b) {return a->priority > b->priority; };
+        auto sortFunction = [](ProgressionRequirement const* a const, ProgressionRequirement const* b const) {return a->priority > b->priority; };
         std::sort(ar->achievements.begin(), ar->achievements.end(), sortFunction);
         std::sort(ar->quests.begin(), ar->quests.end(), sortFunction);
         std::sort(ar->items.begin(), ar->items.end(), sortFunction);
@@ -8695,7 +8695,7 @@ bool ObjectMgr::IsValidCharterName(std::string_view name)
     return isValidString(wname, strictMask, true);
 }
 
-bool ObjectMgr::IsValidChannelName(const std::string& name)
+bool ObjectMgr::IsValidChannelName(std::string const& name)
 {
     std::wstring wname;
     if (!Utf8toWStr(name, wname))
@@ -9158,7 +9158,7 @@ GameTele const* ObjectMgr::GetGameTele(std::string_view name, bool exactSearch) 
     wstrToLower(wname);
 
     // Alternative first GameTele what contains wnameLow as substring in case no GameTele location found
-    const GameTele* alt = nullptr;
+    GameTele const* alt = nullptr;
     for (GameTeleContainer::const_iterator itr = _gameTeleStore.begin(); itr != _gameTeleStore.end(); ++itr)
     {
         if (itr->second.wnameLow == wname)
@@ -9961,7 +9961,7 @@ CreatureBaseStats const* ObjectMgr::GetCreatureBaseStats(uint8 level, uint8 unit
             RangedAttackPower = 0;
         }
     };
-    static const DefaultCreatureBaseStats defStats;
+    static DefaultCreatureBaseStats const defStats;
     return &defStats;
 }
 

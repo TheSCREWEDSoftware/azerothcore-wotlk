@@ -43,8 +43,8 @@ enum Adds
 
 constexpr uint32 CALL_HELP = 0;
 
-const Position SummonLocation1 = {-49.43f, -455.82f, 77.82f, 4.61f};
-const Position SummonLocation2 = {-58.48f, -456.29f, 77.82f, 4.613f};
+Position const SummonLocation1 = {-49.43f, -455.82f, 77.82f, 4.61f};
+Position const SummonLocation2 = {-58.48f, -456.29f, 77.82f, 4.613f};
 
 class boss_overlord_wyrmthalak : public CreatureScript
 {

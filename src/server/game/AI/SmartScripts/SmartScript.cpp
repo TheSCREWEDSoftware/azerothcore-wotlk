@@ -5199,7 +5199,7 @@ void SmartScript::OnMoveInLineOfSight(Unit* who)
 }
 
 /*
-void SmartScript::UpdateAIWhileCharmed(const uint32 diff)
+void SmartScript::UpdateAIWhileCharmed(uint32 const diff)
 {
 }
 

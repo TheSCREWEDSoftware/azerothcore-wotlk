@@ -150,7 +150,7 @@ enum Misc
     PHASE_MAIEV                         = 5
 };
 
-const Position eyeBeamPos[MAX_EYE_BEAM_POS * 2] =
+Position const eyeBeamPos[MAX_EYE_BEAM_POS * 2] =
 {
     {639.97f, 301.63f, 354.0f, 0.0f},
     {658.83f, 265.10f, 354.0f, 0.0f},
@@ -163,7 +163,7 @@ const Position eyeBeamPos[MAX_EYE_BEAM_POS * 2] =
     {705.92f, 337.14f, 354.0f, 0.0f}
 };
 
-const Position airHoverPos[MAX_EYE_BEAM_POS] =
+Position const airHoverPos[MAX_EYE_BEAM_POS] =
 {
     {658.83f, 265.10f, 356.0f, 0.0f},
     {706.22f, 273.26f, 356.0f, 0.0f},

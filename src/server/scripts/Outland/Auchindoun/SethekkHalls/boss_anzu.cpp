@@ -74,7 +74,7 @@ struct boss_anzu : public BossAI
         });
     }
 
-    const Position AnzuSpiritPos[3] =
+    Position const AnzuSpiritPos[3] =
     {
         {-96.4816f, 304.236f, 26.5135f, 5.23599f},    // Hawk Spirit
         {-72.3434f, 290.861f, 26.4851f, 3.29867f},    // Falcon Spirit

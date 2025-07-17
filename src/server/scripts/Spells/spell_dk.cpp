@@ -98,7 +98,7 @@ class spell_dk_wandering_plague : public SpellScript
 
     void FilterTargets(std::list<WorldObject*>& targets)
     {
-        static const AuraType ccAuras[] =
+        static AuraType const ccAuras[] =
         {
             SPELL_AURA_MOD_CONFUSE,
             SPELL_AURA_MOD_FEAR,

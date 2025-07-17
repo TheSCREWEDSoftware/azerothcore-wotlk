@@ -54,19 +54,19 @@ enum Groups
     BANISH_PHASE            = 1
 };
 
-const float PortalCoord[3][3] =
+float const PortalCoord[3][3] =
 {
     {-11195.353516f, -1613.237183f, 278.237258f}, // Left side
     {-11137.846680f, -1685.607422f, 278.239258f}, // Right side
     {-11094.493164f, -1591.969238f, 279.949188f}  // Back side
 };
 
-const uint32 PortalID[3] =     {17369, 17367, 17368};
-const uint32 PortalVisual[3] = {30487, 30490, 30491};
-const uint32 PortalBeam[3] =   {30465, 30464, 30463};
-const uint32 PlayerBuff[3] =   {30421, 30422, 30423};
-const uint32 NetherBuff[3] =   {30466, 30467, 30468};
-const uint32 PlayerDebuff[3] = {38637, 38638, 38639};
+uint32 const PortalID[3] =     {17369, 17367, 17368};
+uint32 const PortalVisual[3] = {30487, 30490, 30491};
+uint32 const PortalBeam[3] =   {30465, 30464, 30463};
+uint32 const PlayerBuff[3] =   {30421, 30422, 30423};
+uint32 const NetherBuff[3] =   {30466, 30467, 30468};
+uint32 const PlayerDebuff[3] = {38637, 38638, 38639};
 
 struct boss_netherspite : public BossAI
 {

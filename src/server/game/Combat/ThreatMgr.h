@@ -99,7 +99,7 @@ public:
     void setOnlineOfflineState(bool isOnline);
     //=================================================
 
-    bool operator == (const HostileReference& hostileRef) const { return hostileRef.getUnitGuid() == getUnitGuid(); }
+    bool operator == (HostileReference const& hostileRef) const { return hostileRef.getUnitGuid() == getUnitGuid(); }
 
     //=================================================
 
@@ -325,7 +325,7 @@ namespace Acore
             return m_ascending ? a->GetThreat() < b->GetThreat() : a->GetThreat() > b->GetThreat();
         }
     private:
-        const bool m_ascending;
+        bool const m_ascending;
     };
 }
 #endif

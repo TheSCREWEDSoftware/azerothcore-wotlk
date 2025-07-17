@@ -1474,7 +1474,7 @@ void Unit::DealSpellDamage(SpellNonMeleeDamage* damageInfo, bool durabilityLoss,
 }
 
 // @todo for melee need create structure as in
-void Unit::CalculateMeleeDamage(Unit* victim, CalcDamageInfo* damageInfo, WeaponAttackType attackType, const bool sittingVictim)
+void Unit::CalculateMeleeDamage(Unit* victim, CalcDamageInfo* damageInfo, WeaponAttackType attackType, bool const sittingVictim)
 {
     damageInfo->attacker         = this;
     damageInfo->target           = victim;
@@ -2041,7 +2041,7 @@ bool Unit::IsDamageReducedByArmor(SpellSchoolMask schoolMask, SpellInfo const* s
     return true;
 }
 
-uint32 Unit::CalcArmorReducedDamage(Unit const* attacker, Unit const* victim, const uint32 damage, SpellInfo const* spellInfo, uint8 attackerLevel, WeaponAttackType /*attackType*/)
+uint32 Unit::CalcArmorReducedDamage(Unit const* attacker, Unit const* victim, uint32 const damage, SpellInfo const* spellInfo, uint8 attackerLevel, WeaponAttackType /*attackType*/)
 {
     float armor = float(victim->GetArmor());
 
@@ -2594,7 +2594,7 @@ void Unit::AttackerStateUpdate(Unit* victim, WeaponAttackType attType /*= BASE_A
         return;
 
     // CombatStart puts the target into stand state, so we need to cache sit state here to know if we should crit later
-    const bool sittingVictim = victim->IsPlayer() && (victim->IsSitState() || victim->getStandState() == UNIT_STAND_STATE_SLEEP);
+    bool const sittingVictim = victim->IsPlayer() && (victim->IsSitState() || victim->getStandState() == UNIT_STAND_STATE_SLEEP);
 
     CombatStart(victim);
     RemoveAurasWithInterruptFlags(AURA_INTERRUPT_FLAG_MELEE_ATTACK);
@@ -5877,7 +5877,7 @@ AuraEffect* Unit::IsScriptOverriden(SpellInfo const* spell, int32 script) const
 
 uint32 Unit::GetDiseasesByCaster(ObjectGuid casterGUID, uint8 mode)
 {
-    static const AuraType diseaseAuraTypes[] =
+    static AuraType const diseaseAuraTypes[] =
     {
         SPELL_AURA_PERIODIC_DAMAGE, // Frost Fever and Blood Plague
         SPELL_AURA_LINKED,          // Crypt Fever and Ebon Plague
@@ -5931,7 +5931,7 @@ uint32 Unit::GetDiseasesByCaster(ObjectGuid casterGUID, uint8 mode)
 
 uint32 Unit::GetDoTsByCaster(ObjectGuid casterGUID) const
 {
-    static const AuraType diseaseAuraTypes[] =
+    static AuraType const diseaseAuraTypes[] =
     {
         SPELL_AURA_PERIODIC_DAMAGE,
         SPELL_AURA_PERIODIC_DAMAGE_PERCENT,
@@ -6048,7 +6048,7 @@ float Unit::GetTotalAuraMultiplierByMiscMask(AuraType auratype, uint32 misc_mask
     return multiplier;
 }
 
-int32 Unit::GetMaxPositiveAuraModifierByMiscMask(AuraType auratype, uint32 misc_mask, const AuraEffect* except) const
+int32 Unit::GetMaxPositiveAuraModifierByMiscMask(AuraType auratype, uint32 misc_mask, AuraEffect const* except) const
 {
     int32 modifier = 0;
 
@@ -7024,7 +7024,7 @@ bool Unit::HandleDummyAuraProc(Unit* victim, uint32 damage, AuraEffect* triggere
                     // Trial of the Champion, Earth Shield
                     case 67534:
                         {
-                            const int32 dmg = (int32)damage;
+                            int32 const dmg = (int32)damage;
                             CastCustomSpell(this, 67535, &dmg, nullptr, nullptr, true, 0, triggeredByAura, triggeredByAura->GetCasterGUID());
                             return true;
                         }
@@ -15891,7 +15891,7 @@ struct ProcTriggeredData
     uint32 effMask;
     std::array<uint32, EFFECT_ALL> triggerSpelId;
 
-    bool operator==(const uint32 spellId) const
+    bool operator==(uint32 const spellId) const
     {
         return aura->GetId() == spellId;
     }

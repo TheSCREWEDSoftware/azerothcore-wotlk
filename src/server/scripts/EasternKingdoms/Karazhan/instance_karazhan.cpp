@@ -26,7 +26,7 @@
 #include "SpellScriptLoader.h"
 #include "karazhan.h"
 
-const Position OptionalSpawn[] =
+Position const OptionalSpawn[] =
 {
     { -10960.981445f, -1940.138428f, 46.178097f, 4.12f }, // Hyakiss the Lurker
     { -10945.769531f, -2040.153320f, 49.474438f, 0.077f }, // Shadikith the Glider

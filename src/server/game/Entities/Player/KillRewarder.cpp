@@ -88,7 +88,7 @@ void KillRewarder::_InitGroupData()
             if (Player* member = itr->GetSource())
                 if ((_killer == member || member->IsAtGroupRewardDistance(_victim)))
                 {
-                    const uint8 lvl = member->GetLevel();
+                    uint8 const lvl = member->GetLevel();
                     if (member->IsAlive())
                     {
                         // 2.1. _count - number of alive group members within reward distance;
@@ -131,7 +131,7 @@ void KillRewarder::_InitXP(Player* player)
 
     if (_xp && !_isBattleGround && _victim) // pussywizard: npcs with relatively low hp give lower exp
         if (_victim->IsCreature())
-            if (const CreatureTemplate* ct = _victim->ToCreature()->GetCreatureTemplate())
+            if (CreatureTemplate const* ct = _victim->ToCreature()->GetCreatureTemplate())
                 if (ct->ModHealth <= 0.75f && ct->ModHealth >= 0.0f)
                     _xp = uint32(_xp * ct->ModHealth);
 }
@@ -239,11 +239,11 @@ void KillRewarder::_RewardGroup()
         // (battleground rewards only XP, that's why).
         if (!_isBattleGround || _xp)
         {
-            const bool isDungeon = !_isPvP && sMapStore.LookupEntry(_killer->GetMapId())->IsDungeon();
+            bool const isDungeon = !_isPvP && sMapStore.LookupEntry(_killer->GetMapId())->IsDungeon();
             if (!_isBattleGround)
             {
                 // 3.1.2. Alter group rate if group is in raid (not for battlegrounds).
-                const bool isRaid = !_isPvP && sMapStore.LookupEntry(_killer->GetMapId())->IsRaid() && _group->isRaidGroup();
+                bool const isRaid = !_isPvP && sMapStore.LookupEntry(_killer->GetMapId())->IsRaid() && _group->isRaidGroup();
                 _groupRate = Acore::XP::xp_in_group_rate(_count, isRaid);
             }
 

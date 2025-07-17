@@ -44,7 +44,7 @@ void ScriptMgr::OnArenaStart(Battleground* bg)
     CALL_ENABLED_HOOKS(ArenaScript, ARENAHOOK_ON_ARENA_START, script->OnArenaStart(bg));
 }
 
-ArenaScript::ArenaScript(const char* name, std::vector<uint16> enabledHooks)
+ArenaScript::ArenaScript(char const* name, std::vector<uint16> enabledHooks)
     : ScriptObject(name, ARENAHOOK_END)
 {
     // If empty - enable all available hooks.

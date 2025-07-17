@@ -64,7 +64,7 @@ struct outroPosition
 
 #define PATH_BEGIN_VALUE 3000100
 
-const outroPosition outroPositions[] =
+outroPosition const outroPositions[] =
 {
     { { NPC_CHAMPION_1_ALLIANCE, NPC_CHAMPION_1_HORDE }, { 5590.47f, 2427.79f, 705.935f, 0.802851f }, PATH_BEGIN_VALUE + 14 },
     { { NPC_CHAMPION_1_ALLIANCE, NPC_CHAMPION_1_HORDE }, { 5593.59f, 2428.34f, 705.935f, 0.977384f }, PATH_BEGIN_VALUE + 15 },
@@ -91,7 +91,7 @@ const outroPosition outroPositions[] =
     { { 0, 0 }, { 0.0f, 0.0f, 0.0f, 0.0f }, 0 }
 };
 
-const Position outroSpawnPoint = {5618.139f, 2451.873f, 705.854f, 0.0f};
+Position const outroSpawnPoint = {5618.139f, 2451.873f, 705.854f, 0.0f};
 
 template <class AI, class T>
 inline AI* GetForgeOfSoulsAI(T* obj)

@@ -118,8 +118,8 @@ inline void Cell::VisitCircle(TypeContainerVisitor<T, CONTAINER>& visitor, Map& 
     //here is an algorithm for 'filling' circum-squared octagon
     uint32 x_shift = (uint32)ceilf((end_cell.x_coord - begin_cell.x_coord) * 0.3f - 0.5f);
     //lets calculate x_start/x_end coords for central strip...
-    const uint32 x_start = begin_cell.x_coord + x_shift;
-    const uint32 x_end = end_cell.x_coord - x_shift;
+    uint32 const x_start = begin_cell.x_coord + x_shift;
+    uint32 const x_end = end_cell.x_coord - x_shift;
 
     //visit central strip with constant width...
     for (uint32 x = x_start; x <= x_end; ++x)

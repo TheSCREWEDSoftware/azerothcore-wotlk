@@ -56,7 +56,7 @@ std::string Position::ToString() const
     return sstr.str();
 }
 
-void Position::RelocateOffset(const Position& offset)
+void Position::RelocateOffset(Position const& offset)
 {
     m_positionX = GetPositionX() + (offset.GetPositionX() * std::cos(GetOrientation()) + offset.GetPositionY() * std::sin(GetOrientation() + M_PI));
     m_positionY = GetPositionY() + (offset.GetPositionY() * std::cos(GetOrientation()) + offset.GetPositionX() * std::sin(GetOrientation()));
@@ -64,7 +64,7 @@ void Position::RelocateOffset(const Position& offset)
     m_orientation = GetOrientation() + offset.GetOrientation();
 }
 
-void Position::GetPositionOffsetTo(const Position& endPos, Position& retOffset) const
+void Position::GetPositionOffsetTo(Position const& endPos, Position& retOffset) const
 {
     float dx = endPos.GetPositionX() - GetPositionX();
     float dy = endPos.GetPositionY() - GetPositionY();
@@ -75,7 +75,7 @@ void Position::GetPositionOffsetTo(const Position& endPos, Position& retOffset) 
     retOffset.m_orientation = endPos.GetOrientation() - GetOrientation();
 }
 
-float Position::GetAngle(const Position* obj) const
+float Position::GetAngle(Position const* obj) const
 {
     if (!obj)
         return 0;
@@ -84,12 +84,12 @@ float Position::GetAngle(const Position* obj) const
 }
 
 // Return angle in range 0..2*pi
-float Position::GetAngle(const float x, const float y) const
+float Position::GetAngle(float const x, float const y) const
 {
     return getAngle(GetPositionX(), GetPositionY(), x, y);
 }
 
-void Position::GetSinCos(const float x, const float y, float& vsin, float& vcos) const
+void Position::GetSinCos(float const x, float const y, float& vsin, float& vcos) const
 {
     float dx = GetPositionX() - x;
     float dy = GetPositionY() - y;
@@ -108,7 +108,7 @@ void Position::GetSinCos(const float x, const float y, float& vsin, float& vcos)
     }
 }
 
-bool Position::IsWithinBox(const Position& center, float xradius, float yradius, float zradius) const
+bool Position::IsWithinBox(Position const& center, float xradius, float yradius, float zradius) const
 {
     // rotate the WorldObject position instead of rotating the whole cube, that way we can make a simplified
     // is-in-cube check and we have to calculate only one point instead of 4
@@ -138,7 +138,7 @@ bool Position::IsWithinBox(const Position& center, float xradius, float yradius,
     return true;
 }
 
-bool Position::HasInArc(float arc, const Position* obj, float targetRadius) const
+bool Position::HasInArc(float arc, Position const* obj, float targetRadius) const
 {
     // always have self in arc
     if (obj == this)

@@ -90,7 +90,7 @@ enum Talk
     SAY_TELEPORT = 7
 };
 
-const float UNHOLY_FRENZY_RANGE = 30.0f;
+float const UNHOLY_FRENZY_RANGE = 30.0f;
 
 class npc_hyjal_jaina : public CreatureScript
 {

@@ -186,7 +186,7 @@ public:
 
     void sGossipHello(Player* player) override;
     void sGossipSelect(Player* player, uint32 sender, uint32 action) override;
-    void sGossipSelectCode(Player* player, uint32 sender, uint32 action, const char* code) override;
+    void sGossipSelectCode(Player* player, uint32 sender, uint32 action, char const* code) override;
     void sQuestAccept(Player* player, Quest const* quest) override;
     //void sQuestSelect(Player* player, Quest const* quest);
     //void sQuestComplete(Player* player, Quest const* quest);
@@ -224,7 +224,7 @@ private:
     float mFollowAngle;
 
     void ReturnToLastOOCPos();
-    void UpdatePath(const uint32 diff);
+    void UpdatePath(uint32 const diff);
     SmartScript mScript;
     WPPath* mWayPoints;
     uint32 mEscortState;
@@ -247,14 +247,14 @@ private:
 
     uint32 mDespawnTime;
     uint32 mDespawnState;
-    void UpdateDespawn(const uint32 diff);
+    void UpdateDespawn(uint32 const diff);
     uint32 mEscortInvokerCheckTimer;
     bool mJustReset;
 
     bool mcanSpawn;
 
     // Xinef: Vehicle conditions
-    void CheckConditions(const uint32 diff);
+    void CheckConditions(uint32 const diff);
     ConditionList conditions;
     uint32 m_ConditionsTimer;
 };

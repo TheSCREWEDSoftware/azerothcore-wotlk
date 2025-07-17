@@ -2348,7 +2348,7 @@ InventoryResult Player::CanRollForItemInLFG(ItemTemplate const* proto, WorldObje
         return EQUIP_ERR_ITEM_NOT_FOUND;
     // Used by group, function NeedBeforeGreed, to know if a prototype can be used by a player
 
-    const static uint32 item_weapon_skills[MAX_ITEM_SUBCLASS_WEAPON] =
+    static const uint32 item_weapon_skills[MAX_ITEM_SUBCLASS_WEAPON] =
     {
         SKILL_AXES,     SKILL_2H_AXES,  SKILL_BOWS,          SKILL_GUNS,        SKILL_MACES,
         SKILL_2H_MACES, SKILL_POLEARMS, SKILL_SWORDS,        SKILL_2H_SWORDS,   0,
@@ -5138,7 +5138,7 @@ bool Player::LoadFromDB(ObjectGuid playerGuid, CharacterDatabaseQueryHolder cons
                 ResurrectPlayer(1.0f);
         }
 
-        const WorldLocation& _loc = GetEntryPoint();
+        WorldLocation const& _loc = GetEntryPoint();
         mapId = _loc.GetMapId();
         instanceId = 0;
 
@@ -5625,7 +5625,7 @@ bool Player::isAllowedToLoot(Creature const* creature)
     if (HasPendingBind())
         return false;
 
-    const Loot* loot = &creature->loot;
+    Loot const* loot = &creature->loot;
     if (loot->isLooted()) // nothing to loot or everything looted.
         return false;
 
@@ -6598,7 +6598,7 @@ void Player::SendSavedInstances()
 void Player::PrettyPrintRequirementsQuestList(const std::vector<const ProgressionRequirement*>& missingQuests) const
 {
     LocaleConstant loc_idx = GetSession()->GetSessionDbLocaleIndex();
-    for (const ProgressionRequirement* missingReq : missingQuests)
+    for (ProgressionRequirement const* missingReq : missingQuests)
     {
         Quest const* questTemplate = sObjectMgr->GetQuestTemplate(missingReq->id);
         if (!questTemplate)
@@ -6635,7 +6635,7 @@ void Player::PrettyPrintRequirementsQuestList(const std::vector<const Progressio
 void Player::PrettyPrintRequirementsAchievementsList(const std::vector<const ProgressionRequirement*>& missingAchievements) const
 {
     LocaleConstant loc_idx = GetSession()->GetSessionDbLocaleIndex();
-    for (const ProgressionRequirement* missingReq : missingAchievements)
+    for (ProgressionRequirement const* missingReq : missingAchievements)
     {
         AchievementEntry const* achievementEntry = sAchievementStore.LookupEntry(missingReq->id);
         if (!achievementEntry)
@@ -6668,7 +6668,7 @@ void Player::PrettyPrintRequirementsAchievementsList(const std::vector<const Pro
 void Player::PrettyPrintRequirementsItemsList(const std::vector<const ProgressionRequirement*>& missingItems) const
 {
     LocaleConstant loc_idx = GetSession()->GetSessionDbLocaleIndex();
-    for (const ProgressionRequirement* missingReq : missingItems)
+    for (ProgressionRequirement const* missingReq : missingItems)
     {
         ItemTemplate const* itemTemplate = sObjectMgr->GetItemTemplate(missingReq->id);
         if (!itemTemplate)
@@ -6746,7 +6746,7 @@ bool Player::Satisfy(DungeonProgressionRequirements const* ar, uint32 target_map
         //Check all items
         std::vector<const ProgressionRequirement*> missingPlayerItems;
         std::vector<const ProgressionRequirement*> missingLeaderItems;
-        for (const ProgressionRequirement* itemRequirement : ar->items)
+        for (ProgressionRequirement const* itemRequirement : ar->items)
         {
             Player* checkPlayer = this;
             std::vector<const ProgressionRequirement*>* missingItems = &missingPlayerItems;
@@ -6768,7 +6768,7 @@ bool Player::Satisfy(DungeonProgressionRequirements const* ar, uint32 target_map
         //Check all achievements
         std::vector<const ProgressionRequirement*> missingPlayerAchievements;
         std::vector<const ProgressionRequirement*> missingLeaderAchievements;
-        for (const ProgressionRequirement* achievementRequirement : ar->achievements)
+        for (ProgressionRequirement const* achievementRequirement : ar->achievements)
         {
             Player* checkPlayer = this;
             std::vector<const ProgressionRequirement*>* missingAchievements = &missingPlayerAchievements;
@@ -6790,7 +6790,7 @@ bool Player::Satisfy(DungeonProgressionRequirements const* ar, uint32 target_map
         //Check all quests
         std::vector<const ProgressionRequirement*> missingPlayerQuests;
         std::vector<const ProgressionRequirement*> missingLeaderQuests;
-        for (const ProgressionRequirement* questRequirement : ar->quests)
+        for (ProgressionRequirement const* questRequirement : ar->quests)
         {
             Player* checkPlayer = this;
             std::vector<const ProgressionRequirement*>* missingQuests = &missingPlayerQuests;
@@ -6813,7 +6813,7 @@ bool Player::Satisfy(DungeonProgressionRequirements const* ar, uint32 target_map
         bool ilvlRequirementNotMet = false;
         if (sWorld->getBoolConfig(CONFIG_DUNGEON_ACCESS_REQUIREMENTS_PORTAL_CHECK_ILVL))
         {
-            const int32 currentIlvl = (int32)GetAverageItemLevelForDF();
+            int32 const currentIlvl = (int32)GetAverageItemLevelForDF();
             if (ar->reqItemLevel > currentIlvl)
             {
                 ilvlRequirementNotMet = true;

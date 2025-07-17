@@ -35,7 +35,7 @@ namespace VMAP
     {
     public:
         MapRayCallback(ModelInstance* val, ModelIgnoreFlags ignoreFlags): prims(val), flags(ignoreFlags), hit(false) { }
-        bool operator()(const G3D::Ray& ray, uint32 entry, float& distance, bool StopAtFirstHit)
+        bool operator()(G3D::Ray const& ray, uint32 entry, float& distance, bool StopAtFirstHit)
         {
             bool result = prims[entry].intersectRay(ray, distance, StopAtFirstHit, flags);
             if (result)
@@ -55,7 +55,7 @@ namespace VMAP
     {
     public:
         AreaInfoCallback(ModelInstance* val): prims(val) {}
-        void operator()(const Vector3& point, uint32 entry)
+        void operator()(Vector3 const& point, uint32 entry)
         {
 #if defined(VMAP_DEBUG)
             LOG_DEBUG("maps", "AreaInfoCallback: trying to intersect '{}'", prims[entry].name);
@@ -71,7 +71,7 @@ namespace VMAP
     {
     public:
         LocationInfoCallback(ModelInstance* val, LocationInfo& info): prims(val), locInfo(info), result(false) {}
-        void operator()(const Vector3& point, uint32 entry)
+        void operator()(Vector3 const& point, uint32 entry)
         {
 #if defined(VMAP_DEBUG)
             LOG_DEBUG("maps", "LocationInfoCallback: trying to intersect '{}'", prims[entry].name);
@@ -115,14 +115,14 @@ namespace VMAP
         return false;
     }
 
-    bool StaticMapTree::GetLocationInfo(const Vector3& pos, LocationInfo& info) const
+    bool StaticMapTree::GetLocationInfo(Vector3 const& pos, LocationInfo& info) const
     {
         LocationInfoCallback intersectionCallBack(iTreeValues, info);
         iTree.intersectPoint(pos, intersectionCallBack);
         return intersectionCallBack.result;
     }
 
-    StaticMapTree::StaticMapTree(uint32 mapID, const std::string& basePath)
+    StaticMapTree::StaticMapTree(uint32 mapID, std::string const& basePath)
         : iMapID(mapID), iIsTiled(false), iTreeValues(0), iBasePath(basePath)
     {
         if (iBasePath.length() > 0 && iBasePath[iBasePath.length() - 1] != '/' && iBasePath[iBasePath.length() - 1] != '\\')
@@ -144,7 +144,7 @@ namespace VMAP
     Else, pMaxDist is not modified and returns false;
     */
 
-    bool StaticMapTree::GetIntersectionTime(const G3D::Ray& pRay, float& pMaxDist, bool StopAtFirstHit, ModelIgnoreFlags ignoreFlags) const
+    bool StaticMapTree::GetIntersectionTime(G3D::Ray const& pRay, float& pMaxDist, bool StopAtFirstHit, ModelIgnoreFlags ignoreFlags) const
     {
         float distance = pMaxDist;
         MapRayCallback intersectionCallBack(iTreeValues, ignoreFlags);
@@ -157,7 +157,7 @@ namespace VMAP
     }
     //=========================================================
 
-    bool StaticMapTree::isInLineOfSight(const Vector3& pos1, const Vector3& pos2, ModelIgnoreFlags ignoreFlags) const
+    bool StaticMapTree::isInLineOfSight(Vector3 const& pos1, Vector3 const& pos2, ModelIgnoreFlags ignoreFlags) const
     {
         float maxDist = (pos2 - pos1).magnitude();
         // return false if distance is over max float, in case of cheater teleporting to the end of the universe
@@ -184,7 +184,7 @@ namespace VMAP
     Return the hit pos or the original dest pos
     */
 
-    bool StaticMapTree::GetObjectHitPos(const Vector3& pPos1, const Vector3& pPos2, Vector3& pResultHitPos, float pModifyDist) const
+    bool StaticMapTree::GetObjectHitPos(Vector3 const& pPos1, Vector3 const& pPos2, Vector3& pResultHitPos, float pModifyDist) const
     {
         bool result = false;
         float maxDist = (pPos2 - pPos1).magnitude();
@@ -229,7 +229,7 @@ namespace VMAP
 
     //=========================================================
 
-    float StaticMapTree::getHeight(const Vector3& pPos, float maxSearchDist) const
+    float StaticMapTree::getHeight(Vector3 const& pPos, float maxSearchDist) const
     {
         float height = G3D::finf();
         Vector3 dir = Vector3(0, 0, -1);
@@ -244,7 +244,7 @@ namespace VMAP
 
     //=========================================================
 
-    LoadResult StaticMapTree::CanLoadMap(const std::string& vmapPath, uint32 mapID, uint32 tileX, uint32 tileY)
+    LoadResult StaticMapTree::CanLoadMap(std::string const& vmapPath, uint32 mapID, uint32 tileX, uint32 tileY)
     {
         std::string basePath = vmapPath;
         if (basePath.length() > 0 && basePath[basePath.length() - 1] != '/' && basePath[basePath.length() - 1] != '\\')
@@ -291,7 +291,7 @@ namespace VMAP
 
     //=========================================================
 
-    bool StaticMapTree::InitMap(const std::string& fname, VMapMgr2* vm)
+    bool StaticMapTree::InitMap(std::string const& fname, VMapMgr2* vm)
     {
         //VMAP_DEBUG_LOG(LOG_FILTER_MAPS, "StaticMapTree::InitMap() : initializing StaticMapTree '{}'", fname);
         bool success = false;

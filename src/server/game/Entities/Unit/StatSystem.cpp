@@ -690,7 +690,7 @@ void Player::UpdateAllCritPercentages()
     UpdateCritPercentage(RANGED_ATTACK);
 }
 
-const float m_diminishing_k[MAX_CLASSES] =
+float const m_diminishing_k[MAX_CLASSES] =
 {
     0.9560f,  // Warrior
     0.9560f,  // Paladin
@@ -734,7 +734,7 @@ float Player::GetMissPercentageFromDefence() const
 
 void Player::UpdateParryPercentage()
 {
-    const float parry_cap[MAX_CLASSES] =
+    float const parry_cap[MAX_CLASSES] =
     {
         47.003525f,     // Warrior
         47.003525f,     // Paladin
@@ -780,7 +780,7 @@ void Player::UpdateParryPercentage()
 
 void Player::UpdateDodgePercentage()
 {
-    const float dodge_cap[MAX_CLASSES] =
+    float const dodge_cap[MAX_CLASSES] =
     {
         88.129021f,     // Warrior
         88.129021f,     // Paladin

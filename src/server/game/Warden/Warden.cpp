@@ -137,7 +137,7 @@ void Warden::EncryptData(uint8* buffer, uint32 length)
     _outputCrypto.UpdateData(buffer, length);
 }
 
-bool Warden::IsValidCheckSum(uint32 checksum, const uint8* data, const uint16 length)
+bool Warden::IsValidCheckSum(uint32 checksum, uint8 const* data, uint16 const length)
 {
     uint32 newChecksum = BuildChecksum(data, length);
 
@@ -164,7 +164,7 @@ union keyData
     std::array<uint32, 5> ints;
 };
 
-uint32 Warden::BuildChecksum(const uint8* data, uint32 length)
+uint32 Warden::BuildChecksum(uint8 const* data, uint32 length)
 {
     keyData hash{};
     hash.bytes = Acore::Crypto::SHA1::GetDigestOf(data, std::size_t(length));

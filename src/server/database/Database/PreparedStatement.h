@@ -74,33 +74,33 @@ public:
 
     // Set numerlic and default binary
     template<typename T>
-    inline Acore::Types::is_default<T> SetData(const uint8 index, T value)
+    inline Acore::Types::is_default<T> SetData(uint8 const index, T value)
     {
         SetValidData(index, value);
     }
 
     // Set enums
     template<typename T>
-    inline Acore::Types::is_enum_v<T> SetData(const uint8 index, T value)
+    inline Acore::Types::is_enum_v<T> SetData(uint8 const index, T value)
     {
         SetValidData(index, std::underlying_type_t<T>(value));
     }
 
     // Set string_view
-    inline void SetData(const uint8 index, std::string_view value)
+    inline void SetData(uint8 const index, std::string_view value)
     {
         SetValidData(index, value);
     }
 
     // Set nullptr
-    inline void SetData(const uint8 index, std::nullptr_t = nullptr)
+    inline void SetData(uint8 const index, std::nullptr_t = nullptr)
     {
         SetValidData(index);
     }
 
     // Set non default binary
     template<std::size_t Size>
-    inline void SetData(const uint8 index, std::array<uint8, Size> const& value)
+    inline void SetData(uint8 const index, std::array<uint8, Size> const& value)
     {
         std::vector<uint8> vec(value.begin(), value.end());
         SetValidData(index, vec);
@@ -108,7 +108,7 @@ public:
 
     // Set duration
     template<class _Rep, class _Period>
-    inline void SetData(const uint8 index, std::chrono::duration<_Rep, _Period> const& value, bool convertToUin32 = true)
+    inline void SetData(uint8 const index, std::chrono::duration<_Rep, _Period> const& value, bool convertToUin32 = true)
     {
         SetValidData(index, convertToUin32 ? static_cast<uint32>(value.count()) : value.count());
     }
@@ -125,10 +125,10 @@ public:
 
 protected:
     template<typename T>
-    Acore::Types::is_non_string_view_v<T> SetValidData(const uint8 index, T const& value);
+    Acore::Types::is_non_string_view_v<T> SetValidData(uint8 const index, T const& value);
 
-    void SetValidData(const uint8 index);
-    void SetValidData(const uint8 index, std::string_view value);
+    void SetValidData(uint8 const index);
+    void SetValidData(uint8 const index, std::string_view value);
 
     template<typename... Ts>
     inline void SetDataTuple(std::tuple<Ts...> const& argsList)

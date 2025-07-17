@@ -45,7 +45,7 @@ void stripLineInvisibleChars(std::string& src);
 AC_COMMON_API Optional<int32> MoneyStringToMoney(std::string_view moneyString);
 
 std::string secsToTimeString(uint64 timeInSecs, bool shortText = false);
-uint32 TimeStringToSecs(const std::string& timestring);
+uint32 TimeStringToSecs(std::string const& timestring);
 
 inline void ApplyPercentModFloatVar(float& var, float val, bool apply)
 {
@@ -362,13 +362,13 @@ std::wstring GetMainPartOfName(std::wstring const& wname, uint32 declension);
 AC_COMMON_API bool utf8ToConsole(std::string_view utf8str, std::string& conStr);
 AC_COMMON_API bool consoleToUtf8(std::string_view conStr, std::string& utf8str);
 AC_COMMON_API bool Utf8FitTo(std::string_view str, std::wstring_view search);
-AC_COMMON_API void utf8printf(FILE* out, const char* str, ...);
-AC_COMMON_API void vutf8printf(FILE* out, const char* str, va_list* ap);
+AC_COMMON_API void utf8printf(FILE* out, char const* str, ...);
+AC_COMMON_API void vutf8printf(FILE* out, char const* str, va_list* ap);
 AC_COMMON_API bool Utf8ToUpperOnlyLatin(std::string& utf8String);
 
 bool IsIPAddress(char const* ipaddress);
 
-uint32 CreatePIDFile(const std::string& filename);
+uint32 CreatePIDFile(std::string const& filename);
 uint32 GetPID();
 
 namespace Acore::Impl

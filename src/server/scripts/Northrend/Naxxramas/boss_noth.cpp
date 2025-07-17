@@ -65,7 +65,7 @@ enum Misc
     NPC_PLAGUED_GUARDIAN                    = 16981
 };
 
-const Position summoningPosition[5] =
+Position const summoningPosition[5] =
 {
     {2728.06f, -3535.38f, 263.21f, 2.75f},
     {2725.71f, -3514.80f, 263.23f, 2.86f},
@@ -74,7 +74,7 @@ const Position summoningPosition[5] =
     {2652.02f, -3459.13f, 262.50f, 5.39f}
 };
 
-const Position nothPosition = {2684.94f, -3502.53f, 261.31f, 4.7f};
+Position const nothPosition = {2684.94f, -3502.53f, 261.31f, 4.7f};
 
 class boss_noth : public CreatureScript
 {

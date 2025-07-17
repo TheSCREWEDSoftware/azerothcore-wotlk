@@ -149,7 +149,7 @@ enum ThrallWarchief : uint32
     QUEST_WARCHIEFS_BLESSING       = 13189,
 };
 
-const Position heraldOfThrallPos = { -462.404f, -2637.68f, 96.0656f, 5.8606f };
+Position const heraldOfThrallPos = { -462.404f, -2637.68f, 96.0656f, 5.8606f };
 
 /// @todo verify abilities/timers
 class npc_thrall_warchief : public CreatureScript

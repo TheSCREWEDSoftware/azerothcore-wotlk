@@ -126,7 +126,7 @@ public:
     void DecryptData(uint8* buffer, uint32 length);
     void EncryptData(uint8* buffer, uint32 length);
 
-    static bool IsValidCheckSum(uint32 checksum, uint8 const* data, const uint16 length);
+    static bool IsValidCheckSum(uint32 checksum, uint8 const* data, uint16 const length);
     static uint32 BuildChecksum(uint8 const* data, uint32 length);
 
     // If no check is passed, the default action from config is executed

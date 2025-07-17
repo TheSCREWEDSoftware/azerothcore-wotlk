@@ -635,7 +635,7 @@ public:
                         // Find nearest dead Scarlet humanoid (exclude gryphon)
                         Creature* nearestCorpse = nullptr;
                         float nearestDist = std::numeric_limits<float>::max();
-                        static const uint32 corpseEntries[] = {
+                        static uint32 const corpseEntries[] = {
                             NPC_DEAD_SCARLET_MEDIC, NPC_DEAD_SCARLET_INFANTRYMAN, NPC_DEAD_SCARLET_CAPTAIN,
                             NPC_DEAD_SCARLET_PEASANT, NPC_DEAD_SCARLET_MINER, NPC_DEAD_SCARLET_FLEET_DEFENDER
                         };
@@ -821,7 +821,7 @@ public:
                         // Find nearest dead Scarlet NPC (including gryphon)
                         Creature* nearestCorpse = nullptr;
                         float nearestDist = std::numeric_limits<float>::max();
-                        static const uint32 corpseEntries[] = {
+                        static uint32 const corpseEntries[] = {
                             NPC_DEAD_SCARLET_MEDIC, NPC_DEAD_SCARLET_INFANTRYMAN, NPC_DEAD_SCARLET_CAPTAIN,
                             NPC_DEAD_SCARLET_PEASANT, NPC_DEAD_SCARLET_MINER, NPC_DEAD_SCARLET_FLEET_DEFENDER,
                             NPC_DEAD_SCARLET_GRYPHON

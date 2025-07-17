@@ -24,7 +24,7 @@
 class GameObjectScript : public ScriptObject, public UpdatableScript<GameObject>
 {
 protected:
-    GameObjectScript(const char* name);
+    GameObjectScript(char const* name);
 
 public:
     [[nodiscard]] bool IsDatabaseBound() const override { return true; }

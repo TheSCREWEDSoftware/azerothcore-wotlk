@@ -57,7 +57,7 @@ namespace MMAP
 
     MapBuilder::MapBuilder(float maxWalkableAngle, bool skipLiquid,
                            bool skipContinents, bool skipJunkMaps, bool skipBattlegrounds,
-                           bool debugOutput, bool bigBaseUnit, int mapid, const char* offMeshFilePath, unsigned int threads) :
+                           bool debugOutput, bool bigBaseUnit, int mapid, char const* offMeshFilePath, unsigned int threads) :
 
         m_debugOutput        (debugOutput),
         m_offMeshFilePath    (offMeshFilePath),
@@ -608,7 +608,7 @@ namespace MMAP
         int lTriCount = meshData.liquidTris.size() / 3;
         uint8* lTriFlags = meshData.liquidType.getCArray();
 
-        const TileConfig tileConfig = TileConfig(m_bigBaseUnit);
+        TileConfig const tileConfig = TileConfig(m_bigBaseUnit);
         int TILES_PER_MAP = tileConfig.TILES_PER_MAP;
         float BASE_UNIT_DIM = tileConfig.BASE_UNIT_DIM;
         rcConfig config = m_mapBuilder->GetMapSpecificConfig(mapID, bmin, bmax, tileConfig);

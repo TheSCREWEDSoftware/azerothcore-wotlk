@@ -41,16 +41,16 @@ namespace MMAP
         GRID_V9
     };
 
-    static const int V9_SIZE = 129;
-    static const int V9_SIZE_SQ = V9_SIZE * V9_SIZE;
-    static const int V8_SIZE = 128;
-    static const int V8_SIZE_SQ = V8_SIZE * V8_SIZE;
-    static const float GRID_SIZE = 533.3333f;
-    static const float GRID_PART_SIZE = GRID_SIZE / V8_SIZE;
+    static int const V9_SIZE = 129;
+    static int const V9_SIZE_SQ = V9_SIZE * V9_SIZE;
+    static int const V8_SIZE = 128;
+    static int const V8_SIZE_SQ = V8_SIZE * V8_SIZE;
+    static float const GRID_SIZE = 533.3333f;
+    static float const GRID_PART_SIZE = GRID_SIZE / V8_SIZE;
 
     // see contrib/extractor/system.cpp, CONF_use_minHeight
-    static const float INVALID_MAP_LIQ_HEIGHT = -500.f;
-    static const float INVALID_MAP_LIQ_HEIGHT_MAX = 5000.0f;
+    static float const INVALID_MAP_LIQ_HEIGHT = -500.f;
+    static float const INVALID_MAP_LIQ_HEIGHT_MAX = 5000.0f;
 
     // see following files:
     // contrib/extractor/system.cpp
@@ -79,11 +79,11 @@ namespace MMAP
         TerrainBuilder(bool skipLiquid);
         ~TerrainBuilder();
 
-        TerrainBuilder(const TerrainBuilder& tb) = delete;
+        TerrainBuilder(TerrainBuilder const& tb) = delete;
 
         void loadMap(uint32 mapID, uint32 tileX, uint32 tileY, MeshData& meshData);
         bool loadVMap(uint32 mapID, uint32 tileX, uint32 tileY, MeshData& meshData);
-        void loadOffMeshConnections(uint32 mapID, uint32 tileX, uint32 tileY, MeshData& meshData, const char* offMeshFilePath);
+        void loadOffMeshConnections(uint32 mapID, uint32 tileX, uint32 tileY, MeshData& meshData, char const* offMeshFilePath);
 
         [[nodiscard]] bool usesLiquids() const { return !m_skipLiquid; }
 
@@ -114,13 +114,13 @@ namespace MMAP
         void getHeightTriangle(int square, Spot triangle, int* indices, bool liquid = false);
 
         /// Determines if the specific position's triangles should be rendered
-        bool isHole(int square, const uint16 holes[16][16]);
+        bool isHole(int square, uint16 const holes[16][16]);
 
         /// Get the liquid vector coordinate for a specific position
         void getLiquidCoord(int index, int index2, float xOffset, float yOffset, float* coord, float* v);
 
         /// Get the liquid type for a specific position
-        uint8 getLiquidType(int square, const uint8 liquid_type[16][16]);
+        uint8 getLiquidType(int square, uint8 const liquid_type[16][16]);
     };
 }
 

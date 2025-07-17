@@ -93,9 +93,9 @@ enum eAchiev
 
 #define INTRO_MOVEMENT_INTERVAL 25000
 
-const Position CenterPos = {754.395f, 1301.27f, 266.10f, 0.0f};
+Position const CenterPos = {754.395f, 1301.27f, 266.10f, 0.0f};
 
-const Position FourSidesPos[] =
+Position const FourSidesPos[] =
 {
     {686.417f, 1235.52f, 288.17f, M_PI / 4},
     {828.182f, 1379.05f, 288.17f, 5 * M_PI / 4},
@@ -103,9 +103,9 @@ const Position FourSidesPos[] =
     {821.182f, 1235.42f, 288.17f, 3 * M_PI / 4},
 };
 
-const Position Phase2NorthPos = {837.22f, 1301.676f, 296.10f, M_PI};
+Position const Phase2NorthPos = {837.22f, 1301.676f, 296.10f, M_PI};
 
-const uint32 MalygosIntroIntervals[] = {18000, 19000, 21000, 18000, 15000};
+uint32 const MalygosIntroIntervals[] = {18000, 19000, 21000, 18000, 15000};
 
 class EoEDrakeEnterVehicleEvent : public BasicEvent
 {

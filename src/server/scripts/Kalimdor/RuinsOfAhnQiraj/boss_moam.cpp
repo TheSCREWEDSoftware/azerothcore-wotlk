@@ -184,7 +184,7 @@ class spell_moam_summon_mana_fiends : public SpellScript
 
     void HandleScript(SpellEffIndex /*effIndex*/)
     {
-        const uint32 spellIds[3] = { SPELL_SUMMON_MANA_FIEND_1, SPELL_SUMMON_MANA_FIEND_2, SPELL_SUMMON_MANA_FIEND_3 };
+        uint32 const spellIds[3] = { SPELL_SUMMON_MANA_FIEND_1, SPELL_SUMMON_MANA_FIEND_2, SPELL_SUMMON_MANA_FIEND_3 };
 
         for (uint32 spellId : spellIds)
         {

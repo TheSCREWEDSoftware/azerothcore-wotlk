@@ -53,7 +53,7 @@ struct ServerPktHeader
         return size > 0x7FFF;
     }
 
-    const uint32 size;
+    uint32 const size;
     uint8 header[5];
 };
 
