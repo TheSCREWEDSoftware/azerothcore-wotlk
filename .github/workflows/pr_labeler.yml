@@ -1,6 +1,6 @@
 name: PR Labeler
 on:
-  - pull_request_target
+  pull_request_target:
 
 jobs:
   triage:
@@ -8,17 +8,26 @@ jobs:
     permissions: write-all
     steps:
       - name: Check skip conditions
+        id: skipcheck
         run: |
+          SKIP=0
           if [[ "${{ github.repository }}" != "azerothcore/azerothcore-wotlk" ]]; then
             echo "::notice ::Job skipped: Not the main repository (found ${{ github.repository }})"
-            exit 78
+            SKIP=1
           fi
           if [[ "${{ github.event.pull_request.draft }}" == "true" ]]; then
             echo "::notice ::Job skipped: PR is a draft"
-            exit 78
+            SKIP=1
           fi
+          if [[ $SKIP -eq 1 ]]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            exit 78
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Real labeler step
-        if: github.repository == 'azerothcore/azerothcore-wotlk' && !github.event.pull_request.draft
+        if: steps.skipcheck.outputs.skip == 'false'
         uses: actions/labeler@v5
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
