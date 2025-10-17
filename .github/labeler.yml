@@ -57,3 +57,7 @@ Workflow:
 Batch:
 - changed-files:
     - any-glob-to-any-file: 'apps/**/*.bat'
+
+merge-conflict:
+  mergeable: false
+  
