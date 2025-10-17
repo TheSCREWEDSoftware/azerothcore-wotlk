@@ -11,11 +11,11 @@ jobs:
         run: |
           if [[ "${{ github.repository }}" != "azerothcore/azerothcore-wotlk" ]]; then
             echo "::notice ::Job skipped: Not the main repository (found ${{ github.repository }})"
-            exit 0
+            exit 78
           fi
           if [[ "${{ github.event.pull_request.draft }}" == "true" ]]; then
             echo "::notice ::Job skipped: PR is a draft"
-            exit 0
+            exit 78
           fi
       - name: Real labeler step
         if: github.repository == 'azerothcore/azerothcore-wotlk' && !github.event.pull_request.draft
