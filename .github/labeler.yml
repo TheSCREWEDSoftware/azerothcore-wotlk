@@ -58,6 +58,6 @@ Batch:
 - changed-files:
     - any-glob-to-any-file: 'apps/**/*.bat'
 
-merge-conflict:
+"Merge Conflicts":
   mergeable: false
   
