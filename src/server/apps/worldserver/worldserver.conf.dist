@@ -2695,6 +2695,13 @@ ItemDelete.KeepDays = 0
 DBC.EnforceItemAttributes = 1
 
 #
+#    Item.RefundPeriod
+#        Description: Time (in hours) for the trading period before it becomes soulbounded.
+#        Default:     2.0
+
+Item.RefundPeriod = 2.0
+
+#
 #    Rate.Drop.Item.Poor
 #    Rate.Drop.Item.Normal
 #    Rate.Drop.Item.Uncommon

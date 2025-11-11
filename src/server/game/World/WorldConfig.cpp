@@ -577,6 +577,7 @@ void WorldConfig::BuildConfigCache()
     SetConfigValue<bool>(CONFIG_PDUMP_NO_PATHS, "PlayerDump.DisallowPaths", true);
     SetConfigValue<bool>(CONFIG_PDUMP_NO_OVERWRITE, "PlayerDump.DisallowOverwrite", true);
     SetConfigValue<bool>(CONFIG_ENABLE_MMAPS, "MoveMaps.Enable", true);
+    SetConfigValue<float>(CONFIG_ITEM_REFUND_PERIOD, "Item.RefundPeriod", 2.0f);
 
     // Wintergrasp
     SetConfigValue<uint32>(CONFIG_WINTERGRASP_ENABLE, "Wintergrasp.Enable", 1);
