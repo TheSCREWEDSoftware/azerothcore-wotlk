@@ -1228,7 +1228,7 @@ void Item::UpdatePlayedTime(Player* owner)
     uint32 elapsed = uint32(curtime - m_lastPlayedTimeUpdate);
     uint32 new_playtime = current_playtime + elapsed;
     // Check if the refund timer has expired yet
-    if (new_playtime <= 2 * HOUR)
+    if (new_playtime <= sWorld->getFloatConfig(CONFIG_ITEM_REFUND_PERIOD) * HOUR)
     {
         // No? Proceed.
         // Update the data field
@@ -1252,7 +1252,7 @@ uint32 Item::GetPlayedTime()
 
 bool Item::IsRefundExpired()
 {
-    return (GetPlayedTime() > 2 * HOUR);
+    return (GetPlayedTime() > sWorld->getFloatConfig(CONFIG_ITEM_REFUND_PERIOD) * HOUR);
 }
 
 void Item::SetSoulboundTradeable(AllowedLooterSet& allowedLooters)
@@ -1277,7 +1277,7 @@ void Item::ClearSoulboundTradeable(Player* currentOwner)
 bool Item::CheckSoulboundTradeExpire()
 {
     // called from owner's update - GetOwner() MUST be valid
-    if (GetUInt32Value(ITEM_FIELD_CREATE_PLAYED_TIME) + 2 * HOUR < GetOwner()->GetTotalPlayedTime())
+    if (GetUInt32Value(ITEM_FIELD_CREATE_PLAYED_TIME) + sWorld->getFloatConfig(CONFIG_ITEM_REFUND_PERIOD) * HOUR < GetOwner()->GetTotalPlayedTime())
     {
         ClearSoulboundTradeable(GetOwner());
         return true; // remove from tradeable list
