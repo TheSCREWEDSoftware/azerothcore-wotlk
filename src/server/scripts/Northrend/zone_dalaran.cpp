@@ -271,7 +271,7 @@ public:
         return new npc_shandy_dalaranAI(creature);
     }
 };
-enum ArchmageLandalockQuests
+/* enum ArchmageLandalockQuests
 {
     QUEST_SARTHARION_MUST_DIE               = 24579,
     QUEST_ANUBREKHAN_MUST_DIE               = 24580,
@@ -396,7 +396,7 @@ public:
         uint32 _switchImageTimer;
         ObjectGuid _summonGUID;
     };
-};
+};*/
 
 /*******************************************************
  * npc_mageguard_dalaran
