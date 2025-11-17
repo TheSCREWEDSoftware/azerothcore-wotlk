@@ -859,7 +859,7 @@ void AddSC_dalaran()
     new npc_steam_powered_auctioneer();
     new npc_mei_francis_mount();
     new npc_shandy_dalaran();
-    new npc_archmage_landalock();
+    //new npc_archmage_landalock();
     new npc_dalaran_mage();
     new npc_dalaran_warrior();
     RegisterCreatureAI(npc_cosmetic_toy_plane);
