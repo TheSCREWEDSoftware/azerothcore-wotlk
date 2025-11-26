@@ -17,6 +17,7 @@
 
 #include "Item.h"
 #include "Common.h"
+#include "Config.h"
 #include "DatabaseEnv.h"
 #include "GameTime.h"
 #include "ItemEnchantmentMgr.h"
