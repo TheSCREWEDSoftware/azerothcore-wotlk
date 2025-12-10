@@ -88,7 +88,8 @@ public:
         if (quest->GetQuestId() == QUEST_TRAIL_OF_FIRE)
         {
             creature->SetFaction(player->GetTeamId() == TEAM_ALLIANCE ? FACTION_ESCORTEE_A_PASSIVE : FACTION_ESCORTEE_H_PASSIVE);
-            CAST_AI(npc_escortAI, (creature->AI()))->Start(true, false, player->GetGUID());
+            creature->SetWalk(true);
+            CAST_AI(npc_escortAI, (creature->AI()))->Start(true, player->GetGUID());
         }
         return true;
     }
@@ -135,7 +136,7 @@ public:
             {
                 case 1:
                     me->SetReactState(REACT_AGGRESSIVE);
-                    SetRun(true);
+                    me->SetWalk(false);
                     break;
                 case 23:
                     player->GroupEventHappens(QUEST_TRAIL_OF_FIRE, me);
@@ -144,32 +145,32 @@ public:
                 case 5:
                     if (Unit* Trigger = me->FindNearestCreature(NPC_HANES_FIRE_TRIGGER, 10.0f))
                         Trigger->CastSpell(Trigger, SPELL_COSMETIC_LOW_POLY_FIRE, false);
-                    SetRun(false);
+                    me->SetWalk(true);
                     break;
                 case 6:
                     if (Unit* Trigger = me->FindNearestCreature(NPC_HANES_FIRE_TRIGGER, 10.0f))
                         Trigger->CastSpell(Trigger, SPELL_COSMETIC_LOW_POLY_FIRE, false);
-                    SetRun(true);
+                    me->SetWalk(false);
                     break;
                 case 8:
                     if (Unit* Trigger = me->FindNearestCreature(NPC_HANES_FIRE_TRIGGER, 10.0f))
                         Trigger->CastSpell(Trigger, SPELL_COSMETIC_LOW_POLY_FIRE, false);
-                    SetRun(false);
+                    me->SetWalk(true);
                     break;
                 case 9:
                     if (Unit* Trigger = me->FindNearestCreature(NPC_HANES_FIRE_TRIGGER, 10.0f))
                         Trigger->CastSpell(Trigger, SPELL_COSMETIC_LOW_POLY_FIRE, false);
                     break;
                 case 10:
-                    SetRun(true);
+                    me->SetWalk(false);
                     break;
                 case 13:
-                    SetRun(false);
+                    me->SetWalk(true);
                     break;
                 case 14:
                     if (Unit* Trigger = me->FindNearestCreature(NPC_HANES_FIRE_TRIGGER, 10.0f))
                         Trigger->CastSpell(Trigger, SPELL_COSMETIC_LOW_POLY_FIRE, false);
-                    SetRun(true);
+                    me->SetWalk(false);
                     break;
             }
         }
@@ -206,7 +207,7 @@ public:
                 return;
 
             me->SetWalk(true);
-            Start(false, false, summonerGUID);
+            Start(false, summonerGUID);
         }
 
         void WaypointReached(uint32 waypointId) override
