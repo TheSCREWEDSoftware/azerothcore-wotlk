@@ -1694,8 +1694,8 @@ bool Creature::LoadCreatureFromDB(ObjectGuid::LowType spawnId, Map* map, bool ad
 
     if (data->posZ < groundZ - 0.1f)
     {
-        LOG_ERROR("creature", "Creature {} under the map: guid {}, map {}, at {} {} {} (closest Z: {})",
-            data->id1, spawnId, data->mapid, data->posX, data->posY, data->posZ, groundZ);
+        LOG_ERROR("creature", "Creature: {} not valid spawn position: .go xyz {} {} {} {} | .go c {}",
+            data->id1, data->posX, data->posY, data->posZ, data->mapid, spawnId);
     }
 
     // xinef: this has to be assigned before Create function, properly loads equipment id from DB
