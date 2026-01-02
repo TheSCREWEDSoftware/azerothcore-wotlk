@@ -1689,6 +1689,15 @@ bool Creature::LoadCreatureFromDB(ObjectGuid::LowType spawnId, Map* map, bool ad
         return false;
     }
 
+    float groundZ = 0.0f;
+    float waterZ = map->GetWaterOrGroundLevel(data->phaseMask, data->posX, data->posY, data->posZ, &groundZ);
+
+    if (data->posZ < groundZ - 0.1f)
+    {
+        LOG_ERROR("creature", "Creature {} under the map: guid {}, map {}, at {} {} {} (closest Z: {})",
+            data->id1, spawnId, data->mapid, data->posX, data->posY, data->posZ, groundZ);
+    }
+
     // xinef: this has to be assigned before Create function, properly loads equipment id from DB
     m_creatureData = data;
     m_spawnId = spawnId;
