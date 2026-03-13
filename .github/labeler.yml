@@ -56,9 +56,11 @@ CMake:
 Platform-Docker:
 - changed-files:
     - any-glob-to-any-file:
-      - '**/Dockerfile*'
-      - 'docker-compose.yml'
-      - 'apps/docker/**/*'
+        - '**/Dockerfile*'
+        - '**/docker-compose.yml'
+        - '**/docker-compose.*.yml'
+        - 'docker/**/*'
+        - '**/docker/**/*'
 
 Workflow:
 - changed-files:
