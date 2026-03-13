@@ -16,5 +16,5 @@ DELETE FROM `creature_loot_template` WHERE `item` = @ITEM;
 DELETE FROM `creature_loot_template` WHERE `Reference` = @ENTRY AND `Entry` IN (910, 2337, 10760);
 INSERT INTO `creature_loot_template` (`Entry`, `Item`, `Reference`, `Chance`, `QuestRequired`, `LootMode`, `GroupId`, `MinCount`, `MaxCount`, `Comment`) VALUES
 (910, @ITEM, @ENTRY, 2, 0, 1, 0, 1, 1, 'Defias Enchanter - Pattern: Robes of Arcana'),
-(2337, @ITEM, @ENTRY, 2, 0, 1, 0, 1, 1, 'Dark Strand Voidcalle - Pattern: Robes of Arcana'),
+(2337, @ITEM, @ENTRY, 2, 0, 1, 0, 1, 1, 'Dark Strand Voidcaller - Pattern: Robes of Arcana'),
 (10760, @ITEM, @ENTRY, 2, 0, 1, 0, 1, 1, 'Grimtotem Geomancer - Pattern: Robes of Arcana');
