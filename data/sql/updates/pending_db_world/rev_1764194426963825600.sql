@@ -9,8 +9,8 @@ DELETE FROM `reference_loot_template` WHERE `Entry` = @ENTRY;
 INSERT INTO `reference_loot_template` (`Entry`, `Item`, `Reference`, `Chance`, `QuestRequired`, `LootMode`, `GroupId`, `MinCount`, `MaxCount`, `Comment`) VALUES
 (@ENTRY, @ITEM, 0, 100, 0, 1, 1, 1, 1, 'Pattern: Robes of Arcana');
 
--- Deletes "Pattern: Robes of Arcana" from every creature's loot
-DELETE FROM `creature_loot_template` WHERE `item` = @ITEM;
+-- Deletes "Pattern: Robes of Arcana" from Defias Enchnater, Dark Strand Voidcaller and Grimtotem Geomancer
+ DELETE FROM `creature_loot_template` WHERE `item` = @ITEM AND `Entry` IN (910, 2337, 10760);
 
 -- Adds reference loot for "Pattern: Robes of Arcana" for each creature below
 DELETE FROM `creature_loot_template` WHERE `Reference` = @ENTRY AND `Entry` IN (910, 2337, 10760);
