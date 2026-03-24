@@ -66,12 +66,6 @@ enum UlduarData
     DATA_UNBROKEN_ACHIEVEMENT               = 105,
     DATA_LEVIATHAN_DOORS                    = 106,
 
-    // Razorscales Harpoon Fire State GUIDs
-    DATA_HARPOON_FIRE_STATE_1               = 200,
-    DATA_HARPOON_FIRE_STATE_2               = 201,
-    DATA_HARPOON_FIRE_STATE_3               = 202,
-    DATA_HARPOON_FIRE_STATE_4               = 203,
-
     // Mimiron creatures
     DATA_MIMIRON_LEVIATHAN_MKII             = 301,
     DATA_MIMIRON_VX001                      = 302,
@@ -149,6 +143,12 @@ enum UlduarData
     DATA_BRANN_MEMOTESAY                    = 801,
     DATA_BRANN_EASY_MODE                    = 802,
     DATA_BRANN_BASE_CAMP                    = 803,
+
+    // Observation Ring Keepers
+    DATA_FREYA_GOSSIP                       = 810,
+    DATA_HODIR_GOSSIP                       = 811,
+    DATA_MIMIRON_GOSSIP                     = 812,
+    DATA_THORIM_GOSSIP                      = 813,
 };
 
 enum UlduarNPCs
