@@ -2,10 +2,5 @@
 -- Removes extra "Stone" from First names for DK Ghouls
 DELETE FROM `pet_name_generation` WHERE `id`=261 AND `word` = "Stone" AND `entry` = 26125 AND `half` = 0;
 
--- Re-use the free ID for the missing last name "Flayer" for DK Ghouls
-DELETE FROM `pet_name_generation` WHERE `id`=261;
-INSERT INTO `pet_name_generation` (`id`, `word`, `entry`, `half`) VALUES
-(261, 'flayer', 26125, 1);
-
 -- Updates last name "rawler" to "crawler" for DK Ghouls
 UPDATE `pet_name_generation` SET `word` = "crawler" WHERE  `id` = 308 AND `word` = "rawler" AND `entry` = 26125 AND `half` = 1;
