@@ -1711,16 +1711,7 @@ public:
                 }
             }
 
-            std::string status;
-            if (banned)
-                status = " - [BANNED]";
-            else if (locked)
-                status = " - [LOCKED]";
-            else if (muted)
-                status = " - [MUTED]";
-
-            handler->PSendSysMessage("{} (Id: {}){}", accountName, accountId, status);
-
+            handler->PSendSysMessage(LANG_LOOKUP_PLAYER_ACCOUNT, accountName, accountId);
             CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_CHAR_GUID_NAME_BY_ACC);
             stmt->SetData(0, accountId);
             PreparedQueryResult result2 = CharacterDatabase.Query(stmt);
