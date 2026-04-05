@@ -1646,8 +1646,8 @@ public:
     {
         if (!result)
         {
-            // Error handling should be done prior running LookupPlayerSearchCommand if not this will display an error here
-            handler->SendErrorMessage(LANG_LOOKUP_NOT_VALID, __func__ ,__LINE__);
+            // Error handling should be done prior to calling LookupPlayerSearchCommand
+            LOG_ERROR("misc", "LookupPlayerSearchCommand called with null result from {}", __func__);
             return false;
         }
 
@@ -1657,7 +1657,7 @@ public:
 
         do
         {
-            if (maxResults && count++ == maxResults)
+            if (maxResults && count == maxResults)
             {
                 handler->PSendSysMessage(LANG_COMMAND_LOOKUP_MAX_RESULTS, maxResults);
                 return true;
@@ -1692,9 +1692,7 @@ public:
                 }
             }
             bool muted = false;
-            std::string muteReason, muteBy;
-            int64 mutetime = 0;
-            if (!banned && !locked) // If not banned and locked, check mute status
+            if (!banned && !locked) // If not banned and not locked, check mute status
             {
                 LoginDatabasePreparedStatement* stmtMute = LoginDatabase.GetPreparedStatement(LOGIN_SEL_ACCOUNT_MUTE_INFO);
                 stmtMute->SetData(0, accountId);
@@ -1704,14 +1702,10 @@ public:
                     do
                     {
                         Field* muteFields = muteResult->Fetch();
-                        int64 thisMuteTime = muteFields[1].Get<int64>();
-                        if (thisMuteTime > int64(time(nullptr)))
+                        if (muteFields[0].Get<uint32>() + muteFields[1].Get<uint32>() > uint32(time(nullptr)))
                         {
-                            mutetime = thisMuteTime;
-                            muteReason = muteFields[2].Get<std::string>();
-                            muteBy = muteFields[3].Get<std::string>();
                             muted = true;
-                            break; // Only needed for muted
+                            break;
                         }
                     } while (muteResult->NextRow());
                 }
