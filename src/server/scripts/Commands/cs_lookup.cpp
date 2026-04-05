@@ -1646,8 +1646,8 @@ public:
     {
         if (!result)
         {
-            // Error handling should be done prior to calling LookupPlayerSearchCommand
-            LOG_ERROR("misc", "LookupPlayerSearchCommand called with null result from {}", __func__);
+            // Error handling should be done prior running LookupPlayerSearchCommand if not this will display an error here
+            handler->SendErrorMessage(LANG_LOOKUP_NOT_VALID, __func__ ,__LINE__);
             return false;
         }
 
