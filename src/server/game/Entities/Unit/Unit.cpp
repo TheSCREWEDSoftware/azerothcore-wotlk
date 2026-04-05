@@ -1204,7 +1204,8 @@ uint32 Unit::DealDamage(Unit* attacker, Unit* victim, uint32 damage, CleanDamage
         if (!attacker || attacker->IsControlledByPlayer() || attacker->IsCreatedByPlayer())
         {
             uint32 unDamage = health < damage ? health : damage;
-            bool damagedByPlayer = unDamage && attacker && (attacker->IsPlayer() || attacker->m_movedByPlayer != nullptr);
+            bool damagedByPlayer = unDamage && attacker && (attacker->IsPlayer() || attacker->m_movedByPlayer != nullptr
+                || attacker->GetCharmerOrOwnerGUID().IsPlayer());
             victim->ToCreature()->LowerPlayerDamageReq(unDamage, damagedByPlayer);
         }
     }
@@ -5697,6 +5698,9 @@ void Unit::RemoveAllAurasExceptType(AuraType type)
 // Xinef: We should not remove passive auras on evade, if npc has player owner (scripted one cast auras)
 void Unit::RemoveEvadeAuras()
 {
+    if (IsCharmedOwnedByPlayerOrPlayer())
+        return;
+
     for (AuraApplicationMap::iterator iter = m_appliedAuras.begin(); iter != m_appliedAuras.end();)
     {
         Aura const* aura = iter->second->GetBase();
@@ -6768,7 +6772,7 @@ void Unit::ProcSkillsAndAuras(Unit* actor, Unit* victim, uint32 procAttacker, ui
         }
         else if (healInfo && healInfo->GetHeal())
             spellTypeMask = PROC_SPELL_TYPE_HEAL;
-        else if (damageInfo && damageInfo->GetDamage())
+        else if (damageInfo && (damageInfo->GetDamage() || damageInfo->GetAbsorb()))
             spellTypeMask = PROC_SPELL_TYPE_DAMAGE;
         else if (procSpellInfo)
             spellTypeMask = PROC_SPELL_TYPE_NO_DMG_HEAL;
