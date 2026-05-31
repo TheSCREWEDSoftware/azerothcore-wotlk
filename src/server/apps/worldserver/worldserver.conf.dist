@@ -1851,6 +1851,18 @@ CharDelete.MinLevel = 0
 CharDelete.KeepDays = 30
 
 #
+#    CharInactive.Enable
+#        Description: Allow players to mark their own characters as inactive via the
+#                     '.character inactive' commands. Inactive characters are hidden from
+#                     the character select screen but remain on the account and are never
+#                     purged by CharDelete.KeepDays. GMs can manage inactive characters
+#                     on any account regardless of this setting.
+#        Default:     0 - (Disabled)
+#                     1 - (Enabled)
+
+CharInactive.Enable = 0
+
+#
 ###################################################################################################
 
 ###################################################################################################

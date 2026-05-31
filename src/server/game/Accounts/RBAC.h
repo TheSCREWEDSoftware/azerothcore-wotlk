@@ -684,6 +684,9 @@ enum RBACPermissions
     RBAC_PERM_COMMAND_DEBUG_INFO                             = 920,
     RBAC_PERM_COMMAND_DEBUG_COSMETIC                         = 921,
     RBAC_PERM_COMMAND_PET_RENAME                             = 922,
+    RBAC_PERM_COMMAND_CHARACTER_INACTIVE_LIST                = 928,
+    RBAC_PERM_COMMAND_CHARACTER_INACTIVE_ADD                 = 929,
+    RBAC_PERM_COMMAND_CHARACTER_INACTIVE_REMOVE              = 930,
     // custom permissions 1000+
     RBAC_PERM_MAX
 };

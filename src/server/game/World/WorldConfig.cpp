@@ -476,6 +476,7 @@ void WorldConfig::BuildConfigCache()
     SetConfigValue<uint32>(CONFIG_CHARDELETE_METHOD, "CharDelete.Method", 0);
     SetConfigValue<uint32>(CONFIG_CHARDELETE_MIN_LEVEL, "CharDelete.MinLevel", 0);
     SetConfigValue<uint32>(CONFIG_CHARDELETE_KEEP_DAYS, "CharDelete.KeepDays", 30);
+    SetConfigValue<bool>(CONFIG_CHARINACTIVE_ENABLE, "CharInactive.Enable", false);
 
     ///- Load the ItemDelete related config options
     SetConfigValue<bool>(CONFIG_ITEMDELETE_METHOD, "ItemDelete.Method", 0);

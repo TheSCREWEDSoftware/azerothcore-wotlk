@@ -421,7 +421,7 @@ void CharacterDatabaseConnection::DoPrepareStatements()
     PrepareStatement(CHAR_SEL_CHAR_AT_LOGIN_TITLES_MONEY, "SELECT at_login, knownTitles, money FROM characters WHERE guid = ?", CONNECTION_SYNCH);
     PrepareStatement(CHAR_SEL_CHAR_COD_ITEM_MAIL, "SELECT id, messageType, mailTemplateId, sender, subject, body, money, has_items FROM mail WHERE receiver = ? AND has_items <> 0 AND cod <> 0", CONNECTION_SYNCH);
     PrepareStatement(CHAR_SEL_CHAR_SOCIAL, "SELECT DISTINCT guid FROM character_social WHERE friend = ?", CONNECTION_SYNCH);
-    PrepareStatement(CHAR_SEL_CHAR_OLD_CHARS, "SELECT guid, deleteInfos_Account FROM characters WHERE deleteDate IS NOT NULL AND deleteDate < ?", CONNECTION_SYNCH);
+    PrepareStatement(CHAR_SEL_CHAR_OLD_CHARS, "SELECT guid, deleteInfos_Account FROM characters WHERE deleteDate IS NOT NULL AND deleteDate < ? AND inactive = 0", CONNECTION_SYNCH);
     PrepareStatement(CHAR_SEL_ARENA_TEAM_ID_BY_PLAYER_GUID, "SELECT arena_team_member.arenateamid FROM arena_team_member JOIN arena_team ON arena_team_member.arenateamid = arena_team.arenateamid WHERE guid = ? AND type = ? LIMIT 1", CONNECTION_SYNCH);
     PrepareStatement(CHAR_SEL_MAIL, "SELECT id, messageType, sender, receiver, subject, body, expire_time, deliver_time, money, cod, checked, stationery, mailTemplateId FROM mail WHERE receiver = ? AND deliver_time <= ? ORDER BY id DESC", CONNECTION_ASYNC);
     PrepareStatement(CHAR_SEL_NEXT_MAIL_DELIVERYTIME, "SELECT MIN(deliver_time) FROM mail WHERE receiver = ? AND deliver_time > ? AND (checked & 1) = 0 LIMIT 1", CONNECTION_SYNCH);
@@ -624,6 +624,13 @@ void CharacterDatabaseConnection::DoPrepareStatements()
     // world_state
     PrepareStatement(CHAR_SEL_WORLD_STATE, "SELECT Id, Data FROM world_state", CONNECTION_SYNCH);
     PrepareStatement(CHAR_REP_WORLD_STATE, "REPLACE INTO world_state (Id, Data) VALUES(?, ?)", CONNECTION_ASYNC);
+
+
+    // Character inactive feature
+    PrepareStatement(CHAR_UPD_CHAR_SET_INACTIVE, "UPDATE characters SET inactive = 1, deleteInfos_Name = name, deleteDate = UNIX_TIMESTAMP() WHERE guid = ? AND inactive = 0 AND deleteDate IS NULL", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_UPD_CHAR_SET_ACTIVE, "UPDATE characters SET inactive = 0, deleteInfos_Name = NULL, deleteDate = NULL WHERE guid = ? AND inactive = 1", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_SEL_CHAR_INACTIVE_BY_ACCOUNT, "SELECT guid, name, level, deleteDate FROM characters WHERE account = ? AND inactive = 1 ORDER BY name", CONNECTION_SYNCH);
+    PrepareStatement(CHAR_SEL_CHAR_INACTIVE_BY_NAME, "SELECT guid, account FROM characters WHERE name = ? AND inactive = 1", CONNECTION_SYNCH);
 }
 
 CharacterDatabaseConnection::CharacterDatabaseConnection(MySQLConnectionInfo& connInfo) : MySQLConnection(connInfo)

@@ -62,6 +62,13 @@ public:
             { "profession",    HandleCharacterCheckProfessionCommand,    rbac::RBAC_PERM_COMMAND_CHARACTER_CHECK_PROFESSION, Console::Yes }
         };
 
+        static ChatCommandTable characterInactiveCommandTable =
+        {
+            { "list",   HandleCharacterInactiveListCommand,   rbac::RBAC_PERM_COMMAND_CHARACTER_INACTIVE_LIST,   Console::Yes },
+            { "add",    HandleCharacterInactiveAddCommand,    rbac::RBAC_PERM_COMMAND_CHARACTER_INACTIVE_ADD,    Console::No  },
+            { "remove", HandleCharacterInactiveRemoveCommand, rbac::RBAC_PERM_COMMAND_CHARACTER_INACTIVE_REMOVE, Console::No  }
+        };
+
         static ChatCommandTable characterCommandTable =
         {
             { "customize",      HandleCharacterCustomizeCommand,        rbac::RBAC_PERM_COMMAND_CHARACTER_CUSTOMIZE,      Console::Yes },
@@ -71,6 +78,7 @@ public:
             { "check",          characterCheckCommandTable },
             { "erase",          HandleCharacterEraseCommand,            rbac::RBAC_PERM_COMMAND_CHARACTER_ERASE,          Console::Yes },
             { "deleted",        characterDeletedCommandTable },
+            { "inactive",       characterInactiveCommandTable },
             { "level",          HandleCharacterLevelCommand,            rbac::RBAC_PERM_COMMAND_CHARACTER_LEVEL,          Console::Yes },
             { "rename",         HandleCharacterRenameCommand,           rbac::RBAC_PERM_COMMAND_CHARACTER_RENAME,         Console::Yes },
             { "reputation",     HandleCharacterReputationCommand,       rbac::RBAC_PERM_COMMAND_CHARACTER_REPUTATION,     Console::Yes },
@@ -1055,6 +1063,208 @@ public:
         }
 
         handler->PSendSysMessage("--------------------------------------");
+        return true;
+    }
+
+    // -----------------------------------------------------------------------
+    // character inactive list [$accountName]
+    // -----------------------------------------------------------------------
+    static bool HandleCharacterInactiveListCommand(ChatHandler* handler, Optional<std::string_view> accountNameArg)
+    {
+        if (!sWorld->getBoolConfig(CONFIG_CHARINACTIVE_ENABLE))
+        {
+            handler->SendErrorMessage(LANG_CHARACTER_INACTIVE_DISABLED);
+            return false;
+        }
+
+        uint32 accountId = 0;
+        std::string accountName;
+
+        bool isGM = handler->GetSession() ? handler->GetSession()->GetSecurity() >= SEC_GAMEMASTER : true;
+
+        if (accountNameArg)
+        {
+            if (!isGM)
+            {
+                handler->SendErrorMessage(LANG_YOU_NOT_HAVE_PERMISSION);
+                return false;
+            }
+
+            accountName.assign(*accountNameArg);
+            accountId = AccountMgr::GetId(accountName);
+            if (!accountId)
+            {
+                handler->SendErrorMessage(LANG_ACCOUNT_NOT_EXIST, accountName);
+                return false;
+            }
+        }
+        else
+        {
+            if (!handler->GetSession())
+            {
+                handler->SendErrorMessage(LANG_ACCOUNT_NOT_EXIST, "");
+                return false;
+            }
+
+            accountId = handler->GetSession()->GetAccountId();
+            AccountMgr::GetName(accountId, accountName);
+        }
+
+        CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_CHAR_INACTIVE_BY_ACCOUNT);
+        stmt->SetData(0, accountId);
+        PreparedQueryResult result = CharacterDatabase.Query(stmt);
+
+        if (!result)
+        {
+            handler->SendErrorMessage(LANG_CHARACTER_DELETED_LIST_EMPTY);
+            return false;
+        }
+
+        handler->PSendSysMessage(LANG_CHARACTER_INACTIVE_LIST_HEADER, accountName, accountId);
+        do
+        {
+            Field* fields = result->Fetch();
+            ObjectGuid::LowType guid = fields[0].Get<uint32>();
+            std::string name        = fields[1].Get<std::string>();
+            uint8 level             = fields[2].Get<uint8>();
+            time_t sinceDate        = time_t(fields[3].Get<uint32>());
+
+            std::string dateStr = Acore::Time::TimeToTimestampStr(Seconds(sinceDate));
+            handler->PSendSysMessage(LANG_CHARACTER_INACTIVE_LIST_LINE, guid, name, uint32(level), dateStr);
+        } while (result->NextRow());
+
+        return true;
+    }
+
+    // -----------------------------------------------------------------------
+    // character inactive add $name
+    // -----------------------------------------------------------------------
+    static bool HandleCharacterInactiveAddCommand(ChatHandler* handler, std::string charName, Optional<bool> forceLogout)
+    {
+        if (!sWorld->getBoolConfig(CONFIG_CHARINACTIVE_ENABLE))
+        {
+            handler->SendErrorMessage(LANG_CHARACTER_INACTIVE_DISABLED);
+            return false;
+        }
+
+        if (!normalizePlayerName(charName))
+        {
+            handler->SendErrorMessage(LANG_INVALID_CHARACTER_NAME);
+            return false;
+        }
+
+        ObjectGuid guid = sCharacterCache->GetCharacterGuidByName(charName);
+        if (!guid)
+        {
+            // may already be inactive (not in cache); look up directly
+            CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_CHAR_INACTIVE_BY_NAME);
+            stmt->SetData(0, charName);
+            PreparedQueryResult result = CharacterDatabase.Query(stmt);
+            if (result)
+            {
+                handler->SendErrorMessage(LANG_CHARACTER_INACTIVE_ALREADY, charName);
+                return false;
+            }
+
+            handler->SendErrorMessage(LANG_PLAYER_NOT_FOUND);
+            return false;
+        }
+
+        bool isGM = handler->GetSession()->GetSecurity() >= SEC_GAMEMASTER;
+        uint32 sessionAccountId = handler->GetSession()->GetAccountId();
+        uint32 charAccountId    = sCharacterCache->GetCharacterAccountIdByGuid(guid);
+
+        if (!isGM && charAccountId != sessionAccountId)
+        {
+            handler->SendErrorMessage(LANG_PLAYER_NOT_FOUND);
+            return false;
+        }
+
+        if (Player* target = ObjectAccessor::FindConnectedPlayer(guid))
+        {
+            if (!forceLogout || !*forceLogout)
+            {
+                handler->SendErrorMessage(LANG_PLAYER_NOT_FOUND);
+                return false;
+            }
+
+            // Save before kicking so no progress is lost
+            target->SaveToDB(false, false);
+            target->GetSession()->KickPlayer("character inactive add");
+        }
+
+        CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_CHAR_SET_INACTIVE);
+        stmt->SetData(0, guid.GetCounter());
+        CharacterDatabase.Execute(stmt);
+
+        sCharacterCache->DeleteCharacterCacheEntry(guid, charName);
+
+        handler->PSendSysMessage(LANG_CHARACTER_INACTIVE_ADDED, charName);
+        return true;
+    }
+
+    // -----------------------------------------------------------------------
+    // character inactive remove $name
+    // -----------------------------------------------------------------------
+    static bool HandleCharacterInactiveRemoveCommand(ChatHandler* handler, std::string charName)
+    {
+        if (!sWorld->getBoolConfig(CONFIG_CHARINACTIVE_ENABLE))
+        {
+            handler->SendErrorMessage(LANG_CHARACTER_INACTIVE_DISABLED);
+            return false;
+        }
+
+        if (!normalizePlayerName(charName))
+        {
+            handler->SendErrorMessage(LANG_INVALID_CHARACTER_NAME);
+            return false;
+        }
+
+        CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_CHAR_INACTIVE_BY_NAME);
+        stmt->SetData(0, charName);
+        PreparedQueryResult result = CharacterDatabase.Query(stmt);
+
+        if (!result)
+        {
+            // check whether it's an active character (not inactive at all)
+            if (sCharacterCache->GetCharacterGuidByName(charName))
+                handler->SendErrorMessage(LANG_PLAYER_NOT_FOUND);
+            else
+                handler->SendErrorMessage(LANG_PLAYER_NOT_FOUND);
+            return false;
+        }
+
+        Field* fields               = result->Fetch();
+        ObjectGuid::LowType lowGuid = fields[0].Get<uint32>();
+        uint32 charAccountId        = fields[1].Get<uint32>();
+
+        bool isGM = handler->GetSession()->GetSecurity() >= SEC_GAMEMASTER;
+        if (!isGM && charAccountId != handler->GetSession()->GetAccountId())
+        {
+            handler->SendErrorMessage(LANG_PLAYER_NOT_FOUND);
+            return false;
+        }
+
+        stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_CHAR_SET_ACTIVE);
+        stmt->SetData(0, lowGuid);
+        CharacterDatabase.Execute(stmt);
+
+        // Reload into character cache
+        stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_CHARACTER_NAME_DATA);
+        stmt->SetData(0, lowGuid);
+        if (PreparedQueryResult nameResult = CharacterDatabase.Query(stmt))
+        {
+            sCharacterCache->AddCharacterCacheEntry(
+                ObjectGuid(HighGuid::Player, lowGuid),
+                charAccountId,
+                charName,
+                (*nameResult)[2].Get<uint8>(),
+                (*nameResult)[0].Get<uint8>(),
+                (*nameResult)[1].Get<uint8>(),
+                (*nameResult)[3].Get<uint8>());
+        }
+
+        handler->PSendSysMessage(LANG_CHARACTER_INACTIVE_REMOVED, charName);
         return true;
     }
 

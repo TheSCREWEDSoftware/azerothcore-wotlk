@@ -1,0 +1,77 @@
+DELETE FROM `command` WHERE `name` IN (
+    'character inactive list',
+    'character inactive add',
+    'character inactive remove'
+);
+INSERT INTO `command` (`name`, `security`, `help`) VALUES
+('character inactive list',   0, 'Syntax: .character inactive list [$accountName]\r\n\r\nLists all inactive characters on your account.\r\nGMs may supply $accountName to list inactive characters on that account instead.'),
+('character inactive add',    0, 'Syntax: .character inactive add $name [logout]\r\n\r\nMarks character $name as inactive, hiding it from the character select screen without deleting it.\r\nIf the character is online, use logout = 1 to save and kick them first.\r\nPlayers may only mark characters on their own account. GMs may mark any character.'),
+('character inactive remove', 0, 'Syntax: .character inactive remove $name\r\n\r\nRestores an inactive character $name to active status.\r\nPlayers may only restore characters on their own account. GMs may restore any character.');
+
+DELETE FROM `acore_string` WHERE `entry` IN (35465, 35466, 35467, 35468, 35469, 35470);
+INSERT INTO `acore_string` (`entry`, `content_default`, `locale_koKR`, `locale_frFR`, `locale_deDE`, `locale_zhCN`, `locale_zhTW`, `locale_esES`, `locale_esMX`, `locale_ruRU`) VALUES
+(35465,
+    'The character inactive feature is not enabled on this server.',
+    '이 서버에서는 캐릭터 비활성화 기능이 활성화되어 있지 않습니다.',
+    'La fonctionnalité d\'inactivité de personnage n\'est pas activée sur ce serveur.',
+    'Das Inaktiv-Feature für Charaktere ist auf diesem Server nicht aktiviert.',
+    '该服务器未启用角色停用功能。',
+    '此伺服器未啟用角色停用功能。',
+    'La función de personaje inactivo no está habilitada en este servidor.',
+    'La función de personaje inactivo no está habilitada en este servidor.',
+    'Функция неактивных персонажей не включена на этом сервере.'),
+
+(35466,
+    'Character \'{}\' is already inactive.',
+    '캐릭터 \'{}'은(는) 이미 비활성화 상태입니다.',
+    'Le personnage \'{}\' est déjà inactif.',
+    'Charakter \'{}\' ist bereits inaktiv.',
+    '角色 \'{}\' 已处于停用状态。',
+    '角色 \'{}\' 已處於停用狀態。',
+    'El personaje \'{}\' ya está inactivo.',
+    'El personaje \'{}\' ya está inactivo.',
+    'Персонаж \'{}\' уже является неактивным.'),
+
+(35467,
+    'Character \'{}\' has been set inactive and hidden from the character select screen.',
+    '캐릭터 \'{}'이(가) 비활성화되어 캐릭터 선택 화면에서 숨겨졌습니다.',
+    'Le personnage \'{}\' a été mis en inactif et masqué de l\'écran de sélection des personnages.',
+    'Charakter \'{}\' wurde als inaktiv markiert und aus dem Charakterauswahlbildschirm ausgeblendet.',
+    '角色 \'{}\' 已被设为停用状态，并从角色选择界面隐藏。',
+    '角色 \'{}\' 已被設為停用狀態，並從角色選擇畫面隱藏。',
+    'El personaje \'{}\' ha sido establecido como inactivo y ocultado de la pantalla de selección de personajes.',
+    'El personaje \'{}\' ha sido establecido como inactivo y ocultado de la pantalla de selección de personajes.',
+    'Персонаж \'{}\' был помечен как неактивный и скрыт с экрана выбора персонажа.'),
+
+(35468,
+    'Character \'{}\' has been restored to active status.',
+    '캐릭터 \'{}'이(가) 활성화 상태로 복원되었습니다.',
+    'Le personnage \'{}\' a été restauré au statut actif.',
+    'Charakter \'{}\' wurde auf aktiven Status zurückgesetzt.',
+    '角色 \'{}\' 已恢复为活跃状态。',
+    '角色 \'{}\' 已恢復為活躍狀態。',
+    'El personaje \'{}\' ha sido restaurado al estado activo.',
+    'El personaje \'{}\' ha sido restaurado al estado activo.',
+    'Персонаж \'{}\' был восстановлен в активный статус.'),
+
+(35469,
+    'Inactive characters for account {} (id: {}):',
+    '계정 {} (id: {})의 비활성화된 캐릭터:',
+    'Personnages inactifs pour le compte {} (id: {}) :',
+    'Inaktive Charaktere für Account {} (id: {}):',
+    '账户 {} (id: {}) 的停用角色：',
+    '帳號 {} (id: {}) 的停用角色：',
+    'Personajes inactivos de la cuenta {} (id: {}):',
+    'Personajes inactivos de la cuenta {} (id: {}):',
+    'Неактивные персонажи аккаунта {} (id: {}):'),
+
+(35470,
+    '  [{}] {} (Level {}) - inactive since {}',
+    '  [{}] {} (레벨 {}) - 비활성화 이후: {}',
+    '  [{}] {} (Niveau {}) - inactif depuis {}',
+    '  [{}] {} (Stufe {}) - inaktiv seit {}',
+    '  [{}] {} (等级 {}) - 停用自 {}',
+    '  [{}] {} (等級 {}) - 停用自 {}',
+    '  [{}] {} (Nivel {}) - inactivo desde {}',
+    '  [{}] {} (Nivel {}) - inactivo desde {}',
+    '  [{}] {} (Уровень {}) - неактивен с {}');

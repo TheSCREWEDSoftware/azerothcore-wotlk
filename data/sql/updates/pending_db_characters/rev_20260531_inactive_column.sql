@@ -1,0 +1,2 @@
+ALTER TABLE `characters`
+    ADD COLUMN `inactive` TINYINT UNSIGNED NOT NULL DEFAULT 0 AFTER `deleteDate`;
