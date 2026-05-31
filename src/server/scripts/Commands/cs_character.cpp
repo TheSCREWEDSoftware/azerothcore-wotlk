@@ -1086,7 +1086,7 @@ public:
         {
             if (!isGM)
             {
-                handler->SendErrorMessage(LANG_YOU_NOT_HAVE_PERMISSION);
+                handler->SendErrorMessage(LANG_PERMISSION_DENIED);
                 return false;
             }
 
