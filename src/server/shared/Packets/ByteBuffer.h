@@ -146,6 +146,12 @@ public:
         put(pos, (uint8*)&value, sizeof(value));
     }
 
+    void ResetBitPos()
+    {
+        _bitpos = 8;
+        _curbitval = 0;
+    }
+
     void FlushBits()
     {
         if (_bitpos == 8)

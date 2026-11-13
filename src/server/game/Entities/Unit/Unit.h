@@ -646,28 +646,6 @@ typedef std::unordered_map<uint32, uint32> PacketCooldowns;
 
 #define MAX_PLAYER_STEALTH_DETECT_RANGE 30.0f               // max distance for detection targets by player
 
-enum class SpeedOpcodeIndex : uint32
-{
-    PC,
-    NPC,
-    ACK_RESPONSE,
-    MAX
-};
-
-typedef const OpcodeServer SpeedOpcodePair[static_cast<size_t>(SpeedOpcodeIndex::MAX)];
-SpeedOpcodePair SetSpeed2Opc_table[MAX_MOVE_TYPE] =
-{
-    {SMSG_FORCE_WALK_SPEED_CHANGE,        SMSG_SPLINE_SET_WALK_SPEED,           MSG_MOVE_SET_WALK_SPEED_SERVER},
-    {SMSG_MOVE_SET_RUN_SPEED,             SMSG_SPLINE_SET_RUN_SPEED,            SMSG_MOVE_UPDATE_RUN_SPEED},
-    {SMSG_FORCE_RUN_BACK_SPEED_CHANGE,    SMSG_SPLINE_SET_RUN_BACK_SPEED,       MSG_MOVE_SET_RUN_BACK_SPEED_SERVER},
-    {SMSG_FORCE_SWIM_SPEED_CHANGE,        SMSG_SPLINE_SET_SWIM_SPEED,           MSG_MOVE_SET_SWIM_SPEED_SERVER},
-    {SMSG_FORCE_SWIM_BACK_SPEED_CHANGE,   SMSG_SPLINE_SET_SWIM_BACK_SPEED,      MSG_MOVE_SET_SWIM_BACK_SPEED_SERVER},
-    {SMSG_FORCE_TURN_RATE_CHANGE,         SMSG_SPLINE_SET_TURN_RATE,            MSG_MOVE_SET_TURN_RATE_SERVER},
-    {SMSG_FORCE_FLIGHT_SPEED_CHANGE,      SMSG_SPLINE_SET_FLIGHT_SPEED,         MSG_MOVE_SET_FLIGHT_SPEED_SERVER},
-    {SMSG_FORCE_FLIGHT_BACK_SPEED_CHANGE, SMSG_SPLINE_SET_FLIGHT_BACK_SPEED,    MSG_MOVE_SET_FLIGHT_BACK_SPEED_SERVER},
-    {SMSG_FORCE_PITCH_RATE_CHANGE,        SMSG_SPLINE_SET_PITCH_RATE,           MSG_MOVE_SET_PITCH_RATE_SERVER},
-};
-
 class Unit : public WorldObject
 {
 public:
@@ -1761,6 +1739,10 @@ public:
         float Speed;
     };
     mutable std::optional<PendingRunSpeedChange> m_pendingRunSpeedChange;
+    // Pending speed changes sent to the controlling client for the other move types (run uses m_pendingRunSpeedChange)
+    mutable std::array<std::optional<PendingRunSpeedChange>, MAX_MOVE_TYPE> m_pendingSpeedChanges;
+    mutable std::optional<PendingRunSpeedChange> m_pendingCollisionHeightChange;
+    void SendCollisionHeightToController(float height, uint8 reason) const;
 
     void propagateSpeedChange() { GetMotionMaster()->propagateSpeedChange(); }
 

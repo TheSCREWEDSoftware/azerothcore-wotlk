@@ -797,6 +797,7 @@ public:                                                 // opcodes handlers
     void HandleMoveTeleportAck(WorldPacket& recvPacket);
     void HandleForceSpeedChangeAck(WorldPacket& recvData);
     void HandleForceRunSpeedChangeAck(WorldPacket& recvData);
+    void HandleSetCollisionHeightAck(WorldPacket& recvData);
 
     void HandleRepopRequestOpcode(WorldPacket& recvPacket);
     void HandleAutostoreLootItemOpcode(WorldPacket& recvPacket);

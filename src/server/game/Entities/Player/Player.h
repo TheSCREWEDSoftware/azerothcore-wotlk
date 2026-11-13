@@ -2563,8 +2563,6 @@ public:
     template<class T>
     void UpdateVisibilityOf(T* target, UpdateData& data, std::vector<Unit*>& visibleNow);
 
-    uint8 m_forced_speed_changes[MAX_MOVE_TYPE];
-
     [[nodiscard]] bool HasAtLoginFlag(AtLoginFlags f) const { return m_atLoginFlags & f; }
     void SetAtLoginFlag(AtLoginFlags f) { m_atLoginFlags |= f; }
     void RemoveAtLoginFlag(AtLoginFlags flags, bool persist = false);

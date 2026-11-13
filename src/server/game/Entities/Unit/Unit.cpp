@@ -10312,12 +10312,7 @@ void Unit::Mount(uint32 mount, uint32 VehicleId, uint32 creatureEntry)
             if (charm->IsCreature())
                 charm->SetUnitFlag(UNIT_FLAG_STUNNED);
 
-        WorldPacket data(SMSG_MOVE_SET_COLLISION_HGT, GetPackGUID().size() + 4 + 4);
-        data << GetPackGUID();
-        data << player->GetSession()->GetOrderCounter(); // movement counter
-        data << player->GetCollisionHeight();
-        player->SendDirectMessage(&data);
-        player->GetSession()->IncrementOrderCounter();
+        SendCollisionHeightToController(player->GetCollisionHeight(), UPDATE_COLLISION_HEIGHT_MOUNT);
     }
 
     RemoveAurasWithInterruptFlags(AURA_INTERRUPT_FLAG_MOUNT);
@@ -10333,12 +10328,7 @@ void Unit::Dismount()
 
     if (Player* player = ToPlayer())
     {
-        WorldPacket data(SMSG_MOVE_SET_COLLISION_HGT, GetPackGUID().size() + 4 + 4);
-        data << GetPackGUID();
-        data << player->GetSession()->GetOrderCounter(); // movement counter
-        data << player->GetCollisionHeight();
-        player->SendDirectMessage(&data);
-        player->GetSession()->IncrementOrderCounter();
+        SendCollisionHeightToController(player->GetCollisionHeight(), UPDATE_COLLISION_HEIGHT_MOUNT);
     }
 
     WorldPacket data(SMSG_DISMOUNT, 8);
@@ -11087,17 +11077,20 @@ void Unit::SetSpeed(UnitMoveType mtype, float rate, bool forced)
 
     propagateSpeedChange();
 
-    SpeedOpcodePair const& speedOpcodes = SetSpeed2Opc_table[mtype];
-
     if (forced && IsClientControlled())
     {
         SendSpeedToController(mtype, const_cast<Player*>(GetClientControlling()));
     }
     else if (forced)
     {
-        WorldPacket data(speedOpcodes[static_cast<size_t>(SpeedOpcodeIndex::NPC)], 12);
-        data << GetPackGUID();
-        data << float(GetSpeed(mtype));
+        static WorldPackets::Movement::MovementStatusElements const speedElement[] = { WorldPackets::Movement::MSEExtraFloat };
+        WorldPackets::Movement::ExtraMovementStatusElement extra(speedElement);
+        extra.Data.floatData = GetSpeed(mtype);
+
+        MovementInfo info = m_movementInfo;
+        info.guid = GetGUID();
+        WorldPacket data(WorldPackets::Movement::SplineSetSpeedOpcode(mtype), 8 + 4);
+        WorldPackets::Movement::WriteGroundMovement(data, info, WorldPackets::Movement::GetSpeedChangeSequences(mtype).SplineSet, 0, &extra);
         SendMessageToSet(&data, true);
     }
 
@@ -11126,7 +11119,6 @@ void Unit::SetSpeed(UnitMoveType mtype, float rate, bool forced)
 
 void Unit::SendSpeedToController(UnitMoveType mtype, Player* target) const
 {
-    SpeedOpcodePair const& speedOpcodes = SetSpeed2Opc_table[mtype];
     uint32 counter = target->GetSession()->GetOrderCounter();
 
     if (mtype == MOVE_RUN)
@@ -11147,14 +11139,61 @@ void Unit::SendSpeedToController(UnitMoveType mtype, Player* target) const
         return;
     }
 
-    ++target->m_forced_speed_changes[mtype];
+    // Same counter rules as the run speed path
+    if (counter == target->GetMapChangeOrderCounter())
+    {
+        target->GetSession()->IncrementOrderCounter();
+        counter = target->GetSession()->GetOrderCounter();
+    }
 
-    WorldPacket data(speedOpcodes[static_cast<size_t>(SpeedOpcodeIndex::PC)], 18);
-    data << GetPackGUID();
-    data << counter;
-    data << GetSpeed(mtype);
+    float const speed = GetSpeed(mtype);
+    // Turn and pitch rate have no acknowledgement sequence in 4.3.4, nothing to wait for
+    if (WorldPackets::Movement::GetSpeedChangeSequences(mtype).Ack)
+        m_pendingSpeedChanges[mtype] = PendingRunSpeedChange{ counter, speed };
+
+    static WorldPackets::Movement::MovementStatusElements const speedElement[] = { WorldPackets::Movement::MSEExtraFloat };
+    WorldPackets::Movement::ExtraMovementStatusElement extra(speedElement);
+    extra.Data.floatData = speed;
+
+    MovementInfo info;
+    info.guid = GetGUID();
+    WorldPacket data(WorldPackets::Movement::MoveSetSpeedOpcode(mtype), 8 + 4 + 4);
+    WorldPackets::Movement::WriteGroundMovement(data, info, WorldPackets::Movement::GetSpeedChangeSequences(mtype).MoveSet, counter, &extra);
     target->GetSession()->SendPacket(&data);
     target->GetSession()->IncrementOrderCounter();
+}
+
+void Unit::SendCollisionHeightToController(float height, uint8 reason) const
+{
+    Player* player = const_cast<Unit*>(this)->ToPlayer();
+    if (!player)
+        return;
+
+    WorldSession* session = player->GetSession();
+    uint32 counter = session->GetOrderCounter();
+    if (counter == player->GetMapChangeOrderCounter())
+    {
+        session->IncrementOrderCounter();
+        counter = session->GetOrderCounter();
+    }
+
+    m_pendingCollisionHeightChange = PendingRunSpeedChange{ counter, height };
+
+    static WorldPackets::Movement::MovementStatusElements const extraElements[] =
+    {
+        WorldPackets::Movement::MSEExtraTwoBits,
+        WorldPackets::Movement::MSEExtraFloat
+    };
+    WorldPackets::Movement::ExtraMovementStatusElement extra(extraElements);
+    extra.Data.byteData = int8(reason);
+    extra.Data.floatData = height;
+
+    MovementInfo info;
+    info.guid = GetGUID();
+    WorldPacket data(SMSG_MOVE_SET_COLLISION_HEIGHT, 8 + 1 + 4 + 4);
+    WorldPackets::Movement::WriteGroundMovement(data, info, WorldPackets::Movement::GetCollisionHeightSequence(SMSG_MOVE_SET_COLLISION_HEIGHT), counter, &extra);
+    session->SendPacket(&data);
+    session->IncrementOrderCounter();
 }
 
 void Unit::setDeathState(DeathState s, bool despawn)

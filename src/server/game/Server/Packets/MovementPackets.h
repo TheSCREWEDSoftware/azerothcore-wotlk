@@ -16,6 +16,13 @@
 struct MovementInfo;
 struct Position;
 
+enum UpdateCollisionHeightReason : uint8
+{
+    UPDATE_COLLISION_HEIGHT_SCALE = 0,
+    UPDATE_COLLISION_HEIGHT_MOUNT = 1,
+    UPDATE_COLLISION_HEIGHT_FORCE = 2
+};
+
 namespace WorldPackets
 {
     namespace Movement
@@ -73,6 +80,9 @@ namespace WorldPackets
             MSEExtraFloat,
             MSEExtraInt8,
             MSEExtraTwoBits,
+            MSEOneBit,
+            MSEFlushBits,
+            MSEHasHeightChangeFailed,
             MSEEnd,
         };
 
@@ -84,6 +94,8 @@ namespace WorldPackets
             explicit ExtraMovementStatusElement(MovementStatusElements const* elements) : _elements(elements) { }
 
             void ReadNextElement(WorldPacket& packet);
+            void WriteNextElement(WorldPacket& packet);
+            void ResetIndex() { _index = 0; }
 
             struct
             {
@@ -106,7 +118,24 @@ namespace WorldPackets
         void ReadGroundMovement(WorldPacket& packet, MovementInfo& info, MovementStatusElements const* sequence,
             uint32* counter = nullptr, ExtraMovementStatusElement* extras = nullptr);
         void WriteGroundMovement(WorldPacket& packet, MovementInfo const& info, MovementStatusElements const* sequence,
-            uint32 counter = 0);
+            uint32 counter = 0, ExtraMovementStatusElement* extras = nullptr);
+
+        // Per move type: speed change to the controlling client (needs an ack), speed change for a
+        // server-controlled unit, broadcast after the ack, and the client ack. Missing ones are nullptr.
+        struct SpeedChangeSequences
+        {
+            MovementStatusElements const* MoveSet;
+            MovementStatusElements const* SplineSet;
+            MovementStatusElements const* Update;
+            MovementStatusElements const* Ack;
+        };
+        SpeedChangeSequences const& GetSpeedChangeSequences(uint8 moveType);
+        OpcodeServer MoveSetSpeedOpcode(uint8 moveType);
+        OpcodeServer SplineSetSpeedOpcode(uint8 moveType);
+        OpcodeServer MoveUpdateSpeedOpcode(uint8 moveType);
+        // Move type for a CMSG_MOVE_FORCE_*_CHANGE_ACK opcode, MAX_MOVE_TYPE if it is not one
+        uint8 GetSpeedChangeAckMoveType(uint16 opcode);
+        MovementStatusElements const* GetCollisionHeightSequence(uint16 opcode);
         MovementStatusElements const* GetMovementFlagSequence(uint16 opcode);
         void WriteTeleport(WorldPacket& packet, ObjectGuid guid, uint32 counter, Position const& pos,
             ObjectGuid transport = ObjectGuid::Empty);

@@ -754,101 +754,110 @@ void WorldSession::HandleForceRunSpeedChangeAck(WorldPacket& recvData)
 
 void WorldSession::HandleForceSpeedChangeAck(WorldPacket& recvData)
 {
-    uint32 opcode = recvData.GetOpcode();
-    LOG_DEBUG("network", "WORLD: Recvd {} ({}, 0x{:X}) opcode", GetOpcodeNameForLogging(static_cast<OpcodeClient>(opcode)), opcode, opcode);
-
-    /* extract packet */
-    ObjectGuid guid;
-    uint32 counter;
-    MovementInfo movementInfo;
-    float  newspeed;
-
-    recvData >> guid.ReadAsPacked();
-    recvData >> counter;                                   // counter or moveEvent
-    movementInfo.guid = guid;
-    ReadMovementInfo(recvData, &movementInfo);
-    recvData >> newspeed;
-
-    Unit* mover = _player->m_mover;
-
-    // pussywizard: special check, only player mover allowed here
-    if (guid != mover->GetGUID() || guid != _player->GetGUID())
+    uint8 const moveType = WorldPackets::Movement::GetSpeedChangeAckMoveType(recvData.GetOpcode());
+    if (moveType >= MAX_MOVE_TYPE || moveType == MOVE_RUN)
     {
-        recvData.rfinish(); // prevent warnings spam
+        recvData.rfinish();
         return;
     }
+
+    WorldPackets::Movement::SpeedChangeSequences const& sequences = WorldPackets::Movement::GetSpeedChangeSequences(moveType);
+    if (!sequences.Ack)
+    {
+        // Turn and pitch rate: TrinityCore 4.3.4 has no acknowledgement layout for these either
+        recvData.rfinish();
+        return;
+    }
+
+    static WorldPackets::Movement::MovementStatusElements const speedElement[] = { WorldPackets::Movement::MSEExtraFloat };
+    WorldPackets::Movement::ExtraMovementStatusElement extra(speedElement);
+    MovementInfo movementInfo;
+    uint32 counter = 0;
+    WorldPackets::Movement::ReadGroundMovement(recvData, movementInfo, sequences.Ack, &counter, &extra);
+    float const speed = extra.Data.floatData;
+
+    Unit* mover = _player->m_mover;
+    if (!mover || movementInfo.guid != mover->GetGUID() || movementInfo.guid != _player->GetGUID())
+        return;
 
     // old map - async processing, ignore
     if (counter <= _player->GetMapChangeOrderCounter())
         return;
 
+    auto const pending = mover->m_pendingSpeedChanges[moveType];
+    if (!pending || pending->Counter != counter)
+        return;
+
+    if (std::fabs(pending->Speed - speed) > 0.01f)
+    {
+        LOG_ERROR("network", "Rejected speed acknowledgement for move type {}: counter={}, expected={}, received={}",
+            moveType, counter, pending->Speed, speed);
+        KickPlayer("Incorrect speed acknowledgement");
+        return;
+    }
+
+    SanitizeMovementFlags(&movementInfo);
     if (!ProcessMovementInfo(movementInfo, mover, _player, recvData))
-    {
-        recvData.rfinish();                     // prevent warnings spam
         return;
-    }
 
-    if (opcode == CMSG_MOVE_SET_COLLISION_HGT_ACK)
-    {
-        WorldPacket data(MSG_MOVE_SET_COLLISION_HGT, 18);
-        WriteMovementInfo(&data, &movementInfo);
-        data << newspeed; // new collision height
-        mover->SendMessageToSet(&data, _player);
+    // Movement hooks may have sent a newer speed change while processing this acknowledgement.
+    if (!mover->m_pendingSpeedChanges[moveType] || mover->m_pendingSpeedChanges[moveType]->Counter != counter)
         return;
-    }
 
-    // Other speed types still use the legacy acknowledgement path.
-    UnitMoveType move_type;
-    UnitMoveType force_move_type;
-
-    static char const* move_type_name[MAX_MOVE_TYPE] = {  "Walk", "Run", "RunBack", "Swim", "SwimBack", "TurnRate", "Flight", "FlightBack", "PitchRate" };
-
-    switch (opcode)
-    {
-        case CMSG_FORCE_WALK_SPEED_CHANGE_ACK:          move_type = MOVE_WALK;          force_move_type = MOVE_WALK;        break;
-        case CMSG_FORCE_RUN_BACK_SPEED_CHANGE_ACK:      move_type = MOVE_RUN_BACK;      force_move_type = MOVE_RUN_BACK;    break;
-        case CMSG_FORCE_SWIM_SPEED_CHANGE_ACK:          move_type = MOVE_SWIM;          force_move_type = MOVE_SWIM;        break;
-        case CMSG_FORCE_SWIM_BACK_SPEED_CHANGE_ACK:     move_type = MOVE_SWIM_BACK;     force_move_type = MOVE_SWIM_BACK;   break;
-        case CMSG_FORCE_TURN_RATE_CHANGE_ACK:           move_type = MOVE_TURN_RATE;     force_move_type = MOVE_TURN_RATE;   break;
-        case CMSG_FORCE_FLIGHT_SPEED_CHANGE_ACK:        move_type = MOVE_FLIGHT;        force_move_type = MOVE_FLIGHT;      break;
-        case CMSG_FORCE_FLIGHT_BACK_SPEED_CHANGE_ACK:   move_type = MOVE_FLIGHT_BACK;   force_move_type = MOVE_FLIGHT_BACK; break;
-        case CMSG_FORCE_PITCH_RATE_CHANGE_ACK:          move_type = MOVE_PITCH_RATE;    force_move_type = MOVE_PITCH_RATE;  break;
-        default:
-            LOG_ERROR("network.opcode", "WorldSession::HandleForceSpeedChangeAck: Unknown move type opcode: {}", opcode);
-            return;
-    }
-
+    mover->m_pendingSpeedChanges[moveType].reset();
     sScriptMgr->AnticheatSetUnderACKmount(_player);
 
-    SpeedOpcodePair const& speedOpcodes = SetSpeed2Opc_table[move_type];
-    WorldPacket data(speedOpcodes[static_cast<size_t>(SpeedOpcodeIndex::ACK_RESPONSE)], 18);
-    WriteMovementInfo(&data, &movementInfo);
-    data << newspeed;
+    if (sequences.Update)
+    {
+        extra.ResetIndex();
+        extra.Data.floatData = pending->Speed;
+        WorldPacket data(WorldPackets::Movement::MoveUpdateSpeedOpcode(moveType));
+        WorldPackets::Movement::WriteGroundMovement(data, movementInfo, sequences.Update, 0, &extra);
+        mover->SendMessageToSet(&data, _player);
+    }
+}
+
+void WorldSession::HandleSetCollisionHeightAck(WorldPacket& recvData)
+{
+    static WorldPackets::Movement::MovementStatusElements const extraElements[] =
+    {
+        WorldPackets::Movement::MSEExtraFloat,
+        WorldPackets::Movement::MSEExtraTwoBits
+    };
+    WorldPackets::Movement::ExtraMovementStatusElement extra(extraElements);
+    MovementInfo movementInfo;
+    uint32 counter = 0;
+    WorldPackets::Movement::ReadGroundMovement(recvData, movementInfo,
+        WorldPackets::Movement::GetCollisionHeightSequence(CMSG_MOVE_SET_COLLISION_HEIGHT_ACK), &counter, &extra);
+
+    Unit* mover = _player->m_mover;
+    if (!mover || movementInfo.guid != mover->GetGUID() || movementInfo.guid != _player->GetGUID())
+        return;
+
+    if (counter <= _player->GetMapChangeOrderCounter())
+        return;
+
+    auto const pending = mover->m_pendingCollisionHeightChange;
+    if (!pending || pending->Counter != counter)
+        return;
+
+    if (std::fabs(pending->Speed - extra.Data.floatData) > 0.01f)
+    {
+        LOG_ERROR("network", "Rejected collision height acknowledgement: counter={}, expected={}, received={}",
+            counter, pending->Speed, extra.Data.floatData);
+        KickPlayer("Incorrect collision height acknowledgement");
+        return;
+    }
+
+    mover->m_pendingCollisionHeightChange.reset();
+
+    static WorldPackets::Movement::MovementStatusElements const heightElement[] = { WorldPackets::Movement::MSEExtraFloat };
+    WorldPackets::Movement::ExtraMovementStatusElement update(heightElement);
+    update.Data.floatData = pending->Speed;
+    WorldPacket data(SMSG_MOVE_UPDATE_COLLISION_HEIGHT);
+    WorldPackets::Movement::WriteGroundMovement(data, movementInfo,
+        WorldPackets::Movement::GetCollisionHeightSequence(SMSG_MOVE_UPDATE_COLLISION_HEIGHT), 0, &update);
     mover->SendMessageToSet(&data, _player);
-
-    // Skip all forced speed changes except the last and unexpected acknowledgements.
-    if (_player->m_forced_speed_changes[force_move_type] > 0)
-    {
-        --_player->m_forced_speed_changes[force_move_type];
-        if (_player->m_forced_speed_changes[force_move_type] > 0)
-            return;
-    }
-
-    if (!_player->GetTransport() && std::fabs(_player->GetSpeed(move_type) - newspeed) > 0.01f)
-    {
-        if (_player->GetSpeed(move_type) > newspeed)         // must be greater - just correct
-        {
-            LOG_ERROR("network.opcode", "{}SpeedChange player {} is NOT correct (must be {} instead {}), force set to correct value",
-                           move_type_name[move_type], _player->GetName(), _player->GetSpeed(move_type), newspeed);
-            _player->SetSpeed(move_type, _player->GetSpeedRate(move_type), true);
-        }
-        else                                                // must be lesser - cheating
-        {
-            LOG_INFO("network.opcode", "Player {} from account id {} kicked for incorrect speed (must be {} instead {})",
-                           _player->GetName(), GetAccountId(), _player->GetSpeed(move_type), newspeed);
-            KickPlayer("Incorrect speed");
-        }
-    }
 }
 
 // The client sends this when it received an SMSG_UPDATE_OBJECT block it could not
