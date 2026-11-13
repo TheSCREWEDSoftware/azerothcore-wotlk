@@ -163,14 +163,16 @@ WorldPacket const* WorldPackets::Misc::Weather::Write()
 
 WorldPacket const* WorldPackets::Misc::LevelUpInfo::Write()
 {
-    _worldPacket << int32(Level);
     _worldPacket << int32(HealthDelta);
-
-    for (int32 power : PowerDelta)
-        _worldPacket << power;
 
     for (int32 stat : StatDelta)
         _worldPacket << stat;
+
+    _worldPacket << uint8(NewTalentTier);
+    _worldPacket << int32(Level);
+
+    for (int32 power : PowerDelta)
+        _worldPacket << power;
 
     return &_worldPacket;
 }

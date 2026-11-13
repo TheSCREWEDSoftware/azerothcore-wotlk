@@ -157,7 +157,7 @@ enum UnitMods
     UNIT_MOD_STAT_INTELLECT,
     UNIT_MOD_STAT_SPIRIT,
     UNIT_MOD_HEALTH,
-    UNIT_MOD_MANA,                                          // UNIT_MOD_MANA..UNIT_MOD_ALTERNATE_POWER must be in existed order, it's accessed by index values of Powers enum.
+    UNIT_MOD_MANA,                                          // UNIT_MOD_MANA..UNIT_MOD_ARCANE_CHARGES must be in existed order, it's accessed by index values of Powers enum.
     UNIT_MOD_RAGE,
     UNIT_MOD_FOCUS,
     UNIT_MOD_ENERGY,
@@ -168,6 +168,12 @@ enum UnitMods
     UNIT_MOD_ECLIPSE,
     UNIT_MOD_HOLY_POWER,
     UNIT_MOD_ALTERNATE_POWER,
+    UNIT_MOD_DARK_FORCE,
+    UNIT_MOD_CHI,
+    UNIT_MOD_SHADOW_ORBS,
+    UNIT_MOD_BURNING_EMBERS,
+    UNIT_MOD_DEMONIC_FURY,
+    UNIT_MOD_ARCANE_CHARGES,
     UNIT_MOD_ARMOR,                                         // UNIT_MOD_ARMOR..UNIT_MOD_RESISTANCE_ARCANE must be in existed order, it's accessed by index values of SpellSchools enum.
     UNIT_MOD_RESISTANCE_HOLY,
     UNIT_MOD_RESISTANCE_FIRE,
@@ -187,7 +193,7 @@ enum UnitMods
     UNIT_MOD_RESISTANCE_START = UNIT_MOD_ARMOR,
     UNIT_MOD_RESISTANCE_END = UNIT_MOD_RESISTANCE_ARCANE + 1,
     UNIT_MOD_POWER_START = UNIT_MOD_MANA,
-    UNIT_MOD_POWER_END = UNIT_MOD_ALTERNATE_POWER + 1
+    UNIT_MOD_POWER_END = UNIT_MOD_ARCANE_CHARGES + 1
 };
 
 enum BaseModGroup

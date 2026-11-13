@@ -152,11 +152,11 @@ namespace WorldPackets
 
             int32 Level = 0;
             int32 HealthDelta = 0;
-            // The 4.3.4 client reads a fixed number of power deltas, so this must not track
-            // MAX_POWERS (11 with the Cataclysm power types). Matches the pinned
-            // TC-Cata layout: int32 level, health, 6 power deltas, then MAX_STATS stat deltas.
-            std::array<int32, 6> PowerDelta = { };
+            // 5.4.8 18414, from Project SkyFire: health, MAX_STATS stat deltas, talent tier flag,
+            // level, then one delta per class power slot (5).
+            std::array<int32, 5> PowerDelta = { };
             std::array<int32, MAX_STATS> StatDelta = { };
+            bool NewTalentTier = false;
         };
 
         class AC_GAME_API PlayMusic final : public ServerPacket

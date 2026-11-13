@@ -892,7 +892,9 @@ struct ChrClassesEntry
     uint32  spellfamily;                                    // 56
     // 57, unused
     uint32  CinematicSequence;                              // 9 id from CinematicSequences.dbc
-    // 10-12 attack power per strength/agility, ranged attack power per agility
+    uint32  APPerStrength;                                  // 10 attack power per point of strength
+    uint32  APPerAgility;                                   // 11 attack power per point of agility
+    uint32  RAPPerAgility;                                  // 12 ranged attack power per point of agility
     // 13 default specialization, 14-17 file data ids
     // 5.4.8 ChrClasses.dbc has no expansion column; see GetClassExpansion()
 };

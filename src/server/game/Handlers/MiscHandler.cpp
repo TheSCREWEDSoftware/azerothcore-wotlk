@@ -1291,6 +1291,22 @@ void WorldSession::HandleInspectOpcode(WorldPacket& recv_data)
     SendPacket(&data);
 }
 
+void WorldSession::HandleSelectFactionOpcode(WorldPacket& recvData)
+{
+    // 5.4.8 18414, from Project SkyFire: 0 = Horde, 1 = Alliance
+    uint32 faction;
+    recvData >> faction;
+
+    if (faction > 1 || !_player->JoinPandarenFaction(faction == 1))
+        return;
+
+    // "The Healing of Shen-zin Su" ends with the faction choice
+    if (_player->GetQuestStatus(31450) == QUEST_STATUS_INCOMPLETE)
+        _player->KilledMonsterCredit(64594);
+
+    _player->SendMovieStart(116);
+}
+
 void WorldSession::HandleRequestHonorStatsOpcode(WorldPackets::Inspect::RequestHonorStats& packet)
 {
     Player* player = ObjectAccessor::GetPlayer(*_player, packet.TargetGUID);

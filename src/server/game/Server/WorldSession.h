@@ -1117,6 +1117,7 @@ public:                                                 // opcodes handlers
     void HandleLearnPreviewTalents(WorldPacket& recvPacket);
     void HandleSetSpecializationOpcode(WorldPacket& recvPacket);
     void HandleSetLootSpecializationOpcode(WorldPacket& recvPacket);
+    void HandleSelectFactionOpcode(WorldPacket& recvPacket);
     void HandleTalentWipeConfirmOpcode(WorldPacket& recvPacket);
     void HandleUnlearnSkillOpcode(WorldPacket& recvPacket);
 

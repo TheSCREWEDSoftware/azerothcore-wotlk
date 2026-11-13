@@ -2488,14 +2488,9 @@ void Player::GiveLevel(uint8 level)
     packet.Level = level;
     packet.HealthDelta = int32(classInfo.basehealth) - int32(GetCreateHealth());
 
-    /// @todo find some better solution
-    // for (int i = 0; i < MAX_POWERS; ++i)
     packet.PowerDelta[0] = int32(classInfo.basemana) - int32(GetCreateMana());
-    packet.PowerDelta[1] = 0;
-    packet.PowerDelta[2] = 0;
-    packet.PowerDelta[3] = 0;
-    packet.PowerDelta[4] = 0;
-    packet.PowerDelta[5] = 0;
+    // 5.4.8: a talent tier opens every 15 levels
+    packet.NewTalentTier = level % 15 == 0 && level / 15 <= MAX_TALENT_TIERS;
 
     for (uint8 i = STAT_STRENGTH; i < MAX_STATS; ++i)
         packet.StatDelta[i] = int32(info.stats[i]) - int32(GetCreateStat(Stats(i)));
@@ -6086,6 +6081,10 @@ TeamId Player::TeamIdForRace(uint8 race)
                 return TEAM_HORDE;
             case 7:
                 return TEAM_ALLIANCE;
+            case 42:
+                // 5.4.8 neutral Pandaren (Wandering Isle until CMSG_SELECT_FACTION); the faction
+                // template keeps them neutral, team indexed arrays use the Alliance slot
+                return TEAM_ALLIANCE;
         }
         LOG_ERROR("entities.player", "Race ({}) has wrong teamid ({}) in DBC: wrong DBC files?", uint32(race), rEntry->TeamID);
     }
@@ -6093,6 +6092,36 @@ TeamId Player::TeamIdForRace(uint8 race)
         LOG_ERROR("entities.player", "Race ({}) not found in DBC: wrong DBC files?", uint32(race));
 
     return TEAM_ALLIANCE;
+}
+
+void Player::ShowNeutralPlayerFactionSelectUI()
+{
+    WorldPacket data(SMSG_SHOW_NEURTRAL_PLAYER_FACTION_SELECT_UI, 0);
+    SendDirectMessage(&data);
+}
+
+bool Player::JoinPandarenFaction(bool alliance)
+{
+    // 5.4.8 18414, from Project SkyFire (WorldSession::HandleSelectFactionOpcode)
+    if (getRace(true) != RACE_PANDAREN_NEUTRAL)
+        return false;
+
+    uint8 const race = alliance ? RACE_PANDAREN_ALLIANCE : RACE_PANDAREN_HORDE;
+    m_realRace = race;
+    setRace(race);
+    SetByteValue(UNIT_FIELD_BYTES_0, 0, race);
+    SetFactionForRace(race);
+
+    learnSpell(alliance ? 668 : 669);                       // Language Common / Language Orcish
+    learnSpell(108127);                                     // Language Pandaren
+
+    WorldLocation const location = alliance
+        ? WorldLocation(MAP_EASTERN_KINGDOMS, -8960.02f, 516.10f, 96.36f, 0.67f) // Stormwind
+        : WorldLocation(MAP_KALIMDOR, 1357.62f, -4373.55f, 26.13f, 0.13f);      // Orgrimmar
+    SetHomebind(location, alliance ? 1519 : 1637);
+    SaveToDB(false, false);
+    TeleportTo(location.GetMapId(), location.GetPositionX(), location.GetPositionY(), location.GetPositionZ(), location.GetOrientation());
+    return true;
 }
 
 void Player::SetFactionForRace(uint8 race)

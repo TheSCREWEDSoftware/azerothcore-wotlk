@@ -2274,6 +2274,9 @@ public:
     static TeamId TeamIdForRace(uint8 race);
     [[nodiscard]] TeamId GetTeamId(bool original = false) const { return original ? TeamIdForRace(getRace(true)) : m_team; };
     void SetFactionForRace(uint8 race);
+    // 5.4.8: neutral Pandaren pick a side at the end of the Wandering Isle
+    void ShowNeutralPlayerFactionSelectUI();
+    bool JoinPandarenFaction(bool alliance);
     void setTeamId(TeamId teamid) { m_team = teamid; };
 
     void InitDisplayIds();

@@ -90,7 +90,11 @@ enum Races
     //RACE_TAUNKA         = 19,
     //RACE_NORTHREND_SKELETON = 20,
     //RACE_ICE_TROLL      = 21,
-    RACE_WORGEN             = 22  // TITLE Worgen
+    RACE_WORGEN             = 22, // TITLE Worgen
+    //RACE_GILNEAN          = 23,
+    RACE_PANDAREN_NEUTRAL   = 24, // TITLE Pandaren (neutral)
+    RACE_PANDAREN_ALLIANCE  = 25, // TITLE Pandaren (Alliance)
+    RACE_PANDAREN_HORDE     = 26  // TITLE Pandaren (Horde)
 };
 
 // DisplayRace values from CreatureDisplayInfoExtra.dbc
@@ -135,7 +139,7 @@ enum Classes
     CLASS_SHAMAN        = 7, // TITLE Shaman
     CLASS_MAGE          = 8, // TITLE Mage
     CLASS_WARLOCK       = 9, // TITLE Warlock
-    //CLASS_UNK           = 10,
+    CLASS_MONK          = 10, // TITLE Monk
     CLASS_DRUID         = 11 // TITLE Druid
 };
 
@@ -146,7 +150,7 @@ enum Classes
     ((1<<(CLASS_WARRIOR-1))|(1<<(CLASS_PALADIN-1))|(1<<(CLASS_HUNTER-1))| \
     (1<<(CLASS_ROGUE-1))  |(1<<(CLASS_PRIEST-1)) |(1<<(CLASS_SHAMAN-1))| \
     (1<<(CLASS_MAGE-1))   |(1<<(CLASS_WARLOCK-1))|(1<<(CLASS_DRUID-1)) | \
-    (1<<(CLASS_DEATH_KNIGHT-1)))
+    (1<<(CLASS_DEATH_KNIGHT-1))|(1<<(CLASS_MONK-1)))
 
 // valid classes for creature_template.unit_class
 #define CLASSMASK_ALL_CREATURES ((1<<(CLASS_WARRIOR-1)) | (1<<(CLASS_PALADIN-1)) | (1<<(CLASS_ROGUE-1)) | (1<<(CLASS_MAGE-1)))
@@ -271,7 +275,13 @@ enum Powers
     POWER_ECLIPSE                       = 8,
     POWER_HOLY_POWER                    = 9,
     POWER_ALTERNATE_POWER               = 10,           // Used in some quests and encounters
-    MAX_POWERS                          = 11,
+    POWER_DARK_FORCE                    = 11,           // 5.4.8
+    POWER_CHI                           = 12,           // 5.4.8 monk
+    POWER_SHADOW_ORBS                   = 13,           // 5.4.8 shadow priest
+    POWER_BURNING_EMBERS                = 14,           // 5.4.8 destruction warlock
+    POWER_DEMONIC_FURY                  = 15,           // 5.4.8 demonology warlock
+    POWER_ARCANE_CHARGES                = 16,           // 5.4.8
+    MAX_POWERS                          = 17,
     POWER_ALL                           = 127,    // default for class?
     POWER_HEALTH                        = 0xFFFFFFFE    // (-2 as signed value)
 };
@@ -4035,7 +4045,10 @@ enum SpellFamilyNames
     // 14 - unused
     SPELLFAMILY_DEATHKNIGHT = 15,
     // 16 - unused
-    SPELLFAMILY_PET         = 17
+    SPELLFAMILY_PET         = 17,
+    SPELLFAMILY_TOTEMS      = 50,
+    SPELLFAMILY_MONK        = 53,                           // 5.4.8
+    SPELLFAMILY_WARLOCK_PET = 57
 };
 
 enum TradeStatus
