@@ -6939,6 +6939,12 @@ void Player::_ApplyItemBonuses(ItemTemplate const* proto, uint8 slot, bool apply
             case ITEM_MOD_BLOCK_VALUE:
                 HandleBaseModFlatValue(SHIELD_BLOCK_VALUE, float(val), apply);
                 break;
+            case ITEM_MOD_MASTERY_RATING:
+                ApplyRatingMod(CR_MASTERY, int32(val), apply);
+                break;
+            case ITEM_MOD_EXTRA_ARMOR:
+                HandleStatFlatModifier(UNIT_MOD_ARMOR, BASE_VALUE, float(val), apply);
+                break;
             /// @deprecated item mods
             case ITEM_MOD_SPELL_HEALING_DONE:
                 ApplySpellHealingBonus(int32(val), apply);

@@ -4725,6 +4725,14 @@ void Player::ApplyEnchantment(Item* item, EnchantmentSlot slot, bool apply, bool
                             HandleBaseModFlatValue(SHIELD_BLOCK_VALUE, float(enchant_amount), apply);
                             LOG_DEBUG("entities.player.items", "+ {} BLOCK_VALUE", enchant_amount);
                             break;
+                        case ITEM_MOD_MASTERY_RATING:
+                            ApplyRatingMod(CR_MASTERY, enchant_amount, apply);
+                            LOG_DEBUG("entities.player.items", "+ {} MASTERY", enchant_amount);
+                            break;
+                        case ITEM_MOD_EXTRA_ARMOR:
+                            HandleStatFlatModifier(UNIT_MOD_ARMOR, BASE_VALUE, float(enchant_amount), apply);
+                            LOG_DEBUG("entities.player.items", "+ {} EXTRA_ARMOR", enchant_amount);
+                            break;
                         /// @deprecated item mods
                         case ITEM_MOD_SPELL_HEALING_DONE:
                             ApplySpellHealingBonus(enchant_amount, apply);
