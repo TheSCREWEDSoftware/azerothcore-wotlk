@@ -398,8 +398,17 @@ namespace lfg
         LFGDungeonData(LFGDungeonEntry const* dbc) : id(dbc->ID), name(dbc->Name[0]), map(dbc->MapID),
             type(dbc->TypeID), expansion(uint8(dbc->ExpansionLevel)), group(uint8(dbc->GroupID)),
             minlevel(uint8(dbc->MinLevel)), maxlevel(uint8(dbc->MaxLevel)), difficulty(Difficulty(dbc->Difficulty)),
-            seasonal((dbc->Flags & LFG_FLAG_SEASONAL) != 0), x(0.0f), y(0.0f), z(0.0f), o(0.0f)
-        { }
+            seasonal((dbc->Flags & LFG_FLAG_SEASONAL) != 0), requiredTanks(uint8(dbc->CountTank)),
+            requiredHealers(uint8(dbc->CountHealer)), requiredDamageDealers(uint8(dbc->CountDamage)), x(0.0f), y(0.0f), z(0.0f), o(0.0f)
+        {
+            // Dungeons without role counts use the 5-man setup
+            if (!GetMaxGroupSize())
+            {
+                requiredTanks = LFG_TANKS_NEEDED;
+                requiredHealers = LFG_HEALERS_NEEDED;
+                requiredDamageDealers = LFG_DPS_NEEDED;
+            }
+        }
 
         uint32 id{0};
         std::string name;
@@ -411,11 +420,15 @@ namespace lfg
         uint8 maxlevel{0};
         Difficulty difficulty{REGULAR_DIFFICULTY};
         bool seasonal{false};
+        uint8 requiredTanks{LFG_TANKS_NEEDED};
+        uint8 requiredHealers{LFG_HEALERS_NEEDED};
+        uint8 requiredDamageDealers{LFG_DPS_NEEDED};
         float x{0.0f}, y{0.0f}, z{0.0f}, o{0.0f};
 
         // Helpers
         [[nodiscard]] uint32 Entry() const { return id + (type << 24); }
         [[nodiscard]] bool IsRaid() const;
+        [[nodiscard]] uint8 GetMaxGroupSize() const { return requiredTanks + requiredHealers + requiredDamageDealers; }
     };
 
     class LFGMgr
@@ -580,6 +593,9 @@ namespace lfg
         bool AllQueued(Lfg5Guids const& check);
         /// Checks if given roles match, modifies given roles map with new roles
         static uint8 CheckGroupRoles(LfgRolesMap& groles);
+        /// Assigns one role to every player so that no role exceeds its required count; true if possible
+        static bool AssignGroupRoles(LfgRolesMap& groles, uint8 tanksNeeded, uint8 healersNeeded, uint8 damageNeeded,
+            uint8* tanks = nullptr, uint8* healers = nullptr, uint8* damage = nullptr);
         /// Checks if given players are ignoring each other
         static bool HasIgnore(ObjectGuid guid1, ObjectGuid guid2);
         /// Sends queue status to player

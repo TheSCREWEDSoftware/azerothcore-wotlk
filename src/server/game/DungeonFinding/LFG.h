@@ -20,7 +20,8 @@
 
 #include "ObjectGuid.h"
 #include "WorldPacket.h"
-#include <array>
+#include <algorithm>
+#include <vector>
 #include <map>
 #include <sstream>
 
@@ -119,21 +120,23 @@ namespace lfg
     typedef std::map<ObjectGuid, uint8> LfgRolesMap;
     typedef std::map<ObjectGuid, ObjectGuid> LfgGroupsMap;
 
+    /// Queue entries (player or group guids) checked together for a match, sorted, plus their merged roles once matched.
+    /// Holds up to a raid's worth of entries for Raid Finder despite the name.
     class Lfg5Guids
     {
     public:
-        std::array<ObjectGuid, 5> guids = { };
+        std::vector<ObjectGuid> guids;
         LfgRolesMap* roles;
+
         Lfg5Guids()
         {
-            guids.fill(ObjectGuid::Empty);
             roles = nullptr;
         }
 
         Lfg5Guids(ObjectGuid g)
         {
-            guids.fill(ObjectGuid::Empty);
-            guids[0] = g;
+            if (g)
+                guids.push_back(g);
             roles = nullptr;
         }
 
@@ -151,336 +154,49 @@ namespace lfg
 
         ~Lfg5Guids() { delete roles; }
         void addRoles(LfgRolesMap const& r) { roles = new LfgRolesMap(r); }
-        void clear() { guids.fill(ObjectGuid::Empty); }
-        [[nodiscard]] bool empty() const { return guids[0] == ObjectGuid::Empty; }
-        [[nodiscard]] ObjectGuid front() const { return guids[0]; }
+        void clear() { guids.clear(); }
+        [[nodiscard]] bool empty() const { return guids.empty(); }
+        [[nodiscard]] ObjectGuid front() const { return guids.empty() ? ObjectGuid::Empty : guids.front(); }
 
-        [[nodiscard]] uint8 size() const
-        {
-            if (guids[2])
-            {
-                if (guids[4])
-                {
-                    return 5;
-                }
-                else if (guids[3])
-                {
-                    return 4;
-                }
-
-                return 3;
-            }
-            else if (guids[1])
-            {
-                return 2;
-            }
-            else if (guids[0])
-            {
-                return 1;
-            }
-
-            return 0;
-        }
+        [[nodiscard]] uint8 size() const { return static_cast<uint8>(guids.size()); }
 
         void insert(ObjectGuid const& g)
         {
-            // avoid loops for performance
-            if (!guids[0])
-            {
-                guids[0] = g;
-                return;
-            }
-
-            if (g <= guids[0])
-            {
-                if (guids[3])
-                {
-                    guids[4] = guids[3];
-                }
-
-                if (guids[2])
-                {
-                    guids[3] = guids[2];
-                }
-
-                if (guids[1])
-                {
-                    guids[2] = guids[1];
-                }
-
-                guids[1] = guids[0];
-                guids[0] = g;
-
-                return;
-            }
-
-            if (!guids[1])
-            {
-                guids[1] = g;
-                return;
-            }
-
-            if (g <= guids[1])
-            {
-                if (guids[3])
-                {
-                    guids[4] = guids[3];
-                }
-
-                if (guids[2])
-                {
-                    guids[3] = guids[2];
-                }
-
-                guids[2] = guids[1];
-                guids[1] = g;
-
-                return;
-            }
-
-            if (!guids[2])
-            {
-                guids[2] = g;
-                return;
-            }
-
-            if (g <= guids[2])
-            {
-                if (guids[3])
-                {
-                    guids[4] = guids[3];
-                }
-
-                guids[3] = guids[2];
-                guids[2] = g;
-
-                return;
-            }
-
-            if (!guids[3])
-            {
-                guids[3] = g;
-                return;
-            }
-
-            if (g <= guids[3])
-            {
-                guids[4] = guids[3];
-                guids[3] = g;
-                return;
-            }
-
-            guids[4] = g;
+            guids.insert(std::upper_bound(guids.begin(), guids.end(), g), g);
         }
 
         void force_insert_front(ObjectGuid const& g)
         {
-            if (guids[3])
-            {
-                guids[4] = guids[3];
-            }
-
-            if (guids[2])
-            {
-                guids[3] = guids[2];
-            }
-
-            if (guids[1])
-            {
-                guids[2] = guids[1];
-            }
-
-            guids[1] = guids[0];
-            guids[0] = g;
+            guids.insert(guids.begin(), g);
         }
 
         void remove(ObjectGuid const& g)
         {
-            // avoid loops for performance
-            if (guids[0] == g)
-            {
-                if (guids[1])
-                {
-                    guids[0] = guids[1];
-                }
-                else
-                {
-                    guids[0].Clear();
-                    return;
-                }
-
-                if (guids[2])
-                {
-                    guids[1] = guids[2];
-                }
-                else
-                {
-                    guids[1].Clear();
-                    return;
-                }
-
-                if (guids[3])
-                {
-                    guids[2] = guids[3];
-                }
-                else
-                {
-                    guids[2].Clear();
-                    return;
-                }
-
-                if (guids[4])
-                {
-                    guids[3] = guids[4];
-                }
-                else
-                {
-                    guids[3].Clear();
-                    return;
-                }
-
-                guids[4].Clear();
-                return;
-            }
-
-            if (guids[1] == g)
-            {
-                if (guids[2])
-                {
-                    guids[1] = guids[2];
-                }
-                else
-                {
-                    guids[1].Clear();
-                    return;
-                }
-
-                if (guids[3])
-                {
-                    guids[2] = guids[3];
-                }
-                else
-                {
-                    guids[2].Clear();
-                    return;
-                }
-
-                if (guids[4])
-                {
-                    guids[3] = guids[4];
-                }
-                else
-                {
-                    guids[3].Clear();
-                    return;
-                }
-
-                guids[4].Clear();
-                return;
-            }
-
-            if (guids[2] == g)
-            {
-                if (guids[3])
-                {
-                    guids[2] = guids[3];
-                }
-                else
-                {
-                    guids[2].Clear();
-                    return;
-                }
-
-                if (guids[4])
-                {
-                    guids[3] = guids[4];
-                }
-                else
-                {
-                    guids[3].Clear();
-                    return;
-                }
-
-                guids[4].Clear();
-                return;
-            }
-
-            if (guids[3] == g)
-            {
-                if (guids[4])
-                {
-                    guids[3] = guids[4];
-                }
-                else
-                {
-                    guids[3].Clear();
-                    return;
-                }
-
-                guids[4].Clear();
-                return;
-            }
-
-            if (guids[4] == g)
-            {
-                guids[4].Clear();
-            }
+            std::vector<ObjectGuid>::iterator it = std::find(guids.begin(), guids.end(), g);
+            if (it != guids.end())
+                guids.erase(it);
         }
 
         [[nodiscard]] bool hasGuid(ObjectGuid const& g) const
         {
-            return g && (guids[0] == g || guids[1] == g || guids[2] == g || guids[3] == g || guids[4] == g);
+            return g && std::find(guids.begin(), guids.end(), g) != guids.end();
         }
 
         bool operator<(Lfg5Guids const& x) const
         {
-            if (guids[0] <= x.guids[0])
-            {
-                if (guids[0] != x.guids[0])
-                {
-                    return true;
-                }
-
-                if (guids[1] <= x.guids[1])
-                {
-                    if (guids[1] != x.guids[1])
-                    {
-                        return true;
-                    }
-
-                    if (guids[2] <= x.guids[2])
-                    {
-                        if (guids[2] != x.guids[2])
-                        {
-                            return true;
-                        }
-
-                        if (guids[3] <= x.guids[3])
-                        {
-                            if (guids[3] != x.guids[3])
-                            {
-                                return true;
-                            }
-
-                            if (guids[4] <= x.guids[4])
-                            {
-                                return !(guids[4] == x.guids[4]);
-                            }
-                        }
-                    }
-                }
-            }
-
-            return false;
+            return guids < x.guids;
         }
 
         bool operator==(Lfg5Guids const& x) const
         {
-            return guids[0] == x.guids[0] && guids[1] == x.guids[1] && guids[2] == x.guids[2] && guids[3] == x.guids[3] && guids[4] == x.guids[4];
+            return guids == x.guids;
         }
 
         void operator=(Lfg5Guids const& x)
         {
+            if (this == &x)
+                return;
+
             guids = x.guids;
             delete roles;
             roles = x.roles ? (new LfgRolesMap(*(x.roles))) : nullptr;
@@ -489,7 +205,13 @@ namespace lfg
         [[nodiscard]] std::string toString() const // for debugging
         {
             std::ostringstream o;
-            o << guids[0].ToString() << "," << guids[1].ToString() << "," << guids[2].ToString() << "," << guids[3].ToString() << "," << guids[4].ToString() << ":" << (roles ? 1 : 0);
+            for (size_t i = 0; i < guids.size(); ++i)
+            {
+                if (i)
+                    o << ",";
+                o << guids[i].ToString();
+            }
+            o << ":" << (roles ? 1 : 0);
             return o.str();
         }
     };

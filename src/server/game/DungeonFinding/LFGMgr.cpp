@@ -40,6 +40,9 @@
 #include "SocialMgr.h"
 #include "SpellAuras.h"
 #include "WorldSession.h"
+#include <algorithm>
+#include <array>
+#include <bit>
 
 namespace lfg
 {
@@ -697,11 +700,19 @@ namespace lfg
                 }
             }
 
-            if (isRaid && joinData.result == LFG_JOIN_OK && !isOptionEnabled(LFG_OPTION_ENABLE_RAID_BROWSER))
-                joinData.result = LFG_JOIN_NOT_MEET_REQS;
         }
 
-        if (!isRaid && joinData.result == LFG_JOIN_OK)
+        // Raid Finder raids have role counts in LfgDungeons.dbc and use the queue; other raids list in the raid browser
+        bool isRaidFinder = isRaid;
+        for (uint32 dungeonId : dungeons)
+            if (LFGDungeonData const* dungeon = GetLFGDungeon(dungeonId); !dungeon || dungeon->GetMaxGroupSize() <= MAXGROUPSIZE)
+                isRaidFinder = false;
+
+        bool const useRaidBrowser = isRaid && !isRaidFinder;
+        if (useRaidBrowser && joinData.result == LFG_JOIN_OK && !isOptionEnabled(LFG_OPTION_ENABLE_RAID_BROWSER))
+            joinData.result = LFG_JOIN_NOT_MEET_REQS;
+
+        if (!useRaidBrowser && joinData.result == LFG_JOIN_OK)
         {
             // Check player or group member restrictions
             if (!player->GetSession()->HasPermission(rbac::RBAC_PERM_JOIN_DUNGEON_FINDER))
@@ -722,7 +733,7 @@ namespace lfg
             }
             else if (grp)
             {
-                if (grp->GetMembersCount() > MAXGROUPSIZE)
+                if (grp->GetMembersCount() > (isRaidFinder ? MAXRAIDSIZE : MAXGROUPSIZE))
                     joinData.result = LFG_JOIN_TOO_MUCH_MEMBERS;
                 else
                 {
@@ -772,7 +783,7 @@ namespace lfg
             }
         }
 
-        if (isRaid)
+        if (useRaidBrowser)
             players.insert(player->GetGUID());
 
         if (joinData.result == LFG_JOIN_OK)
@@ -792,11 +803,12 @@ namespace lfg
         }
 
         // pussywizard:
-        if (isRaid && grp && (grp->isLFGGroup() || guid != grp->GetLeaderGUID()))
+        if (useRaidBrowser && grp && (grp->isLFGGroup() || guid != grp->GetLeaderGUID()))
             return;
 
-         // Do not allow to change dungeon in the middle of a current dungeon
-        if (!isRaid && isContinue && grp->GetMembersCount() == 5)
+        // Do not allow to change dungeon in the middle of a current dungeon
+        LFGDungeonData const* currentDungeon = isContinue ? GetLFGDungeon(GetDungeon(gguid)) : nullptr;
+        if (!useRaidBrowser && isContinue && grp->GetMembersCount() == (currentDungeon ? currentDungeon->GetMaxGroupSize() : MAXGROUPSIZE))
         {
             dungeons.clear();
             dungeons.insert(GetDungeon(gguid));
@@ -815,7 +827,7 @@ namespace lfg
 
         SetComment(guid, comment);
 
-        if (isRaid)
+        if (useRaidBrowser)
         {
             if (grp)
                 roles = PLAYER_ROLE_LEADER;
@@ -1530,7 +1542,8 @@ namespace lfg
 
             if (itRoles == roleCheck.roles.end())
             {
-                roleCheck.state = CheckGroupRoles(roleCheck.roles) ? LFG_ROLECHECK_FINISHED : LFG_ROLECHECK_WRONG_ROLES;
+                LfgRoleSetup const setup = LFGQueue::GetRoleSetup(roleCheck.dungeons);
+                roleCheck.state = AssignGroupRoles(roleCheck.roles, setup.tanks, setup.healers, setup.damage) ? LFG_ROLECHECK_FINISHED : LFG_ROLECHECK_WRONG_ROLES;
             }
         }
 
@@ -1621,67 +1634,108 @@ namespace lfg
 
     uint8 LFGMgr::CheckGroupRoles(LfgRolesMap& groles)
     {
-        if (groles.empty())
+        uint8 tank = 0, healer = 0, damage = 0;
+        if (!AssignGroupRoles(groles, LFG_TANKS_NEEDED, LFG_HEALERS_NEEDED, LFG_DPS_NEEDED, &tank, &healer, &damage))
             return 0;
 
-        uint8 damage = 0;
-        uint8 tank = 0;
-        uint8 healer = 0;
+        return 8 * tank + 4 * healer + damage;
+    }
 
-        for (LfgRolesMap::iterator it = groles.begin(); it != groles.end(); ++it)
+    namespace
+    {
+        // Role bits are PLAYER_ROLE_TANK (2), PLAYER_ROLE_HEALER (4) and PLAYER_ROLE_DAMAGE (8)
+        uint8 RoleSetIndex(uint8 role) { return (role >> 1) & 0x7; }
+
+        // Hall's condition: every set of roles must have room for all players who can only fill roles in that set
+        bool CanFillRoles(std::array<uint8, 8> const& playersByRoleSet, std::array<uint8, 3> const& slots)
         {
-            uint8 const role = it->second & ~PLAYER_ROLE_LEADER;
-            if (role == PLAYER_ROLE_NONE)
-                return 0;
-
-            if (role & PLAYER_ROLE_DAMAGE)
+            for (uint8 roleSet = 1; roleSet < 8; ++roleSet)
             {
-                if (role != PLAYER_ROLE_DAMAGE)
-                {
-                    it->second -= PLAYER_ROLE_DAMAGE;
-                    if (uint8 x = CheckGroupRoles(groles))
-                        return x;
-                    it->second += PLAYER_ROLE_DAMAGE;
-                }
-                else if (damage == LFG_DPS_NEEDED)
-                    return 0;
-                else
-                    damage++;
+                uint32 players = 0;
+                for (uint8 playerSet = 1; playerSet < 8; ++playerSet)
+                    if ((playerSet & roleSet) == playerSet)
+                        players += playersByRoleSet[playerSet];
+
+                uint32 capacity = 0;
+                for (uint8 i = 0; i < 3; ++i)
+                    if (roleSet & (1 << i))
+                        capacity += slots[i];
+
+                if (players > capacity)
+                    return false;
             }
 
-            if (role & PLAYER_ROLE_HEALER)
-            {
-                if (role != PLAYER_ROLE_HEALER)
-                {
-                    it->second -= PLAYER_ROLE_HEALER;
-                    if (uint8 x = CheckGroupRoles(groles))
-                        return x;
-                    it->second += PLAYER_ROLE_HEALER;
-                }
-                else if (healer == LFG_HEALERS_NEEDED)
-                    return 0;
-                else
-                    healer++;
-            }
-
-            if (role & PLAYER_ROLE_TANK)
-            {
-                if (role != PLAYER_ROLE_TANK)
-                {
-                    it->second -= PLAYER_ROLE_TANK;
-                    if (uint8 x = CheckGroupRoles(groles))
-                        return x;
-                    it->second += PLAYER_ROLE_TANK;
-                }
-                else if (tank == LFG_TANKS_NEEDED)
-                    return 0;
-                else
-                    tank++;
-            }
+            return true;
         }
-        if ((tank + healer + damage) == uint8(groles.size()))
-            return (8 * tank + 4 * healer + damage);
-        return 0;
+    }
+
+    bool LFGMgr::AssignGroupRoles(LfgRolesMap& groles, uint8 tanksNeeded, uint8 healersNeeded, uint8 damageNeeded,
+        uint8* tanks /*= nullptr*/, uint8* healers /*= nullptr*/, uint8* damage /*= nullptr*/)
+    {
+        if (groles.empty())
+            return false;
+
+        std::array<uint8, 8> playersByRoleSet = { };
+        for (auto const& [guid, role] : groles)
+        {
+            uint8 roleSet = RoleSetIndex(role & ~PLAYER_ROLE_LEADER);
+            if (!roleSet)
+                return false;
+
+            ++playersByRoleSet[roleSet];
+        }
+
+        std::array<uint8, 3> slots = { tanksNeeded, healersNeeded, damageNeeded };
+        if (!CanFillRoles(playersByRoleSet, slots))
+            return false;
+
+        // Players with fewer choices first; flexible players prefer tank, then healer, then damage
+        std::vector<LfgRolesMap::iterator> order;
+        order.reserve(groles.size());
+        for (LfgRolesMap::iterator itr = groles.begin(); itr != groles.end(); ++itr)
+            order.push_back(itr);
+
+        std::stable_sort(order.begin(), order.end(), [](LfgRolesMap::iterator const& left, LfgRolesMap::iterator const& right)
+        {
+            return std::popcount(uint8(RoleSetIndex(left->second & ~PLAYER_ROLE_LEADER))) < std::popcount(uint8(RoleSetIndex(right->second & ~PLAYER_ROLE_LEADER)));
+        });
+
+        std::array<uint8, 3> assigned = { };
+        for (LfgRolesMap::iterator itr : order)
+        {
+            uint8 roleSet = RoleSetIndex(itr->second & ~PLAYER_ROLE_LEADER);
+            --playersByRoleSet[roleSet];
+
+            bool placed = false;
+            for (uint8 i = 0; i < 3 && !placed; ++i)
+            {
+                if (!(roleSet & (1 << i)) || !slots[i])
+                    continue;
+
+                --slots[i];
+                if (CanFillRoles(playersByRoleSet, slots))
+                {
+                    itr->second = (itr->second & PLAYER_ROLE_LEADER) | uint8(PLAYER_ROLE_TANK << i);
+                    ++assigned[i];
+                    placed = true;
+                }
+                else
+                    ++slots[i];
+            }
+
+            // Cannot happen while Hall's condition held before this player
+            if (!placed)
+                return false;
+        }
+
+        if (tanks)
+            *tanks = assigned[0];
+        if (healers)
+            *healers = assigned[1];
+        if (damage)
+            *damage = assigned[2];
+
+        return true;
     }
 
     /**
@@ -1786,13 +1840,13 @@ namespace lfg
             // Xinef: Store amount of random players player grouped with
             if (group)
             {
-                SetRandomPlayersCount(pguid, group->GetMembersCount() >= MAXGROUPSIZE ? 0 : MAXGROUPSIZE - group->GetMembersCount());
+                SetRandomPlayersCount(pguid, group->GetMembersCount() >= dungeon->GetMaxGroupSize() ? 0 : dungeon->GetMaxGroupSize() - group->GetMembersCount());
                 oldGroupGUID = group->GetGUID();
                 if (group != grp)
                     group->RemoveMember(player->GetGUID());
             }
             else
-                SetRandomPlayersCount(pguid, MAXGROUPSIZE - 1);
+                SetRandomPlayersCount(pguid, dungeon->GetMaxGroupSize() - 1);
 
             if (!grp)
             {
@@ -2035,7 +2089,7 @@ namespace lfg
         }
 
         // Remove players/groups from Queue
-        for (uint8 i = 0; i < 5 && proposal.queues.guids[i]; ++i)
+        for (uint8 i = 0; i < proposal.queues.size() && proposal.queues.guids[i]; ++i)
             queue.RemoveQueueData(proposal.queues.guids[i]);
 
         MakeNewGroup(proposal);
@@ -2138,7 +2192,7 @@ namespace lfg
         }
 
         // Readd to queue
-        for (uint8 i = 0; i < 5 && proposal.queues.guids[i]; ++i)
+        for (uint8 i = 0; i < proposal.queues.size() && proposal.queues.guids[i]; ++i)
         {
             // xinef: this will work as data is not deleted, only references to this data are cleared
             // xinef: when new proposal is created
@@ -2867,7 +2921,7 @@ namespace lfg
         if (check.empty())
             return false;
 
-        for (uint8 i = 0; i < 5 && check.guids[i]; ++i)
+        for (uint8 i = 0; i < check.size() && check.guids[i]; ++i)
         {
             ObjectGuid guid = check.guids[i];
             if (GetState(guid) != LFG_STATE_QUEUED)

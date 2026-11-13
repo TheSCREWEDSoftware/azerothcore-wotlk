@@ -70,6 +70,27 @@ namespace lfg
     /**
         Stores all data related to queue
     */
+    /// Roles a group needs, from LfgDungeons.dbc (1 tank, 1 healer and 3 damage for 5-man dungeons)
+    struct LfgRoleSetup
+    {
+        uint8 tanks = LFG_TANKS_NEEDED;
+        uint8 healers = LFG_HEALERS_NEEDED;
+        uint8 damage = LFG_DPS_NEEDED;
+
+        [[nodiscard]] uint8 GetSize() const { return tanks + healers + damage; }
+        [[nodiscard]] bool IsFiveMan() const { return tanks == LFG_TANKS_NEEDED && healers == LFG_HEALERS_NEEDED && damage == LFG_DPS_NEEDED; }
+    };
+
+    /// Role compositions already found while matching one queue entry, to limit how many similar candidates are kept
+    struct LfgFoundCompositions
+    {
+        // 5-man: (tank * 8 + healer * 4 + damage) bit, 16 bits per occurrence, up to 4 occurrences
+        uint64 mask = 0;
+        uint32 count = 0;
+        // Bigger setups: occurrences per (tank, healer, damage) composition
+        std::map<uint32, uint8> raidCompositions;
+    };
+
     class LFGQueue
     {
     public:
@@ -92,6 +113,8 @@ namespace lfg
         // Find new group
         uint8 FindGroups();
 
+        static LfgRoleSetup GetRoleSetup(LfgDungeonSet const& dungeons);
+
     private:
         void SetQueueUpdateData(std::string const& strGuids, LfgRolesMap const& proposalRoles);
 
@@ -105,7 +128,9 @@ namespace lfg
         void UpdateBestCompatibleInQueue(LfgQueueDataContainer::iterator itrQueue, Lfg5Guids const& key);
 
         LfgCompatibility FindNewGroups(ObjectGuid const& newGuid);
-        LfgCompatibility CheckCompatibility(Lfg5Guids const& checkWith, ObjectGuid const& newGuid, uint64& foundMask, uint32& foundCount, std::set<Lfg5Guids> const& currentCompatibles);
+        LfgCompatibility CheckCompatibility(Lfg5Guids const& checkWith, ObjectGuid const& newGuid, LfgFoundCompositions& found, std::set<Lfg5Guids> const& currentCompatibles);
+
+        LfgRoleSetup GetRoleSetup(Lfg5Guids const& check) const;
 
         // Queue
         uint32 m_QueueStatusTimer;                         // used to check interval of sending queue status

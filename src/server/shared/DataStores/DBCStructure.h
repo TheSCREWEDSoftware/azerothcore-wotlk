@@ -1406,8 +1406,11 @@ struct LFGDungeonEntry
     uint32 ExpansionLevel;                                  // 29
     //uint32 OrderIndex;                                    // 30
     uint32 GroupID;                                         // 31
-    //char const* Description[16];                          // 32-47
-    //uint32 Description_lang_mask;                         // 48
+    //char const* Description;                              // 32
+    //uint32 RandomID;                                      // 33
+    uint32 CountTank;                                       // 34
+    uint32 CountHealer;                                     // 35
+    uint32 CountDamage;                                     // 36
 
     // Helpers
     [[nodiscard]] uint32 Entry() const { return ID + (TypeID << 24); }
