@@ -765,14 +765,28 @@ void PlayerMenu::SendQuestGiverRequestItems(Quest const* quest, ObjectGuid npcGU
         if (quest->RequiredCurrencyId[i])
             data << uint32(quest->RequiredCurrencyId[i]) << uint32(quest->RequiredCurrencyCount[i]);
 
-    if (!canComplete)
-        data << uint32(0x00);
-    else
-        data << uint32(0x03);
+    // 4.3.4 status flags: kill credit done, items collected, then three fixed flags
+    bool killCreditComplete = true;
+    bool collectComplete = true;
+    auto statusItr = _session->GetPlayer()->getQuestStatusMap().find(quest->GetQuestId());
+    if (statusItr != _session->GetPlayer()->getQuestStatusMap().end())
+    {
+        QuestStatusData const& statusData = statusItr->second;
+        for (uint8 i = 0; i < QUEST_ITEM_OBJECTIVES_COUNT; ++i)
+            if (quest->RequiredItemId[i] && statusData.ItemCount[i] < quest->RequiredItemCount[i]
+                && !_session->GetPlayer()->HasItemCount(quest->RequiredItemId[i], quest->RequiredItemCount[i]))
+                collectComplete = false;
 
-    data << uint32(0x04);
+        for (uint8 i = 0; i < QUEST_OBJECTIVES_COUNT; ++i)
+            if (quest->RequiredNpcOrGo[i] && statusData.CreatureOrGOCount[i] != quest->RequiredNpcOrGoCount[i])
+                killCreditComplete = false;
+    }
+
+    data << uint32(killCreditComplete ? 0x02 : 0x00);      // QUEST_STATUS_FLAG_KILL_OBJECTIVE_COMPLETE
+    data << uint32(collectComplete ? 0x04 : 0x00);         // QUEST_STATUS_FLAG_COLLECT_OBJECTIVE_COMPLETE
     data << uint32(0x08);
     data << uint32(0x10);
+    data << uint32(0x40);
 
     _session->SendPacket(&data);
     LOG_DEBUG("network", "WORLD: Sent SMSG_QUESTGIVER_REQUEST_ITEMS {}, questid={}", npcGUID.ToString(), quest->GetQuestId());
