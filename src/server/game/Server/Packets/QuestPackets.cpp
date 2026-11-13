@@ -55,17 +55,18 @@ WorldPacket const* WorldPackets::Quest::QuestUpdateComplete::Write()
     return &_worldPacket;
 }
 
+// 5.4.8 18414, from Project SkyFire (Player::SendQuestReward)
 WorldPacket const* WorldPackets::Quest::QuestGiverQuestComplete::Write()
 {
-    _worldPacket << RewardTalents;
-    _worldPacket << RewardSkillUps;
-    _worldPacket << RewardMoney;
-    _worldPacket << Experience;
-    _worldPacket << QuestId;
-    _worldPacket << RewardSkillLine;
     _worldPacket.WriteBit(LaunchGossip);
     _worldPacket.WriteBit(UseQuestReward);
     _worldPacket.FlushBits();
+    _worldPacket << RewardTalents;
+    _worldPacket << RewardMoney;
+    _worldPacket << QuestId;
+    _worldPacket << RewardSkillLine;
+    _worldPacket << Experience;
+    _worldPacket << RewardSkillUps;
 
     return &_worldPacket;
 }
@@ -85,18 +86,36 @@ WorldPacket const* WorldPackets::Quest::QuestUpdateFailedTimer::Write()
     return &_worldPacket;
 }
 
+// 5.4.8 18414, from Project SkyFire (Player::SendCanTakeQuestResponse)
 WorldPacket const* WorldPackets::Quest::QuestGiverQuestInvalid::Write()
 {
+    _worldPacket.WriteBit(true);
+    _worldPacket.FlushBits();
     _worldPacket << FailureReason;
 
     return &_worldPacket;
 }
 
+// 5.4.8 18414, from Project SkyFire (Player::SendQuestConfirmAccept)
 WorldPacket const* WorldPackets::Quest::QuestConfirmAccept::Write()
 {
+    _worldPacket.WriteBit(PlayerGuid[0]);
+    _worldPacket.WriteBit(PlayerGuid[3]);
+    _worldPacket.WriteBit(false);                           // !has quest title
+    _worldPacket.WriteBit(PlayerGuid[2]);
+    _worldPacket.WriteBit(PlayerGuid[5]);
+    _worldPacket.WriteBit(PlayerGuid[6]);
+    _worldPacket.WriteBit(PlayerGuid[4]);
+    _worldPacket.WriteBit(PlayerGuid[1]);
+    _worldPacket.WriteBits(QuestTitle.size(), 10);
+    _worldPacket.WriteBit(PlayerGuid[7]);
+    _worldPacket.FlushBits();
+
+    _worldPacket.WriteByteSeq(PlayerGuid[6]);
+    _worldPacket.WriteString(QuestTitle);
+    for (uint8 index : { 0, 5, 3, 1, 4, 2, 7 })
+        _worldPacket.WriteByteSeq(PlayerGuid[index]);
     _worldPacket << QuestId;
-    _worldPacket << QuestTitle;
-    _worldPacket << PlayerGuid;
 
     return &_worldPacket;
 }
@@ -116,22 +135,29 @@ WorldPacket const* WorldPackets::Quest::QuestPushResult::Write()
     return &_worldPacket;
 }
 
+// 5.4.8 18414 SMSG_QUESTUPDATE_ADD_CREDIT, from Project SkyFire (Player::SendQuestUpdateAddCredit)
 WorldPacket const* WorldPackets::Quest::QuestUpdateAddKill::Write()
 {
+    _worldPacket << uint16(CurrentCount);
+    _worldPacket << uint8(ObjectiveType);
     _worldPacket << QuestId;
+    _worldPacket << uint16(RequiredCount);
     _worldPacket << CreatureEntry;
-    _worldPacket << CurrentCount;
-    _worldPacket << RequiredCount;
-    _worldPacket << ObjectiveGuid;
+
+    for (uint8 index : { 0, 4, 2, 6, 1, 5, 7, 3 })
+        _worldPacket.WriteBit(ObjectiveGuid[index]);
+    _worldPacket.FlushBits();
+    for (uint8 index : { 2, 7, 3, 0, 4, 5, 1, 6 })
+        _worldPacket.WriteByteSeq(ObjectiveGuid[index]);
 
     return &_worldPacket;
 }
 
+// 5.4.8 18414, from Project SkyFire (Player::SendQuestUpdateAddPlayer)
 WorldPacket const* WorldPackets::Quest::QuestUpdateAddPvPKill::Write()
 {
     _worldPacket << QuestId;
     _worldPacket << CurrentCount;
-    _worldPacket << RequiredCount;
 
     return &_worldPacket;
 }

@@ -68,7 +68,7 @@ TEST(QuestPacketsTest, LifecycleOpcodesMatchBuild15595)
     EXPECT_EQ(uint16(SMSG_QUESTGIVER_QUEST_COMPLETE), 0x55A4);
 }
 
-TEST(QuestPacketsTest, CompleteUsesBuild15595FieldOrderAndTailBits)
+TEST(QuestPacketsTest, CompleteUses548FlagsFirstAndFieldOrder)
 {
     WorldPackets::Quest::QuestGiverQuestComplete response;
     response.RewardTalents = 1;
@@ -81,21 +81,21 @@ TEST(QuestPacketsTest, CompleteUsesBuild15595FieldOrderAndTailBits)
 
     WorldPacket const* packet = response.Write();
     uint8 const expected[] = {
-        1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0,
-        4, 0, 0, 0, 5, 0, 0, 0, 6, 0, 0, 0, 0x80
+        0x80, 1, 0, 0, 0, 3, 0, 0, 0, 5, 0, 0, 0,
+        6, 0, 0, 0, 4, 0, 0, 0, 2, 0, 0, 0
     };
     ASSERT_EQ(packet->size(), sizeof(expected));
     for (size_t index = 0; index < sizeof(expected); ++index)
         EXPECT_EQ(packet->contents()[index], expected[index]) << index;
 }
 
-TEST(QuestPacketsTest, CompleteFlushesBothFlagsWithoutExtraFields)
+TEST(QuestPacketsTest, CompleteFlushesBothFlagsBeforeTheFields)
 {
     WorldPackets::Quest::QuestGiverQuestComplete response;
     response.UseQuestReward = true;
     WorldPacket const* packet = response.Write();
     ASSERT_EQ(packet->size(), 25u);
-    EXPECT_EQ(packet->contents()[24], 0x40);
+    EXPECT_EQ(packet->contents()[0], 0x40);
 }
 
 TEST(QuestPacketsTest, RewardsKeepEmptyFixedArraysAndCataTailFields)

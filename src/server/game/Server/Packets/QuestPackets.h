@@ -156,12 +156,13 @@ namespace WorldPackets
         class QuestUpdateAddKill final : public ServerPacket
         {
         public:
-            QuestUpdateAddKill() : ServerPacket(SMSG_QUESTUPDATE_ADD_KILL, 4 * 4 + 8) {}
+            QuestUpdateAddKill() : ServerPacket(SMSG_QUESTUPDATE_ADD_KILL, 2 + 1 + 4 + 2 + 4 + 9) {}
 
             WorldPacket const* Write() override;
 
             uint32 QuestId = 0;
-            uint32 CreatureEntry = 0;
+            uint8 ObjectiveType = QUEST_OBJECTIVE_TYPE_NPC;
+            uint32 CreatureEntry = 0;                       // object id of the objective
             uint32 CurrentCount = 0;
             uint32 RequiredCount = 0;
             ObjectGuid ObjectiveGuid;

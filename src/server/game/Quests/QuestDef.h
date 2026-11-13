@@ -18,6 +18,7 @@
 #ifndef AZEROTHCORE_QUEST_H
 #define AZEROTHCORE_QUEST_H
 
+#include "Common.h"
 #include "DBCEnums.h"
 #include "DatabaseEnv.h"
 #include "Define.h"
@@ -38,6 +39,22 @@ class ObjectMgr;
 #define QUEST_REWARD_CHOICES_COUNT 6
 #define QUEST_REWARD_CURRENCY_COUNT 4
 #define QUEST_REQUIRED_CURRENCY_COUNT 4
+
+// 5.4.8 quest objective types, from Project SkyFire (QuestObjectiveType)
+enum QuestObjectiveType : uint8
+{
+    QUEST_OBJECTIVE_TYPE_NPC            = 0,
+    QUEST_OBJECTIVE_TYPE_ITEM           = 1,
+    QUEST_OBJECTIVE_TYPE_GO             = 2,
+    QUEST_OBJECTIVE_TYPE_NPC_INTERACT   = 3,
+    QUEST_OBJECTIVE_TYPE_CURRENCY       = 4,
+    QUEST_OBJECTIVE_TYPE_SPELL          = 5,
+    QUEST_OBJECTIVE_TYPE_FACTION_REP    = 6,
+    QUEST_OBJECTIVE_TYPE_FACTION_REP2   = 7,
+    QUEST_OBJECTIVE_TYPE_MONEY          = 8,
+    QUEST_OBJECTIVE_TYPE_PLAYER         = 9,
+    QUEST_OBJECTIVE_TYPE_DUMMY          = 10
+};
 #define QUEST_REWARDS_COUNT 4
 #define QUEST_DEPLINK_COUNT 10
 #define QUEST_REPUTATIONS_COUNT 5
@@ -335,6 +352,21 @@ public:
     uint32 DetailsEmoteDelay[QUEST_EMOTE_COUNT];
     uint32 OfferRewardEmote[QUEST_EMOTE_COUNT];
     uint32 OfferRewardEmoteDelay[QUEST_EMOTE_COUNT];
+
+    // 5.4.8 clients get quest objectives as a list. AzerothCore keeps the 4.3.4 columns, the
+    // list is built from them: kill/use objectives keep their counter slot (0-3) as index.
+    struct ClientObjective
+    {
+        uint32 Id;
+        uint8 Index;
+        uint8 Type;
+        uint32 ObjectId;
+        int32 Amount;
+        uint32 Flags;
+        std::string Description;
+    };
+    [[nodiscard]] static uint32 MakeClientObjectiveId(uint32 questId, uint8 index) { return questId * 32 + index; }
+    [[nodiscard]] std::vector<ClientObjective> BuildClientObjectives(LocaleConstant locale = DEFAULT_LOCALE) const;
 
     [[nodiscard]] uint32 GetReqItemsCount() const { return _reqItemsCount; }
     [[nodiscard]] uint32 GetReqCreatureOrGOcount() const { return _reqCreatureOrGOcount; }

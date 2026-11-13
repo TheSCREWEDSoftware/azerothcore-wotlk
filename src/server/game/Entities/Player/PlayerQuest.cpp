@@ -2584,13 +2584,11 @@ void Player::SendQuestUpdateAddCreatureOrGo(Quest const* quest, ObjectGuid guid,
     ASSERT(old_count + add_count < 65536 && "mob/GO count store in 16 bits 2^16 = 65536 (0..65536)");
 
     int32 entry = quest->RequiredNpcOrGo[ creatureOrGO_idx ];
-    if (entry < 0)
-        // client expected gameobject template id in form (id|0x80000000)
-        entry = (-entry) | 0x80000000;
 
     WorldPackets::Quest::QuestUpdateAddKill questUpdateAddKill;
     questUpdateAddKill.QuestId = quest->GetQuestId();
-    questUpdateAddKill.CreatureEntry = entry;
+    questUpdateAddKill.ObjectiveType = entry > 0 ? QUEST_OBJECTIVE_TYPE_NPC : QUEST_OBJECTIVE_TYPE_GO;
+    questUpdateAddKill.CreatureEntry = entry > 0 ? uint32(entry) : uint32(-entry);
     questUpdateAddKill.CurrentCount = old_count + add_count;
     questUpdateAddKill.RequiredCount = quest->RequiredNpcOrGoCount[creatureOrGO_idx];
     questUpdateAddKill.ObjectiveGuid = guid;

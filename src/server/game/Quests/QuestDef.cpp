@@ -17,6 +17,7 @@
 
 #include "QuestDef.h"
 #include "Formulas.h"
+#include "ObjectMgr.h"
 #include "Opcodes.h"
 #include "Player.h"
 #include "World.h"
@@ -470,4 +471,71 @@ void Quest::InitializeQueryData()
         queryData << RequiredCurrencyId[i] << RequiredCurrencyCount[i];
     queryData << std::string() << std::string() << std::string() << std::string();
     queryData << SoundAccept << SoundTurnIn;
+}
+
+std::vector<Quest::ClientObjective> Quest::BuildClientObjectives(LocaleConstant locale) const
+{
+    std::vector<ClientObjective> objectives;
+    QuestLocale const* questLocale = locale != DEFAULT_LOCALE ? sObjectMgr->GetQuestLocale(Id) : nullptr;
+
+    for (uint8 i = 0; i < QUEST_OBJECTIVES_COUNT; ++i)
+    {
+        if (!RequiredNpcOrGo[i])
+            continue;
+
+        std::string description = ObjectiveText[i];
+        if (questLocale)
+            ObjectMgr::GetLocaleString(questLocale->ObjectiveText[i], locale, description);
+
+        uint8 type = RequiredNpcOrGo[i] > 0 ? QUEST_OBJECTIVE_TYPE_NPC : QUEST_OBJECTIVE_TYPE_GO;
+        uint32 objectId = RequiredNpcOrGo[i] > 0 ? uint32(RequiredNpcOrGo[i]) : uint32(-RequiredNpcOrGo[i]);
+        objectives.push_back({ MakeClientObjectiveId(Id, i), i, type, objectId, int32(RequiredNpcOrGoCount[i]), 0, description });
+    }
+
+    uint8 index = QUEST_OBJECTIVES_COUNT;
+    for (uint8 i = 0; i < QUEST_ITEM_OBJECTIVES_COUNT; ++i)
+        if (RequiredItemId[i])
+        {
+            objectives.push_back({ MakeClientObjectiveId(Id, index), index, QUEST_OBJECTIVE_TYPE_ITEM, RequiredItemId[i], int32(RequiredItemCount[i]), 0, "" });
+            ++index;
+        }
+
+    for (uint8 i = 0; i < QUEST_REQUIRED_CURRENCY_COUNT; ++i)
+        if (RequiredCurrencyId[i])
+        {
+            objectives.push_back({ MakeClientObjectiveId(Id, index), index, QUEST_OBJECTIVE_TYPE_CURRENCY, RequiredCurrencyId[i], int32(RequiredCurrencyCount[i]), 0, "" });
+            ++index;
+        }
+
+    if (RequiredFactionId1)
+    {
+        objectives.push_back({ MakeClientObjectiveId(Id, index), index, QUEST_OBJECTIVE_TYPE_FACTION_REP, RequiredFactionId1, RequiredFactionValue1, 0, "" });
+        ++index;
+    }
+
+    if (RequiredFactionId2)
+    {
+        objectives.push_back({ MakeClientObjectiveId(Id, index), index, QUEST_OBJECTIVE_TYPE_FACTION_REP2, RequiredFactionId2, RequiredFactionValue2, 0, "" });
+        ++index;
+    }
+
+    if (RequiredPlayerKills)
+    {
+        // The kill counter lives in QUEST_PVP_KILL_SLOT, use that slot as index when it is free
+        if (!RequiredNpcOrGo[QUEST_PVP_KILL_SLOT])
+            objectives.push_back({ MakeClientObjectiveId(Id, QUEST_PVP_KILL_SLOT), QUEST_PVP_KILL_SLOT, QUEST_OBJECTIVE_TYPE_PLAYER, 0, int32(RequiredPlayerKills), 0, "" });
+        else
+        {
+            objectives.push_back({ MakeClientObjectiveId(Id, index), index, QUEST_OBJECTIVE_TYPE_PLAYER, 0, int32(RequiredPlayerKills), 0, "" });
+            ++index;
+        }
+    }
+
+    if (RewardMoney < 0)
+    {
+        objectives.push_back({ MakeClientObjectiveId(Id, index), index, QUEST_OBJECTIVE_TYPE_MONEY, 0, -RewardMoney, 0, "" });
+        ++index;
+    }
+
+    return objectives;
 }
