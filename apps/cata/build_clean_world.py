@@ -21,7 +21,7 @@ import sys
 
 import convert_items_from_db2 as item_converter
 from import_starter_content import (SMART_EVENT_PARAM_COUNTS, UNSUPPORTED_SMART_ACTIONS, WARNINGS,
-                                    columns, insert_count, run)
+                                    columns, insert_count, mysql_command, run)
 from starter_content_inventory import registered_script_names, table_exists
 
 GUID_OFFSET = 10_000_000
@@ -50,7 +50,10 @@ EXPRESSIONS = {("creature_formations", "point_1"): "GREATEST(`InversionPoint1`,0
                ("conditions", "ConditionValue3"):
                    f"IF(`ConditionTypeOrReference`=31 AND `ConditionValue1` IN (3,5) "
                    f"AND `ConditionValue3`<>0,`ConditionValue3`+{GUID_OFFSET},`ConditionValue3`)",
-               ("spell_area", "autocast"): "(`flags` & 1)"}
+               ("spell_area", "autocast"): "(`flags` & 1)",
+               # newer TDB writes NULL for "use the template"; AC writes 0
+               ("creature", "npcflag"): "IFNULL(`npcflag`,0)",
+               ("creature", "unit_flags"): "IFNULL(`unit_flags`,0)"}
 SPAWN_TABLES = ("creature", "gameobject", "creature_addon", "gameobject_addon",
                 "creature_formations", "waypoint_data", "waypoint_scripts", "creature_text",
                 "game_event_creature", "game_event_gameobject")
@@ -68,13 +71,16 @@ def copy_table(container, user, password, target, source, table, renamed_columns
     renames = renamed_columns or {}
     target_columns = columns(container, user, password, target, table)
     source_table = source_table or table
-    source_columns = {name for name, _ in columns(container, user, password, source, source_table)}
+    # MySQL column names are case-insensitive, and TDB has renamed some of them between releases
+    # (MenuId -> MenuID, OptionIndex -> OptionID): match case-insensitively and fall back to the
+    # target's own name when a rename is not in this TDB.
+    source_columns = {name.lower(): name for name, _ in columns(container, user, password, source, source_table)}
     names, selected = [], []
     for name, auto in target_columns:
         expression = EXPRESSIONS.get((table, name))
-        source_name = renames.get(name, name)
+        source_name = source_columns.get(renames.get(name, name).lower()) or source_columns.get(name.lower())
         # A guid we shift is written explicitly even though the target column is auto-increment.
-        if (auto and name not in shifted) or (not expression and source_name not in source_columns):
+        if (auto and name not in shifted) or (not expression and not source_name):
             continue
         names.append(f"`{name}`")
         selected.append(expression or f"`{source_name}`" + (f"+{GUID_OFFSET}" if name in shifted else ""))
@@ -236,7 +242,29 @@ def derive_templates(container, user, password, target, source):
     derive("creature_template_spell", "CreatureID,`Index`,Spell,VerifiedBuild",
            [f"SELECT entry,{index},spell{index + 1},IFNULL(VerifiedBuild,0) "
             f"FROM `{source}`.creature_template WHERE spell{index + 1}<>0" for index in range(8)])
+    # TDB keeps mechanic/school immunity masks on the template; AC shares creature_immunities rows.
+    # TC's mechanic bit is 1 << (mechanic - 1), AC's MechanicsMask bit is 1 << mechanic.
+    source_columns = {name for name, _ in columns(container, user, password, source, "creature_template")}
+    if {"mechanic_immune_mask", "spell_school_immune_mask"} <= source_columns:
+        counts["creature_immunities"] = insert_count(
+            container, user, password,
+            f"INSERT IGNORE INTO `{target}`.creature_immunities "
+            f"(ID, SchoolMask, DispelTypeMask, MechanicsMask, Effects, Auras, ImmuneAoE, ImmuneChain, Comment) "
+            f"SELECT {IMMUNITY_ID_BASE} + DENSE_RANK() OVER (ORDER BY m, sc), sc, 0, m << 1, '', '', 0, 0, "
+            f"'{IMMUNITY_COMMENT}' FROM (SELECT DISTINCT mechanic_immune_mask AS m, spell_school_immune_mask AS sc "
+            f"FROM `{source}`.creature_template WHERE mechanic_immune_mask<>0 OR spell_school_immune_mask<>0) x")
+        counts["creature_immunities_id"] = update_count(
+            container, user, password,
+            f"UPDATE `{target}`.creature_template t JOIN `{source}`.creature_template s ON s.entry=t.entry "
+            f"JOIN `{target}`.creature_immunities i ON i.Comment='{IMMUNITY_COMMENT}' "
+            f"AND i.MechanicsMask=(s.mechanic_immune_mask << 1) AND i.SchoolMask=s.spell_school_immune_mask "
+            f"SET t.CreatureImmunitiesId=i.ID")
     return counts
+
+
+# creature_immunities rows made from TDB masks start above AC's own rows
+IMMUNITY_ID_BASE = 1_000_000
+IMMUNITY_COMMENT = "TDB 434 template immunity masks"
 
 
 # TDB 434 carries TrinityCore class names for a few AIs; the fork has the same behaviour under
@@ -349,6 +377,9 @@ def sync_cata_stats(container, user, password, target, source):
     if not {"basehp3", "damage_exp3"} <= present:
         raise RuntimeError("creature_classlevelstats lacks basehp3/damage_exp3; "
                            "apply the pending #315 update first")
+    source_columns = {name for name, _ in columns(container, user, password, source, "creature_classlevelstats")}
+    if "basehp3" not in source_columns:
+        return sync_stats_from_gt_tables(container, user, password, target, source)
     synced = int(run(container, user, password,
                      f"UPDATE `{target}`.creature_classlevelstats g "
                      f"JOIN `{source}`.creature_classlevelstats t "
@@ -378,13 +409,32 @@ def build_templates(container, user, password, target, source):
         container, user, password, target, source, "conditions",
         where="`SourceTypeOrReferenceId`=18")
     applied.update(derive_templates(container, user, password, target, source))
+    # newer TDB moved the gossip menu and the kill reputation out of creature_template
+    if table_exists(container, user, password, source, "creature_template_gossip"):
+        applied["gossip_menu_id"] = update_count(
+            container, user, password,
+            f"UPDATE `{target}`.creature_template t JOIN (SELECT CreatureID, MIN(MenuID) AS MenuID "
+            f"FROM `{source}`.creature_template_gossip GROUP BY CreatureID) g ON g.CreatureID=t.entry "
+            f"SET t.gossip_menu_id=g.MenuID")
+    if table_exists(container, user, password, source, "creature_onkill_reward"):
+        applied["creature_onkill_reputation"] = copy_table(
+            container, user, password, target, source, "creature_onkill_reputation",
+            source_table="creature_onkill_reward", where="RewOnKillRepFaction1<>0 OR RewOnKillRepFaction2<>0")
     applied["pet_levelstats"] = build_pet_levels(container, user, password, target, source)
     applied["creature_classlevelstats_cata"] = sync_cata_stats(container, user, password, target, source)
     # Only the hover rows matter; the rest of TDB's movement table would change gravity/flight
     # defaults the fork has not modelled.
-    applied["creature_template_movement"] = copy_table(
-        container, user, password, target, source, "creature_template_movement",
-        where="`Ground`=2")
+    movement_columns = {name for name, _ in columns(container, user, password, source, "creature_template_movement")}
+    if "Ground" in movement_columns:
+        applied["creature_template_movement"] = copy_table(
+            container, user, password, target, source, "creature_template_movement",
+            where="`Ground`=2")
+    else:
+        # newer TDB: HoverInitiallyEnabled replaces Ground=2 (hover)
+        applied["creature_template_movement"] = insert_count(
+            container, user, password,
+            f"INSERT IGNORE INTO `{target}`.creature_template_movement (CreatureId, Ground) "
+            f"SELECT CreatureId, 2 FROM `{source}`.creature_template_movement WHERE HoverInitiallyEnabled=1")
     excluded = ",".join(str(entry) for entry in VALKYR_SCRIPTED)
     if VALKYR_DISPLAYS:
         displays = ",".join(str(display) for display in VALKYR_DISPLAYS)
@@ -593,6 +643,38 @@ def suppress_spawns(container, user, password, target):
     return count
 
 
+# gt_npc_* columns by unit class (creature_classlevelstats.class)
+GT_CLASS_COLUMNS = {1: "Warrior", 2: "Paladin", 4: "Rogue", 8: "Mage"}
+
+
+def sync_stats_from_gt_tables(container, user, password, target, source):
+    """Newer TDB 434 keeps creature base health and damage in per level gt_npc_* tables.
+
+    gt_npc_total_hp[_expN] and gt_npc_damage_by_class[_expN] hold one column per unit class; they
+    fill basehp0-3 and damage_base/exp1-3. Missing expansions keep the previous expansion's value.
+    """
+    counts = {}
+    for suffix, hp, damage in (("", "basehp0", "damage_base"), ("_exp1", "basehp1", "damage_exp1"),
+                               ("_exp2", "basehp2", "damage_exp2"), ("_exp3", "basehp3", "damage_exp3")):
+        if not table_exists(container, user, password, source, f"gt_npc_total_hp{suffix}"):
+            continue
+        for unit_class, column in GT_CLASS_COLUMNS.items():
+            counts[f"{hp}_{unit_class}"] = update_count(
+                container, user, password,
+                f"UPDATE `{target}`.creature_classlevelstats g "
+                f"JOIN `{source}`.gt_npc_total_hp{suffix} h ON h.Level=g.level "
+                f"JOIN `{source}`.gt_npc_damage_by_class{suffix} d ON d.Level=g.level "
+                f"SET g.{hp}=GREATEST(1, ROUND(h.`{column}`)), g.{damage}=d.`{column}` "
+                f"WHERE g.class={unit_class}")
+    counts["health"] = update_count(container, user, password,
+                                    f"UPDATE `{target}`.creature_classlevelstats "
+                                    f"SET basehp3=basehp2 WHERE basehp3<=1 AND basehp2>1")
+    counts["damage"] = update_count(container, user, password,
+                                    f"UPDATE `{target}`.creature_classlevelstats "
+                                    f"SET damage_exp3=damage_exp2 WHERE damage_exp3=0 AND damage_exp2>0")
+    return {"gt_rows": sum(counts.values())}
+
+
 def import_phase_data(container, user, password, target, source):
     """Area phase membership and the type-26 conditions that gate it (#281).
 
@@ -651,7 +733,12 @@ def build_spawns(container, user, password, target, source):
 
 def build_loot(container, user, password, target, source):
     """All loot tables are world data; the zone import only fills the quest-relevant rows."""
-    return {table: copy_table(container, user, password, target, source, table)
+    # AC loot rows are items only: a TDB currency row would name a currency id as an item
+    def currency_filter(table):
+        names = {name for name, _ in columns(container, user, password, source, table)}
+        return "`IsCurrency`=0" if "IsCurrency" in names else None
+
+    return {table: copy_table(container, user, password, target, source, table, where=currency_filter(table))
             for table in ("creature_loot_template", "gameobject_loot_template",
                           "reference_loot_template", "pickpocketing_loot_template",
                           "skinning_loot_template", "disenchant_loot_template",
@@ -749,8 +836,7 @@ def build_interactions(container, user, password, target, source):
         "gossip_menu": copy_table(container, user, password, target, source, "gossip_menu"),
         "gossip_menu_option": copy_table(
             container, user, password, target, source, "gossip_menu_option",
-            {"MenuID": "MenuId", "OptionID": "OptionIndex",
-             "OptionBroadcastTextID": "OptionBroadcastTextId", "OptionNpcFlag": "OptionNpcflag"}),
+            {"OptionID": "OptionIndex"}),
         # 14 = gossip menu, 15 = gossip menu option availability conditions; negative source
         # types are the condition templates those rows can reference.
         "gossip_conditions": copy_table(container, user, password, target, source, "conditions",
@@ -759,6 +845,9 @@ def build_interactions(container, user, password, target, source):
         "points_of_interest": copy_table(container, user, password, target, source,
                                          "points_of_interest"),
     }
+    # newer TDB keeps the action and box columns on gossip_menu_option again
+    if not table_exists(container, user, password, source, "gossip_menu_option_action"):
+        return applied
     applied["gossip_action"] = update_count(
         container, user, password,
         f"UPDATE `{target}`.gossip_menu_option o JOIN `{source}`.gossip_menu_option_action a "
@@ -822,10 +911,8 @@ def build_item_support(container, user, password, target, source):
     tables = item_converter.load_tables(dbc_dir)
     rows = item_converter.convert(item_rows, sparse_rows, missing, tables, allow_missing_sparse=True)
     sql = item_converter.to_sql(rows, 15595, bool(tables), insert_only=True)
-    subprocess.run(
-        ["docker", "exec", "-i", "-e", f"MYSQL_PWD={password}", container,
-         "mysql", "-u", user, target],
-        input=sql, text=True, check=True)
+    subprocess.run(mysql_command(container, user, password, target, stdin=True),
+                   input=sql, text=True, check=True)
     return {"item_db2_only": len(missing)}
 
 
@@ -896,6 +983,13 @@ def main():
                                    f"(SourceTypeOrReferenceId=26 OR SourceTypeOrReferenceId IN (14,15))")[-1][0])
         if phase_conditions:
             sys.exit("--dbc-dir is required to build phase conditions (#348)")
+
+    # Newer TDB splits the addon byte fields into named columns; AC keeps the packed bytes.
+    addon_columns = {name for name, _ in columns(args.container, args.user, args.password, args.source, "creature_addon")}
+    if "bytes1" not in addon_columns and "StandState" in addon_columns:
+        for table in ("creature_addon", "creature_template_addon"):
+            EXPRESSIONS[(table, "bytes1")] = "(`StandState` | (`VisFlags` << 16) | (`AnimTier` << 24))"
+            EXPRESSIONS[(table, "bytes2")] = "(`SheathState` | (`PvPFlags` << 8))"
 
     conflicting = migrate_legacy_phase_masks(args.container, args.user, args.password, args.target)
     if conflicting:

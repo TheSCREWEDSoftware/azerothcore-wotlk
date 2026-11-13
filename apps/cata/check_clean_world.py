@@ -17,7 +17,8 @@ import sys
 
 def query(container: str, user: str, password: str, schema: str, sql: str) -> list[list[str]]:
     result = subprocess.run(
-        ["docker", "exec", container, "mysql", f"-u{user}", f"-p{password}", "-N", "-B", schema, "-e", sql],
+        (["mysql", f"-u{user}"] + ([f"-p{password}"] if password else []) if container == "local"
+         else ["docker", "exec", container, "mysql", f"-u{user}", f"-p{password}"]) + ["-N", "-B", schema, "-e", sql],
         capture_output=True, text=True, check=False,
     )
     if result.returncode:

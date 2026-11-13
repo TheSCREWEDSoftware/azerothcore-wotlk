@@ -446,6 +446,9 @@ struct CreatureAddon
     uint32 emote;
     std::vector<uint32> auras;
     VisibilityDistanceType visibilityDistanceType;
+    uint16 aiAnimKit;                                       // AnimKit.dbc ids
+    uint16 movementAnimKit;
+    uint16 meleeAnimKit;
 };
 
 typedef std::unordered_map<uint32, CreatureAddon> CreatureAddonContainer;
