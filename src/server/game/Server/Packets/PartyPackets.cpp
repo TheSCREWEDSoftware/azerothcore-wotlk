@@ -63,7 +63,7 @@ void WorldPackets::Party::PartyMemberState::Initialize(Player const* constPlayer
     Player* player = const_cast<Player*>(constPlayer);
     MemberGuid = player->GetGUID();
 
-    if (GetOpcode() == SMSG_PARTY_MEMBER_FULL_STATE)
+    if (FullUpdate)
     {
         ChangeMask = GROUP_UPDATE_FLAG_STATUS | GROUP_UPDATE_FLAG_CUR_HP | GROUP_UPDATE_FLAG_MAX_HP
             | GROUP_UPDATE_FLAG_CUR_POWER | GROUP_UPDATE_FLAG_MAX_POWER | GROUP_UPDATE_FLAG_LEVEL
@@ -158,123 +158,136 @@ void WorldPackets::Party::PartyMemberState::Initialize(Player const* constPlayer
     }
 }
 
-ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::Party::PartyMemberPhaseStates const& phases)
+uint32 WorldPackets::Party::PartyMemberState::GetClientChangeMask(uint32 changeMask)
 {
-    data << uint32(phases.PhaseShiftFlags);
-    data << uint32(phases.List.size());
+    // 5.4.8 adds unused bits between AC's flags, from Project SkyFire's GroupUpdateFlags
+    static constexpr std::pair<uint32, uint32> ClientBits[] =
+    {
+        { GROUP_UPDATE_FLAG_STATUS,         0x00000001 },
+        { GROUP_UPDATE_FLAG_CUR_HP,         0x00000004 },
+        { GROUP_UPDATE_FLAG_MAX_HP,         0x00000008 },
+        { GROUP_UPDATE_FLAG_POWER_TYPE,     0x00000010 },
+        { GROUP_UPDATE_FLAG_CUR_POWER,      0x00000040 },
+        { GROUP_UPDATE_FLAG_MAX_POWER,      0x00000080 },
+        { GROUP_UPDATE_FLAG_LEVEL,          0x00000100 },
+        { GROUP_UPDATE_FLAG_ZONE,           0x00000200 },
+        { GROUP_UPDATE_FLAG_WMO_GROUP_ID,   0x00000400 },
+        { GROUP_UPDATE_FLAG_POSITION,       0x00000800 },
+        { GROUP_UPDATE_FLAG_AURAS,          0x00001000 },
+        { GROUP_UPDATE_FLAG_PET_GUID,       0x00002000 },
+        { GROUP_UPDATE_FLAG_PET_NAME,       0x00004000 },
+        { GROUP_UPDATE_FLAG_PET_MODEL_ID,   0x00008000 },
+        { GROUP_UPDATE_FLAG_PET_CUR_HP,     0x00010000 },
+        { GROUP_UPDATE_FLAG_PET_MAX_HP,     0x00020000 },
+        { GROUP_UPDATE_FLAG_PET_POWER_TYPE, 0x00040000 },
+        { GROUP_UPDATE_FLAG_PET_CUR_POWER,  0x00100000 },
+        { GROUP_UPDATE_FLAG_PET_MAX_POWER,  0x00200000 },
+        { GROUP_UPDATE_FLAG_PET_AURAS,      0x00400000 },
+        { GROUP_UPDATE_FLAG_VEHICLE_SEAT,   0x00800000 },
+        { GROUP_UPDATE_FLAG_PHASE,          0x01000000 },
+    };
 
-    for (uint16 phaseId : phases.List)
-        data << uint16(phaseId);
+    uint32 clientMask = 0;
+    for (auto const& [flag, clientBit] : ClientBits)
+        if (changeMask & flag)
+            clientMask |= clientBit;
 
-    return data;
-}
-
-ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::Party::PartyMemberAuraStates const& aura)
-{
-    data << int32(aura.SpellID);
-    data << uint16(aura.Flags);
-    for (int32 points : aura.Points)
-        data << int32(points);
-
-    return data;
+    return clientMask;
 }
 
 WorldPacket const* WorldPackets::Party::PartyMemberState::Write()
 {
-    bool const fullState = _worldPacket.GetOpcode() == SMSG_PARTY_MEMBER_FULL_STATE;
-    if (fullState)
-        _worldPacket << uint8(ForEnemy);
+    // 5.4.8 18414 SMSG_PARTY_MEMBER_STATE, from Project SkyFire. The 5.4.8 aura block is not known
+    // (SkyFire does not send it either), so the aura flags are left out.
+    uint32 changeMask = ChangeMask & ~(GROUP_UPDATE_FLAG_AURAS | GROUP_UPDATE_FLAG_PET_AURAS);
 
-    _worldPacket << MemberGuid.WriteAsPacked();
-    _worldPacket << uint32(ChangeMask);
+    ByteBuffer data;
+    if (changeMask & GROUP_UPDATE_FLAG_STATUS)
+        data << uint16(MemberStats.Status);
 
-    if (ChangeMask & GROUP_UPDATE_FLAG_STATUS)
-        _worldPacket << uint16(MemberStats.Status);
+    if (changeMask & GROUP_UPDATE_FLAG_CUR_HP)
+        data << int32(MemberStats.CurrentHealth);
 
-    if (ChangeMask & GROUP_UPDATE_FLAG_CUR_HP)
-        _worldPacket << int32(MemberStats.CurrentHealth);
+    if (changeMask & GROUP_UPDATE_FLAG_MAX_HP)
+        data << int32(MemberStats.MaxHealth);
 
-    if (ChangeMask & GROUP_UPDATE_FLAG_MAX_HP)
-        _worldPacket << int32(MemberStats.MaxHealth);
+    if (changeMask & GROUP_UPDATE_FLAG_POWER_TYPE)
+        data << uint8(MemberStats.PowerType);
 
-    if (ChangeMask & GROUP_UPDATE_FLAG_POWER_TYPE)
-        _worldPacket << uint8(MemberStats.PowerType);
+    if (changeMask & GROUP_UPDATE_FLAG_CUR_POWER)
+        data << uint16(MemberStats.CurrentPower);
 
-    if (ChangeMask & GROUP_UPDATE_FLAG_CUR_POWER)
-        _worldPacket << uint16(MemberStats.CurrentPower);
+    if (changeMask & GROUP_UPDATE_FLAG_MAX_POWER)
+        data << uint16(MemberStats.MaxPower);
 
-    if (ChangeMask & GROUP_UPDATE_FLAG_MAX_POWER)
-        _worldPacket << uint16(MemberStats.MaxPower);
+    if (changeMask & GROUP_UPDATE_FLAG_LEVEL)
+        data << uint16(MemberStats.Level);
 
-    if (ChangeMask & GROUP_UPDATE_FLAG_LEVEL)
-        _worldPacket << uint16(MemberStats.Level);
+    if (changeMask & GROUP_UPDATE_FLAG_ZONE)
+        data << uint16(MemberStats.ZoneID);
 
-    if (ChangeMask & GROUP_UPDATE_FLAG_ZONE)
-        _worldPacket << uint16(MemberStats.ZoneID);
+    if (changeMask & GROUP_UPDATE_FLAG_WMO_GROUP_ID)
+        data << int16(MemberStats.WmoGroupID);
 
-    if (ChangeMask & GROUP_UPDATE_FLAG_WMO_GROUP_ID)
-        _worldPacket << int16(MemberStats.WmoGroupID);
-
-    if (ChangeMask & GROUP_UPDATE_FLAG_POSITION)
+    if (changeMask & GROUP_UPDATE_FLAG_POSITION)
     {
-        _worldPacket << int16(MemberStats.PositionX);
-        _worldPacket << int16(MemberStats.PositionY);
-        _worldPacket << int16(MemberStats.PositionZ);
+        data << int16(MemberStats.PositionX);
+        data << int16(MemberStats.PositionY);
+        data << int16(MemberStats.PositionZ);
     }
 
-    if (ChangeMask & GROUP_UPDATE_FLAG_AURAS)
+    // pet fields are sent empty when there is no pet
+    PartyMemberPetStats const emptyPet;
+    PartyMemberPetStats const& pet = MemberStats.PetStats ? *MemberStats.PetStats : emptyPet;
+
+    if (changeMask & GROUP_UPDATE_FLAG_PET_GUID)
+        data << pet.GUID;
+
+    if (changeMask & GROUP_UPDATE_FLAG_PET_NAME)
+        data << pet.Name;
+
+    if (changeMask & GROUP_UPDATE_FLAG_PET_MODEL_ID)
+        data << int16(pet.ModelId);
+
+    if (changeMask & GROUP_UPDATE_FLAG_PET_CUR_HP)
+        data << int32(pet.CurrentHealth);
+
+    if (changeMask & GROUP_UPDATE_FLAG_PET_MAX_HP)
+        data << int32(pet.MaxHealth);
+
+    if (changeMask & GROUP_UPDATE_FLAG_PET_POWER_TYPE)
+        data << uint8(pet.PowerType);
+
+    if (changeMask & GROUP_UPDATE_FLAG_PET_CUR_POWER)
+        data << uint16(pet.CurrentPower);
+
+    if (changeMask & GROUP_UPDATE_FLAG_PET_MAX_POWER)
+        data << uint16(pet.MaxPower);
+
+    if (changeMask & GROUP_UPDATE_FLAG_VEHICLE_SEAT)
+        data << int32(MemberStats.VehicleSeat);
+
+    if (changeMask & GROUP_UPDATE_FLAG_PHASE)
     {
-        _worldPacket << uint8(fullState);
-        _worldPacket << uint64(MemberStats.AuraMask);
-        _worldPacket << uint32(MAX_AURAS_GROUP_UPDATE);
-        for (PartyMemberAuraStates const& aura : MemberStats.Auras)
-            _worldPacket << aura;
+        data << uint32(MemberStats.Phases.PhaseShiftFlags);
+        data.WriteBits(MemberStats.Phases.List.size(), 23);
+        data.FlushBits();
+        for (uint16 phaseId : MemberStats.Phases.List)
+            data << uint16(phaseId);
     }
 
-    if (MemberStats.PetStats)
-    {
-        if (ChangeMask & GROUP_UPDATE_FLAG_PET_GUID)
-            _worldPacket << MemberStats.PetStats->GUID;
+    _worldPacket.WriteGuidMask(MemberGuid, { 0, 5 });
+    _worldPacket.WriteBit(ForEnemy);
+    _worldPacket.WriteGuidMask(MemberGuid, { 1, 4 });
+    _worldPacket.WriteBit(FullUpdate);
+    _worldPacket.WriteGuidMask(MemberGuid, { 6, 2, 7, 3 });
+    _worldPacket.FlushBits();
 
-        if (ChangeMask & GROUP_UPDATE_FLAG_PET_NAME)
-            _worldPacket << MemberStats.PetStats->Name;
-
-        if (ChangeMask & GROUP_UPDATE_FLAG_PET_MODEL_ID)
-            _worldPacket << int16(MemberStats.PetStats->ModelId);
-
-        if (ChangeMask & GROUP_UPDATE_FLAG_PET_CUR_HP)
-            _worldPacket << int32(MemberStats.PetStats->CurrentHealth);
-
-        if (ChangeMask & GROUP_UPDATE_FLAG_PET_MAX_HP)
-            _worldPacket << int32(MemberStats.PetStats->MaxHealth);
-
-        if (ChangeMask & GROUP_UPDATE_FLAG_PET_POWER_TYPE)
-            _worldPacket << uint8(MemberStats.PetStats->PowerType);
-
-        if (ChangeMask & GROUP_UPDATE_FLAG_PET_CUR_POWER)
-            _worldPacket << uint16(MemberStats.PetStats->CurrentPower);
-
-        if (ChangeMask & GROUP_UPDATE_FLAG_PET_MAX_POWER)
-            _worldPacket << uint16(MemberStats.PetStats->MaxPower);
-    }
-
-    // Pet auras may be sent even when no pet is present
-    if (ChangeMask & GROUP_UPDATE_FLAG_PET_AURAS)
-    {
-        _worldPacket << uint8(fullState);
-        _worldPacket << uint64(MemberStats.PetStats ? MemberStats.PetStats->AuraMask : 0);
-        _worldPacket << uint32(MemberStats.PetStats ? MAX_AURAS_GROUP_UPDATE : 0);
-
-        if (MemberStats.PetStats)
-            for (PartyMemberAuraStates const& aura : MemberStats.PetStats->Auras)
-                _worldPacket << aura;
-    }
-
-    if (ChangeMask & GROUP_UPDATE_FLAG_VEHICLE_SEAT)
-        _worldPacket << int32(MemberStats.VehicleSeat);
-
-    if (ChangeMask & GROUP_UPDATE_FLAG_PHASE)
-        _worldPacket << MemberStats.Phases;
+    _worldPacket.WriteGuidBytes(MemberGuid, { 3, 2, 6, 7, 5 });
+    _worldPacket << uint32(GetClientChangeMask(changeMask));
+    _worldPacket.WriteGuidBytes(MemberGuid, { 1, 4, 0 });
+    _worldPacket << uint32(data.size());
+    _worldPacket.append(data);
 
     return &_worldPacket;
 }
@@ -330,42 +343,36 @@ void WorldPackets::Party::PartyInvite::Initialize(Player const* inviter, uint32 
 
 WorldPacket const* WorldPackets::Party::PartyInvite::Write()
 {
-    _worldPacket.WriteBit(MustBeBNetFriend);
-    _worldPacket.WriteBit(InviterGUID[0]);
-    _worldPacket.WriteBit(InviterGUID[3]);
-    _worldPacket.WriteBit(InviterGUID[2]);
-    _worldPacket.WriteBit(CanAccept);
-    _worldPacket.WriteBit(InviterGUID[6]);
-    _worldPacket.WriteBit(InviterGUID[5]);
-    _worldPacket.WriteBits(InviterRealmName.length(), 9);
-    _worldPacket.WriteBit(InviterGUID[4]);
-    _worldPacket.WriteBits(InviterName.length(), 7);
-    _worldPacket.WriteBits(LfgSlots.size(), 24);
-    _worldPacket.WriteBit(IsXRealm);
-    _worldPacket.WriteBit(InviterGUID[1]);
-    _worldPacket.WriteBit(InviterGUID[7]);
+    // 5.4.8 18414 SMSG_GROUP_INVITE, from Project SkyFire
+    _worldPacket.WriteBits(InviterRealmName.length(), 8);
+    _worldPacket.WriteBits(0, 8);
+    _worldPacket.WriteGuidMask(InviterGUID, { 2 });
+    _worldPacket.WriteBit(false);
+    _worldPacket.WriteBits(InviterName.length(), 6);
+    _worldPacket.WriteGuidMask(InviterGUID, { 7, 5 });
+    _worldPacket.WriteBit(CanAccept);                       // false when already in a group
+    _worldPacket.WriteBit(false);                           // auto decline
+    _worldPacket.WriteGuidMask(InviterGUID, { 1 });
+    _worldPacket.WriteBit(IsXRealm);                        // cross realm invite (adds the hyphen between the inviter and the realm)
+    _worldPacket.WriteBit(MustBeBNetFriend);                // realm transfer warning
+    _worldPacket.WriteBits(LfgSlots.size(), 22);
+    _worldPacket.WriteGuidMask(InviterGUID, { 3, 0, 4, 6 });
     _worldPacket.FlushBits();
 
-    _worldPacket.WriteByteSeq(InviterGUID[1]);
-    _worldPacket.WriteByteSeq(InviterGUID[4]);
-
+    _worldPacket.WriteGuidBytes(InviterGUID, { 6 });
+    _worldPacket.WriteString(InviterRealmName);
+    _worldPacket.WriteGuidBytes(InviterGUID, { 7, 2, 0 });
+    _worldPacket << uint64(0);                              // battle.net account id
     _worldPacket << uint32(Timestamp);
     _worldPacket << uint32(ProposedRoles);
+    _worldPacket.WriteGuidBytes(InviterGUID, { 1, 5, 4 });
+    _worldPacket << int32(InviterCfgRealmID);
+    _worldPacket.WriteString(InviterName);
+    _worldPacket.WriteGuidBytes(InviterGUID, { 3 });
     _worldPacket << uint32(LfgCompletedMask);
-
-    _worldPacket.WriteByteSeq(InviterGUID[6]);
-    _worldPacket.WriteByteSeq(InviterGUID[0]);
-    _worldPacket.WriteByteSeq(InviterGUID[2]);
-    _worldPacket.WriteByteSeq(InviterGUID[3]);
 
     for (uint32 lfgSlot : LfgSlots)
         _worldPacket << uint32(lfgSlot);
-
-    _worldPacket.WriteByteSeq(InviterGUID[5]);
-    _worldPacket.WriteString(InviterRealmName);
-    _worldPacket.WriteByteSeq(InviterGUID[7]);
-    _worldPacket.WriteString(InviterName);
-    _worldPacket << uint32(InviterCfgRealmID);
 
     return &_worldPacket;
 }
@@ -390,42 +397,96 @@ WorldPacket const* WorldPackets::Party::GroupDecline::Write()
 
 WorldPacket const* WorldPackets::Party::PartyUpdate::Write()
 {
-    _worldPacket << uint8(PartyFlags);
-    _worldPacket << uint8(Subgroup);
-    _worldPacket << uint8(Flags);
-    _worldPacket << uint8(RolesAssigned);
+    // 5.4.8 18414 SMSG_GROUP_LIST, from Project SkyFire. An empty player list is the "left the
+    // group" update, which has no difficulty and loot blocks.
+    bool hasSettings = !PlayerList.empty();
+    bool isLfg = hasSettings && LfgInfo.has_value();
+    ObjectGuid looterGuid = LootSettings.LootMaster;
 
-    if (LfgInfo)
-    {
-        _worldPacket << uint8(LfgInfo->MyLfgFlags);
-        _worldPacket << uint32(LfgInfo->LfgSlot);
-        _worldPacket << uint8(LfgInfo->LfgAborted);
-    }
+    _worldPacket.WriteGuidMask(PartyGUID, { 0 });
+    _worldPacket.WriteGuidMask(LeaderGUID, { 7, 1 });
+    _worldPacket.WriteBit(hasSettings);                     // has dungeon and raid difficulty
+    _worldPacket.WriteGuidMask(PartyGUID, { 7 });
+    _worldPacket.WriteGuidMask(LeaderGUID, { 6, 5 });
+    _worldPacket.WriteBits(PlayerList.size(), 21);
 
-    _worldPacket << PartyGUID;
-    _worldPacket << uint32(SequenceNum);
-    _worldPacket << uint32(PlayerList.size());
-
+    ByteBuffer memberData;
     for (PartyPlayerInfo const& playerInfo : PlayerList)
     {
-        _worldPacket << playerInfo.Name;
-        _worldPacket << playerInfo.Guid;
-        _worldPacket << uint8(playerInfo.Connected);
-        _worldPacket << uint8(playerInfo.Subgroup);
-        _worldPacket << uint8(playerInfo.Flags);
-        _worldPacket << uint8(playerInfo.RolesAssigned);
+        _worldPacket.WriteGuidMask(playerInfo.Guid, { 1, 2, 5, 6 });
+        _worldPacket.WriteBits(playerInfo.Name.size(), 6);
+        _worldPacket.WriteGuidMask(playerInfo.Guid, { 7, 3, 0, 4 });
+
+        memberData.WriteGuidBytes(playerInfo.Guid, { 6, 3 });
+        memberData << uint8(playerInfo.RolesAssigned);
+        memberData << uint8(playerInfo.Connected);
+        memberData.WriteGuidBytes(playerInfo.Guid, { 7, 4, 1 });
+        memberData.WriteString(playerInfo.Name);
+        memberData.WriteGuidBytes(playerInfo.Guid, { 5, 2 });
+        memberData << uint8(playerInfo.Subgroup);
+        memberData.WriteGuidBytes(playerInfo.Guid, { 0 });
+        memberData << uint8(playerInfo.Flags);
     }
 
-    _worldPacket << LeaderGUID;
+    _worldPacket.WriteGuidMask(LeaderGUID, { 3, 0 });
+    _worldPacket.WriteBit(hasSettings);                     // has loot mode
+    _worldPacket.WriteGuidMask(PartyGUID, { 5 });
+    if (hasSettings)
+        _worldPacket.WriteGuidMask(looterGuid, { 6, 4, 5, 2, 1, 0, 7, 3 });
+    _worldPacket.WriteGuidMask(PartyGUID, { 2, 4, 1 });
+    _worldPacket.WriteBit(isLfg);
+    _worldPacket.WriteGuidMask(LeaderGUID, { 2 });
+    _worldPacket.WriteGuidMask(PartyGUID, { 6 });
+    if (isLfg)
+    {
+        _worldPacket.WriteBit(LfgInfo->LfgAborted);
+        _worldPacket.WriteBit(false);                       // first reward
+    }
+    _worldPacket.WriteGuidMask(LeaderGUID, { 4 });
+    _worldPacket.WriteGuidMask(PartyGUID, { 3 });
+    _worldPacket.FlushBits();
 
-    if (!PlayerList.empty())
+    _worldPacket.WriteGuidBytes(LeaderGUID, { 0 });
+    if (hasSettings)
+    {
+        _worldPacket << uint32(DifficultySettings.RaidDifficulty);
+        _worldPacket << uint32(DifficultySettings.DungeonDifficulty);
+    }
+    _worldPacket.append(memberData);
+    _worldPacket.WriteGuidBytes(PartyGUID, { 1 });
+
+    if (isLfg)
+    {
+        _worldPacket << float(0.0f);                        // gear difference
+        _worldPacket << uint8(0);                           // stranger count
+        _worldPacket << uint8(LfgInfo->MyLfgFlags);         // 0 in progress, 2 complete
+        _worldPacket << uint32(LfgInfo->LfgSlot);           // dungeon the eye teleports to
+        _worldPacket << uint8(0);                           // boot count
+        _worldPacket << uint8(0);                           // kick votes
+        _worldPacket << uint8(RolesAssigned);
+        _worldPacket << uint32(0);                          // random slot
+    }
+
+    _worldPacket.WriteGuidBytes(LeaderGUID, { 4, 2 });
+    if (hasSettings)
     {
         _worldPacket << uint8(LootSettings.LootMethod);
-        _worldPacket << LootSettings.LootMaster;
+        _worldPacket.WriteGuidBytes(looterGuid, { 0, 5, 4, 3, 2 });
         _worldPacket << uint8(LootSettings.LootThreshold);
-        _worldPacket << uint8(DifficultySettings.DungeonDifficulty);
-        _worldPacket << uint8(DifficultySettings.RaidDifficulty);
+        _worldPacket.WriteGuidBytes(looterGuid, { 7, 1, 6 });
     }
+
+    _worldPacket.WriteGuidBytes(PartyGUID, { 6, 4 });
+    _worldPacket << uint8(PartyFlags);
+    _worldPacket << uint8(InstanceParty ? 1 : 0);           // 0 home party, 1 instance party
+    _worldPacket << int32(MyIndex);
+    _worldPacket.WriteGuidBytes(PartyGUID, { 7 });
+    _worldPacket.WriteGuidBytes(LeaderGUID, { 3, 1 });
+    _worldPacket << uint32(SequenceNum);
+    _worldPacket.WriteGuidBytes(PartyGUID, { 0, 2, 5, 3 });
+    _worldPacket.WriteGuidBytes(LeaderGUID, { 7 });
+    _worldPacket << uint8(isLfg ? RolesAssigned : 0);
+    _worldPacket.WriteGuidBytes(LeaderGUID, { 5, 6 });
 
     return &_worldPacket;
 }
@@ -475,42 +536,31 @@ void WorldPackets::Party::SetRole::Read()
 
 WorldPacket const* WorldPackets::Party::RoleChangedInform::Write()
 {
-    _worldPacket.WriteBit(From[1]);
-    _worldPacket.WriteBit(ChangedUnit[0]);
-    _worldPacket.WriteBit(ChangedUnit[2]);
-    _worldPacket.WriteBit(ChangedUnit[4]);
-    _worldPacket.WriteBit(ChangedUnit[7]);
-    _worldPacket.WriteBit(ChangedUnit[3]);
-    _worldPacket.WriteBit(From[7]);
-    _worldPacket.WriteBit(ChangedUnit[5]);
-    _worldPacket.WriteBit(From[5]);
-    _worldPacket.WriteBit(From[4]);
-    _worldPacket.WriteBit(From[3]);
-    _worldPacket.WriteBit(ChangedUnit[6]);
-    _worldPacket.WriteBit(From[2]);
-    _worldPacket.WriteBit(From[6]);
-    _worldPacket.WriteBit(ChangedUnit[1]);
-    _worldPacket.WriteBit(From[0]);
+    // 5.4.8 18414 SMSG_GROUP_SET_ROLE, from Project SkyFire
+    _worldPacket.WriteGuidMask(From, { 1 });
+    _worldPacket.WriteGuidMask(ChangedUnit, { 7, 6, 4, 1, 0 });
+    _worldPacket.WriteGuidMask(From, { 0, 7 });
+    _worldPacket.WriteGuidMask(ChangedUnit, { 3 });
+    _worldPacket.WriteGuidMask(From, { 6 });
+    _worldPacket.WriteGuidMask(ChangedUnit, { 2 });
+    _worldPacket.WriteGuidMask(From, { 4, 5, 2 });
+    _worldPacket.WriteGuidMask(ChangedUnit, { 5 });
+    _worldPacket.WriteGuidMask(From, { 3 });
     _worldPacket.FlushBits();
 
-    _worldPacket.WriteByteSeq(From[7]);
-    _worldPacket.WriteByteSeq(ChangedUnit[3]);
-    _worldPacket.WriteByteSeq(From[6]);
-    _worldPacket.WriteByteSeq(ChangedUnit[4]);
-    _worldPacket.WriteByteSeq(ChangedUnit[0]);
-    _worldPacket << uint32(NewRole);
-    _worldPacket.WriteByteSeq(ChangedUnit[5]);
-    _worldPacket.WriteByteSeq(ChangedUnit[2]);
-    _worldPacket.WriteByteSeq(From[0]);
-    _worldPacket.WriteByteSeq(From[4]);
-    _worldPacket.WriteByteSeq(ChangedUnit[1]);
-    _worldPacket.WriteByteSeq(From[3]);
-    _worldPacket.WriteByteSeq(From[5]);
-    _worldPacket.WriteByteSeq(From[2]);
-    _worldPacket.WriteByteSeq(ChangedUnit[6]);
-    _worldPacket.WriteByteSeq(ChangedUnit[7]);
-    _worldPacket.WriteByteSeq(From[1]);
+    _worldPacket.WriteGuidBytes(From, { 1, 6, 2 });
+    _worldPacket.WriteGuidBytes(ChangedUnit, { 3 });
     _worldPacket << uint32(OldRole);
+    _worldPacket.WriteGuidBytes(From, { 7 });
+    _worldPacket.WriteGuidBytes(ChangedUnit, { 5 });
+    _worldPacket.WriteGuidBytes(From, { 3 });
+    _worldPacket.WriteGuidBytes(ChangedUnit, { 4, 7 });
+    _worldPacket.WriteGuidBytes(From, { 5 });
+    _worldPacket.WriteGuidBytes(ChangedUnit, { 6, 2, 1, 0 });
+    _worldPacket.WriteGuidBytes(From, { 4 });
+    _worldPacket << uint8(0);                               // party index
+    _worldPacket.WriteGuidBytes(From, { 0 });
+    _worldPacket << uint32(NewRole);
 
     return &_worldPacket;
 }

@@ -895,8 +895,12 @@ void Group::ChangeLeader(ObjectGuid newLeaderGuid)
     m_leaderName = newLeader->GetName();
     ToggleGroupMemberFlag(slot, MEMBER_FLAG_ASSISTANT, false);
 
-    WorldPacket data(SMSG_GROUP_SET_LEADER, m_leaderName.size() + 1);
-    data << slot->name;
+    // 5.4.8 18414, from Project SkyFire
+    WorldPacket data(SMSG_GROUP_SET_LEADER, 1 + 1 + slot->name.size());
+    data << uint8(0);                                       // party index
+    data.WriteBits(slot->name.size(), 6);
+    data.FlushBits();
+    data.WriteString(slot->name);
     BroadcastPacket(&data, true);
 
     sScriptMgr->OnGroupChangeLeader(this, newLeaderGuid, oldLeaderGuid); // This hook should be executed at the end
@@ -2158,12 +2162,26 @@ void Group::SendUpdateToPlayer(ObjectGuid playerGUID, MemberSlot* slot)
 
     partyUpdate.PartyGUID = m_guid;
     partyUpdate.SequenceNum = m_counter++;              // increases every time this packet gets sent
+    partyUpdate.InstanceParty = isLFGGroup();
+
+    // 5.4.8 lists every member, this player included, with its position in the sub group
+    int32 subGroupPosition = 0;
+    for (member_citerator citr = m_memberSlots.begin(); citr != m_memberSlots.end(); ++citr)
+    {
+        if (citr->group != slot->group)
+            continue;
+
+        if (citr->guid == slot->guid)
+        {
+            partyUpdate.MyIndex = subGroupPosition;
+            break;
+        }
+
+        ++subGroupPosition;
+    }
 
     for (member_citerator citr = m_memberSlots.begin(); citr != m_memberSlots.end(); ++citr)
     {
-        if (slot->guid == citr->guid)
-            continue;
-
         Player* member = ObjectAccessor::FindConnectedPlayer(citr->guid);
 
         uint8 onlineState = (member && !member->GetSession()->PlayerLogout()) ? MEMBER_STATUS_ONLINE : MEMBER_STATUS_OFFLINE;

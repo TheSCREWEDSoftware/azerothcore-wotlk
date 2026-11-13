@@ -80,11 +80,16 @@ namespace WorldPackets
         class PartyMemberState final : public ServerPacket
         {
         public:
-            PartyMemberState(bool fullUpdate = false) : ServerPacket(fullUpdate ? SMSG_PARTY_MEMBER_FULL_STATE : SMSG_PARTY_MEMBER_STATE, 80) { }
+            // 5.4.8 has one opcode for both, the full update is a bit in the packet
+            PartyMemberState(bool fullUpdate = false) : ServerPacket(SMSG_PARTY_MEMBER_STATE, 80), FullUpdate(fullUpdate) { }
 
             WorldPacket const* Write() override;
             void Initialize(Player const* player);
 
+            // the 5.4.8 bit for each AC GROUP_UPDATE_FLAG_* bit
+            static uint32 GetClientChangeMask(uint32 changeMask);
+
+            bool FullUpdate = false;
             bool ForEnemy = false;
             ObjectGuid MemberGuid;
             uint32 ChangeMask = 0;
@@ -213,6 +218,8 @@ namespace WorldPackets
             uint8 Subgroup = 0;
             uint8 Flags = 0;
             uint8 RolesAssigned = 0;
+            int32 MyIndex = -1;         // 5.4.8: this player's position in its sub group
+            bool InstanceParty = false; // 5.4.8: the dungeon finder party
             uint32 SequenceNum = 0;
             ObjectGuid LeaderGUID;
             ObjectGuid PartyGUID;
@@ -252,7 +259,7 @@ namespace WorldPackets
         class RoleChangedInform final : public ServerPacket
         {
         public:
-            RoleChangedInform() : ServerPacket(SMSG_ROLE_CHANGED_INFORM, 8 + 8 + 4 + 4) { }
+            RoleChangedInform() : ServerPacket(SMSG_GROUP_SET_ROLE, 8 + 8 + 4 + 4 + 3) { }
 
             WorldPacket const* Write() override;
 

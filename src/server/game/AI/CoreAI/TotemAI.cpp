@@ -20,6 +20,7 @@
 #include "Creature.h"
 #include "DBCStores.h"
 #include "GridNotifiers.h"
+#include "MiscPackets.h"
 #include "ObjectAccessor.h"
 #include "SpellMgr.h"
 #include "Totem.h"
@@ -131,10 +132,10 @@ void TotemAI::AttackStart(Unit* /*victim*/)
     // Sentry totem sends ping on attack
     if (me->GetEntry() == SENTRY_TOTEM_ENTRY && me->GetOwner()->IsPlayer())
     {
-        WorldPacket data(MSG_MINIMAP_PING, (8 + 4 + 4));
-        data << me->GetGUID();
-        data << me->GetPositionX();
-        data << me->GetPositionY();
-        me->GetOwner()->ToPlayer()->SendDirectMessage(&data);
+        WorldPackets::Misc::MinimapPing packet;
+        packet.SourceGuid = me->GetGUID();
+        packet.MapX = me->GetPositionX();
+        packet.MapY = me->GetPositionY();
+        me->GetOwner()->ToPlayer()->SendDirectMessage(packet.Write());
     }
 }

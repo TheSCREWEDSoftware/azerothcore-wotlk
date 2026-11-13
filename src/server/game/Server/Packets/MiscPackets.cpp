@@ -199,31 +199,41 @@ WorldPacket const* WorldPackets::Misc::Playsound::Write()
 
 void WorldPackets::Misc::MinimapPingClient::Read()
 {
-    _worldPacket >> MapX;
+    // 5.4.8 18414, from Project SkyFire
     _worldPacket >> MapY;
+    _worldPacket >> MapX;
+    _worldPacket.read_skip<uint8>();                        // party index
 }
 
 WorldPacket const* WorldPackets::Misc::MinimapPing::Write()
 {
-    _worldPacket << SourceGuid;
-    _worldPacket << float(MapX);
+    // 5.4.8 18414, from Project SkyFire
     _worldPacket << float(MapY);
+    _worldPacket << float(MapX);
+    _worldPacket.WriteGuidMask(SourceGuid, { 0, 5, 2, 7, 1, 3, 6, 4 });
+    _worldPacket.FlushBits();
+    _worldPacket.WriteGuidBytes(SourceGuid, { 6, 5, 7, 2, 0, 3, 1, 4 });
 
     return &_worldPacket;
 }
 
 void WorldPackets::Misc::RandomRollClient::Read()
 {
-    _worldPacket >> Min;
+    // 5.4.8 18414, from Project SkyFire
     _worldPacket >> Max;
+    _worldPacket >> Min;
+    _worldPacket.read_skip<uint8>();                        // party index
 }
 
 WorldPacket const* WorldPackets::Misc::RandomRoll::Write()
 {
+    // 5.4.8 18414, from Project SkyFire
+    _worldPacket << uint32(Result);
     _worldPacket << uint32(Min);
     _worldPacket << uint32(Max);
-    _worldPacket << uint32(Result);
-    _worldPacket << Roller;
+    _worldPacket.WriteGuidMask(Roller, { 0, 6, 7, 1, 4, 5, 2, 3 });
+    _worldPacket.FlushBits();
+    _worldPacket.WriteGuidBytes(Roller, { 5, 4, 2, 0, 3, 1, 6, 7 });
 
     return &_worldPacket;
 }
