@@ -236,12 +236,24 @@ pEffect SpellEffects[TOTAL_SPELL_EFFECTS] =
     &Spell::EffectActivateSpec,                             //162 SPELL_EFFECT_TALENT_SPEC_SELECT       activate primary/secondary spec
     &Spell::EffectNULL,                                     //163 unused
     &Spell::EffectRemoveAura,                               //164 SPELL_EFFECT_REMOVE_AURA
-    &Spell::EffectUnused,                                   //165 SPELL_EFFECT_DAMAGE_FROM_MAX_HEALTH_PCT (excluded)
-    &Spell::EffectUnused,                                   //166 SPELL_EFFECT_GIVE_CURRENCY (excluded)
+    &Spell::EffectDamageFromMaxHealthPCT,                   //165 SPELL_EFFECT_DAMAGE_FROM_MAX_HEALTH_PCT
+    &Spell::EffectGiveCurrency,                             //166 SPELL_EFFECT_GIVE_CURRENCY
     &Spell::EffectUpdatePlayerPhase,                        //167 SPELL_EFFECT_UPDATE_PLAYER_PHASE
-    &Spell::EffectUnused,                                   //168 SPELL_EFFECT_ALLOW_CONTROL_PET (excluded)
-    &Spell::EffectUnused,                                   //169 SPELL_EFFECT_DESTROY_ITEM (excluded)
-    &Spell::EffectUpdateZoneAurasAndPhases,                  //170 SPELL_EFFECT_UPDATE_ZONE_AURAS_AND_PHASES
+    &Spell::EffectNULL,                                     //168 SPELL_EFFECT_ALLOW_CONTROL_PET
+    &Spell::EffectNULL,                                     //169 SPELL_EFFECT_DESTROY_ITEM
+    &Spell::EffectUpdateZoneAurasAndPhases,                 //170 SPELL_EFFECT_UPDATE_ZONE_AURAS_AND_PHASES
+    &Spell::EffectNULL,                                     //171 SPELL_EFFECT_SUMMON_PERSONAL_GAMEOBJECT
+    &Spell::EffectNULL,                                     //172 SPELL_EFFECT_RESURRECT_WITH_AURA
+    &Spell::EffectUnlockGuildVaultTab,                      //173 SPELL_EFFECT_UNLOCK_GUILD_VAULT_TAB
+    &Spell::EffectApplyAura,                                //174 SPELL_EFFECT_APPLY_AURA_2
+    &Spell::EffectUnused,                                   //175 SPELL_EFFECT_175  unused
+    &Spell::EffectNULL,                                     //176 SPELL_EFFECT_SANCTUARY_2
+    &Spell::EffectNULL,                                     //177 SPELL_EFFECT_177
+    &Spell::EffectUnused,                                   //178 SPELL_EFFECT_178 unused
+    &Spell::EffectNULL,                                     //179 SPELL_EFFECT_CREATE_AREATRIGGER
+    &Spell::EffectUnused,                                   //180 SPELL_EFFECT_UPDATE_AREATRIGGER
+    &Spell::EffectUnused,                                   //181 SPELL_EFFECT_REMOVE_TALENT
+    &Spell::EffectNULL,                                     //182 SPELL_EFFECT_182
 };
 
 void Spell::EffectNULL(SpellEffIndex /*effIndex*/)
@@ -6759,4 +6771,41 @@ void Spell::EffectSummonRaFFriend(SpellEffIndex  /*effIndex*/)
     data << uint32(unitCaster->GetZoneId());
     data << uint32(MAX_PLAYER_SUMMON_DELAY * IN_MILLISECONDS); // auto decline after msecs
     player->SendDirectMessage(&data);
+}
+
+void Spell::EffectDamageFromMaxHealthPCT(SpellEffIndex /*effIndex*/)
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    if (!unitTarget)
+        return;
+
+    m_damage += unitTarget->CountPctFromMaxHealth(damage);
+}
+
+void Spell::EffectGiveCurrency(SpellEffIndex effIndex)
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    if (!unitTarget || !unitTarget->IsPlayer())
+        return;
+
+    unitTarget->ToPlayer()->ModifyCurrency(m_spellInfo->Effects[effIndex].MiscValue, damage);
+}
+
+void Spell::EffectUnlockGuildVaultTab(SpellEffIndex effIndex)
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT)
+        return;
+
+    // The guild master check is done in Spell::CheckCast
+    Player* caster = m_caster->ToPlayer();
+    if (!caster)
+        return;
+
+    // Bank tabs start at zero internally
+    if (Guild* guild = caster->GetGuild())
+        guild->HandleBuyBankTab(caster->GetSession(), uint8(m_spellInfo->Effects[effIndex].BasePoints - 1), true);
 }

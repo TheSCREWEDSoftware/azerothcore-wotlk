@@ -1770,7 +1770,7 @@ void Guild::HandleSetRankInfo(uint8 rankId, Optional<std::string_view> name, Opt
         std::to_string(m_ranks.size()));
 }
 
-void Guild::HandleBuyBankTab(WorldSession* session, uint8 tabId)
+void Guild::HandleBuyBankTab(WorldSession* session, uint8 tabId, bool unlockedBySpell)
 {
     Player* player = session->GetPlayer();
     if (!player)
@@ -1786,14 +1786,23 @@ void Guild::HandleBuyBankTab(WorldSession* session, uint8 tabId)
     if (tabId != _GetPurchasedTabsSize())
         return;
 
-    uint32 tabCost = _GetGuildBankTabPrice(tabId);
-    if (!tabCost)
-        return;
+    // The last two tabs are not sold: guild vault vouchers unlock them (SPELL_EFFECT_UNLOCK_GUILD_VAULT_TAB)
+    if (tabId >= GUILD_BANK_MAX_TABS - 2)
+    {
+        if (!unlockedBySpell)
+            return;
+    }
+    else
+    {
+        uint32 tabCost = _GetGuildBankTabPrice(tabId);
+        if (!tabCost)
+            return;
 
-    if (!player->HasEnoughMoney(tabCost))                   // Should not happen, this is checked by client
-        return;
+        if (!player->HasEnoughMoney(tabCost))               // Should not happen, this is checked by client
+            return;
 
-    player->ModifyMoney(-int32(tabCost));
+        player->ModifyMoney(-int32(tabCost));
+    }
 
     _CreateNewBankTab();
     _BroadcastEvent(GE_BANK_TAB_PURCHASED);

@@ -29,6 +29,7 @@
 #include "GameTime.h"
 #include "GridNotifiers.h"
 #include "Group.h"
+#include "Guild.h"
 #include "InstanceScript.h"
 #include "Log.h"
 #include "LootMgr.h"
@@ -6363,6 +6364,17 @@ SpellCastResult Spell::CheckCast(bool strict, uint32* /*param1*/, uint32* /*para
 
                     break;
                 }
+            case SPELL_EFFECT_UNLOCK_GUILD_VAULT_TAB:
+            {
+                Player* player = m_caster->ToPlayer();
+                if (!player)
+                    return SPELL_FAILED_BAD_TARGETS;
+
+                Guild* guild = player->GetGuild();
+                if (!guild || guild->GetLeaderGUID() != player->GetGUID())
+                    return SPELL_FAILED_CANT_DO_THAT_RIGHT_NOW;
+                break;
+            }
             case SPELL_EFFECT_LEARN_PET_SPELL:
                 {
                     // check target only for unit target case

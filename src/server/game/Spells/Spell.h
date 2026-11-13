@@ -345,6 +345,9 @@ public:
     void EffectPlayMovie(SpellEffIndex effIndex);
     void EffectUpdatePlayerPhase(SpellEffIndex effIndex);
     void EffectUpdateZoneAurasAndPhases(SpellEffIndex effIndex);
+    void EffectDamageFromMaxHealthPCT(SpellEffIndex effIndex);
+    void EffectGiveCurrency(SpellEffIndex effIndex);
+    void EffectUnlockGuildVaultTab(SpellEffIndex effIndex);
     void EffectTradeSkill(SpellEffIndex effIndex);
     void EffectEnchantItemPerm(SpellEffIndex effIndex);
     void EffectEnchantItemTmp(SpellEffIndex effIndex);

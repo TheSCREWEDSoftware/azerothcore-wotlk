@@ -986,8 +986,20 @@ enum SpellEffects
     SPELL_EFFECT_UPDATE_PLAYER_PHASE                = 167,
     SPELL_EFFECT_ALLOW_CONTROL_PET                  = 168,
     SPELL_EFFECT_DESTROY_ITEM                       = 169,
-    SPELL_EFFECT_UPDATE_ZONE_AURAS_AND_PHASES        = 170,
-    TOTAL_SPELL_EFFECTS                             = 171
+    SPELL_EFFECT_UPDATE_ZONE_AURAS_AND_PHASES       = 170,
+    SPELL_EFFECT_SUMMON_PERSONAL_GAMEOBJECT         = 171,
+    SPELL_EFFECT_RESURRECT_WITH_AURA                = 172,
+    SPELL_EFFECT_UNLOCK_GUILD_VAULT_TAB             = 173, // Guild tab unlocked (guild perk)
+    SPELL_EFFECT_APPLY_AURA_2                       = 174, // Loaded as SPELL_EFFECT_APPLY_AURA
+    SPELL_EFFECT_175                                = 175, // Unused (4.3.4)
+    SPELL_EFFECT_SANCTUARY_2                        = 176,
+    SPELL_EFFECT_177                                = 177,
+    SPELL_EFFECT_178                                = 178, // Unused (4.3.4)
+    SPELL_EFFECT_CREATE_AREATRIGGER                 = 179,
+    SPELL_EFFECT_UPDATE_AREATRIGGER                 = 180, // Unused (4.3.4)
+    SPELL_EFFECT_REMOVE_TALENT                      = 181, // Unused (4.3.4)
+    SPELL_EFFECT_182                                = 182,
+    TOTAL_SPELL_EFFECTS                             = 183
 };
 
 // EnumUtils: DESCRIBE THIS

@@ -857,7 +857,7 @@ public:
     void HandleSetRankInfo(WorldSession* session, uint8 rankId, std::string_view name, uint32 rights, uint32 moneyPerDay, std::array<GuildBankRightsAndSlots, GUILD_BANK_MAX_TABS> const& rightsAndSlots);
     void HandleSetRankInfo(uint8 rankId, Optional<std::string_view> name, Optional<uint32> rights = {},
         Optional<uint32> moneyPerDay = {});
-    void HandleBuyBankTab(WorldSession* session, uint8 tabId);
+    void HandleBuyBankTab(WorldSession* session, uint8 tabId, bool unlockedBySpell = false);
     void HandleInviteMember(WorldSession* session, std::string const& name);
     void HandleAcceptMember(WorldSession* session);
     void HandleLeaveMember(WorldSession* session);

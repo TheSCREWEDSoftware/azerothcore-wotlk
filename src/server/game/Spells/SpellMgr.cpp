@@ -3085,27 +3085,23 @@ void SpellMgr::LoadSpellInfoStore()
         auto const& spellEffects = effects[spellEntry->Id];
         bool supported = std::all_of(spellEffects.begin(), spellEffects.end(), [](SpellEffectEntry const* effect)
         {
-            // Keep unimplemented Cata effects and auras excluded when their dispatch arrays grow.
-            return !effect || ((effect->Effect < SPELL_EFFECT_DAMAGE_FROM_MAX_HEALTH_PCT
-                    || effect->Effect == SPELL_EFFECT_UPDATE_PLAYER_PHASE
-                    || effect->Effect == SPELL_EFFECT_UPDATE_ZONE_AURAS_AND_PHASES)
-                && (effect->EffectAura <= SPELL_AURA_PERIODIC_HASTE
-                    || effect->EffectAura == SPELL_AURA_PHASE_GROUP
-                    || effect->EffectAura == SPELL_AURA_ENABLE_ALTERED_FORM
-                    || effect->EffectAura == SPELL_AURA_WORGEN_ALTERED_FORM)
+            // Every 4.3.4 effect and aura has a dispatch slot (unimplemented ones are no-ops, like
+            // TrinityCore); only targets past the target table are still left out.
+            return !effect || (effect->Effect < TOTAL_SPELL_EFFECTS
+                && effect->EffectAura < TOTAL_AURAS
                 && effect->EffectImplicitTargetA < TOTAL_SPELL_TARGETS
                 && effect->EffectImplicitTargetB < TOTAL_SPELL_TARGETS);
         });
         if (!supported)
         {
-            LOG_DEBUG("dbc", "Spell {} requires unimplemented Cataclysm effect, aura or target dispatch", spellEntry->Id);
+            LOG_DEBUG("dbc", "Spell {} uses a target past TOTAL_SPELL_TARGETS", spellEntry->Id);
             ++unsupported;
             continue;
         }
         mSpellInfoMap[spellEntry->Id] = new SpellInfo(spellEntry, spellEffects);
     }
     if (unsupported)
-        LOG_WARN("dbc", "Excluded {} spells requiring unimplemented Cataclysm dispatch; see dbc debug log", unsupported);
+        LOG_WARN("dbc", "Excluded {} spells using targets past TOTAL_SPELL_TARGETS; see dbc debug log", unsupported);
 
     for (uint32 spellIndex = 0; spellIndex < GetSpellInfoStoreSize(); ++spellIndex)
     {
