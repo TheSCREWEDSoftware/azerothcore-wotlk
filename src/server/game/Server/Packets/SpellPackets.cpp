@@ -127,11 +127,13 @@ WorldPacket const* WorldPackets::Spells::SetSpellModifier::Write()
 
 WorldPacket const* WorldPackets::Spells::ResyncRunes::Write()
 {
-    _worldPacket << uint32(Runes.size());
+    // 5.4.8 18414, from Project SkyFire
+    _worldPacket.WriteBits(Runes.size(), 23);
+    _worldPacket.FlushBits();
     for (ResyncRune const& rune : Runes)
     {
-        _worldPacket << rune.RuneType;
-        _worldPacket << rune.Cooldown;
+        _worldPacket << uint8(rune.Cooldown);
+        _worldPacket << uint8(rune.RuneType);
     }
     return &_worldPacket;
 }

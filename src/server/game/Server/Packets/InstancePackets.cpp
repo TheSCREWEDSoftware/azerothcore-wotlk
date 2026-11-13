@@ -26,8 +26,10 @@ WorldPacket const* WorldPackets::Instance::InstanceReset::Write()
 
 WorldPacket const* WorldPackets::Instance::InstanceResetFailed::Write()
 {
-    _worldPacket << Reason;
-    _worldPacket << MapId;
+    // 5.4.8 18414, from Project SkyFire
+    _worldPacket.WriteBits(Reason, 2);
+    _worldPacket.FlushBits();
+    _worldPacket << uint32(MapId);
 
     return &_worldPacket;
 }

@@ -240,12 +240,14 @@ WorldPacket const* WorldPackets::Misc::RandomRoll::Write()
 
 WorldPacket const* WorldPackets::Misc::StartMirrorTimer::Write()
 {
-    _worldPacket << uint32(Timer);
-    _worldPacket << uint32(Value);
+    // 5.4.8 18414, from Project SkyFire
     _worldPacket << uint32(MaxValue);
-    _worldPacket << int32(Scale);
-    _worldPacket << uint8(Paused);
     _worldPacket << uint32(SpellID);
+    _worldPacket << uint32(Timer);
+    _worldPacket << int32(Scale);
+    _worldPacket << uint32(Value);
+    _worldPacket.WriteBit(Paused);
+    _worldPacket.FlushBits();
 
     return &_worldPacket;
 }

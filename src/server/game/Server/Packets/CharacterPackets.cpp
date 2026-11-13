@@ -154,8 +154,10 @@ void WorldPackets::Character::ShowingHelm::Read()
 
 WorldPacket const* WorldPackets::Character::LogoutResponse::Write()
 {
+    // 5.4.8 18414, from Project SkyFire
     _worldPacket << uint32(LogoutResult);
-    _worldPacket << uint8(Instant);
+    _worldPacket.WriteBit(Instant);
+    _worldPacket.FlushBits();
     return &_worldPacket;
 }
 
