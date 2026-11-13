@@ -884,6 +884,178 @@ WorldPacket const* WorldPackets::Guild::PlayerSaveGuildEmblem::Write()
     return &_worldPacket;
 }
 
+void WorldPackets::Guild::GuildRequestPartyState::Read()
+{
+    GuildGUID[0] = _worldPacket.ReadBit();
+    GuildGUID[6] = _worldPacket.ReadBit();
+    GuildGUID[7] = _worldPacket.ReadBit();
+    GuildGUID[3] = _worldPacket.ReadBit();
+    GuildGUID[5] = _worldPacket.ReadBit();
+    GuildGUID[1] = _worldPacket.ReadBit();
+    GuildGUID[2] = _worldPacket.ReadBit();
+    GuildGUID[4] = _worldPacket.ReadBit();
+
+    _worldPacket.ReadByteSeq(GuildGUID[6]);
+    _worldPacket.ReadByteSeq(GuildGUID[3]);
+    _worldPacket.ReadByteSeq(GuildGUID[2]);
+    _worldPacket.ReadByteSeq(GuildGUID[1]);
+    _worldPacket.ReadByteSeq(GuildGUID[5]);
+    _worldPacket.ReadByteSeq(GuildGUID[0]);
+    _worldPacket.ReadByteSeq(GuildGUID[7]);
+    _worldPacket.ReadByteSeq(GuildGUID[4]);
+}
+
+WorldPacket const* WorldPackets::Guild::GuildPartyState::Write()
+{
+    _worldPacket.WriteBit(InGuildParty);
+    _worldPacket.FlushBits();
+
+    _worldPacket << float(GuildXPEarnedMult);
+    _worldPacket << uint32(NumMembers);
+    _worldPacket << uint32(NumRequired);
+
+    return &_worldPacket;
+}
+
+void WorldPackets::Guild::AutoDeclineGuildInvites::Read()
+{
+    Allow = _worldPacket.read<uint8>() != 0;
+}
+
+void WorldPackets::Guild::GuildQueryMembersForRecipe::Read()
+{
+    _worldPacket >> SpellID;
+    _worldPacket >> SkillLineID;
+    _worldPacket >> UniqueBit;
+
+    GuildGUID[4] = _worldPacket.ReadBit();
+    GuildGUID[1] = _worldPacket.ReadBit();
+    GuildGUID[0] = _worldPacket.ReadBit();
+    GuildGUID[3] = _worldPacket.ReadBit();
+    GuildGUID[6] = _worldPacket.ReadBit();
+    GuildGUID[7] = _worldPacket.ReadBit();
+    GuildGUID[5] = _worldPacket.ReadBit();
+    GuildGUID[2] = _worldPacket.ReadBit();
+
+    _worldPacket.ReadByteSeq(GuildGUID[1]);
+    _worldPacket.ReadByteSeq(GuildGUID[6]);
+    _worldPacket.ReadByteSeq(GuildGUID[5]);
+    _worldPacket.ReadByteSeq(GuildGUID[0]);
+    _worldPacket.ReadByteSeq(GuildGUID[3]);
+    _worldPacket.ReadByteSeq(GuildGUID[7]);
+    _worldPacket.ReadByteSeq(GuildGUID[2]);
+    _worldPacket.ReadByteSeq(GuildGUID[4]);
+}
+
+WorldPacket const* WorldPackets::Guild::GuildMembersWithRecipe::Write()
+{
+    _worldPacket.WriteBits(Members.size(), 26);
+
+    // TrinityCore writes guid[3] twice here; guid[5] is the bit that belongs in the second slot
+    for (ObjectGuid const& guid : Members)
+    {
+        _worldPacket.WriteBit(guid[2]);
+        _worldPacket.WriteBit(guid[5]);
+        _worldPacket.WriteBit(guid[1]);
+        _worldPacket.WriteBit(guid[6]);
+        _worldPacket.WriteBit(guid[0]);
+        _worldPacket.WriteBit(guid[7]);
+        _worldPacket.WriteBit(guid[4]);
+        _worldPacket.WriteBit(guid[3]);
+    }
+
+    _worldPacket.FlushBits();
+
+    for (ObjectGuid const& guid : Members)
+    {
+        _worldPacket.WriteByteSeq(guid[1]);
+        _worldPacket.WriteByteSeq(guid[5]);
+        _worldPacket.WriteByteSeq(guid[6]);
+        _worldPacket.WriteByteSeq(guid[7]);
+        _worldPacket.WriteByteSeq(guid[2]);
+        _worldPacket.WriteByteSeq(guid[3]);
+        _worldPacket.WriteByteSeq(guid[0]);
+        _worldPacket.WriteByteSeq(guid[4]);
+    }
+
+    _worldPacket << int32(SpellID);
+    _worldPacket << uint32(SkillLineID);
+
+    return &_worldPacket;
+}
+
+void WorldPackets::Guild::GuildQueryMemberRecipes::Read()
+{
+    _worldPacket >> SkillLineID;
+
+    GuildMember[2] = _worldPacket.ReadBit();
+    GuildGUID[1] = _worldPacket.ReadBit();
+    GuildMember[1] = _worldPacket.ReadBit();
+    GuildGUID[0] = _worldPacket.ReadBit();
+    GuildGUID[6] = _worldPacket.ReadBit();
+    GuildMember[7] = _worldPacket.ReadBit();
+    GuildGUID[4] = _worldPacket.ReadBit();
+    GuildGUID[3] = _worldPacket.ReadBit();
+    GuildGUID[7] = _worldPacket.ReadBit();
+    GuildMember[5] = _worldPacket.ReadBit();
+    GuildMember[0] = _worldPacket.ReadBit();
+    GuildGUID[5] = _worldPacket.ReadBit();
+    GuildMember[3] = _worldPacket.ReadBit();
+    GuildMember[6] = _worldPacket.ReadBit();
+    GuildGUID[2] = _worldPacket.ReadBit();
+    GuildMember[4] = _worldPacket.ReadBit();
+
+    _worldPacket.ReadByteSeq(GuildMember[2]);
+    _worldPacket.ReadByteSeq(GuildMember[6]);
+    _worldPacket.ReadByteSeq(GuildGUID[4]);
+    _worldPacket.ReadByteSeq(GuildGUID[2]);
+    _worldPacket.ReadByteSeq(GuildMember[1]);
+    _worldPacket.ReadByteSeq(GuildGUID[7]);
+    _worldPacket.ReadByteSeq(GuildGUID[3]);
+    _worldPacket.ReadByteSeq(GuildGUID[1]);
+    _worldPacket.ReadByteSeq(GuildMember[3]);
+    _worldPacket.ReadByteSeq(GuildMember[0]);
+    _worldPacket.ReadByteSeq(GuildGUID[0]);
+    _worldPacket.ReadByteSeq(GuildMember[7]);
+    _worldPacket.ReadByteSeq(GuildMember[4]);
+    _worldPacket.ReadByteSeq(GuildGUID[5]);
+    _worldPacket.ReadByteSeq(GuildGUID[6]);
+    _worldPacket.ReadByteSeq(GuildMember[5]);
+}
+
+WorldPacket const* WorldPackets::Guild::GuildMemberRecipes::Write()
+{
+    _worldPacket.WriteBit(Member[0]);
+    _worldPacket.WriteBit(Member[3]);
+    _worldPacket.WriteBit(Member[7]);
+    _worldPacket.WriteBit(Member[4]);
+    _worldPacket.WriteBit(Member[6]);
+    _worldPacket.WriteBit(Member[2]);
+    _worldPacket.WriteBit(Member[1]);
+    _worldPacket.WriteBit(Member[5]);
+    _worldPacket.FlushBits();
+
+    _worldPacket.WriteByteSeq(Member[0]);
+    _worldPacket.WriteByteSeq(Member[1]);
+    _worldPacket.WriteByteSeq(Member[7]);
+    _worldPacket.WriteByteSeq(Member[4]);
+    _worldPacket.WriteByteSeq(Member[5]);
+
+    _worldPacket << int32(SkillRank);
+
+    for (uint8 bits : SkillLineBitArray)
+        _worldPacket << uint8(bits);
+
+    _worldPacket.WriteByteSeq(Member[3]);
+    _worldPacket.WriteByteSeq(Member[6]);
+    _worldPacket.WriteByteSeq(Member[2]);
+
+    _worldPacket << int32(SkillLineID);
+    _worldPacket << int32(SkillStep);
+
+    return &_worldPacket;
+}
+
 WorldPacket const* WorldPackets::Guild::GuildChallengeUpdate::Write()
 {
     for (int32 xp : Xp)

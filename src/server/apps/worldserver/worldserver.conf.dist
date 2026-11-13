@@ -2531,6 +2531,21 @@ Rate.XP.Guild.Quest = 0.25
 Rate.XP.Guild.HonorEarned = 10.0
 
 #
+#    Rate.XP.Guild.BaseKill
+#    Rate.XP.Guild.HeroicDungeon
+#    Rate.XP.Guild.HeroicRaid
+#        Description: Cata guild leveling - guild XP from dungeon boss kills made by a guild
+#                     group, as a multiple of the boss kill XP. Heroic dungeons and heroic raids
+#                     apply their extra multiplier on top.
+#        Default:     4.0   - (Rate.XP.Guild.BaseKill)
+#                     1.25  - (Rate.XP.Guild.HeroicDungeon)
+#                     1.0   - (Rate.XP.Guild.HeroicRaid)
+
+Rate.XP.Guild.BaseKill = 4.0
+Rate.XP.Guild.HeroicDungeon = 1.25
+Rate.XP.Guild.HeroicRaid = 1.0
+
+#
 #    Rate.XP.BattlegroundKill...
 #        Description: Experience rate for honorable kills in battlegrounds. Not affected by Rate.XP.Kill. Defined for each battleground.
 #                     Only works if Battleground.GiveXPForKills = 1

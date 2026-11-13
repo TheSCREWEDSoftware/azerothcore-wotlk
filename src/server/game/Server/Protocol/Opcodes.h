@@ -28,6 +28,11 @@
 /// Lists of opcodes by wire direction
 enum OpcodeClient : uint16
 {
+    CMSG_GUILD_QUERY_MEMBER_RECIPES                 = 0x1037,
+    CMSG_GUILD_QUERY_MEMBERS_FOR_RECIPE             = 0x1036,
+    CMSG_AUTO_DECLINE_GUILD_INVITES                 = 0x2034,
+    CMSG_GUILD_REPLACE_GUILD_MASTER                 = 0x1034,
+    CMSG_GUILD_REQUEST_PARTY_STATE                  = 0x3900,
     CMSG_REQUEST_RATED_BG_STATS                     = 0x05B3,
     CMSG_REQUEST_RATED_BG_INFO                      = 0x2423,
     CMSG_REQUEST_PVP_REWARDS                        = 0x780C,
@@ -813,6 +818,9 @@ enum OpcodeClient : uint16
 
 enum OpcodeServer : uint16
 {
+    SMSG_GUILD_MEMBER_RECIPES                       = 0x1CB0,
+    SMSG_GUILD_MEMBERS_WITH_RECIPE                  = 0x1CB7,
+    SMSG_GUILD_PARTY_STATE_RESPONSE                 = 0x50A6,
     SMSG_REQUEST_PVP_REWARDS_RESPONSE               = 0x5DA4,
     SMSG_RATED_BG_STATS                             = 0x34A1,
     SMSG_PVP_OPTIONS_ENABLED                        = 0x50A1,

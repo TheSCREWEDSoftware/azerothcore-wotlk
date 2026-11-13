@@ -39,6 +39,7 @@ private:
 
     void _RewardHonor(Player* player);
     void _RewardXP(Player* player, float rate);
+    void _RewardGuildXP(Player* player);
     void _RewardReputation(Player* player);
     void _RewardKillCredit(Player* player);
     void _RewardPlayer(Player* player, bool isDungeon);

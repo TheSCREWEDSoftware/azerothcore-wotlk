@@ -19,6 +19,7 @@
 #include "AreaDefines.h"
 #include "Battleground.h"
 #include "BattlegroundMgr.h"
+#include "CharacterCache.h"
 #include "Config.h"
 #include "DatabaseEnv.h"
 #include "GameTime.h"
@@ -2812,4 +2813,88 @@ void Group::DoForAllMembers(std::function<void(Player*)> const& worker)
 
         worker(member);
     }
+}
+
+static uint8 GetRatedArenaTypeFor(Player* player)
+{
+    if (player->InArena())
+        if (Battleground* bg = player->GetBattleground())
+            if (bg->isRated())
+                return bg->GetArenaType();
+
+    return 0;
+}
+
+bool Group::IsGuildGroupFor(Player* player) const
+{
+    if (!IsMember(player->GetGUID()) || !player->GetGuildId())
+        return false;
+
+    uint8 arenaType = GetRatedArenaTypeFor(player);
+    if (!player->GetMap()->IsDungeon() && !arenaType)
+        return false;
+
+    return GetMembersCountOfGuild(player->GetGuildId()) >= GetNeededMembersOfSameGuild(arenaType, player->GetMap());
+}
+
+uint32 Group::GetMembersCountOfGuild(ObjectGuid::LowType guildId) const
+{
+    uint32 count = 0;
+    for (MemberSlot const& member : m_memberSlots)
+        if (sCharacterCache->GetCharacterGuildIdByGuid(member.guid) == guildId)
+            ++count;
+
+    return count;
+}
+
+uint32 Group::GetNeededMembersOfSameGuild(uint8 arenaType, Map const* map)
+{
+    // Rated arena: the whole team
+    if (arenaType && map->IsBattleArena())
+        return arenaType;
+
+    if (map->IsNonRaidDungeon())
+        return 3;
+
+    if (map->IsRaid())
+    {
+        if (map->GetEntry()->Expansion() == EXPANSION_CLASSIC)
+            return 10;
+
+        if (map->GetEntry()->Expansion() == EXPANSION_THE_BURNING_CRUSADE)
+            return 8;
+
+        if (map->Is25ManRaid())
+            return 20;
+
+        return 8;
+    }
+
+    return 0;
+}
+
+float Group::GetGuildXpRateForPlayer(Player* player) const
+{
+    if (!IsMember(player->GetGUID()) || !player->GetGuildId())
+        return 0.0f;
+
+    if (!player->GetMap()->IsDungeon() && !GetRatedArenaTypeFor(player))
+        return 0.0f;
+
+    if (player->GetMap()->IsNonRaidDungeon())
+    {
+        switch (GetMembersCountOfGuild(player->GetGuildId()))
+        {
+            case 3:
+                return 0.5f;
+            case 4:
+                return 1.0f;
+            case 5:
+                return 1.25f;
+            default:
+                return 0.0f;
+        }
+    }
+
+    return 1.0f;
 }

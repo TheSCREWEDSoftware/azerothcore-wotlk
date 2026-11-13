@@ -204,6 +204,98 @@ namespace WorldPackets
             uint32 Cap = 0;
         };
 
+        class GuildRequestPartyState final : public ClientPacket
+        {
+        public:
+            GuildRequestPartyState(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_REQUEST_PARTY_STATE, std::move(packet)) { }
+
+            void Read() override;
+
+            ObjectGuid GuildGUID;
+        };
+
+        class GuildPartyState final : public ServerPacket
+        {
+        public:
+            GuildPartyState() : ServerPacket(SMSG_GUILD_PARTY_STATE_RESPONSE, 1 + 4 + 4 + 4) { }
+
+            WorldPacket const* Write() override;
+
+            bool InGuildParty = false;
+            float GuildXPEarnedMult = 0.0f;
+            uint32 NumMembers = 0;
+            uint32 NumRequired = 0;
+        };
+
+        class ReplaceGuildMaster final : public ClientPacket
+        {
+        public:
+            ReplaceGuildMaster(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_REPLACE_GUILD_MASTER, std::move(packet)) { }
+
+            void Read() override { }
+        };
+
+        class AutoDeclineGuildInvites final : public ClientPacket
+        {
+        public:
+            AutoDeclineGuildInvites(WorldPacket&& packet) : ClientPacket(CMSG_AUTO_DECLINE_GUILD_INVITES, std::move(packet)) { }
+
+            void Read() override;
+
+            bool Allow = false;
+        };
+
+        class GuildQueryMembersForRecipe final : public ClientPacket
+        {
+        public:
+            GuildQueryMembersForRecipe(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_QUERY_MEMBERS_FOR_RECIPE, std::move(packet)) { }
+
+            void Read() override;
+
+            ObjectGuid GuildGUID;
+            int32 UniqueBit = 0;
+            int32 SkillLineID = 0;
+            int32 SpellID = 0;
+        };
+
+        class GuildMembersWithRecipe final : public ServerPacket
+        {
+        public:
+            GuildMembersWithRecipe() : ServerPacket(SMSG_GUILD_MEMBERS_WITH_RECIPE, 8) { }
+
+            WorldPacket const* Write() override;
+
+            int32 SpellID = 0;
+            std::vector<ObjectGuid> Members;
+            int32 SkillLineID = 0;
+        };
+
+        class GuildQueryMemberRecipes final : public ClientPacket
+        {
+        public:
+            GuildQueryMemberRecipes(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_QUERY_MEMBER_RECIPES, std::move(packet)) { }
+
+            void Read() override;
+
+            ObjectGuid GuildMember;
+            ObjectGuid GuildGUID;
+            int32 SkillLineID = 0;
+        };
+
+        class GuildMemberRecipes final : public ServerPacket
+        {
+        public:
+            GuildMemberRecipes() : ServerPacket(SMSG_GUILD_MEMBER_RECIPES, 8 + 4 * 3 + GUILD_RECIPES_COUNT) { }
+
+            WorldPacket const* Write() override;
+
+            ObjectGuid Member;
+            int32 SkillRank = 0;
+            int32 SkillLineID = 0;
+            int32 SkillStep = 0;
+            std::array<uint8, GUILD_RECIPES_COUNT> SkillLineBitArray = { };
+        };
+
         // Cata Guild Challenges
         class GuildChallengeUpdateRequest final : public ClientPacket
         {

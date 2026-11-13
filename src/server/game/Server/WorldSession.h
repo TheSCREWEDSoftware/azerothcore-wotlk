@@ -178,6 +178,11 @@ namespace WorldPackets
         class GuildQueryNews;
         class GuildNewsUpdateSticky;
         class GuildChallengeUpdateRequest;
+        class GuildRequestPartyState;
+        class ReplaceGuildMaster;
+        class AutoDeclineGuildInvites;
+        class GuildQueryMembersForRecipe;
+        class GuildQueryMemberRecipes;
         class GuildRequestMaxDailyXP;
         class GuildAssignMemberRank;
         class GuildSwitchRank;
@@ -926,6 +931,11 @@ public:                                                 // opcodes handlers
     void HandleGuildSwitchRankOpcode(WorldPackets::Guild::GuildSwitchRank& packet);
     void HandleGuildXPQueryOpcode(WorldPackets::Guild::GuildXPQuery& packet);
     void HandleGuildRequestChallengeUpdate(WorldPackets::Guild::GuildChallengeUpdateRequest& packet);
+    void HandleGuildRequestPartyState(WorldPackets::Guild::GuildRequestPartyState& packet);
+    void HandleGuildReplaceGuildMaster(WorldPackets::Guild::ReplaceGuildMaster& packet);
+    void HandleAutoDeclineGuildInvites(WorldPackets::Guild::AutoDeclineGuildInvites& packet);
+    void HandleGuildQueryMembersForRecipe(WorldPackets::Guild::GuildQueryMembersForRecipe& packet);
+    void HandleGuildQueryMemberRecipe(WorldPackets::Guild::GuildQueryMemberRecipes& packet);
     void HandleGuildRequestMaxDailyXP(WorldPackets::Guild::GuildRequestMaxDailyXP& packet);
     void HandleGuildAddRankOpcode(WorldPackets::Guild::GuildAddRank& packet);
     void HandleGuildDelRankOpcode(WorldPackets::Guild::GuildDeleteRank& packet);

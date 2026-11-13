@@ -253,6 +253,12 @@ public:
     GroupReference* GetFirstMember() { return m_memberMgr.getFirst(); }
     GroupReference const* GetFirstMember() const { return m_memberMgr.getFirst(); }
     uint32 GetMembersCount() const { return m_memberSlots.size(); }
+
+    // Cata guild groups
+    bool IsGuildGroupFor(Player* player) const;
+    uint32 GetMembersCountOfGuild(ObjectGuid::LowType guildId) const;
+    static uint32 GetNeededMembersOfSameGuild(uint8 arenaType, Map const* map);
+    float GetGuildXpRateForPlayer(Player* player) const;
     uint32 GetInviteeCount() const { return m_invitees.size(); }
 
     uint8 GetMemberGroup(ObjectGuid guid) const;

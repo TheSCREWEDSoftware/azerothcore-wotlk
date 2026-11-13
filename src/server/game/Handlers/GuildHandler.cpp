@@ -145,9 +145,12 @@ void WorldSession::HandleGuildLeaderOpcode(WorldPackets::Guild::GuildSetGuildMas
     LOG_DEBUG("guild", "CMSG_GUILD_SET_GUILD_MASTER [{}]: Target: {}, Dethrone: {}", GetPlayerInfo(),
         packet.NewMasterName, packet.IsDethrone);
 
-    // Dethroning an inactive guild master (IsDethrone) is not supported; only the guild master can hand over
     if (packet.IsDethrone)
+    {
+        if (Guild* guild = GetPlayer()->GetGuild())
+            guild->HandleReplaceGuildMaster(this);
         return;
+    }
 
     if (normalizePlayerName(packet.NewMasterName))
         if (Guild* guild = GetPlayer()->GetGuild())
@@ -530,4 +533,35 @@ void WorldSession::HandleGuildNewsUpdateStickyOpcode(WorldPackets::Guild::GuildN
 {
     if (Guild* guild = GetPlayer()->GetGuild())
         guild->HandleNewsSetSticky(this, uint32(packet.NewsID), packet.Sticky);
+}
+
+void WorldSession::HandleGuildRequestPartyState(WorldPackets::Guild::GuildRequestPartyState& packet)
+{
+    if (Guild* guild = sGuildMgr->GetGuildById(packet.GuildGUID.GetCounter()))
+        guild->HandleGuildPartyRequest(this);
+}
+
+void WorldSession::HandleGuildReplaceGuildMaster(WorldPackets::Guild::ReplaceGuildMaster& /*packet*/)
+{
+    if (Guild* guild = GetPlayer()->GetGuild())
+        guild->HandleReplaceGuildMaster(this);
+}
+
+void WorldSession::HandleAutoDeclineGuildInvites(WorldPackets::Guild::AutoDeclineGuildInvites& packet)
+{
+    GetPlayer()->ApplyModFlag(PLAYER_FLAGS, PLAYER_FLAGS_AUTO_DECLINE_GUILD, packet.Allow);
+}
+
+void WorldSession::HandleGuildQueryMembersForRecipe(WorldPackets::Guild::GuildQueryMembersForRecipe& packet)
+{
+    if (Guild* guild = sGuildMgr->GetGuildById(packet.GuildGUID.GetCounter()))
+        if (guild->IsMember(GetPlayer()->GetGUID()))
+            guild->SendMembersForRecipe(GetPlayer(), packet.SkillLineID, packet.SpellID, packet.UniqueBit);
+}
+
+void WorldSession::HandleGuildQueryMemberRecipe(WorldPackets::Guild::GuildQueryMemberRecipes& packet)
+{
+    if (Guild* guild = sGuildMgr->GetGuildById(packet.GuildGUID.GetCounter()))
+        if (guild->IsMember(GetPlayer()->GetGUID()) && guild->IsMember(packet.GuildMember))
+            guild->SendRecipesOfMember(GetPlayer(), packet.SkillLineID, packet.GuildMember);
 }

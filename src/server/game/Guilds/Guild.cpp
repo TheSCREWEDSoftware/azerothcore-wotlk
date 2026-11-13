@@ -17,6 +17,7 @@
 
 #include "Guild.h"
 #include "Bag.h"
+#include "Battleground.h"
 #include "CalendarMgr.h"
 #include "CharacterCache.h"
 #include "Chat.h"
@@ -24,6 +25,7 @@
 #include "DatabaseEnv.h"
 #include "DBCStores.h"
 #include "GameTime.h"
+#include "Group.h"
 #include "GuildFinderMgr.h"
 #include "GuildMgr.h"
 #include "GuildPackets.h"
@@ -1584,6 +1586,105 @@ void Guild::HandleSetLeader(WorldSession* session, std::string_view name)
             _BroadcastEvent(GE_LEADER_CHANGED, ObjectGuid::Empty, player->GetName(), pNewLeader->GetName());
         }
     }
+}
+
+void Guild::HandleReplaceGuildMaster(WorldSession* session)
+{
+    Player* player = session->GetPlayer();
+    Member* oldGuildMaster = GetMember(GetLeaderGUID());
+    Member* newGuildMaster = GetMember(player->GetGUID());
+    if (!oldGuildMaster || !newGuildMaster || oldGuildMaster == newGuildMaster)
+        return;
+
+    // Any member above initiate may take over once the guild master has been away long enough
+    uint32 inactiveDays = 0;
+    if (!oldGuildMaster->IsOnline())
+        inactiveDays = uint32((GameTime::GetGameTime().count() - int64(oldGuildMaster->GetLogoutTime())) / DAY);
+
+    if (!newGuildMaster->IsRankNotLower(GR_MEMBER) || inactiveDays < GUILD_MASTER_DETHRONE_INACTIVE_DAYS)
+    {
+        SendCommandResult(session, GUILD_COMMAND_CHANGE_LEADER, ERR_GUILD_PERMISSIONS);
+        return;
+    }
+
+    _SetLeaderGUID(*newGuildMaster);
+    oldGuildMaster->ChangeRank(GR_INITIATE);
+    _BroadcastEvent(GE_LEADER_CHANGED, ObjectGuid::Empty, oldGuildMaster->GetName(), newGuildMaster->GetName());
+}
+
+void Guild::HandleGuildPartyRequest(WorldSession* session) const
+{
+    Player* player = session->GetPlayer();
+    if (!IsMember(player->GetGUID()))
+        return;
+
+    WorldPackets::Guild::GuildPartyState partyState;
+    if (Group* group = player->GetGroup())
+    {
+        uint8 arenaType = 0;
+        if (player->InArena())
+            if (Battleground* bg = player->GetBattleground())
+                if (bg->isRated())
+                    arenaType = bg->GetArenaType();
+
+        partyState.InGuildParty = group->IsGuildGroupFor(player);
+        partyState.GuildXPEarnedMult = group->GetGuildXpRateForPlayer(player);
+        partyState.NumMembers = group->GetMembersCountOfGuild(player->GetGuildId());
+        partyState.NumRequired = Group::GetNeededMembersOfSameGuild(arenaType, player->GetMap());
+    }
+
+    session->SendPacket(partyState.Write());
+}
+
+void Guild::SendMembersForRecipe(Player const* player, uint32 skillLineId, uint32 spellId, uint32 uniqueBit) const
+{
+    if (uniqueBit / 8 >= GUILD_RECIPES_COUNT)
+        return;
+
+    WorldPackets::Guild::GuildMembersWithRecipe packet;
+    packet.SkillLineID = skillLineId;
+    packet.SpellID = spellId;
+
+    uint8 const bit = uint8(1 << (uniqueBit % 8));
+    for (auto const& [guid, member] : m_members)
+    {
+        for (uint8 i = 0; i < GUILD_PROFESSION_COUNT; ++i)
+        {
+            GuildMemberProfessionData const& prof = member.GetProfessionData(i);
+            if (prof.SkillId == skillLineId && (prof.RecipeUniqueBits[uniqueBit / 8] & bit))
+            {
+                packet.Members.push_back(member.GetGUID());
+                break;
+            }
+        }
+    }
+
+    player->SendDirectMessage(packet.Write());
+}
+
+void Guild::SendRecipesOfMember(Player const* player, uint32 skillLineId, ObjectGuid memberGuid) const
+{
+    Member const* member = GetMember(memberGuid);
+    if (!member)
+        return;
+
+    WorldPackets::Guild::GuildMemberRecipes packet;
+    packet.Member = memberGuid;
+
+    for (uint8 i = 0; i < GUILD_PROFESSION_COUNT; ++i)
+    {
+        GuildMemberProfessionData const& prof = member->GetProfessionData(i);
+        if (prof.SkillId != skillLineId)
+            continue;
+
+        packet.SkillLineID = skillLineId;
+        packet.SkillRank = prof.Rank;
+        packet.SkillStep = prof.Step;
+        for (std::size_t j = 0; j < prof.RecipeUniqueBits.size(); ++j)
+            packet.SkillLineBitArray[j] |= prof.RecipeUniqueBits[j];
+    }
+
+    player->SendDirectMessage(packet.Write());
 }
 
 void Guild::HandleSetBankTabInfo(WorldSession* session, uint8 tabId, std::string_view name, std::string_view icon)

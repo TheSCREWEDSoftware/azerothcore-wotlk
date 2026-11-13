@@ -47,6 +47,7 @@ enum GuildMisc
     GUILD_BANK_MAX_SLOTS                = 98,
     GUILD_BANK_MONEY_LOGS_TAB           = 100,                  // used for money log in DB
     GUILD_RANKS_MIN_COUNT               = 5,
+    GUILD_MASTER_DETHRONE_INACTIVE_DAYS = 90,
     GUILD_RANKS_MAX_COUNT               = 10,
     GUILD_RANK_NONE                     = 0xFF,
     GUILD_WITHDRAW_MONEY_UNLIMITED      = 0xFFFFFFFF,
@@ -847,6 +848,10 @@ public:
     void HandleSetEmblem(WorldSession* session, EmblemInfo const& emblemInfo);
     void HandleSetEmblem(EmblemInfo const& emblemInfo);
     void HandleSetLeader(WorldSession* session, std::string_view name);
+    void HandleReplaceGuildMaster(WorldSession* session);
+    void HandleGuildPartyRequest(WorldSession* session) const;
+    void SendMembersForRecipe(Player const* player, uint32 skillLineId, uint32 spellId, uint32 uniqueBit) const;
+    void SendRecipesOfMember(Player const* player, uint32 skillLineId, ObjectGuid memberGuid) const;
     void HandleSetBankTabInfo(WorldSession* session, uint8 tabId, std::string_view name, std::string_view icon);
     void HandleSetMemberNote(WorldSession* session, std::string_view name, std::string_view note, bool isPublic);
     void HandleSetRankInfo(WorldSession* session, uint8 rankId, std::string_view name, uint32 rights, uint32 moneyPerDay, std::array<GuildBankRightsAndSlots, GUILD_BANK_MAX_TABS> const& rightsAndSlots);

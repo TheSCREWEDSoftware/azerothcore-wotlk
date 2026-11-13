@@ -3258,20 +3258,10 @@ void Map::UpdateEncounterState(EncounterCreditType type, uint32 creditEntry, Uni
     {
         Map::PlayerList const& players = GetPlayers();
 
-        // Cata Guild Challenges (see .agents/docs/porting-from-trinitycore.md). Ported from
-        // TrinityCore's InstanceScript::UpdateEncounterState guild-challenge block, which lives
-        // here instead - this fork's dungeon/raid completion signal is Map::UpdateEncounterState,
-        // not InstanceScript::UpdateEncounterState (this fork's InstanceScript has no such
-        // function; Map is where the completedEncounters mask and dungeonId are actually
-        // resolved). Deliberate simplification vs. upstream: TrinityCore only credits a "guild
-        // group" via Group::IsGuildGroupFor(), which requires a configurable percentage of the
-        // group to share one guild (Group::GetNeededMembersOfSameGuild()). This fork's Group has
-        // no guildId-per-slot tracking or that threshold machinery at all - a separate, larger
-        // gap already noted in the roadmap doc's Guild Leveling entry (kill-reward guild XP hit
-        // the same wall) - so this simply credits any non-GM grouped player's guild once,
-        // gated on the same "nobody in that guild's subset outlevels the dungeon" check upstream
-        // uses (LFGDungeonEntry::MaxLevel), using the highest level seen among that guild's
-        // members present rather than a percentage-of-group threshold.
+        // Cata Guild Challenges, from TrinityCore's InstanceScript::UpdateEncounterState (this fork
+        // resolves dungeon completion in Map::UpdateEncounterState). Only guild groups
+        // (Group::IsGuildGroupFor) are credited, and only when none of that guild's members present
+        // outlevels the dungeon (LFGDungeonEntry::MaxLevel).
         if (LFGDungeonEntry const* lfgEntry = sLFGDungeonStore.LookupEntry(dungeonId))
         {
             std::unordered_map<uint32 /*guildId*/, uint8 /*maxMemberLevel*/> maxLevelByGuild;
@@ -3281,6 +3271,9 @@ void Map::UpdateEncounterState(EncounterCreditType type, uint32 creditEntry, Uni
             {
                 Player* player = i->GetSource();
                 if (!player || player->IsGameMaster() || !player->GetGroup())
+                    continue;
+
+                if (!player->GetGroup()->IsGuildGroupFor(player))
                     continue;
 
                 if (Guild* guild = player->GetGuild())

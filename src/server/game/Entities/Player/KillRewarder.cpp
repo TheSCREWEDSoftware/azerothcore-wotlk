@@ -19,11 +19,13 @@
 #include "Creature.h"
 #include "Formulas.h"
 #include "Group.h"
+#include "Guild.h"
 #include "Pet.h"
 #include "Player.h"
 #include "ScriptMgr.h"
 #include "SpellAuraDefines.h"
 #include "SpellAuraEffects.h"
+#include "World.h"
 
 // KillRewarder incapsulates logic of rewarding player upon kill with:
 // * XP;
@@ -189,6 +191,34 @@ void KillRewarder::_RewardXP(Player* player, float rate)
     }
 }
 
+void KillRewarder::_RewardGuildXP(Player* player)
+{
+    Guild* guild = player->GetGuild();
+    Group* group = player->GetGroup();
+    if (!guild || !group || !group->IsGuildGroupFor(player))
+        return;
+
+    float base = float(_xp) * sWorld->getRate(RATE_XP_BASEKILL_GUILD_MODIFIER);
+
+    if (player->GetMap()->IsHeroic())
+    {
+        if (player->GetMap()->IsNonRaidDungeon())
+            base *= sWorld->getRate(RATE_XP_HEROIC_DUNGEON_GUILD_MODIFIER);
+        else if (player->GetMap()->IsRaid())
+            base *= sWorld->getRate(RATE_XP_HEROIC_RAID_GUILD_MODIFIER);
+    }
+
+    base *= group->GetGuildXpRateForPlayer(player);
+    if (!base)
+        return;
+
+    if (sWorld->getBoolConfig(CONFIG_GUILD_LEVELING_ENABLED))
+        guild->GiveXP(uint32(base), player);
+
+    uint32 guildRep = std::max<uint32>(1, uint32(base / sWorld->getIntConfig(CONFIG_GUILD_REPUTATION_QUEST_DIVIDER)));
+    guild->GiveReputation(guildRep, player);
+}
+
 void KillRewarder::_RewardReputation(Player* player)
 {
     // 4.3. Give reputation (player must not be on BG).
@@ -230,6 +260,11 @@ void KillRewarder::_RewardPlayer(Player* player, bool isDungeon)
         {
             // 4.2. Give XP.
             _RewardXP(player, xpRate);
+
+            // 4.2.5. Give guild XP and reputation for dungeon bosses killed by a guild group.
+            if (Creature* creature = _victim->ToCreature())
+                if (creature->IsDungeonBoss())
+                    _RewardGuildXP(player);
         }
         if (!_isBattleGround)
         {

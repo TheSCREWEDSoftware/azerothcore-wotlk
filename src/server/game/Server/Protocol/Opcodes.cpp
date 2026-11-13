@@ -244,6 +244,9 @@ void OpcodeTable::Initialize()
     /*0x34A3*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GUILD_PERMISSIONS_QUERY_RESULTS,                    STATUS_NEVER);
     /*0x10B2*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GUILD_EVENT_LOG_QUERY_RESULTS,                      STATUS_NEVER);
     /*0x30B4*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GUILD_RANKS,                                        STATUS_NEVER);
+    /*0x1CB0*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GUILD_MEMBER_RECIPES,                               STATUS_NEVER);
+    /*0x1CB7*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GUILD_MEMBERS_WITH_RECIPE,                          STATUS_NEVER);
+    /*0x50A6*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GUILD_PARTY_STATE_RESPONSE,                         STATUS_NEVER);
     /*0x5DA4*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_REQUEST_PVP_REWARDS_RESPONSE,                       STATUS_NEVER);
     /*0x34A1*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_RATED_BG_STATS,                                     STATUS_NEVER);
     /*0x50A1*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_PVP_OPTIONS_ENABLED,                                STATUS_NEVER);
@@ -837,6 +840,11 @@ void OpcodeTable::Initialize()
     /*0x1026*/ DEFINE_HANDLER(CMSG_GUILD_QUERY_RANKS,                                                STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildQueryRanksOpcode              );
     /*0x3032*/ DEFINE_HANDLER(CMSG_GUILD_ASSIGN_MEMBER_RANK,                                         STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildAssignRankOpcode              );
     /*0x1221*/ DEFINE_HANDLER(CMSG_GUILD_SWITCH_RANK,                                                STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildSwitchRankOpcode              );
+    /*0x1037*/ DEFINE_HANDLER(CMSG_GUILD_QUERY_MEMBER_RECIPES,                                       STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildQueryMemberRecipe             );
+    /*0x1036*/ DEFINE_HANDLER(CMSG_GUILD_QUERY_MEMBERS_FOR_RECIPE,                                   STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildQueryMembersForRecipe         );
+    /*0x2034*/ DEFINE_HANDLER(CMSG_AUTO_DECLINE_GUILD_INVITES,                                       STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleAutoDeclineGuildInvites            );
+    /*0x1034*/ DEFINE_HANDLER(CMSG_GUILD_REPLACE_GUILD_MASTER,                                       STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildReplaceGuildMaster            );
+    /*0x3900*/ DEFINE_HANDLER(CMSG_GUILD_REQUEST_PARTY_STATE,                                        STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildRequestPartyState             );
     /*0x05B3*/ DEFINE_HANDLER(CMSG_REQUEST_RATED_BG_STATS,                                           STATUS_LOGGEDIN,   PROCESS_INPLACE,        &WorldSession::HandleRequestRatedBgStats                );
     /*0x2423*/ DEFINE_HANDLER(CMSG_REQUEST_RATED_BG_INFO,                                            STATUS_LOGGEDIN,   PROCESS_INPLACE,        &WorldSession::HandleRequestRatedBgInfo                 );
     /*0x780C*/ DEFINE_HANDLER(CMSG_REQUEST_PVP_REWARDS,                                              STATUS_LOGGEDIN,   PROCESS_INPLACE,        &WorldSession::HandleRequestPvpReward                   );
