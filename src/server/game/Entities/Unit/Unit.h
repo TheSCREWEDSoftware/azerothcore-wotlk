@@ -1269,7 +1269,7 @@ public:
     [[nodiscard]] uint32 GetDamageReduction(uint32 damage) const { return GetCombatRatingDamageReduction(CR_RESILIENCE_PLAYER_DAMAGE_TAKEN, 1.0f, 100.0f, damage); }
 
     // Critic damages
-    static uint32 SpellCriticalDamageBonus(Unit const* caster, SpellInfo const* spellProto, uint32 damage, Unit const* victim);
+    static uint32 SpellCriticalDamageBonus(Unit const* caster, SpellInfo const* spellProto, uint32 damage, Unit const* victim, bool periodicDamage = false);
 
     /*********************************************************/
     /***         METHODS RELATED TO CHARM SYSTEM           ***/

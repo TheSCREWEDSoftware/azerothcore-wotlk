@@ -1101,31 +1101,12 @@ void AuraEffect::UpdatePeriodic(Unit* caster)
 
 float AuraEffect::CalcPeriodicCritChance(Unit const* caster, Unit const* target) const
 {
+    // Since 4.0 every periodic effect can crit unless the spell cannot crit at all
     float critChance = 0.0f;
-    if (caster)
-    {
+    if (caster && !GetSpellInfo()->HasAttribute(SPELL_ATTR2_CANT_CRIT))
         if (Player* modOwner = caster->GetSpellModOwner())
-        {
-            Unit::AuraEffectList const& mPeriodicCritAuras = modOwner->GetAuraEffectsByType(SPELL_AURA_ABILITY_PERIODIC_CRIT);
-            for (Unit::AuraEffectList::const_iterator itr = mPeriodicCritAuras.begin(); itr != mPeriodicCritAuras.end(); ++itr)
-            {
-                if ((*itr)->IsAffectedOnSpell(GetSpellInfo()))
-                {
-                    critChance = modOwner->SpellDoneCritChance(nullptr, GetSpellInfo(), GetSpellInfo()->GetSchoolMask(), (GetSpellInfo()->DmgClass == SPELL_DAMAGE_CLASS_RANGED ? RANGED_ATTACK : BASE_ATTACK), true);
-                    break;
-                }
-            }
+            critChance = modOwner->SpellDoneCritChance(nullptr, GetSpellInfo(), GetSpellInfo()->GetSchoolMask(), (GetSpellInfo()->DmgClass == SPELL_DAMAGE_CLASS_RANGED ? RANGED_ATTACK : BASE_ATTACK), true);
 
-            switch (GetSpellInfo()->SpellFamilyName)
-            {
-                // Rupture - since 3.3.3 can crit
-                case SPELLFAMILY_ROGUE:
-                    if (GetSpellInfo()->SpellFamilyFlags[0] & 0x100000)
-                        critChance = modOwner->SpellDoneCritChance(nullptr, GetSpellInfo(), GetSpellInfo()->GetSchoolMask(), BASE_ATTACK, true);
-                    break;
-            }
-        }
-    }
     if (target && critChance > 0.0f)
         critChance = target->SpellTakenCritChance(caster, GetSpellInfo(), GetSpellInfo()->GetSchoolMask(), critChance, BASE_ATTACK, true);
 
@@ -6425,7 +6406,7 @@ void AuraEffect::HandlePeriodicDamageAurasTick(Unit* target, Unit* caster) const
     // calculate crit chance
     bool crit = false;
     if ((crit = roll_chance_f(GetCritChance())))
-        damage = Unit::SpellCriticalDamageBonus(caster, m_spellInfo, damage, target);
+        damage = Unit::SpellCriticalDamageBonus(caster, m_spellInfo, damage, target, true);
 
     // Auras reducing damage from AOE spells
     if (!GetSpellInfo()->HasAttribute(SPELL_ATTR4_IGNORE_DAMAGE_TAKEN_MODIFIERS))
@@ -6524,7 +6505,7 @@ void AuraEffect::HandlePeriodicHealthLeechAuraTick(Unit* target, Unit* caster) c
 
     bool crit = false;
     if ((crit = roll_chance_f(GetCritChance())))
-        damage = Unit::SpellCriticalDamageBonus(caster, m_spellInfo, damage, target);
+        damage = Unit::SpellCriticalDamageBonus(caster, m_spellInfo, damage, target, true);
 
     // Calculate armor mitigation
     if (Unit::IsDamageReducedByArmor(GetSpellInfo()->GetSchoolMask(), GetSpellInfo(), m_effIndex))
