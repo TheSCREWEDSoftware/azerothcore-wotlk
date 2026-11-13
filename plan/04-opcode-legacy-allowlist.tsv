@@ -162,9 +162,6 @@ c2s	CMSG_SET_TITLE_SUFFIX	#168	WotLK-only opcode with no 4.3.4 counterpart in th
 c2s	CMSG_SET_WORLDSTATE	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
 c2s	CMSG_SKILL_BUY_RANK	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
 c2s	CMSG_SKILL_BUY_STEP	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
-c2s	CMSG_STABLE_PET	#177	class mechanics are ported with phase 4
-c2s	CMSG_STABLE_REVIVE_PET	#177	class mechanics are ported with phase 4
-c2s	CMSG_STABLE_SWAP_PET	#177	class mechanics are ported with phase 4
 c2s	CMSG_START_BATTLEFIELD_CHEAT	#168	WotLK-only debug or cheat handler; no 4.3.4 opcode
 c2s	CMSG_SUSPEND_COMMS_ACK	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
 c2s	CMSG_TARGET_CAST	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
@@ -180,7 +177,6 @@ c2s	CMSG_UNITANIMTIER_CHEAT	#168	WotLK-only debug or cheat handler; no 4.3.4 opc
 c2s	CMSG_UNLEARN_DANCE_MOVE	#186	movement packet layout is ported with the movement work
 c2s	CMSG_UNLEARN_SPELL	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
 c2s	CMSG_UNLEARN_TALENTS	#177	class mechanics are ported with phase 4
-c2s	CMSG_UNSTABLE_PET	#177	class mechanics are ported with phase 4
 c2s	CMSG_UNUSED5	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
 c2s	CMSG_UNUSED6	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
 c2s	CMSG_USE_SKILL_CHEAT	#168	WotLK-only debug or cheat handler; no 4.3.4 opcode

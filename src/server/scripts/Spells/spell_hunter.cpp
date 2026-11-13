@@ -1044,7 +1044,7 @@ class spell_hun_tame_beast : public SpellScript
                 if (petStable->CurrentPet)
                     return SPELL_FAILED_ALREADY_HAVE_SUMMON;
 
-                if (petStable->GetUnslottedHunterPet())
+                if (!petStable->GetFreeCallSlot())
                 {
                     caster->SendTameFailure(PET_TAME_TOO_MANY);
                     return SPELL_FAILED_DONT_REPORT;

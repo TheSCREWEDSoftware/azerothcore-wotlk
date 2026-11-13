@@ -13563,7 +13563,8 @@ bool Unit::InitTamedPet(Pet* pet, uint8 level, uint32 spell_id)
 {
     Player* player = ToPlayer();
     PetStable& petStable = player->GetOrInitPetStable();
-    if (petStable.CurrentPet || petStable.GetUnslottedHunterPet())
+    Optional<uint8> callSlot = petStable.GetFreeCallSlot();
+    if (petStable.CurrentPet || !callSlot)
         return false;
 
     pet->SetCreatorGUID(GetGUID());
@@ -13584,6 +13585,7 @@ bool Unit::InitTamedPet(Pet* pet, uint8 level, uint32 spell_id)
     pet->InitPetCreateSpells();
     pet->SetFullHealth();
     pet->FillPetInfo(&petStable.CurrentPet.emplace());
+    petStable.CurrentPet->CallSlot = *callSlot;
 
     // Tamed pets follow the tamer's phase shift like summoned pets.
     pet->InheritPhasesFrom(this);

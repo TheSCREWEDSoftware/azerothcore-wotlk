@@ -3443,6 +3443,32 @@ void Spell::EffectSummonPet(SpellEffIndex effIndex)
         return;
     }
 
+    // Call Pet 1-5 summon the hunter pet kept in that Call Pet slot
+    if (Optional<uint8> callSlot = m_spellInfo->Effects[effIndex].GetHunterPetCallSlot())
+    {
+        PetStable* petStable = owner->GetPetStable();
+        PetStable::PetInfo const* callPet = petStable ? petStable->GetPetInCallSlot(*callSlot) : nullptr;
+        if (!callPet)
+            return;
+
+        uint32 const petNumber = callPet->PetNumber;
+        if (Pet* oldPet = owner->GetPet())
+        {
+            // the same pet is handled below like any repeated summon
+            if (oldPet->GetCharmInfo()->GetPetNumber() != petNumber)
+                owner->RemovePet(oldPet, PET_SAVE_NOT_IN_SLOT, false);
+        }
+
+        if (!owner->GetPet())
+        {
+            Pet* pet = new Pet(owner, HUNTER_PET);
+            if (!pet->LoadPetFromDB(owner, 0, petNumber, false))
+                delete pet;
+
+            return;
+        }
+    }
+
     Pet* OldSummon = owner->GetPet();
 
     // if pet requested type already exist

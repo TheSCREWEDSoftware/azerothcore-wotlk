@@ -34,7 +34,12 @@ enum PetType : uint8
     MAX_PET_TYPE                = 4
 };
 
-constexpr auto MAX_PET_STABLES = 4;
+// 4.3.4 stable master: 5 Call Pet slots (0-4) and stable slots 5-20, all free
+constexpr auto MAX_PET_STABLES = 16;
+constexpr uint8 PET_CALL_SLOT_COUNT = 5;
+constexpr uint8 PET_CALL_SLOT_NONE = 0xFF;                   // character_pet.CallSlot for stabled and non hunter pets
+constexpr uint8 PET_STABLE_FIRST_CLIENT_SLOT = PET_CALL_SLOT_COUNT; // client slot of StabledPets[0]
+constexpr uint8 PET_STABLE_LAST_CLIENT_SLOT = PET_STABLE_FIRST_CLIENT_SLOT + MAX_PET_STABLES - 1;
 
 // stored in character_pet.slot
 enum PetSaveMode : int8
@@ -230,6 +235,7 @@ public:
         ReactStates ReactState = ReactStates(0);
         PetType Type = MAX_PET_TYPE;
         bool WasRenamed = false;
+        uint8 CallSlot = PET_CALL_SLOT_NONE;                // Call Pet 1-5 slot of an active hunter pet
     };
 
     Optional<PetInfo> CurrentPet;                                   // PET_SAVE_AS_CURRENT
@@ -237,9 +243,53 @@ public:
     uint32 MaxStabledPets = 0;
     std::vector<PetInfo> UnslottedPets;                             // PET_SAVE_NOT_IN_SLOT
 
+    // first dismissed hunter pet in Call Pet order
     [[nodiscard]] PetInfo const* GetUnslottedHunterPet() const
     {
-        return UnslottedPets.size() == 1 && UnslottedPets[0].Type == HUNTER_PET ? &UnslottedPets[0] : nullptr;
+        PetInfo const* found = nullptr;
+        for (PetInfo const& pet : UnslottedPets)
+            if (pet.Type == HUNTER_PET && (!found || pet.CallSlot < found->CallSlot))
+                found = &pet;
+
+        return found;
+    }
+
+    // hunter pet that Call Pet <slot + 1> summons, either the current pet or a dismissed one
+    [[nodiscard]] PetInfo const* GetPetInCallSlot(uint8 slot) const
+    {
+        if (CurrentPet && CurrentPet->Type == HUNTER_PET && CurrentPet->CallSlot == slot)
+            return &CurrentPet.value();
+
+        for (PetInfo const& pet : UnslottedPets)
+            if (pet.Type == HUNTER_PET && pet.CallSlot == slot)
+                return &pet;
+
+        return nullptr;
+    }
+
+    [[nodiscard]] Optional<uint8> GetFreeCallSlot() const
+    {
+        for (uint8 slot = 0; slot < PET_CALL_SLOT_COUNT; ++slot)
+            if (!GetPetInCallSlot(slot))
+                return slot;
+
+        return {};
+    }
+
+    [[nodiscard]] PetInfo* FindPet(uint32 petNumber)
+    {
+        if (CurrentPet && CurrentPet->PetNumber == petNumber)
+            return &CurrentPet.value();
+
+        for (Optional<PetInfo>& pet : StabledPets)
+            if (pet && pet->PetNumber == petNumber)
+                return &pet.value();
+
+        for (PetInfo& pet : UnslottedPets)
+            if (pet.PetNumber == petNumber)
+                return &pet;
+
+        return nullptr;
     }
 };
 

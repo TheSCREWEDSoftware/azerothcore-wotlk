@@ -317,6 +317,8 @@ public:
     int32 CalcValue(WorldObject const* caster = nullptr, int32 const* basePoints = nullptr, Unit const* target = nullptr) const;
     int32 CalcBaseValue(int32 value) const;
     int32 CalcScaledBaseValue(WorldObject const* caster, Unit const* target) const;
+    // Call Pet 1-5: SPELL_EFFECT_SUMMON_PET without a creature, the Call Pet slot is in the base points
+    Optional<uint8> GetHunterPetCallSlot() const;
     float CalcScaledPointsPerComboPoint(Unit const* caster) const;
     float CalcValueMultiplier(WorldObject* caster, Spell* spell = nullptr) const;
     float CalcDamageMultiplier(WorldObject* caster, Spell* spell = nullptr) const;

@@ -869,6 +869,7 @@ void OpcodeTable::Initialize()
     /*0x1026*/ DEFINE_HANDLER(CMSG_GUILD_QUERY_RANKS,                                                STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildQueryRanksOpcode              );
     /*0x3032*/ DEFINE_HANDLER(CMSG_GUILD_ASSIGN_MEMBER_RANK,                                         STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildAssignRankOpcode              );
     /*0x1221*/ DEFINE_HANDLER(CMSG_GUILD_SWITCH_RANK,                                                STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildSwitchRankOpcode              );
+    /*0x3A04*/ DEFINE_HANDLER(CMSG_SET_PET_SLOT,                                                     STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleSetPetSlot                         );
     /*0x2413*/ DEFINE_HANDLER(CMSG_GENERATE_RANDOM_CHARACTER_NAME,                                   STATUS_AUTHED,     PROCESS_THREADUNSAFE,   &WorldSession::HandleRandomizeCharNameOpcode            );
     /*0x0430*/ DEFINE_HANDLER(CMSG_ROLE_POLL_BEGIN,                                                  STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleRolePollBeginOpcode                );
     /*0x7306*/ DEFINE_HANDLER(CMSG_SET_CURRENCY_FLAGS,                                               STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleSetCurrencyFlags                   );
@@ -986,14 +987,7 @@ void OpcodeTable::Initialize()
     DEFINE_BIDIRECTIONAL_OPCODE(MSG_GM_ACCOUNT_ONLINE, MSG_GM_ACCOUNT_ONLINE, MSG_GM_ACCOUNT_ONLINE_SERVER);
     /*0x0834*/ DEFINE_HANDLER(MSG_LIST_STABLED_PETS,                                                 STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleListStabledPetsOpcode              );
     DEFINE_BIDIRECTIONAL_OPCODE(MSG_LIST_STABLED_PETS, MSG_LIST_STABLED_PETS, MSG_LIST_STABLED_PETS_SERVER);
-    /*0x0270*/ DEFINE_HANDLER(CMSG_STABLE_PET,                                                       STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleStablePet                          );
-    /*0x0271*/ DEFINE_HANDLER(CMSG_UNSTABLE_PET,                                                     STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleUnstablePet                        );
-    // CMSG_BUY_STABLE_SLOT is never sent by the real Cata client (matches upstream TC, which drops
-    // this handler entirely); StableSlotPrices.dbc that it depends on no longer exists either.
-    //DEFINE_HANDLER(CMSG_BUY_STABLE_SLOT,                                                            STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleBuyStableSlot                      );
     /*0x2204*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_STABLE_RESULT,                                      STATUS_NEVER);
-    /*0x0274*/ DEFINE_HANDLER(CMSG_STABLE_REVIVE_PET,                                                STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleStableRevivePet                    );
-    /*0x0275*/ DEFINE_HANDLER(CMSG_STABLE_SWAP_PET,                                                  STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleStableSwapPet                      );
     /*0x4515*/ DEFINE_HANDLER(MSG_QUEST_PUSH_RESULT,                                                 STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleQuestPushResult                    );
     DEFINE_BIDIRECTIONAL_OPCODE(MSG_QUEST_PUSH_RESULT, MSG_QUEST_PUSH_RESULT, MSG_QUEST_PUSH_RESULT_SERVER);
     /*0x4B06*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_PLAY_MUSIC,                                         STATUS_NEVER);

@@ -6755,7 +6755,16 @@ SpellCastResult Spell::CheckCast(bool strict, uint32* /*param1*/, uint32* /*para
                     Player* playerCaster = unitCaster ? unitCaster->ToPlayer() : nullptr;
                     if (playerCaster && playerCaster->GetPetStable())
                     {
-                        std::pair<PetStable::PetInfo const*, PetSaveMode> info = Pet::GetLoadPetInfo(*playerCaster->GetPetStable(), m_spellInfo->Effects[i].MiscValue, 0, false);
+                        std::pair<PetStable::PetInfo const*, PetSaveMode> info;
+                        // Call Pet 1-5 summon the hunter pet in their Call Pet slot
+                        if (Optional<uint8> callSlot = m_spellInfo->Effects[i].GetHunterPetCallSlot())
+                        {
+                            if (PetStable::PetInfo const* callPet = playerCaster->GetPetStable()->GetPetInCallSlot(*callSlot))
+                                info = Pet::GetLoadPetInfo(*playerCaster->GetPetStable(), 0, callPet->PetNumber, false);
+                        }
+                        else
+                            info = Pet::GetLoadPetInfo(*playerCaster->GetPetStable(), m_spellInfo->Effects[i].MiscValue, 0, false);
+
                         if (info.first)
                         {
                             if (info.first->Type == HUNTER_PET)

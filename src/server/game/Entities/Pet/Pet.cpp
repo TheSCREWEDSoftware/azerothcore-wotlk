@@ -209,6 +209,10 @@ std::pair<PetStable::PetInfo const*, PetSaveMode> Pet::GetLoadPetInfo(PetStable 
         if (stable.CurrentPet)
             return { &stable.CurrentPet.value(), PET_SAVE_AS_CURRENT };
 
+        // with several active hunter pets, take the one in the lowest Call Pet slot
+        if (PetStable::PetInfo const* hunterPet = stable.GetUnslottedHunterPet())
+            return { hunterPet, PET_SAVE_NOT_IN_SLOT };
+
         if (!stable.UnslottedPets.empty())
             return { &stable.UnslottedPets.front(), PET_SAVE_NOT_IN_SLOT };
     }
@@ -574,17 +578,8 @@ void Pet::SavePetToDB(PetSaveMode mode)
         stmt->SetData(0, m_charmInfo->GetPetNumber());
         trans->Append(stmt);
 
-        // prevent existence another hunter pet in PET_SAVE_AS_CURRENT and PET_SAVE_NOT_IN_SLOT
-        if (getPetType() == HUNTER_PET && (mode == PET_SAVE_AS_CURRENT || mode > PET_SAVE_LAST_STABLE_SLOT))
-        {
-            stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_CHAR_PET_BY_SLOT);
-            stmt->SetData(0, ownerLowGUID);
-            stmt->SetData(1, uint8(PET_SAVE_AS_CURRENT));
-            stmt->SetData(2, uint8(PET_SAVE_LAST_STABLE_SLOT));
-            trans->Append(stmt);
-        }
-        // other pets keep their rows when unsummoned, so only move them out of the current slot
-        else if (mode == PET_SAVE_AS_CURRENT)
+        // 4.3.4 hunters keep several active pets, so other pets are only moved out of the current slot
+        if (mode == PET_SAVE_AS_CURRENT)
         {
             stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_CHAR_PET_SLOT_BY_SLOT_EXCLUDE_ID);
             stmt->SetData(0, uint8(PET_SAVE_NOT_IN_SLOT));
@@ -601,6 +596,12 @@ void Pet::SavePetToDB(PetSaveMode mode)
         {
             FillPetInfo(&owner->GetPetStable()->CurrentPet.value());
         }
+
+        // stabled pets give up their Call Pet slot
+        uint8 callSlot = PET_CALL_SLOT_NONE;
+        if (getPetType() == HUNTER_PET && (mode < PET_SAVE_FIRST_STABLE_SLOT || mode > PET_SAVE_LAST_STABLE_SLOT))
+            if (PetStable::PetInfo const* petInfo = owner->GetPetStable()->FindPet(m_charmInfo->GetPetNumber()))
+                callSlot = petInfo->CallSlot;
 
         stmt = CharacterDatabase.GetPreparedStatement(CHAR_REP_CHAR_PET);
         stmt->SetData(0, m_charmInfo->GetPetNumber());
@@ -620,6 +621,7 @@ void Pet::SavePetToDB(PetSaveMode mode)
         stmt->SetData(14, GetPower(POWER_HAPPINESS));
         stmt->SetData(15, GameTime::GetGameTime().count());
         stmt->SetData(16, actionBar);
+        stmt->SetData(17, callSlot);
 
         trans->Append(stmt);
         CharacterDatabase.CommitTransaction(trans);

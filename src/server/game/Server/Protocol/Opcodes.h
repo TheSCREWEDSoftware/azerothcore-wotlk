@@ -28,6 +28,7 @@
 /// Lists of opcodes by wire direction
 enum OpcodeClient : uint16
 {
+    CMSG_SET_PET_SLOT                               = 0x3A04,
     CMSG_GENERATE_RANDOM_CHARACTER_NAME             = 0x2413,
     CMSG_ROLE_POLL_BEGIN                            = 0x0430,
     CMSG_SET_CURRENCY_FLAGS                         = 0x7306,
@@ -458,11 +459,6 @@ enum OpcodeClient : uint16
     CMSG_CANCEL_AUTO_REPEAT_SPELL                   = 0x6C35,
     MSG_GM_ACCOUNT_ONLINE                           = 0x26E,
     MSG_LIST_STABLED_PETS                           = 0x0834,
-    CMSG_STABLE_PET                                 = 0x270,
-    CMSG_UNSTABLE_PET                               = 0x271,
-    CMSG_BUY_STABLE_SLOT                            = 0x272,
-    CMSG_STABLE_REVIVE_PET                          = 0x274,
-    CMSG_STABLE_SWAP_PET                            = 0x275,
     MSG_QUEST_PUSH_RESULT                           = 0x4515,
     CMSG_REQUEST_PET_INFO                           = 0x4924,
     CMSG_FAR_SIGHT                                  = 0x4835,

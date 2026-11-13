@@ -9517,8 +9517,9 @@ bool Player::CanPetResurrect()
 
 bool Player::IsExistPet()
 {
+    // a new pet needs the current slot free and a free Call Pet slot
     PetStable* const petStable = GetPetStable();
-    return petStable && (petStable->CurrentPet || petStable->GetUnslottedHunterPet());
+    return petStable && (petStable->CurrentPet || !petStable->GetFreeCallSlot());
 }
 
 Pet* Player::CreatePet(Creature* creatureTarget, uint32 spellID /*= 0*/)
@@ -16713,7 +16714,10 @@ bool Player::AddItem(uint32 itemId, uint32 count)
 PetStable& Player::GetOrInitPetStable()
 {
     if (!m_petStable)
+    {
         m_petStable = std::make_unique<PetStable>();
+        m_petStable->MaxStabledPets = MAX_PET_STABLES;
+    }
 
     return *m_petStable;
 }
@@ -16958,18 +16962,11 @@ void Player::_LoadPetStable(uint8 petStableSlots, PreparedQueryResult result)
         return;
 
     m_petStable = std::make_unique<PetStable>();
-    m_petStable->MaxStabledPets = petStableSlots;
+    // every 4.3.4 stable slot is free, the purchased slot count is kept only for the characters column
+    m_petStable->MaxStabledPets = MAX_PET_STABLES;
 
-    if (m_petStable->MaxStabledPets > MAX_PET_STABLES)
-    {
-        LOG_ERROR("entities.player", "Player::LoadFromDB: Player ({}) can't have more stable slots than {}, but has {} in DB",
-            GetGUID().ToString(), MAX_PET_STABLES, m_petStable->MaxStabledPets);
-
-        m_petStable->MaxStabledPets = MAX_PET_STABLES;
-    }
-
-    //         0      1        2      3    4           5     6     7        8          9       10            11      12        13              14       15
-    // SELECT id, entry, modelid, level, exp, Reactstate, slot, name, renamed, curhealth, curmana, curhappiness, abdata, savetime, CreatedBySpell, PetType FROM character_pet WHERE owner = ?
+    //         0      1        2      3    4           5     6     7        8          9       10            11      12        13              14       15        16
+    // SELECT id, entry, modelid, level, exp, Reactstate, slot, name, renamed, curhealth, curmana, curhappiness, abdata, savetime, CreatedBySpell, PetType, CallSlot FROM character_pet WHERE owner = ?
     if (result)
     {
         do
@@ -16992,6 +16989,10 @@ void Player::_LoadPetStable(uint8 petStableSlots, PreparedQueryResult result)
             petInfo.LastSaveTime = fields[13].Get<uint32>();
             petInfo.CreatedBySpellId = fields[14].Get<uint32>();
             petInfo.Type = PetType(fields[15].Get<uint8>());
+            petInfo.CallSlot = fields[16].Get<uint8>();
+            if (petInfo.Type != HUNTER_PET || petInfo.CallSlot >= PET_CALL_SLOT_COUNT
+                || (slot >= PET_SAVE_FIRST_STABLE_SLOT && slot <= PET_SAVE_LAST_STABLE_SLOT))
+                petInfo.CallSlot = PET_CALL_SLOT_NONE;
 
             if (slot == PET_SAVE_AS_CURRENT)
                 m_petStable->CurrentPet = std::move(petInfo);

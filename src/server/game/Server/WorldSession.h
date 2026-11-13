@@ -666,7 +666,6 @@ public:
     // Pet
     void SendPetNameQuery(ObjectGuid guid, uint32 petnumber);
     void SendStablePet(ObjectGuid guid);
-    void SendStablePetCallback(ObjectGuid guid, PreparedQueryResult result);
     void SendStableResult(uint8 guid);
     bool CheckStableMaster(ObjectGuid guid);
 
@@ -998,11 +997,7 @@ public:                                                 // opcodes handlers
     void HandleNpcTextQueryOpcode(WorldPacket& recvPacket);
     void HandleBinderActivateOpcode(WorldPacket& recvPacket);
     void HandleListStabledPetsOpcode(WorldPacket& recvPacket);
-    void HandleStablePet(WorldPacket& recvPacket);
-    void HandleUnstablePet(WorldPacket& recvPacket);
-    void HandleBuyStableSlot(WorldPacket& recvPacket);
-    void HandleStableRevivePet(WorldPacket& recvPacket);
-    void HandleStableSwapPet(WorldPacket& recvPacket);
+    void HandleSetPetSlot(WorldPacket& recvPacket);
     void HandleOpenWrappedItemCallback(uint8 bagIndex, uint8 slot, ObjectGuid::LowType itemLowGUID, PreparedQueryResult result);
     void HandleLoadActionsSwitchSpec(PreparedQueryResult result);
     void HandleCharacterAuraFrozen(PreparedQueryResult result);

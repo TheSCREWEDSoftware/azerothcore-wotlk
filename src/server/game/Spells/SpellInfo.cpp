@@ -610,6 +610,14 @@ int32 SpellEffectInfo::CalcScaledBaseValue(WorldObject const* caster, Unit const
     return int32(std::round(value));
 }
 
+Optional<uint8> SpellEffectInfo::GetHunterPetCallSlot() const
+{
+    if (Effect != SPELL_EFFECT_SUMMON_PET || MiscValue || BasePoints < 0 || BasePoints >= PET_CALL_SLOT_COUNT)
+        return {};
+
+    return uint8(BasePoints);
+}
+
 // Based on client function QuestTextParser::Spell_C_GetPointsPerResource (build 15595)
 float SpellEffectInfo::CalcScaledPointsPerComboPoint(Unit const* caster) const
 {
