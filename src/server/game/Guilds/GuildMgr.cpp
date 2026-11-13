@@ -19,6 +19,7 @@
 #include "AchievementMgr.h"
 #include "Common.h"
 #include "DatabaseEnv.h"
+#include "DBCStores.h"
 #include "Log.h"
 #include "ObjectMgr.h"
 #include "SharedDefines.h"
@@ -567,5 +568,36 @@ void GuildMgr::LoadGuildRewards()
     } while (result->NextRow());
 
     LOG_INFO("server.loading", ">> Loaded {} guild reward definitions in {} ms", count, GetMSTimeDiffToNow(oldMSTime));
+    LOG_INFO("server.loading", " ");
+}
+
+// Cata guild profession/recipe tracking (see .agents/docs/porting-from-trinitycore.md). Built
+// from SkillLineAbility.dbc, not the database: every profession recipe flagged with a non-zero
+// UniqueBit is remembered per skill line, so Guild::Member::UpdateProfessionData can later test
+// "does this member know spell X" and set the matching bit in their RecipeUniqueBits.
+void GuildMgr::LoadGuildProfessionData()
+{
+    uint32 oldMSTime = getMSTime();
+
+    GuildProfessionStore.clear();
+
+    uint32 count = 0;
+    for (SkillLineAbilityEntry const* entry : sSkillLineAbilityStore)
+    {
+        if (!entry->UniqueBit)
+            continue;
+
+        SkillLineEntry const* skillLine = sSkillLineStore.LookupEntry(entry->SkillLine);
+        if (!skillLine || skillLine->categoryId != SKILL_CATEGORY_PROFESSION)
+            continue;
+
+        GuildProfession prof;
+        prof.SpellId = entry->Spell;
+        prof.UniqueBits = entry->UniqueBit;
+        GuildProfessionStore[skillLine->id].push_back(prof);
+        ++count;
+    }
+
+    LOG_INFO("server.loading", ">> Loaded {} guild profession recipe definitions in {} ms", count, GetMSTimeDiffToNow(oldMSTime));
     LOG_INFO("server.loading", " ");
 }

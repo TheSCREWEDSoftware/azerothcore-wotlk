@@ -184,6 +184,16 @@ WorldPacket const* WorldPackets::Guild::GuildRoster::Write()
     return &_worldPacket;
 }
 
+// Cata guild profession tracking (see .agents/docs/porting-from-trinitycore.md).
+ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::Guild::GuildRosterProfessionData const& rosterProfessionData)
+{
+    data << int32(rosterProfessionData.DbID);
+    data << int32(rosterProfessionData.Rank);
+    data << int32(rosterProfessionData.Step);
+
+    return data;
+}
+
 ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::Guild::GuildRosterMemberData const& rosterMemberData)
 {
     data << uint8(rosterMemberData.ClassID);
@@ -218,6 +228,9 @@ ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::Guild::GuildRosterMemberD
     data.WriteString(rosterMemberData.OfficerNote);
     data.WriteByteSeq(rosterMemberData.Guid[6]);
     data.WriteString(rosterMemberData.Name);
+
+    for (uint8 i = 0; i < GUILD_PROFESSION_COUNT; ++i)
+        data << rosterMemberData.Profession[i];
 
     return data;
 }
@@ -917,6 +930,22 @@ WorldPacket const* WorldPackets::Guild::GuildRewardList::Write()
         _worldPacket << item;
 
     _worldPacket << int32(Version);
+
+    return &_worldPacket;
+}
+
+// Cata guild profession/recipe tracking (see .agents/docs/porting-from-trinitycore.md).
+WorldPacket const* WorldPackets::Guild::GuildKnownRecipes::Write()
+{
+    _worldPacket.WriteBits(Recipes.size(), 16);
+    _worldPacket.FlushBits();
+
+    for (GuildRecipesData const& recipe : Recipes)
+    {
+        _worldPacket << int32(recipe.SkillLineID);
+        for (uint8 bits : recipe.SkillLineBitArray)
+            _worldPacket << uint8(bits);
+    }
 
     return &_worldPacket;
 }

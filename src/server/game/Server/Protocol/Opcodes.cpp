@@ -244,6 +244,7 @@ void OpcodeTable::Initialize()
     /*0x34A3*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GUILD_PERMISSIONS_QUERY_RESULTS,                    STATUS_NEVER);
     /*0x10B2*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GUILD_EVENT_LOG_QUERY_RESULTS,                      STATUS_NEVER);
     /*0x30B4*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GUILD_RANKS,                                        STATUS_NEVER);
+    /*0x10B3*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GUILD_KNOWN_RECIPES,                                STATUS_NEVER);
     /*0x1DB0*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GUILD_REWARD_LIST,                                  STATUS_NEVER);
     /*0x74B0*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GUILD_REPUTATION_REACTION_CHANGED,                  STATUS_NEVER);
     /*0x30B7*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GUILD_REPUTATION_WEEKLY_CAP,                        STATUS_NEVER);
@@ -820,6 +821,7 @@ void OpcodeTable::Initialize()
     /*0x1026*/ DEFINE_HANDLER(CMSG_GUILD_QUERY_RANKS,                                                STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildQueryRanksOpcode              );
     /*0x3032*/ DEFINE_HANDLER(CMSG_GUILD_ASSIGN_MEMBER_RANK,                                         STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildAssignRankOpcode              );
     /*0x1221*/ DEFINE_HANDLER(CMSG_GUILD_SWITCH_RANK,                                                STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildSwitchRankOpcode              );
+    /*0x3033*/ DEFINE_HANDLER(CMSG_GUILD_QUERY_RECIPES,                                              STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildQueryRecipesOpcode            );
     /*0x3012*/ DEFINE_HANDLER(CMSG_REQUEST_GUILD_REWARDS_LIST,                                       STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleRequestGuildRewardsListOpcode      );
     /*0x1224*/ DEFINE_HANDLER(CMSG_GUILD_REQUEST_CHALLENGE_UPDATE,                                   STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildRequestChallengeUpdate        );
     /*0x1237*/ DEFINE_HANDLER(CMSG_GUILD_XP_QUERY,                                                   STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildXPQueryOpcode                 );

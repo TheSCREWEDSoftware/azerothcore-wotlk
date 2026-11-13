@@ -42,6 +42,16 @@ struct GuildReward
     uint32 AchievementId = 0;
 };
 
+// Cata guild profession/recipe tracking (see .agents/docs/porting-from-trinitycore.md): one row
+// per recipe (SkillLineAbility.dbc entry) that is flagged as "unique" (has a non-zero UniqueBit
+// index) for its skill line. Built once from the DBCs, not from the database - see
+// GuildMgr::LoadGuildProfessionData.
+struct GuildProfession
+{
+    uint32 SpellId = 0;
+    uint32 UniqueBits = 0;
+};
+
 class GuildMgr
 {
 private:
@@ -76,6 +86,19 @@ public:
     // Cata guild rewards
     void LoadGuildRewards();
     std::vector<GuildReward> const& GetGuildRewards() const { return GuildRewards; }
+
+    // Cata guild profession/recipe tracking
+    void LoadGuildProfessionData();
+    std::vector<GuildProfession> const& GetGuildProfessionData(uint32 skillId) const
+    {
+        auto itr = GuildProfessionStore.find(skillId);
+        if (itr == GuildProfessionStore.end())
+        {
+            static std::vector<GuildProfession> const empty;
+            return empty;
+        }
+        return itr->second;
+    }
 protected:
     typedef std::unordered_map<uint32, Guild*> GuildContainer;
     uint32 NextGuildId;
@@ -84,6 +107,7 @@ protected:
     std::vector<uint64> GuildXPperLevel;
     std::vector<GuildChallenge> GuildChallenges;
     std::vector<GuildReward> GuildRewards;
+    std::unordered_map<uint32 /*skillId*/, std::vector<GuildProfession>> GuildProfessionStore;
 };
 
 #define sGuildMgr GuildMgr::instance()

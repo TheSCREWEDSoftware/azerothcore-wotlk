@@ -22,6 +22,7 @@
 #include "ObjectMgr.h"
 #include "Optional.h"
 #include "Player.h"
+#include <array>
 #include <set>
 #include <unordered_map>
 
@@ -50,6 +51,13 @@ enum GuildMisc
     GUILD_WITHDRAW_SLOT_UNLIMITED       = 0xFFFFFFFF,
     GUILD_EVENT_LOG_GUID_UNDEFINED      = 0xFFFFFFFF,
     TAB_UNDEFINED                       = 0xFF,
+};
+
+// Cata guild profession/recipe tracking (see .agents/docs/porting-from-trinitycore.md).
+enum GuildProfessionMisc
+{
+    GUILD_PROFESSION_COUNT               = 2,                   // top 2 professions shown on the roster, matches TrinityCore
+    GUILD_RECIPES_COUNT                  = 300,                 // size of the per-skill-line "unique recipe" bitset, matches TrinityCore
 };
 
 constexpr uint64 GUILD_BANK_MONEY_LIMIT = UI64LIT(0x7FFFFFFFFFFFF);
@@ -304,6 +312,18 @@ private:
 
 using SlotIds = std::set<uint8>;
 
+// Cata guild profession/recipe tracking (see .agents/docs/porting-from-trinitycore.md). Not
+// persisted to DB - like TrinityCore, this is a live, in-memory cache that is only accurate for
+// members who have been online this server session; it is refreshed whenever the roster or the
+// guild's known-recipes list is requested (Guild::HandleRoster / Guild::SendKnownRecipes).
+struct GuildMemberProfessionData
+{
+    uint32 SkillId = 0;
+    uint32 Rank = 0;   // current skill value
+    uint32 Step = 0;   // skill tier step, 0...6
+    std::array<uint8, GUILD_RECIPES_COUNT> RecipeUniqueBits = {};
+};
+
 class Guild
 {
 public: // pussywizard: public class Member
@@ -379,6 +399,12 @@ public: // pussywizard: public class Member
         void UnsubscribeFromGuildBankUpdatePackets() { receiveGuildBankUpdatePackets = false; }
         [[nodiscard]] bool ShouldReceiveBankPartialUpdatePackets() const { return receiveGuildBankUpdatePackets; }
 
+        // Cata guild profession/recipe tracking (see .agents/docs/porting-from-trinitycore.md).
+        // Recomputes this member's top GUILD_PROFESSION_COUNT professions from their live skill
+        // values if they are currently online; otherwise leaves the existing cached data as-is.
+        void UpdateProfessionData();
+        GuildMemberProfessionData const& GetProfessionData(uint8 index) const { return m_professions[index]; }
+
     private:
         uint32 m_guildId;
         // Fields from characters table
@@ -406,6 +432,9 @@ public: // pussywizard: public class Member
         // Lifetime guild reputation is not tracked here - it lives in the player's own
         // PLAYER_GUILD_REPUTATION faction standing (character_reputation), same as TrinityCore.
         uint32 m_weekReputation = 0;
+
+        // Cata guild profession/recipe tracking - see UpdateProfessionData().
+        GuildMemberProfessionData m_professions[GUILD_PROFESSION_COUNT];
 
         bool receiveGuildBankUpdatePackets;
     };
@@ -744,6 +773,11 @@ public:
     // Handle client commands
     void HandleRoster(WorldSession* session);
     void HandleQuery(WorldSession* session);
+
+    // Cata guild profession/recipe tracking (see .agents/docs/porting-from-trinitycore.md): the
+    // shared "recipes known by the guild" bitset, OR'd together from every member's own
+    // per-profession RecipeUniqueBits. Computed live, not persisted - same as TrinityCore.
+    void SendKnownRecipes(Player const* player);
     void HandleSetMOTD(WorldSession* session, std::string_view motd);
     void HandleSetInfo(WorldSession* session, std::string_view info);
     void HandleSetEmblem(WorldSession* session, EmblemInfo const& emblemInfo);

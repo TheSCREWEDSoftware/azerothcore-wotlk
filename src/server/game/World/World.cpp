@@ -776,6 +776,9 @@ void World::SetInitialWorldSettings()
     LOG_INFO("server.loading", "Loading Guild Rewards...");
     sGuildMgr->LoadGuildRewards();
 
+    LOG_INFO("server.loading", "Loading Guild Profession Data...");
+    sGuildMgr->LoadGuildProfessionData();
+
     sGuildMgr->LoadGuilds();
 
     LOG_INFO("server.loading", "Loading ArenaTeams...");

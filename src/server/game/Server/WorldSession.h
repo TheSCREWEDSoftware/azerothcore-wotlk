@@ -152,6 +152,7 @@ namespace WorldPackets
         class GuildSetRankPermissions;
         class GuildQueryRanks;
         class GuildXPQuery;
+        class GuildQueryRecipes;
         class GuildChallengeUpdateRequest;
         class GuildRequestMaxDailyXP;
         class GuildAssignMemberRank;
@@ -902,6 +903,7 @@ public:                                                 // opcodes handlers
     void HandleGuildChangeInfoTextOpcode(WorldPackets::Guild::GuildUpdateInfoText& packet);
     void HandleRequestGuildRewardsListOpcode(WorldPackets::Guild::RequestGuildRewardsList& packet);
     void HandleSaveGuildEmblemOpcode(WorldPackets::Guild::SaveGuildEmblem& packet);
+    void HandleGuildQueryRecipesOpcode(WorldPackets::Guild::GuildQueryRecipes& packet);
 
     void HandleTaxiNodeStatusQueryOpcode(WorldPacket& recvPacket);
     void HandleTaxiQueryAvailableNodes(WorldPacket& recvPacket);

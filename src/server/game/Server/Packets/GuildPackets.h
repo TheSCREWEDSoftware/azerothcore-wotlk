@@ -836,11 +836,37 @@ namespace WorldPackets
             std::vector<GuildRewardItem> RewardItems;
             int32 Version = 0;
         };
+
+        // Cata guild profession/recipe tracking (see .agents/docs/porting-from-trinitycore.md).
+        class GuildQueryRecipes final : public ClientPacket
+        {
+        public:
+            GuildQueryRecipes(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_QUERY_RECIPES, std::move(packet)) { }
+
+            void Read() override { }
+        };
+
+        struct GuildRecipesData
+        {
+            int32 SkillLineID = 0;
+            std::array<uint8, GUILD_RECIPES_COUNT> SkillLineBitArray = { };
+        };
+
+        class GuildKnownRecipes final : public ServerPacket
+        {
+        public:
+            GuildKnownRecipes() : ServerPacket(SMSG_GUILD_KNOWN_RECIPES, 4) { }
+
+            WorldPacket const* Write() override;
+
+            std::vector<GuildRecipesData> Recipes;
+        };
     }
 }
 
 ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::Guild::GuildRosterMemberData const& rosterMemberData);
 ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::Guild::GuildRankData const& rankData);
 ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::Guild::GuildRewardItem const& rewardItem);
+ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::Guild::GuildRosterProfessionData const& rosterProfessionData);
 
 #endif // GuildPackets_h__

@@ -28,6 +28,7 @@
 /// Lists of opcodes by wire direction
 enum OpcodeClient : uint16
 {
+    CMSG_GUILD_QUERY_RECIPES                        = 0x3033,
     CMSG_REQUEST_GUILD_REWARDS_LIST                 = 0x3012,
     CMSG_GUILD_REQUEST_CHALLENGE_UPDATE             = 0x1224,
     CMSG_BOOTME                                     = 0x001, // DEPRECATED
@@ -797,6 +798,7 @@ enum OpcodeClient : uint16
 
 enum OpcodeServer : uint16
 {
+    SMSG_GUILD_KNOWN_RECIPES                        = 0x10B3,
     SMSG_GUILD_REWARD_LIST                          = 0x1DB0,
     SMSG_GUILD_REPUTATION_REACTION_CHANGED          = 0x74B0,
     SMSG_GUILD_REPUTATION_WEEKLY_CAP                = 0x30B7,

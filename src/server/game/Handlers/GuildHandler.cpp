@@ -510,3 +510,12 @@ void WorldSession::HandleRequestGuildRewardsListOpcode(WorldPackets::Guild::Requ
 
     SendPacket(rewardList.Write());
 }
+
+// Cata guild profession/recipe tracking (see .agents/docs/porting-from-trinitycore.md). Ported
+// from TrinityCore's WorldSession::HandleGuildQueryRecipesOpcode - sends the guild's live,
+// aggregated known-recipes bitset back to the requester.
+void WorldSession::HandleGuildQueryRecipesOpcode(WorldPackets::Guild::GuildQueryRecipes& /*packet*/)
+{
+    if (Guild* guild = GetPlayer()->GetGuild())
+        guild->SendKnownRecipes(GetPlayer());
+}

@@ -38,6 +38,7 @@
 #include "SocialMgr.h"
 #include "World.h"
 #include "WorldSession.h"
+#include <algorithm>
 #include <boost/iterator/counting_iterator.hpp>
 
 #define MAX_GUILD_BANK_TAB_TEXT_LEN 500
@@ -709,6 +710,65 @@ void Guild::Member::AddReputation(uint32 rep, Player* player)
     CharacterDatabase.Execute(stmt);
 }
 
+// Cata guild profession/recipe tracking (see .agents/docs/porting-from-trinitycore.md).
+//
+// TrinityCore picks a member's two "primary profession" slots from the client-chosen
+// PLAYER_PROFESSION_SKILL_LINE_1/+1 update fields. This fork does not populate those fields
+// (Player::SetSkill never writes them), so instead we pick the two profession-category skills
+// with the highest current skill value directly from the player's own skill list - functionally
+// equivalent for the overwhelming majority of characters, who have at most two professions
+// learned at any one time anyway.
+//
+// Like TrinityCore, this is a live, in-memory-only cache: if the member is not currently online
+// the previously cached data (possibly still default/empty, if they haven't logged in this
+// server session) is left untouched rather than being wiped.
+void Guild::Member::UpdateProfessionData()
+{
+    Player* player = FindPlayer();
+    if (!player)
+        return;
+
+    for (GuildMemberProfessionData& profession : m_professions)
+        profession = GuildMemberProfessionData();
+
+    std::vector<std::pair<uint32, uint16>> professions; // skillId, current skill value
+    for (auto const& [skillId, status] : player->GetSkillStatusMap())
+    {
+        if (status.uState == SKILL_DELETED)
+            continue;
+
+        SkillLineEntry const* skillLine = sSkillLineStore.LookupEntry(skillId);
+        if (!skillLine || skillLine->categoryId != SKILL_CATEGORY_PROFESSION)
+            continue;
+
+        professions.emplace_back(skillId, player->GetSkillValue(skillId));
+    }
+
+    std::sort(professions.begin(), professions.end(), [](std::pair<uint32, uint16> const& a, std::pair<uint32, uint16> const& b)
+    {
+        return a.second > b.second;
+    });
+
+    for (uint8 i = 0; i < GUILD_PROFESSION_COUNT && i < professions.size(); ++i)
+    {
+        uint32 skillId = professions[i].first;
+
+        m_professions[i].SkillId = skillId;
+        m_professions[i].Rank = professions[i].second;
+        m_professions[i].Step = player->GetSkillStep(skillId);
+
+        for (GuildProfession const& prof : sGuildMgr->GetGuildProfessionData(skillId))
+        {
+            if (!player->HasSpell(prof.SpellId))
+                continue;
+
+            uint16 index = prof.UniqueBits / 8;
+            uint8 bit = uint8(1 << (prof.UniqueBits % 8));
+            m_professions[i].RecipeUniqueBits[index] |= bit;
+        }
+    }
+}
+
 // Get amount of money/slots left for today.
 // If (tabId == GUILD_BANK_MAX_TABS) return money amount.
 // Otherwise return remaining items amount for specified tab.
@@ -1262,7 +1322,7 @@ void Guild::HandleRoster(WorldSession* session)
 
     bool sendOfficerNote = _HasRankRight(session->GetPlayer(), GR_RIGHT_VIEWOFFNOTE);
     roster.MemberData.reserve(m_members.size());
-    for (auto const& [guid, member] : m_members)
+    for (auto& [guid, member] : m_members)
     {
         WorldPackets::Guild::GuildRosterMemberData& memberData = roster.MemberData.emplace_back();
 
@@ -1274,6 +1334,17 @@ void Guild::HandleRoster(WorldSession* session)
         memberData.TotalXP = int64(member.GetTotalActivity());
         uint32 const weeklyRepCap = sWorld->getIntConfig(CONFIG_GUILD_WEEKLY_REP_CAP);
         memberData.GuildRepToCap = int32(weeklyRepCap > member.GetWeekReputation() ? weeklyRepCap - member.GetWeekReputation() : 0);
+
+        // Cata guild profession tracking (see .agents/docs/porting-from-trinitycore.md): refresh
+        // from the live player if online, otherwise fall back to whatever was last cached.
+        member.UpdateProfessionData();
+        for (uint8 i = 0; i < GUILD_PROFESSION_COUNT; ++i)
+        {
+            GuildMemberProfessionData const& profession = member.GetProfessionData(i);
+            memberData.Profession[i].DbID = int32(profession.SkillId);
+            memberData.Profession[i].Rank = int32(profession.Rank);
+            memberData.Profession[i].Step = int32(profession.Step);
+        }
 
         memberData.Status = member.GetFlags();
         memberData.Level = member.GetLevel();
@@ -1321,6 +1392,42 @@ void Guild::SendGuildRankInfo(WorldSession* session) const
 
     session->SendPacket(ranks.Write());
     LOG_DEBUG("guild", "SMSG_GUILD_RANKS [{}]", session->GetPlayerInfo());
+}
+
+// Cata guild profession/recipe tracking (see .agents/docs/porting-from-trinitycore.md).
+void Guild::SendKnownRecipes(Player const* player)
+{
+    WorldPackets::Guild::GuildKnownRecipes packet;
+
+    std::set<uint32> knownProfessions;
+    std::unordered_map<uint32, std::array<uint8, GUILD_RECIPES_COUNT>> uniqueBitsBySkill;
+
+    for (auto& [guid, member] : m_members)
+    {
+        member.UpdateProfessionData();
+
+        for (uint8 i = 0; i < GUILD_PROFESSION_COUNT; ++i)
+        {
+            GuildMemberProfessionData const& profession = member.GetProfessionData(i);
+            if (!profession.SkillId)
+                continue;
+
+            knownProfessions.insert(profession.SkillId);
+            std::array<uint8, GUILD_RECIPES_COUNT>& bits = uniqueBitsBySkill[profession.SkillId];
+            for (uint16 j = 0; j < GUILD_RECIPES_COUNT; ++j)
+                bits[j] |= profession.RecipeUniqueBits[j];
+        }
+    }
+
+    packet.Recipes.reserve(knownProfessions.size());
+    for (uint32 skillId : knownProfessions)
+    {
+        WorldPackets::Guild::GuildRecipesData& data = packet.Recipes.emplace_back();
+        data.SkillLineID = int32(skillId);
+        data.SkillLineBitArray = uniqueBitsBySkill[skillId];
+    }
+
+    player->SendDirectMessage(packet.Write());
 }
 
 void Guild::HandleQuery(WorldSession* session)
