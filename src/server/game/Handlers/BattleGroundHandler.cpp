@@ -76,25 +76,21 @@ void WorldSession::HandleBattlemasterJoinOpcode(WorldPacket& recvData)
     uint8 joinAsGroup;
     bool isPremade = false;
 
-    recvData >> instanceId;                                // instance id, 0 if First Available selected
-    guid[2] = recvData.ReadBit();
-    guid[0] = recvData.ReadBit();
-    guid[3] = recvData.ReadBit();
-    guid[1] = recvData.ReadBit();
-    guid[5] = recvData.ReadBit();
-    joinAsGroup = recvData.ReadBit();
-    guid[4] = recvData.ReadBit();
-    guid[6] = recvData.ReadBit();
-    guid[7] = recvData.ReadBit();
+    // 5.4.8 18414, from Project SkyFire
+    for (uint8 i = 0; i < 2; ++i)
+        recvData.read_skip<uint32>();                      // blacklisted map ids
 
-    recvData.ReadByteSeq(guid[2]);
-    recvData.ReadByteSeq(guid[6]);
-    recvData.ReadByteSeq(guid[4]);
-    recvData.ReadByteSeq(guid[3]);
-    recvData.ReadByteSeq(guid[7]);
-    recvData.ReadByteSeq(guid[0]);
-    recvData.ReadByteSeq(guid[5]);
-    recvData.ReadByteSeq(guid[1]);
+    recvData.ReadGuidMask(guid, { 1, 7, 0, 3 });
+    joinAsGroup = recvData.ReadBit();
+    recvData.ReadGuidMask(guid, { 4 });
+    bool hasRoleMask = !recvData.ReadBit();
+    recvData.ReadGuidMask(guid, { 6, 2, 5 });
+    recvData.ReadGuidBytes(guid, { 7, 2, 4, 5, 0, 6, 3, 1 });
+
+    if (hasRoleMask)
+        recvData.read_skip<uint8>();                       // role mask, not used by the battleground queue
+
+    instanceId = 0;                                        // 5.4.8 always queues for the first available instance
 
     uint32 bgTypeId_ = guid.GetCounter();                  // battleground type id (DBC id)
 
@@ -391,33 +387,19 @@ void WorldSession::HandleBattleFieldPortOpcode(WorldPacket& recvData)
 {
     uint32 joinTime;
     uint32 queueSlot;
-    uint32 unk2;
+    uint32 ticketId;
     uint8 action;       // enter battle 0x1, leave queue 0x0
     ObjectGuid guid;    // battleground guid from the status packet
 
-    recvData >> joinTime;
-    recvData >> queueSlot;
-    recvData >> unk2;
-
-    guid[0] = recvData.ReadBit();
-    guid[1] = recvData.ReadBit();
-    guid[5] = recvData.ReadBit();
-    guid[6] = recvData.ReadBit();
-    guid[7] = recvData.ReadBit();
-    guid[4] = recvData.ReadBit();
-    guid[3] = recvData.ReadBit();
-    guid[2] = recvData.ReadBit();
-
+    // 5.4.8 18414, from Project SkyFire
     action = recvData.ReadBit();
+    recvData >> queueSlot;
+    recvData >> ticketId;
+    recvData >> joinTime;
 
-    recvData.ReadByteSeq(guid[1]);
-    recvData.ReadByteSeq(guid[3]);
-    recvData.ReadByteSeq(guid[5]);
-    recvData.ReadByteSeq(guid[7]);
-    recvData.ReadByteSeq(guid[0]);
-    recvData.ReadByteSeq(guid[2]);
-    recvData.ReadByteSeq(guid[6]);
-    recvData.ReadByteSeq(guid[4]);
+    recvData.ResetBitPos();
+    recvData.ReadGuidMask(guid, { 6, 4, 2, 5, 0, 1, 7, 3 });
+    recvData.ReadGuidBytes(guid, { 2, 5, 3, 0, 7, 4, 6, 1 });
 
     // the queue slot names the queue; the guid only repeats the battleground type
     BattlegroundQueueTypeId bgQueueTypeId = queueSlot < PLAYER_MAX_BATTLEGROUND_QUEUES ? _player->GetBattlegroundQueueTypeId(queueSlot) : BATTLEGROUND_QUEUE_NONE;
@@ -433,7 +415,7 @@ void WorldSession::HandleBattleFieldPortOpcode(WorldPacket& recvData)
     // player not in any queue, so can't really answer
     if (!_player->InBattlegroundQueue())
     {
-        LOG_DEBUG("bg.battleground", "CMSG_BATTLEFIELD_PORT {} ArenaType: {}, Unk: {}, BgType: {}, Action: {}. Player not in queue!", GetPlayerInfo(), arenaType, unk2, bgTypeId_, action);
+        LOG_DEBUG("bg.battleground", "CMSG_BATTLEFIELD_PORT {} ArenaType: {}, Unk: {}, BgType: {}, Action: {}. Player not in queue!", GetPlayerInfo(), arenaType, ticketId, bgTypeId_, action);
         return;
     }
 
@@ -457,7 +439,7 @@ void WorldSession::HandleBattleFieldPortOpcode(WorldPacket& recvData)
     if (!bgQueue.GetPlayerGroupInfoData(_player->GetGUID(), &ginfo))
     {
         LOG_DEBUG("bg.battleground", "CMSG_BATTLEFIELD_PORT {} ArenaType: {}, Unk: {}, BgType: {}, Action: {}. Player not in queue (No player Group Info)!",
-            GetPlayerInfo(), arenaType, unk2, bgTypeId_, action);
+            GetPlayerInfo(), arenaType, ticketId, bgTypeId_, action);
         return;
     }
 
@@ -465,7 +447,7 @@ void WorldSession::HandleBattleFieldPortOpcode(WorldPacket& recvData)
     if (!ginfo.IsInvitedToBGInstanceGUID && action == 1)
     {
         LOG_DEBUG("bg.battleground", "CMSG_BATTLEFIELD_PORT {} ArenaType: {}, Unk: {}, BgType: {}, Action: {}. Player is not invited to any bg!",
-            GetPlayerInfo(), arenaType, unk2, bgTypeId_, action);
+            GetPlayerInfo(), arenaType, ticketId, bgTypeId_, action);
         return;
     }
 
@@ -475,7 +457,7 @@ void WorldSession::HandleBattleFieldPortOpcode(WorldPacket& recvData)
         if (action)
         {
             LOG_DEBUG("bg.battleground", "CMSG_BATTLEFIELD_PORT {} ArenaType: {}, Unk: {}, BgType: {}, Action: {}. Cant find BG with id {}!",
-                GetPlayerInfo(), arenaType, unk2, bgTypeId_, action, ginfo.IsInvitedToBGInstanceGUID);
+                GetPlayerInfo(), arenaType, ticketId, bgTypeId_, action, ginfo.IsInvitedToBGInstanceGUID);
             return;
         }
 
@@ -488,7 +470,7 @@ void WorldSession::HandleBattleFieldPortOpcode(WorldPacket& recvData)
     }
 
     LOG_DEBUG("bg.battleground", "CMSG_BATTLEFIELD_PORT {} ArenaType: {}, Unk: {}, BgType: {}, Action: {}.",
-        GetPlayerInfo(), arenaType, unk2, bgTypeId_, action);
+        GetPlayerInfo(), arenaType, ticketId, bgTypeId_, action);
 
     // expected bracket entry
     PvPDifficultyEntry const* bracketEntry = GetBattlegroundBracketByLevel(bg->GetMapId(), _player->GetLevel());
