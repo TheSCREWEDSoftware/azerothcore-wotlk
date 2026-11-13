@@ -16724,6 +16724,7 @@ void Unit::BuildValuesUpdate(uint8 updateType, ByteBuffer* data, Player* target)
     updateMask.AppendToPacket(&cacheValue.buffer);
     int32 fieldBufferPos = static_cast<int32>(cacheValue.buffer.wpos());
     cacheValue.buffer.append(fieldBuffer);
+    cacheValue.buffer << uint8(0);                          // 5.4.8 dynamic fields, none sent yet
     cacheValue.posPointers.ApplyOffset(fieldBufferPos);
 
     int32 cachePos = static_cast<int32>(data->wpos());

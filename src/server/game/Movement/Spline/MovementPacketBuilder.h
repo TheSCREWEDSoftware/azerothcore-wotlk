@@ -38,6 +38,10 @@ namespace Movement
         static void WriteStopMovement(uint32 splineId, ByteBuffer& data);
         static void WriteCreateBits(MoveSpline const& mov, ByteBuffer& data);
         static void WriteCreateData(MoveSpline const& mov, ByteBuffer& data);
+        static void WriteFacingTargetPart(MoveSpline const& mov, ByteBuffer& data);
+
+    private:
+        static uint8 GetMonsterMoveType(MoveSpline const& mov);
     };
 }
 #endif // AC_PACKET_BUILDER_H

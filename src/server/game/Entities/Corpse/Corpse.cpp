@@ -267,4 +267,5 @@ void Corpse::BuildValuesUpdate(uint8 updateType, ByteBuffer* data, Player* targe
 
     updateMask.AppendToPacket(data);
     data->append(fieldBuffer);
+    *data << uint8(0);                                      // 5.4.8 dynamic fields, none sent yet
 }

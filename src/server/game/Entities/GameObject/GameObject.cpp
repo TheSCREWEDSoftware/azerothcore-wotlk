@@ -2947,6 +2947,7 @@ void GameObject::BuildValuesUpdate(uint8 updateType, ByteBuffer* data, Player* t
 
     updateMask.AppendToPacket(data);
     data->append(fieldBuffer);
+    *data << uint8(0);                                      // 5.4.8 dynamic fields, none sent yet
 }
 
 void GameObject::GetRespawnPosition(float& x, float& y, float& z, float* ori /* = nullptr*/) const

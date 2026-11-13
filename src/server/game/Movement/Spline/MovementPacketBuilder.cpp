@@ -124,44 +124,32 @@ namespace Movement
         data << uint32(0);   // path count
     }
 
-    void PacketBuilder::WriteCreateBits(MoveSpline const& moveSpline, ByteBuffer& data)
+    uint8 PacketBuilder::GetMonsterMoveType(MoveSpline const& moveSpline)
     {
-        bool hasSplineMove = data.WriteBit(!moveSpline.Finalized());
-        if (!hasSplineMove)
-            return;
-
-        data.WriteBits(uint8(moveSpline.spline.mode()), 2);
-        data.WriteBit(moveSpline.splineflags.parabolic || moveSpline.splineflags.animation);
-        data.WriteBits(moveSpline.getPath().size(), 22);
-
         switch (moveSpline.splineflags & MoveSplineFlag::Mask_Final_Facing)
         {
             case MoveSplineFlag::Final_Target:
-            {
-                ObjectGuid targetGuid(moveSpline.facing.target);
-                data.WriteBits(2, 2);
-                data.WriteBit(targetGuid[4]);
-                data.WriteBit(targetGuid[3]);
-                data.WriteBit(targetGuid[7]);
-                data.WriteBit(targetGuid[2]);
-                data.WriteBit(targetGuid[6]);
-                data.WriteBit(targetGuid[1]);
-                data.WriteBit(targetGuid[0]);
-                data.WriteBit(targetGuid[5]);
-                break;
-            }
+                return MonsterMoveFacingTarget;
             case MoveSplineFlag::Final_Angle:
-                data.WriteBits(0, 2);
-                break;
+                return MonsterMoveFacingAngle;
             case MoveSplineFlag::Final_Point:
-                data.WriteBits(1, 2);
-                break;
+                return MonsterMoveFacingSpot;
             default:
-                data.WriteBits(3, 2);
-                break;
+                return MonsterMoveNormal;
         }
+    }
 
+    // 5.4.8 SMSG_UPDATE_OBJECT spline block, from Project SkyFire.
+    void PacketBuilder::WriteCreateBits(MoveSpline const& moveSpline, ByteBuffer& data)
+    {
+        if (!data.WriteBit(!moveSpline.Finalized()))
+            return;
+
+        data.WriteBit(moveSpline.splineflags.parabolic || moveSpline.splineflags.animation);
         data.WriteBit(moveSpline.splineflags.parabolic && moveSpline.effect_start_time < moveSpline.Duration());
+        data.WriteBit(0);                                   // spline filter, not used
+        data.WriteBits(moveSpline.getPath().size(), 20);
+        data.WriteBits(uint8(moveSpline.spline.mode()), 2);
         data.WriteBits(moveSpline.splineflags.raw(), 25);
     }
 
@@ -170,63 +158,57 @@ namespace Movement
         if (!moveSpline.Finalized())
         {
             MoveSplineFlag const& splineFlags = moveSpline.splineflags;
-
-            if (splineFlags.parabolic && moveSpline.effect_start_time < moveSpline.Duration())
-                data << moveSpline.vertical_acceleration;
+            uint8 type = GetMonsterMoveType(moveSpline);
 
             data << moveSpline.timePassed();
-
-            switch (splineFlags & MoveSplineFlag::Mask_Final_Facing)
-            {
-                case MoveSplineFlag::Final_Angle:
-                    data << moveSpline.facing.angle;
-                    break;
-                case MoveSplineFlag::Final_Target:
-                {
-                    ObjectGuid facingGuid(moveSpline.facing.target);
-                    data.WriteByteSeq(facingGuid[5]);
-                    data.WriteByteSeq(facingGuid[3]);
-                    data.WriteByteSeq(facingGuid[7]);
-                    data.WriteByteSeq(facingGuid[1]);
-                    data.WriteByteSeq(facingGuid[6]);
-                    data.WriteByteSeq(facingGuid[4]);
-                    data.WriteByteSeq(facingGuid[2]);
-                    data.WriteByteSeq(facingGuid[0]);
-                    break;
-                }
-                default:
-                    break;
-            }
+            data << float(1.f);                             // splineInfo.duration_mod_next
+            data << float(1.f);                             // splineInfo.duration_mod
 
             uint32 nodes = moveSpline.getPath().size();
             for (uint32 i = 0; i < nodes; ++i)
             {
-                data << float(moveSpline.getPath()[i].z);
                 data << float(moveSpline.getPath()[i].x);
+                data << float(moveSpline.getPath()[i].z);
                 data << float(moveSpline.getPath()[i].y);
             }
 
-            if ((splineFlags & MoveSplineFlag::Mask_Final_Facing) == MoveSplineFlag::Final_Point)
-                data << moveSpline.facing.f.x << moveSpline.facing.f.z << moveSpline.facing.f.y;
-
-            data << float(1.f);                             // splineInfo.duration_mod_next
-            data << moveSpline.Duration();
             if (splineFlags.parabolic || splineFlags.animation)
                 data << moveSpline.effect_start_time;
 
-            data << float(1.f);                             // splineInfo.duration_mod
+            data << uint8(type);
+
+            if (type == MonsterMoveFacingAngle)
+                data << float(moveSpline.facing.angle);
+
+            if (type == MonsterMoveFacingSpot)
+                data << moveSpline.facing.f.x << moveSpline.facing.f.z << moveSpline.facing.f.y;
+
+            if (splineFlags.parabolic && moveSpline.effect_start_time < moveSpline.Duration())
+                data << float(moveSpline.vertical_acceleration);
+
+            data << moveSpline.Duration();
         }
 
-        if (!moveSpline.isCyclic())
-        {
-            Vector3 dest = moveSpline.FinalDestination();
-            data << float(dest.z);
-            data << float(dest.x);
-            data << float(dest.y);
-        }
-        else
-            data << Vector3::zero();
+        Vector3 destination = moveSpline.isCyclic() ? Vector3::zero() : moveSpline.FinalDestination();
 
+        data << float(destination.x);
+        data << float(destination.z);
         data << moveSpline.GetId();
+        data << float(destination.y);
+    }
+
+    void PacketBuilder::WriteFacingTargetPart(MoveSpline const& moveSpline, ByteBuffer& data)
+    {
+        if (GetMonsterMoveType(moveSpline) != MonsterMoveFacingTarget || moveSpline.Finalized())
+            return;
+
+        ObjectGuid facingGuid(moveSpline.facing.target);
+        for (uint8 index : { 4, 7, 0, 5, 1, 2, 3, 6 })
+            data.WriteBit(facingGuid[index]);
+
+        data.FlushBits();
+
+        for (uint8 index : { 4, 2, 0, 5, 6, 3, 1, 7 })
+            data.WriteByteSeq(facingGuid[index]);
     }
 }
