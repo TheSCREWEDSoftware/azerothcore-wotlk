@@ -2232,6 +2232,31 @@ void GameObject::Use(Unit* user)
         CastSpell(user, spellId);
 }
 
+void GameObject::PlayAnimKit(int32 animKit)
+{
+    ObjectGuid guid = GetGUID();
+    WorldPacket data(SMSG_GAME_OBJECT_ACTIVATE_ANIM_KIT, 1 + 8 + 4);
+    data.WriteBit(guid[5]);
+    data.WriteBit(guid[1]);
+    data.WriteBit(guid[0]);
+    data.WriteBit(guid[4]);
+    data.WriteBit(guid[7]);
+    data.WriteBit(guid[2]);
+    data.WriteBit(guid[3]);
+    data.WriteBit(guid[6]);
+    data.FlushBits();
+    data.WriteByteSeq(guid[5]);
+    data.WriteByteSeq(guid[1]);
+    data.WriteByteSeq(guid[0]);
+    data.WriteByteSeq(guid[3]);
+    data.WriteByteSeq(guid[4]);
+    data.WriteByteSeq(guid[6]);
+    data.WriteByteSeq(guid[2]);
+    data.WriteByteSeq(guid[7]);
+    data << int32(animKit);
+    SendMessageToSet(&data, true);
+}
+
 void GameObject::SendCustomAnim(uint32 anim)
 {
     WorldPacket data(SMSG_GAMEOBJECT_CUSTOM_ANIM, 8 + 4);

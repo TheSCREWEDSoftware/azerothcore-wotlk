@@ -123,6 +123,7 @@ char constexpr ResearchBranchfmt[] = "nsiisi";
 char constexpr ResearchFieldfmt[] = "nsi";
 char constexpr ResearchProjectfmt[] = "nssiiiisi";
 char constexpr ResearchSitefmt[] = "niiss";
+char constexpr AnimKitfmt[] = "nxx";
 char constexpr SkillTiersfmt[] = "nxxxxxxxxxxxxxxxxiiiiiiiiiiiiiiii";
 char constexpr SoundEntriesfmt[] = "nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
 char constexpr SpellCastTimefmt[] = "nixx";

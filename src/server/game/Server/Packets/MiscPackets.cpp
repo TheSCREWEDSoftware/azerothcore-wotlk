@@ -292,7 +292,16 @@ void WorldPackets::Misc::Complain::Read()
 
 WorldPacket const* WorldPackets::Misc::ComplainResult::Write()
 {
-    _worldPacket << Unk;
+    _worldPacket << uint8(Result);
+    _worldPacket << uint8(ComplaintType);
+
+    return &_worldPacket;
+}
+
+WorldPacket const* WorldPackets::Misc::AnimKitPacket::Write()
+{
+    _worldPacket << Unit.WriteAsPacked();
+    _worldPacket << uint16(AnimKitID);
 
     return &_worldPacket;
 }

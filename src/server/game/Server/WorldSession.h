@@ -860,6 +860,9 @@ public:                                                 // opcodes handlers
     void HandleDelIgnoreOpcode(WorldPacket& recvPacket);
     void HandleSetContactNotesOpcode(WorldPacket& recvPacket);
     void HandleBugOpcode(WorldPacket& recvPacket);
+    void HandleSupportTicketSubmitBugOpcode(WorldPacket& recvData);
+    void HandleSupportTicketSubmitSuggestionOpcode(WorldPacket& recvData);
+    void HandleSupportTicketSubmitComplaintOpcode(WorldPacket& recvData);
     void HandleSetAmmoOpcode(WorldPacket& recvPacket);
     void HandleItemNameQueryOpcode(WorldPacket& recvPacket);
 

@@ -15006,6 +15006,17 @@ void Unit::SetAuraStack(uint32 spellId, Unit* target, uint32 stack)
         aura->SetStackAmount(stack);
 }
 
+void Unit::PlayOneShotAnimKitId(uint16 animKitId)
+{
+    if (!sAnimKitStore.LookupEntry(animKitId))
+        return;
+
+    WorldPackets::Misc::PlayOneShotAnimKit packet;
+    packet.Unit = GetGUID();
+    packet.AnimKitID = animKitId;
+    SendMessageToSet(packet.Write(), true);
+}
+
 void Unit::SendPlaySpellVisualKit(uint32 id, uint32 type /*= 0*/, uint32 duration /*= 0*/) const
 {
     WorldPackets::Spells::PlaySpellVisualKit packet;

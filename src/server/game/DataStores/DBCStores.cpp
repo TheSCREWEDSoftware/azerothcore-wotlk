@@ -163,6 +163,7 @@ DBCStorage <ResearchBranchEntry> sResearchBranchStore(ResearchBranchfmt);
 DBCStorage <ResearchFieldEntry> sResearchFieldStore(ResearchFieldfmt);
 DBCStorage <ResearchProjectEntry> sResearchProjectStore(ResearchProjectfmt);
 DBCStorage <ResearchSiteEntry> sResearchSiteStore(ResearchSitefmt);
+DBCStorage <AnimKitEntry> sAnimKitStore(AnimKitfmt);
 DBCStorage <ScalingStatDistributionEntry> sScalingStatDistributionStore(ScalingStatDistributionfmt);
 DBCStorage <ScalingStatValuesEntry> sScalingStatValuesStore(ScalingStatValuesfmt);
 
@@ -426,6 +427,7 @@ void LoadDBCStores(std::string const& dataPath)
     LOAD_DBC(sResearchFieldStore,                   "ResearchField.dbc",                     nullptr);
     LOAD_DBC(sResearchProjectStore,                 "ResearchProject.dbc",                   nullptr);
     LOAD_DBC(sResearchSiteStore,                    "ResearchSite.dbc",                      nullptr);
+    LOAD_DBC(sAnimKitStore,                         "AnimKit.dbc",                           nullptr);
     LOAD_DBC(sScalingStatDistributionStore,         "ScalingStatDistribution.dbc",          "scalingstatdistribution_dbc");
     LOAD_DBC(sScalingStatValuesStore,               "ScalingStatValues.dbc",                "scalingstatvalues_dbc");
     LOAD_DBC(sSkillLineStore,                       "SkillLine.dbc",                        nullptr);

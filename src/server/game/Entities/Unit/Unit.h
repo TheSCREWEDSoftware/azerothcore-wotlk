@@ -2044,6 +2044,7 @@ public:
     void SendComboPoints();
 
     void SendPlaySpellVisualKit(uint32 id, uint32 type = 0, uint32 duration = 0) const;
+    void PlayOneShotAnimKitId(uint16 animKitId);
     void SendPlaySpellVisual(uint32 spellVisualId, Unit const* target = nullptr, Optional<Position> targetPosition = {}, float travelSpeed = 0.0f, uint16 missReason = 0, uint16 reflectStatus = 0, bool speedAsTime = false) const;
 
     void SendPetActionFeedback(uint8 msg) const;

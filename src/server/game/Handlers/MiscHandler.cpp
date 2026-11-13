@@ -641,6 +641,35 @@ void WorldSession::HandleBugOpcode(WorldPacket& recv_data)
     CharacterDatabase.Execute(stmt);
 }
 
+// 4.3.4 support tickets: bugs and suggestions go to the bug report table, complaints are
+// read and dropped as in TC 4.3.4
+void WorldSession::HandleSupportTicketSubmitBugOpcode(WorldPacket& recvData)
+{
+    std::string note = recvData.ReadString(recvData.ReadBits(12));
+    recvData.rfinish();                                     // position, map and facing
+
+    CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_INS_BUG_REPORT);
+    stmt->SetData(0, std::string("Bug"));
+    stmt->SetData(1, note);
+    CharacterDatabase.Execute(stmt);
+}
+
+void WorldSession::HandleSupportTicketSubmitSuggestionOpcode(WorldPacket& recvData)
+{
+    std::string note = recvData.ReadString(recvData.ReadBits(12));
+    recvData.rfinish();                                     // position, map and facing
+
+    CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_INS_BUG_REPORT);
+    stmt->SetData(0, std::string("Suggestion"));
+    stmt->SetData(1, note);
+    CharacterDatabase.Execute(stmt);
+}
+
+void WorldSession::HandleSupportTicketSubmitComplaintOpcode(WorldPacket& recvData)
+{
+    recvData.rfinish();
+}
+
 void WorldSession::HandleReclaimCorpseOpcode(WorldPacket& recv_data)
 {
     ObjectGuid guid;

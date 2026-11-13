@@ -219,6 +219,9 @@ void Object::BuildCreateUpdateBlockForPlayer(UpdateData* data, Player* target)
     {
         if (!flags.MovementUpdate && !worldObject->m_movementInfo.transport.guid.IsEmpty())
             flags.MovementTransport = true;
+
+        if (worldObject->GetAIAnimKitId() || worldObject->GetMovementAnimKitId() || worldObject->GetMeleeAnimKitId())
+            flags.AnimKit = true;
     }
 
     if (IsUnit())
@@ -336,9 +339,6 @@ void Object::DestroyForPlayer(Player* target, bool onDeath) const
 
 void Object::BuildMovementUpdate(ByteBuffer* data, CreateObjectBits flags) const
 {
-    Unit const* unit = nullptr;
-    WorldObject const* object = nullptr;
-
     Unit const* self = nullptr;
     ObjectGuid guid = GetGUID();
     uint32 movementFlags = 0;
@@ -465,8 +465,19 @@ void Object::BuildMovementUpdate(ByteBuffer* data, CreateObjectBits flags) const
         data->WriteBit(victimGuid[3]);
     }
 
-    // AnimKit is never set on our fork (flags.AnimKit stays false; no AnimKit system ported
-    // yet), so no bits are written for it here -- matches TrinityCore's own branch shape.
+    bool hasAIAnimKit = false;
+    bool hasMovementAnimKit = false;
+    bool hasMeleeAnimKit = false;
+    if (flags.AnimKit)
+    {
+        WorldObject const* worldObject = static_cast<WorldObject const*>(this);
+        hasAIAnimKit = worldObject->GetAIAnimKitId() != 0;
+        data->WriteBit(!hasAIAnimKit);
+        hasMovementAnimKit = worldObject->GetMovementAnimKitId() != 0;
+        data->WriteBit(!hasMovementAnimKit);
+        hasMeleeAnimKit = worldObject->GetMeleeAnimKitId() != 0;
+        data->WriteBit(!hasMeleeAnimKit);
+    }
 
     data->FlushBits();
 
@@ -616,7 +627,16 @@ void Object::BuildMovementUpdate(ByteBuffer* data, CreateObjectBits flags) const
         data->WriteByteSeq(victimGuid[1]);
     }
 
-    // AnimKit data section intentionally omitted -- see comment above.
+    if (flags.AnimKit)
+    {
+        WorldObject const* worldObject = static_cast<WorldObject const*>(this);
+        if (hasAIAnimKit)
+            *data << uint16(worldObject->GetAIAnimKitId());
+        if (hasMovementAnimKit)
+            *data << uint16(worldObject->GetMovementAnimKitId());
+        if (hasMeleeAnimKit)
+            *data << uint16(worldObject->GetMeleeAnimKitId());
+    }
 
     if (flags.ServerTime)
         *data << uint32(GameTime::GetGameTimeMS().count());
@@ -1195,6 +1215,7 @@ void MovementInfo::OutDebug()
 
 WorldObject::WorldObject() : WorldLocation(),
     LastUsedScriptID(0), m_name(""), m_isActive(false), _visibilityDistanceOverrideType(VisibilityDistanceType::Normal), m_zoneScript(nullptr),
+    m_aiAnimKitId(0), m_movementAnimKitId(0), m_meleeAnimKitId(0),
     _zoneId(0), _areaId(0), _floorZ(INVALID_HEIGHT), _outdoors(false), _liquidData(), _updatePositionData(false), m_transport(nullptr),
     m_currMap(nullptr), _heartbeatTimer(HEARTBEAT_INTERVAL), m_InstanceId(0), m_phaseMask(PHASEMASK_NORMAL), m_useCombinedPhases(true),
     m_spawnPhaseId(0), m_spawnPhaseGroup(0), m_hasSpawnPhase(false), m_hasPhaseShift(false), m_notifyflags(0),
@@ -4525,4 +4546,52 @@ Unit* WorldObject::GetMeleeHitRedirectTarget(Unit* victim, SpellInfo const* spel
         return unitSelf->GetMeleeHitRedirectTarget(victim, spellInfo);
 
     return victim;
+}
+
+void WorldObject::SetAIAnimKitId(uint16 animKitId)
+{
+    if (m_aiAnimKitId == animKitId)
+        return;
+
+    if (animKitId && !sAnimKitStore.LookupEntry(animKitId))
+        return;
+
+    m_aiAnimKitId = animKitId;
+
+    WorldPackets::Misc::SetAIAnimKit packet;
+    packet.Unit = GetGUID();
+    packet.AnimKitID = animKitId;
+    SendMessageToSet(packet.Write(), true);
+}
+
+void WorldObject::SetMovementAnimKitId(uint16 animKitId)
+{
+    if (m_movementAnimKitId == animKitId)
+        return;
+
+    if (animKitId && !sAnimKitStore.LookupEntry(animKitId))
+        return;
+
+    m_movementAnimKitId = animKitId;
+
+    WorldPackets::Misc::SetMovementAnimKit packet;
+    packet.Unit = GetGUID();
+    packet.AnimKitID = animKitId;
+    SendMessageToSet(packet.Write(), true);
+}
+
+void WorldObject::SetMeleeAnimKitId(uint16 animKitId)
+{
+    if (m_meleeAnimKitId == animKitId)
+        return;
+
+    if (animKitId && !sAnimKitStore.LookupEntry(animKitId))
+        return;
+
+    m_meleeAnimKitId = animKitId;
+
+    WorldPackets::Misc::SetMeleeAnimKit packet;
+    packet.Unit = GetGUID();
+    packet.AnimKitID = animKitId;
+    SendMessageToSet(packet.Write(), true);
 }

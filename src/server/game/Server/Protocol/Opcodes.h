@@ -28,6 +28,9 @@
 /// Lists of opcodes by wire direction
 enum OpcodeClient : uint16
 {
+    CMSG_SUPPORT_TICKET_SUBMIT_SUGGESTION           = 0x2512,
+    CMSG_SUPPORT_TICKET_SUBMIT_COMPLAINT            = 0x2501,
+    CMSG_SUPPORT_TICKET_SUBMIT_BUG                  = 0x2520,
     CMSG_GUILD_ACHIEVEMENT_PROGRESS_QUERY           = 0x3235,
     CMSG_GUILD_SET_ACHIEVEMENT_TRACKING             = 0x1027,
     CMSG_GUILD_CHANGE_NAME_REQUEST                  = 0x1232,
@@ -622,7 +625,7 @@ enum OpcodeClient : uint16
     CMSG_CHEAT_PLAYER_LOGIN                         = 0x3C2,
     CMSG_CHEAT_PLAYER_LOOKUP                        = 0x3C3,
     MSG_RAID_READY_CHECK_FINISHED                   = 0x2E15,
-    CMSG_COMPLAIN                                   = 0x3C7,
+    CMSG_COMPLAIN                                   = 0x0427,
     CMSG_GM_SHOW_COMPLAINTS                         = 0x3CA,
     CMSG_GM_UNSQUELCH                               = 0x3CB,
     CMSG_CHAT_CHANNEL_SILENCE_VOICE                 = 0x2D54,
@@ -812,6 +815,11 @@ enum OpcodeClient : uint16
 
 enum OpcodeServer : uint16
 {
+    SMSG_GAME_OBJECT_ACTIVATE_ANIM_KIT              = 0x14A3,
+    SMSG_SET_MOVEMENT_ANIM_KIT                      = 0x0F14,
+    SMSG_SET_MELEE_ANIM_KIT                         = 0x6715,
+    SMSG_SET_AI_ANIM_KIT                            = 0x4626,
+    SMSG_PLAY_ONE_SHOT_ANIM_KIT                     = 0x4A35,
     SMSG_PET_SLOT_UPDATED                           = 0x51A3,
     SMSG_GUILD_CRITERIA_DATA                        = 0x14B4,
     SMSG_GUILD_ACHIEVEMENT_EARNED                   = 0x50B5,
@@ -1316,7 +1324,7 @@ enum OpcodeServer : uint16
     SMSG_CROSSED_INEBRIATION_THRESHOLD              = 0x2036,
     SMSG_CHEAT_PLAYER_LOOKUP                        = 0x3C4,
     SMSG_KICK_REASON                                = 0x4027,
-    SMSG_COMPLAIN_RESULT                            = 0x3C8,
+    SMSG_COMPLAIN_RESULT                            = 0x6D24,
     SMSG_FEATURE_SYSTEM_STATUS                      = 0x3DB7,
     SMSG_CHANNEL_MEMBER_COUNT                       = 0x6414,
     SMSG_DEBUG_LIST_TARGETS                         = 0x3D9,

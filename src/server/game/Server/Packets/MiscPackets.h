@@ -334,11 +334,47 @@ namespace WorldPackets
         class ComplainResult final : public ServerPacket
         {
         public:
-            ComplainResult() : ServerPacket(SMSG_COMPLAIN_RESULT, 1) {}
+            ComplainResult() : ServerPacket(SMSG_COMPLAIN_RESULT, 2) {}
 
             WorldPacket const* Write() override;
 
-            uint8 Unk = 0;
+            uint8 Result = 0;
+            uint8 ComplaintType = 5;                        // common value in 4.3.4 sniffs, unrelated to the request type
+        };
+
+        class AnimKitPacket : public ServerPacket
+        {
+        public:
+            AnimKitPacket(OpcodeServer opcode) : ServerPacket(opcode, 9 + 2) { }
+
+            WorldPacket const* Write() override;
+
+            ObjectGuid Unit;
+            uint16 AnimKitID = 0;
+        };
+
+        class PlayOneShotAnimKit final : public AnimKitPacket
+        {
+        public:
+            PlayOneShotAnimKit() : AnimKitPacket(SMSG_PLAY_ONE_SHOT_ANIM_KIT) { }
+        };
+
+        class SetAIAnimKit final : public AnimKitPacket
+        {
+        public:
+            SetAIAnimKit() : AnimKitPacket(SMSG_SET_AI_ANIM_KIT) { }
+        };
+
+        class SetMovementAnimKit final : public AnimKitPacket
+        {
+        public:
+            SetMovementAnimKit() : AnimKitPacket(SMSG_SET_MOVEMENT_ANIM_KIT) { }
+        };
+
+        class SetMeleeAnimKit final : public AnimKitPacket
+        {
+        public:
+            SetMeleeAnimKit() : AnimKitPacket(SMSG_SET_MELEE_ANIM_KIT) { }
         };
 
         class PlayTimeWarning final : public ServerPacket
