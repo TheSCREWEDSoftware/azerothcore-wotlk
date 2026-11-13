@@ -2350,6 +2350,7 @@ void SpellMgr::LoadSpellBonuses()
     }
 
     uint32 count = 0;
+    uint32 skipped = 0;
     do
     {
         Field* fields = result->Fetch();
@@ -2362,6 +2363,20 @@ void SpellMgr::LoadSpellBonuses()
             continue;
         }
 
+        // 4.3.4 spells carry their own spell power and attack power coefficients; those take
+        // precedence over WotLK rows, as in TC 4.3.4 which dropped this table
+        bool hasDbcCoefficient = spell->BonusCoefficientFromAP > 0.0f;
+        for (SpellEffectInfo const& effect : spell->Effects)
+            if (effect.BonusMultiplier > 0.0f)
+                hasDbcCoefficient = true;
+
+        if (hasDbcCoefficient)
+        {
+            LOG_DEBUG("sql.sql", "Spell {} listed in `spell_bonus_data` has DBC coefficients, row ignored", entry);
+            ++skipped;
+            continue;
+        }
+
         SpellBonusEntry& sbe = mSpellBonusMap[entry];
         sbe.direct_damage = fields[1].Get<float>();
         sbe.dot_damage    = fields[2].Get<float>();
@@ -2371,7 +2386,7 @@ void SpellMgr::LoadSpellBonuses()
         ++count;
     } while (result->NextRow());
 
-    LOG_INFO("server.loading", ">> Loaded {} Extra Spell Bonus Data in {} ms", count, GetMSTimeDiffToNow(oldMSTime));
+    LOG_INFO("server.loading", ">> Loaded {} Extra Spell Bonus Data in {} ms ({} rows ignored for spells with DBC coefficients)", count, GetMSTimeDiffToNow(oldMSTime), skipped);
     LOG_INFO("server.loading", " ");
 }
 
