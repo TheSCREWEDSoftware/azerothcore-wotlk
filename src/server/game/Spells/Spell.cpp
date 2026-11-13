@@ -1406,7 +1406,33 @@ void Spell::SelectImplicitAreaTargets(SpellEffIndex effIndex, SpellImplicitTarge
             break;
     }
 
-    SearchAreaTargets(targets, radius, center, referer, targetType.GetObjectType(), targetType.GetCheckType(), m_spellInfo->Effects[effIndex].ImplicitTargetConditions, Acore::WorldObjectSpellAreaTargetSearchReason::Area, targetType.GetReferenceType());
+    switch (targetType.GetTarget())
+    {
+        case TARGET_UNIT_CASTER_AND_PASSENGERS:
+            targets.push_back(m_caster);
+            if (Unit* unit = m_caster->ToUnit())
+                if (Vehicle const* vehicleKit = unit->GetVehicleKit())
+                    for (int8 seat = 0; seat < MAX_VEHICLE_SEATS; ++seat)
+                        if (Unit* passenger = vehicleKit->GetPassenger(seat))
+                            targets.push_back(passenger);
+            break;
+        case TARGET_UNIT_TARGET_ALLY_OR_RAID:
+            if (Unit* targetedUnit = m_targets.GetUnitTarget())
+            {
+                if (!m_caster->IsUnit() || !m_caster->ToUnit()->IsInRaidWith(targetedUnit))
+                    targets.push_back(targetedUnit);
+                else
+                    SearchAreaTargets(targets, radius, targetedUnit, referer, targetType.GetObjectType(), targetType.GetCheckType(), m_spellInfo->Effects[effIndex].ImplicitTargetConditions, Acore::WorldObjectSpellAreaTargetSearchReason::Area, targetType.GetReferenceType());
+            }
+            break;
+        case TARGET_UNIT_CASTER_AND_SUMMONS:
+            targets.push_back(m_caster);
+            SearchAreaTargets(targets, radius, center, referer, targetType.GetObjectType(), targetType.GetCheckType(), m_spellInfo->Effects[effIndex].ImplicitTargetConditions, Acore::WorldObjectSpellAreaTargetSearchReason::Area, targetType.GetReferenceType());
+            break;
+        default:
+            SearchAreaTargets(targets, radius, center, referer, targetType.GetObjectType(), targetType.GetCheckType(), m_spellInfo->Effects[effIndex].ImplicitTargetConditions, Acore::WorldObjectSpellAreaTargetSearchReason::Area, targetType.GetReferenceType());
+            break;
+    }
 
     CallScriptObjectAreaTargetSelectHandlers(targets, effIndex, targetType);
 
@@ -1439,6 +1465,9 @@ void Spell::SelectImplicitCasterDestTargets(SpellEffIndex effIndex, SpellImplici
     {
         case TARGET_DEST_CASTER:
         case TARGET_DEST_CASTER_36:
+            break;
+        case TARGET_DEST_CASTER_GROUND_2:
+            dest._position.m_positionZ = m_caster->GetMapWaterOrGroundLevel(dest._position.GetPositionX(), dest._position.GetPositionY(), dest._position.GetPositionZ());
             break;
         case TARGET_DEST_HOME:
             if (Player* playerCaster = m_caster->ToPlayer())
@@ -1897,6 +1926,10 @@ void Spell::SelectImplicitCasterObjectTargets(SpellEffIndex effIndex, SpellImpli
             if (Unit* unitCaster = m_caster->ToUnit())
                 if (unitCaster->IsCreature() && unitCaster->ToCreature()->IsVehicle())
                     target = unitCaster->GetVehicleKit()->GetPassenger(targetType.GetTarget() - TARGET_UNIT_PASSENGER_0);
+            break;
+        case TARGET_UNIT_TARGET_TAP_LIST:
+            if (Creature* creatureCaster = m_caster->ToCreature())
+                target = creatureCaster->GetLootRecipient();
             break;
         default:
             break;
@@ -9495,6 +9528,22 @@ namespace Acore
                     break;
                 case TARGET_CHECK_CORPSE:
                     if (_caster->IsFriendlyTo(unitTarget))
+                        return false;
+                    break;
+                case TARGET_CHECK_SUMMONED:
+                    if (!unitTarget->IsSummon())
+                        return false;
+                    if (unitTarget->ToTempSummon()->GetSummonerGUID() != _caster->GetGUID())
+                        return false;
+                    break;
+                case TARGET_CHECK_THREAT:
+                    if (!refUnit || refUnit->GetThreatMgr().GetThreat(unitTarget, true) <= 0.0f)
+                        return false;
+                    break;
+                case TARGET_CHECK_TAP:
+                    if (!_referer->IsCreature() || !unitTarget->IsPlayer())
+                        return false;
+                    if (!_referer->ToCreature()->isTappedBy(unitTarget->ToPlayer()))
                         return false;
                     break;
                 case TARGET_CHECK_ENTRY:

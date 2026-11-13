@@ -419,7 +419,19 @@ enum AuraType
     SPELL_AURA_MOD_DAMAGE_FROM_MANA                        = 356,
     SPELL_AURA_ENABLE_BOSS1_UNIT_FRAME                     = 357,
     SPELL_AURA_WORGEN_ALTERED_FORM                         = 358,
-    TOTAL_AURAS                                             = 359
+    SPELL_AURA_359                                         = 359,
+    SPELL_AURA_PROC_TRIGGER_SPELL_COPY                     = 360, // Procs the same spell that caused this proc (Dragonwrath, Tarecgosa's Rest)
+    SPELL_AURA_OVERRIDE_AUTOATTACK_WITH_MELEE_SPELL        = 361,
+    SPELL_AURA_362                                         = 362, // Not used in 4.3.4
+    SPELL_AURA_MOD_NEXT_SPELL                              = 363, // Used by 101601 Throw Totem - the client starts a cast of the given spell
+    SPELL_AURA_364                                         = 364, // Not used in 4.3.4
+    SPELL_AURA_MAX_FAR_CLIP_PLANE                          = 365, // Client side view distance override
+    SPELL_AURA_OVERRIDE_SPELL_POWER_BY_AP_PCT              = 366, // Spell power equals a % of attack power, other bonuses are discarded
+    SPELL_AURA_OVERRIDE_AUTOATTACK_WITH_RANGED_SPELL       = 367,
+    SPELL_AURA_368                                         = 368, // Not used in 4.3.4
+    SPELL_AURA_ENABLE_POWER_BAR_TIMER                      = 369,
+    SPELL_AURA_SET_FAIR_FAR_CLIP                           = 370, // Client side view distance override
+    TOTAL_AURAS                                             = 371
 };
 
 enum AuraObjectType

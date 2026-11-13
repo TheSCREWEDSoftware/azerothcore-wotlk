@@ -8799,6 +8799,11 @@ float Unit::processDummyAuras(float TakenTotalMod) const
 
 int32 Unit::SpellBaseDamageBonusDone(SpellSchoolMask schoolMask)
 {
+    // SPELL_AURA_OVERRIDE_SPELL_POWER_BY_AP_PCT replaces every other bonus
+    if (IsPlayer())
+        if (float overrideSP = GetFloatValue(PLAYER_FIELD_OVERRIDE_SPELL_POWER_BY_AP_PCT); overrideSP > 0.0f)
+            return int32(CalculatePct(GetTotalAttackPowerValue(BASE_ATTACK), overrideSP) + 0.5f);
+
     int32 DoneAdvertisedBenefit = GetTotalAuraModifier(SPELL_AURA_MOD_DAMAGE_DONE, [schoolMask](AuraEffect const* aurEff)
     {
        return aurEff->GetMiscValue() & schoolMask &&
@@ -9567,6 +9572,11 @@ uint32 Unit::SpellHealingBonusTaken(Unit* caster, SpellInfo const* spellProto, u
 
 int32 Unit::SpellBaseHealingBonusDone(SpellSchoolMask schoolMask)
 {
+    // SPELL_AURA_OVERRIDE_SPELL_POWER_BY_AP_PCT replaces every other bonus
+    if (IsPlayer())
+        if (float overrideSP = GetFloatValue(PLAYER_FIELD_OVERRIDE_SPELL_POWER_BY_AP_PCT); overrideSP > 0.0f)
+            return int32(CalculatePct(GetTotalAttackPowerValue(BASE_ATTACK), overrideSP) + 0.5f);
+
     int32 AdvertisedBenefit = 0;
 
     AdvertisedBenefit += GetTotalAuraModifier(SPELL_AURA_MOD_HEALING_DONE, [schoolMask](AuraEffect const* aurEff)

@@ -421,6 +421,18 @@ pAuraEffectHandler AuraEffectHandler[TOTAL_AURAS] =
     &AuraEffect::HandleNULL,                                      //356 excluded
     &AuraEffect::HandleNULL,                                      //357 excluded
     &AuraEffect::HandleNULL,                                      //358 SPELL_AURA_WORGEN_ALTERED_FORM
+    &AuraEffect::HandleNULL,                                      //359 SPELL_AURA_359
+    &AuraEffect::HandleNoImmediateEffect,                         //360 SPELL_AURA_PROC_TRIGGER_SPELL_COPY implemented in AuraEffect::HandleProc
+    &AuraEffect::HandleNULL,                                      //361 SPELL_AURA_OVERRIDE_AUTOATTACK_WITH_MELEE_SPELL
+    &AuraEffect::HandleUnused,                                    //362 unused (4.3.4)
+    &AuraEffect::HandleNULL,                                      //363 SPELL_AURA_MOD_NEXT_SPELL
+    &AuraEffect::HandleUnused,                                    //364 unused (4.3.4)
+    &AuraEffect::HandleNULL,                                      //365 SPELL_AURA_MAX_FAR_CLIP_PLANE
+    &AuraEffect::HandleOverrideSpellPowerByAttackPower,           //366 SPELL_AURA_OVERRIDE_SPELL_POWER_BY_AP_PCT
+    &AuraEffect::HandleNULL,                                      //367 SPELL_AURA_OVERRIDE_AUTOATTACK_WITH_RANGED_SPELL
+    &AuraEffect::HandleUnused,                                    //368 unused (4.3.4)
+    &AuraEffect::HandleNULL,                                      //369 SPELL_AURA_ENABLE_POWER_BAR_TIMER
+    &AuraEffect::HandleNULL,                                      //370 SPELL_AURA_SET_FAIR_FAR_CLIP
 };
 
 AuraEffect::AuraEffect(Aura* base, uint8 effIndex, int32* baseAmount, Unit* caster):
@@ -1298,6 +1310,11 @@ bool AuraEffect::CheckEffectProc(AuraApplication* aurApp, ProcEventInfo& eventIn
             if (GetCasterGUID() != eventInfo.GetActor()->GetGUID())
                 return false;
             break;
+        case SPELL_AURA_PROC_TRIGGER_SPELL_COPY:
+            // needs a spell to copy
+            if (!eventInfo.GetSpellInfo())
+                return false;
+            break;
         case SPELL_AURA_PROC_TRIGGER_SPELL:
         case SPELL_AURA_PROC_TRIGGER_SPELL_WITH_VALUE:
         {
@@ -1349,6 +1366,9 @@ void AuraEffect::HandleProc(AuraApplication* aurApp, ProcEventInfo& eventInfo)
             break;
         case SPELL_AURA_PROC_TRIGGER_SPELL_WITH_VALUE:
             HandleProcTriggerSpellWithValueAuraProc(aurApp, eventInfo);
+            break;
+        case SPELL_AURA_PROC_TRIGGER_SPELL_COPY:
+            HandleProcTriggerSpellCopyAuraProc(aurApp, eventInfo);
             break;
         case SPELL_AURA_PROC_TRIGGER_DAMAGE:
             HandleProcTriggerDamageAuraProc(aurApp, eventInfo);
@@ -5026,6 +5046,19 @@ void AuraEffect::HandleAuraModAttackPowerOfArmor(AuraApplication const* aurApp, 
 /********************************/
 /***        DAMAGE BONUS      ***/
 /********************************/
+void AuraEffect::HandleOverrideSpellPowerByAttackPower(AuraApplication const* aurApp, uint8 mode, bool apply) const
+{
+    if (!(mode & (AURA_EFFECT_HANDLE_CHANGE_AMOUNT_MASK | AURA_EFFECT_HANDLE_STAT)))
+        return;
+
+    Player* target = aurApp->GetTarget()->ToPlayer();
+    if (!target)
+        return;
+
+    target->ApplyModSignedFloatValue(PLAYER_FIELD_OVERRIDE_SPELL_POWER_BY_AP_PCT, float(GetAmount()), apply);
+    target->UpdateSpellDamageAndHealingBonus();
+}
+
 void AuraEffect::HandleModDamageDone(AuraApplication const* aurApp, uint8 mode, bool apply) const
 {
     if (!(mode & (AURA_EFFECT_HANDLE_CHANGE_AMOUNT_MASK | AURA_EFFECT_HANDLE_STAT)))
@@ -6984,6 +7017,19 @@ void AuraEffect::HandleProcTriggerSpellWithValueAuraProc(AuraApplication* aurApp
     {
         LOG_DEBUG("spells.aura", "AuraEffect::HandleProcTriggerSpellWithValueAuraProc: Could not trigger spell {} from aura {} proc, because the spell does not have an entry in Spell.dbc.", triggerSpellId, GetId());
     }
+}
+
+void AuraEffect::HandleProcTriggerSpellCopyAuraProc(AuraApplication* aurApp, ProcEventInfo& eventInfo)
+{
+    SpellInfo const* copiedSpellInfo = eventInfo.GetSpellInfo();
+    if (!copiedSpellInfo)
+        return;
+
+    Unit* triggerCaster = aurApp->GetTarget();
+    Unit* triggerTarget = triggerCaster == eventInfo.GetActor() ? eventInfo.GetActionTarget() : eventInfo.GetActor();
+
+    LOG_DEBUG("spells.aura", "AuraEffect::HandleProcTriggerSpellCopyAuraProc: Triggering spell {} from aura {} proc", copiedSpellInfo->Id, GetId());
+    triggerCaster->CastSpell(triggerTarget, copiedSpellInfo->Id, TriggerCastFlags(TRIGGERED_FULL_MASK & ~(TRIGGERED_IGNORE_POWER_AND_REAGENT_COST)), nullptr, this);
 }
 
 void AuraEffect::HandleProcTriggerDamageAuraProc(AuraApplication* aurApp, ProcEventInfo& eventInfo)

@@ -121,6 +121,9 @@ enum SpellTargetCheckTypes
     TARGET_CHECK_RAID_CLASS,
     TARGET_CHECK_PASSENGER,
     TARGET_CHECK_CORPSE,
+    TARGET_CHECK_SUMMONED,
+    TARGET_CHECK_THREAT,
+    TARGET_CHECK_TAP,
 };
 
 enum SpellTargetDirectionTypes

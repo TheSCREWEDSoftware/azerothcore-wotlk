@@ -1604,13 +1604,38 @@ enum Targets
     TARGET_UNIT_PASSENGER_5            = 101,
     TARGET_UNIT_PASSENGER_6            = 102,
     TARGET_UNIT_PASSENGER_7            = 103,
-    TARGET_UNIT_CONE_ENEMY_104         = 104,
-    TARGET_UNIT_UNK_105                = 105, // 1 spell
-    TARGET_DEST_CHANNEL_CASTER         = 106,
-    TARGET_UNK_DEST_AREA_UNK_107       = 107, // not enough info - only generic spells avalible
-    TARGET_GAMEOBJECT_CONE             = 108,
-    TARGET_DEST_UNK_110                = 110, // 1 spell
-    TOTAL_SPELL_TARGETS
+    TARGET_UNIT_CONE_CASTER_TO_DEST_ENEMY       = 104,
+    TARGET_UNIT_CASTER_AND_PASSENGERS           = 105,
+    TARGET_DEST_CHANNEL_CASTER                  = 106,
+    TARGET_DEST_NEARBY_ENTRY_2                  = 107,
+    TARGET_GAMEOBJECT_CONE_CASTER_TO_DEST_ENEMY = 108,
+    TARGET_GAMEOBJECT_CONE_CASTER_TO_DEST_ALLY  = 109,
+    TARGET_UNIT_CONE_CASTER_TO_DEST_ENTRY       = 110, // 1 spell
+    TARGET_UNK_111                              = 111,
+    TARGET_DEST_TARGET_ANY_2                    = 112, // 1 spell
+    TARGET_UNK_113                              = 113,
+    TARGET_UNK_114                              = 114,
+    TARGET_UNK_115                              = 115,
+    TARGET_UNK_116                              = 116,
+    TARGET_UNK_117                              = 117,
+    TARGET_UNIT_TARGET_ALLY_OR_RAID             = 118, // If target is in your party or raid, all party and raid members will be affected
+    TARGET_CORPSE_SRC_AREA_RAID                 = 119,
+    TARGET_UNIT_CASTER_AND_SUMMONS              = 120,
+    TARGET_CORPSE_TARGET_ALLY                   = 121,
+    TARGET_UNIT_AREA_THREAT_LIST                = 122,
+    TARGET_UNIT_AREA_TAP_LIST                   = 123,
+    TARGET_UNIT_TARGET_TAP_LIST                 = 124,
+    TARGET_DEST_CASTER_GROUND_2                 = 125, // 1 spell in 4.3.4
+    TARGET_UNIT_AREA_ENEMY                      = 126, // 1 spell in 4.3.4
+    TARGET_UNK_127                              = 127,
+    TOTAL_SPELL_TARGETS,
+
+    // WotLK names
+    TARGET_UNIT_CONE_ENEMY_104                  = TARGET_UNIT_CONE_CASTER_TO_DEST_ENEMY,
+    TARGET_UNIT_UNK_105                         = TARGET_UNIT_CASTER_AND_PASSENGERS,
+    TARGET_UNK_DEST_AREA_UNK_107                = TARGET_DEST_NEARBY_ENTRY_2,
+    TARGET_GAMEOBJECT_CONE                      = TARGET_GAMEOBJECT_CONE_CASTER_TO_DEST_ENEMY,
+    TARGET_DEST_UNK_110                         = TARGET_UNIT_CONE_CASTER_TO_DEST_ENTRY
 };
 
 enum SpellMissInfo

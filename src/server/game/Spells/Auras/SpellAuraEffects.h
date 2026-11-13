@@ -298,6 +298,7 @@ public:
     void HandleAuraModAttackPowerOfArmor(AuraApplication const* aurApp, uint8 mode, bool apply) const;
     //   damage bonus
     void HandleModDamageDone(AuraApplication const* aurApp, uint8 mode, bool apply) const;
+    void HandleOverrideSpellPowerByAttackPower(AuraApplication const* aurApp, uint8 mode, bool apply) const;
     void HandleModDamagePercentDone(AuraApplication const* aurApp, uint8 mode, bool apply) const;
     void HandleModOffhandDamagePercent(AuraApplication const* aurApp, uint8 mode, bool apply) const;
     void HandleShieldBlockValue(AuraApplication const* aurApp, uint8 mode, bool apply) const;
@@ -342,6 +343,7 @@ public:
     void HandleBreakableCCAuraProc(AuraApplication* aurApp, ProcEventInfo& eventInfo);
     void HandleProcTriggerSpellAuraProc(AuraApplication* aurApp, ProcEventInfo& eventInfo);
     void HandleProcTriggerSpellWithValueAuraProc(AuraApplication* aurApp, ProcEventInfo& eventInfo);
+    void HandleProcTriggerSpellCopyAuraProc(AuraApplication* aurApp, ProcEventInfo& eventInfo);
     void HandleProcTriggerDamageAuraProc(AuraApplication* aurApp, ProcEventInfo& eventInfo);
     void HandleRaidProcFromChargeAuraProc(AuraApplication* aurApp, ProcEventInfo& eventInfo);
     void HandleRaidProcFromChargeWithValueAuraProc(AuraApplication* aurApp, ProcEventInfo& eventInfo);
