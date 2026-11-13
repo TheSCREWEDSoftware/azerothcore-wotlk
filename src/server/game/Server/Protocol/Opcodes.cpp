@@ -645,6 +645,7 @@ void OpcodeTable::Initialize()
     /*0x6105*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_SELL_ITEM,                                          STATUS_NEVER);
     /*0x0736*/ DEFINE_HANDLER(CMSG_BUY_ITEM,                                                         STATUS_LOGGEDIN,   PROCESS_INPLACE,        &WorldSession::HandleBuyItemOpcode                      );
     /*0x01A3*/ DEFINE_HANDLER(CMSG_BUY_ITEM_IN_SLOT,                                                 STATUS_LOGGEDIN,   PROCESS_INPLACE,        &WorldSession::HandleBuyItemInSlotOpcode                );
+    /*0x331A*/ DEFINE_HANDLER(CMSG_REFORGE_ITEM,                                                     STATUS_LOGGEDIN,   PROCESS_INPLACE,        &WorldSession::HandleReforgeItemOpcode                  );
     /*0x0F26*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_BUY_ITEM,                                           STATUS_NEVER);
     /*0x6435*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_BUY_FAILED,                                         STATUS_NEVER);
     /*0x0000*/ DEFINE_HANDLER(CMSG_TAXICLEARALLNODES,                                                STATUS_NEVER,      PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );
@@ -1494,6 +1495,8 @@ void OpcodeTable::Initialize()
     /*0x04B0*/ DEFINE_HANDLER(CMSG_SET_ARENA_MEMBER_WEEKLY_GAMES,                                    STATUS_NEVER,      PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );
     /*0x04B1*/ DEFINE_HANDLER(CMSG_SET_ARENA_MEMBER_SEASON_GAMES,                                    STATUS_NEVER,      PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );
     /*0x15A3*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_ITEM_REFUND_INFO_RESPONSE,                          STATUS_NEVER);
+    /*0x58A4*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_REFORGE_RESULT,                                     STATUS_NEVER);
+    /*0x70B7*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_FORGE_MASTER_SET,                                   STATUS_NEVER);
     /*0x2206*/ DEFINE_HANDLER(CMSG_ITEM_REFUND_INFO,                                                 STATUS_LOGGEDIN,   PROCESS_INPLACE,        &WorldSession::HandleItemRefundInfoRequest              );
     /*0x6134*/ DEFINE_HANDLER(CMSG_ITEM_REFUND,                                                      STATUS_LOGGEDIN,   PROCESS_INPLACE,        &WorldSession::HandleItemRefund                         );
     /*0x5DB1*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_ITEM_REFUND_RESULT,                                 STATUS_NEVER);

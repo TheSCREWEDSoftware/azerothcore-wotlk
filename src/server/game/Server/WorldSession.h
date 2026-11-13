@@ -110,6 +110,11 @@ namespace WorldPackets
         class TotemDestroyed;
     }
 
+    namespace Reforge
+    {
+        class ReforgeItem;
+    }
+
     namespace Bank
     {
         class AutoBankItem;
@@ -959,6 +964,11 @@ public:                                                 // opcodes handlers
     void HandleSellItemOpcode(WorldPackets::Item::SellItem& packet);
     void HandleBuyItemInSlotOpcode(WorldPackets::Item::BuyItemInSlot& packet);
     void HandleBuyItemOpcode(WorldPackets::Item::BuyItem& packet);
+
+    // Cata Reforging
+    void SendReforgeResult(bool success);
+    void HandleReforgeItemOpcode(WorldPackets::Reforge::ReforgeItem& packet);
+
     void HandleListInventoryOpcode(WorldPackets::Item::ListInventory& packet);
     void HandleAutoStoreBagItemOpcode(WorldPackets::Item::AutoStoreBagItem& packet);
     void HandleReadItem(WorldPackets::Item::ReadItem& packet);

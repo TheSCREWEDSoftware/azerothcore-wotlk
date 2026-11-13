@@ -118,6 +118,7 @@ DBCStorage <ItemDisplayInfoEntry> sItemDisplayInfoStore(ItemDisplayTemplateEntry
 DBCStorage <ItemExtendedCostEntry> sItemExtendedCostStore(ItemExtendedCostEntryfmt);
 DBCStorage <ItemLimitCategoryEntry> sItemLimitCategoryStore(ItemLimitCategoryEntryfmt);
 DBCStorage <ItemPriceBaseEntry>           sItemPriceBaseStore(ItemPriceBasefmt);
+DBCStorage <ItemReforgeEntry>             sItemReforgeStore(ItemReforgefmt);
 DBCStorage <ItemRandomPropertiesEntry> sItemRandomPropertiesStore(ItemRandomPropertiesfmt);
 DBCStorage <ItemRandomSuffixEntry> sItemRandomSuffixStore(ItemRandomSuffixfmt);
 DBCStorage <ItemSetEntry> sItemSetStore(ItemSetEntryfmt);
@@ -371,6 +372,7 @@ void LoadDBCStores(std::string const& dataPath)
     LOAD_DBC(sItemExtendedCostStore,                "ItemExtendedCost.db2",                 "itemextendedcost_dbc"); // Cata: ItemExtendedCost.dbc replaced by WDB2-format ItemExtendedCost.db2
     LOAD_DBC(sItemLimitCategoryStore,               "ItemLimitCategory.dbc",                "itemlimitcategory_dbc");
     LOAD_DBC(sItemPriceBaseStore,                   "ItemPriceBase.dbc",                    nullptr);
+    LOAD_DBC(sItemReforgeStore,                     "ItemReforge.dbc",                      nullptr);
     LOAD_DBC(sItemRandomPropertiesStore,            "ItemRandomProperties.dbc",             "itemrandomproperties_dbc");
     LOAD_DBC(sItemRandomSuffixStore,                "ItemRandomSuffix.dbc",                 "itemrandomsuffix_dbc");
     LOAD_DBC(sItemSetStore,                         "ItemSet.dbc",                          "itemset_dbc");

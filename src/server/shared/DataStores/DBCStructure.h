@@ -1324,6 +1324,15 @@ struct ItemPriceBaseEntry
     float Weapon;                                           // 3        Price factor for weapons
 };
 
+struct ItemReforgeEntry
+{
+    uint32 ID;                                              // 0
+    uint32 Source_stat;                                     // 1        ItemModType
+    float Source_multiplier;                                // 2
+    uint32 Target_stat;                                     // 3        ItemModType
+    float Target_multiplier;                                // 4
+};
+
 #define MAX_ITEM_ENCHANTMENT_EFFECTS 5
 
 struct ItemRandomPropertiesEntry

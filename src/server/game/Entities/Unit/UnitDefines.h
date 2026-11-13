@@ -346,6 +346,7 @@ enum NPCFlags : uint32
     UNIT_NPC_FLAG_SPELLCLICK                = 0x01000000,       // TITLE has spell click enabled DESCRIPTION cause client to send 1015 opcode (spell click)
     UNIT_NPC_FLAG_PLAYER_VEHICLE            = 0x02000000,       // TITLE is player vehicle DESCRIPTION players with mounts that have vehicle data should have it set
     UNIT_NPC_FLAG_MAILBOX                   = 0x04000000,       // TITLE is mailbox
+    UNIT_NPC_FLAG_REFORGER                  = 0x08000000,       // TITLE can reforge items (Cata)
 
     UNIT_NPC_FLAG_VENDOR_MASK = UNIT_NPC_FLAG_VENDOR | UNIT_NPC_FLAG_VENDOR_AMMO | UNIT_NPC_FLAG_VENDOR_POISON | UNIT_NPC_FLAG_VENDOR_REAGENT
 };

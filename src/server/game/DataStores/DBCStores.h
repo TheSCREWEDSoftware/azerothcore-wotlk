@@ -152,6 +152,7 @@ extern DBCStorage <ItemDisplayInfoEntry>         sItemDisplayInfoStore;
 extern DBCStorage <ItemExtendedCostEntry>        sItemExtendedCostStore;
 extern DBCStorage <ItemLimitCategoryEntry>       sItemLimitCategoryStore;
 extern DBCStorage <ItemPriceBaseEntry>           sItemPriceBaseStore;
+extern DBCStorage <ItemReforgeEntry>             sItemReforgeStore;
 extern DBCStorage <ItemRandomPropertiesEntry>    sItemRandomPropertiesStore;
 extern DBCStorage <ItemRandomSuffixEntry>        sItemRandomSuffixStore;
 extern DBCStorage <ItemSetEntry>                 sItemSetStore;

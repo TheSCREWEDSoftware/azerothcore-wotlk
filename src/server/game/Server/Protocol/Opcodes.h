@@ -295,6 +295,7 @@ enum OpcodeClient : uint16
     CMSG_SELL_ITEM                                  = 0x4E15,
     CMSG_BUY_ITEM                                   = 0x0736,
     CMSG_BUY_ITEM_IN_SLOT                           = 0x1A3,
+    CMSG_REFORGE_ITEM                               = 0x331A,
     CMSG_TAXICLEARALLNODES                          = 0x0000,
     CMSG_TAXIENABLEALLNODES                         = 0x0000,
     CMSG_TAXISHOWNODES                              = 0x0000,
@@ -1332,6 +1333,8 @@ enum OpcodeServer : uint16
     SMSG_CLIENTCACHE_VERSION                        = 0x2734,
     SMSG_ITEM_REFUND_INFO_RESPONSE                  = 0x15A3,
     SMSG_ITEM_REFUND_RESULT                         = 0x5DB1,
+    SMSG_REFORGE_RESULT                             = 0x58A4,
+    SMSG_FORGE_MASTER_SET                           = 0x70B7, // never sent, see ReforgePackets.h
     SMSG_CORPSE_MAP_POSITION_QUERY_RESPONSE         = 0x0E35, // 3*float+float
     SMSG_CALENDAR_CLEAR_PENDING_ACTION              = 0x2106,
     SMSG_EQUIPMENT_SET_LIST                         = 0x2E04, // equipment manager list?

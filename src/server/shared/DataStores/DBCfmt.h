@@ -87,6 +87,7 @@ char constexpr ItemDisplayTemplateEntryfmt[] = "nxxxxsxxxxxxxxxxxxxxxxxxx";
 char constexpr ItemExtendedCostEntryfmt[] = "niiiiiiiiiiiiiiiiiiiiiiiiiiiiii";
 char constexpr ItemLimitCategoryEntryfmt[] = "nxii";
 char constexpr ItemPriceBasefmt[] = "diff";
+char constexpr ItemReforgefmt[] = "nifif";
 char constexpr ItemRandomPropertiesfmt[] = "nxiiiiiS";
 char constexpr ItemRandomSuffixfmt[] = "nSxiiiiiiiiii";
 char constexpr ItemSetEntryfmt[] = "dSiiiiiiiiiixxxxxxxiiiiiiiiiiiiiiiiii";

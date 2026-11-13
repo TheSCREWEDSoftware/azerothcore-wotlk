@@ -32,6 +32,7 @@
 
 #include "ItemPackets.h"
 #include "NPCPackets.h"
+#include "ReforgePackets.h"
 
 void WorldSession::HandleSplitItemOpcode(WorldPackets::Item::SplitItem& packet)
 {
@@ -883,6 +884,104 @@ void WorldSession::HandleBuyItemOpcode(WorldPackets::Item::BuyItem& packet)
         bag = INVENTORY_SLOT_BAG_0;
 
     GetPlayer()->BuyItemFromVendorSlot(packet.VendorGuid, packet.Slot, packet.Item, packet.Count, bag, packet.BagSlot);
+}
+
+void WorldSession::SendReforgeResult(bool success)
+{
+    WorldPackets::Reforge::ReforgeResult packet;
+    packet.Success = success;
+    SendPacket(packet.Write());
+}
+
+void WorldSession::HandleReforgeItemOpcode(WorldPackets::Reforge::ReforgeItem& packet)
+{
+    Player* player = GetPlayer();
+
+    if (!player->GetNPCIfCanInteractWith(packet.ReforgerGUID, UNIT_NPC_FLAG_REFORGER))
+    {
+        LOG_DEBUG("network", "HandleReforgeItemOpcode: {} not found or player can't interact with it.",
+            packet.ReforgerGUID.ToString());
+        SendReforgeResult(false);
+        return;
+    }
+
+    Item* item = player->GetItemByPos(uint8(packet.ContainerId), uint8(packet.SlotNum));
+    if (!item)
+    {
+        LOG_DEBUG("network", "HandleReforgeItemOpcode: {} tried to reforge an invalid/non-existant item.",
+            player->GetGUID().ToString());
+        SendReforgeResult(false);
+        return;
+    }
+
+    // Packet spoofing check: the client does not allow reforging items below item level 200
+    if (item->GetTemplate()->ItemLevel < 200)
+    {
+        LOG_ERROR("network", "HandleReforgeItemOpcode: {} tried to reforge item (Entry: {}) below item level 200. "
+            "Probably cheater.", player->GetGUID().ToString(), item->GetEntry());
+        SendReforgeResult(false);
+        return;
+    }
+
+    if (!packet.Enchantment)
+    {
+        if (!item->GetEnchantmentId(REFORGE_ENCHANTMENT_SLOT))
+        {
+            LOG_ERROR("network", "HandleReforgeItemOpcode: {} tried to unreforge a non-reforged item (Entry: {})",
+                player->GetGUID().ToString(), item->GetEntry());
+            SendReforgeResult(false);
+            return;
+        }
+
+        // Reset the item
+        if (item->IsEquipped())
+            player->ApplyReforgeEnchantment(item, false);
+
+        item->ClearEnchantment(REFORGE_ENCHANTMENT_SLOT);
+        SendReforgeResult(true);
+        return;
+    }
+
+    if (item->GetEnchantmentId(REFORGE_ENCHANTMENT_SLOT))
+    {
+        LOG_ERROR("network", "HandleReforgeItemOpcode: {} tried to reforge an already reforged item (Entry: {})",
+            player->GetGUID().ToString(), item->GetEntry());
+        SendReforgeResult(false);
+        return;
+    }
+
+    ItemReforgeEntry const* stats = sItemReforgeStore.LookupEntry(packet.Enchantment);
+    if (!stats)
+    {
+        LOG_DEBUG("network", "HandleReforgeItemOpcode: {} tried to reforge an item with invalid reforge entry ({}).",
+            player->GetGUID().ToString(), packet.Enchantment);
+        SendReforgeResult(false);
+        return;
+    }
+
+    // Cheating: you can't reforge to a stat the item already has, nor from a stat the item does not have
+    if (!item->GetReforgableStat(ItemModType(stats->Source_stat)) ||
+        item->GetReforgableStat(ItemModType(stats->Target_stat)))
+    {
+        SendReforgeResult(false);
+        return;
+    }
+
+    uint32 const cost = item->GetSpecialPrice();
+    if (!player->HasEnoughMoney(cost)) // cheating
+    {
+        SendReforgeResult(false);
+        return;
+    }
+
+    player->ModifyMoney(-int32(cost));
+
+    item->SetEnchantment(REFORGE_ENCHANTMENT_SLOT, packet.Enchantment, 0, 0);
+
+    SendReforgeResult(true);
+
+    if (item->IsEquipped())
+        player->ApplyReforgeEnchantment(item, true);
 }
 
 void WorldSession::HandleListInventoryOpcode(WorldPackets::Item::ListInventory& packet)
