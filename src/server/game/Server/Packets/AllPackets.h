@@ -28,6 +28,7 @@
 #include "CombatPackets.h"
 #include "GuildFinderPackets.h"
 #include "GuildPackets.h"
+#include "InspectPackets.h"
 #include "InstancePackets.h"
 #include "ItemPackets.h"
 #include "LFGPackets.h"

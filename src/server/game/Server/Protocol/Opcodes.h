@@ -28,6 +28,8 @@
 /// Lists of opcodes by wire direction
 enum OpcodeClient : uint16
 {
+    CMSG_REQUEST_INSPECT_RATED_BG_STATS             = 0x3010,
+    CMSG_REQUEST_HONOR_STATS                        = 0x791E,
     CMSG_SET_EVERYONE_IS_ASSISTANT                  = 0x2530,
     CMSG_SET_ROLE                                   = 0x25B1,
     CMSG_PARTY_INVITE_RESPONSE                      = 0x0410,
@@ -508,7 +510,6 @@ enum OpcodeClient : uint16
     CMSG_MOVE_NOT_ACTIVE_MOVER                      = 0x7A1A,
     CMSG_BATTLEFIELD_STATUS                         = 0x2500,
     CMSG_BATTLEFIELD_PORT                           = 0x711A,
-    MSG_INSPECT_HONOR_STATS                         = 0x2D6,
     CMSG_BATTLEMASTER_HELLO                         = 0x0234,
     CMSG_MOVE_START_SWIM_CHEAT                      = 0x2D8,
     CMSG_MOVE_STOP_SWIM_CHEAT                       = 0x2D9,
@@ -807,6 +808,8 @@ enum OpcodeClient : uint16
 
 enum OpcodeServer : uint16
 {
+    SMSG_INSPECT_RATED_BG_STATS                     = 0x19A5,
+    SMSG_INSPECT_HONOR_STATS                        = 0x79A5,
     SMSG_LFG_SLOT_INVALID                           = 0x54B5,
     SMSG_LFG_SEARCH_RESULT                          = 0x54A1,
     SMSG_LFG_UPDATE_STATUS_NONE                     = 0x7CA1,
@@ -1588,8 +1591,6 @@ inline constexpr OpcodeServer MSG_MOVE_WATER_WALK_SERVER =
     static_cast<OpcodeServer>(MSG_MOVE_WATER_WALK);
 inline constexpr OpcodeServer MSG_PETITION_RENAME_SERVER =
     static_cast<OpcodeServer>(MSG_PETITION_RENAME);
-inline constexpr OpcodeServer MSG_INSPECT_HONOR_STATS_SERVER =
-    static_cast<OpcodeServer>(MSG_INSPECT_HONOR_STATS);
 inline constexpr OpcodeServer MSG_PVP_LOG_DATA_SERVER =
     static_cast<OpcodeServer>(MSG_PVP_LOG_DATA);
 inline constexpr OpcodeServer MSG_BATTLEGROUND_PLAYER_POSITIONS_SERVER =

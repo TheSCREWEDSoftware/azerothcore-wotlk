@@ -92,6 +92,12 @@ namespace WorldPackets
         class RequestRatedBgInfo;
     }
 
+    namespace Inspect
+    {
+        class RequestHonorStats;
+        class RequestInspectRatedBgStats;
+    }
+
     namespace LFG
     {
         class LFGBootPlayerVote;
@@ -792,7 +798,8 @@ public:                                                 // opcodes handlers
     void HandleInspectOpcode(WorldPacket& recvPacket);
 
     // new party stats
-    void HandleInspectHonorStatsOpcode(WorldPacket& recvPacket);
+    void HandleRequestHonorStatsOpcode(WorldPackets::Inspect::RequestHonorStats& packet);
+    void HandleRequestInspectRatedBgStatsOpcode(WorldPackets::Inspect::RequestInspectRatedBgStats& packet);
 
     void HandleMountSpecialAnimOpcode(WorldPacket& recvdata);
 

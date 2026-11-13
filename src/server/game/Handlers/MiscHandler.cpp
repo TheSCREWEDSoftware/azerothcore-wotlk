@@ -31,6 +31,7 @@
 #include "GossipDef.h"
 #include "Group.h"
 #include "GuildMgr.h"
+#include "InspectPackets.h"
 #include "InstancePackets.h"
 #include "InstanceScript.h"
 #include "Language.h"
@@ -1014,10 +1015,9 @@ void WorldSession::HandleInspectOpcode(WorldPacket& recv_data)
         return;
     }
 
-    uint32 talent_points = 0x47;
-    uint32 guid_size = player->GetPackGUID().size();
-    WorldPacket data(SMSG_INSPECT_TALENT, guid_size + 4 + talent_points);
-    data << player->GetPackGUID();
+    uint32 talent_points = 41;
+    WorldPacket data(SMSG_INSPECT_TALENT, 8 + 4 + 1 + 1 + talent_points + 8 + 4 + 8 + 4);
+    data << player->GetGUID();
 
     if (sWorld->getBoolConfig(CONFIG_TALENTS_INSPECTING) || _player->CanBeGameMaster())
     {
@@ -1031,39 +1031,58 @@ void WorldSession::HandleInspectOpcode(WorldPacket& recv_data)
     }
 
     player->BuildEnchantmentsInfoData(&data);
+    if (Guild* guild = sGuildMgr->GetGuildById(player->GetGuildId()))
+    {
+        data << guild->GetGUID();
+        data << uint32(guild->GetLevel());
+        data << uint64(guild->GetExperience());
+        data << uint32(guild->GetMemberCount());
+    }
     SendPacket(&data);
 }
 
-void WorldSession::HandleInspectHonorStatsOpcode(WorldPacket& recv_data)
+void WorldSession::HandleRequestHonorStatsOpcode(WorldPackets::Inspect::RequestHonorStats& packet)
 {
-    ObjectGuid guid;
-    recv_data >> guid;
-
-    Player* player = ObjectAccessor::GetPlayer(*_player, guid);
+    Player* player = ObjectAccessor::GetPlayer(*_player, packet.TargetGUID);
     if (!player)
     {
-        LOG_DEBUG("network", "MSG_INSPECT_HONOR_STATS: No player found from {}", guid.ToString());
+        LOG_DEBUG("network", "CMSG_REQUEST_HONOR_STATS: No player found from {}", packet.TargetGUID.ToString());
         return;
     }
 
     if (!GetPlayer()->IsWithinDistInMap(player, INSPECT_DISTANCE, false))
-    {
         return;
-    }
 
     if (GetPlayer()->IsValidAttackTarget(player))
+        return;
+
+    WorldPackets::Inspect::InspectHonorStats inspectHonorStats;
+    inspectHonorStats.PlayerGUID = player->GetGUID();
+    inspectHonorStats.LifetimeHK = player->GetUInt32Value(PLAYER_FIELD_LIFETIME_HONORABLE_KILLS);
+    inspectHonorStats.YesterdayHK = player->GetUInt16Value(PLAYER_FIELD_KILLS, 1);
+    inspectHonorStats.TodayHK = player->GetUInt16Value(PLAYER_FIELD_KILLS, 0);
+    SendPacket(inspectHonorStats.Write());
+}
+
+void WorldSession::HandleRequestInspectRatedBgStatsOpcode(WorldPackets::Inspect::RequestInspectRatedBgStats& packet)
+{
+    Player* player = ObjectAccessor::GetPlayer(*_player, packet.TargetGUID);
+    if (!player)
     {
+        LOG_DEBUG("network", "CMSG_REQUEST_INSPECT_RATED_BG_STATS: No player found from {}", packet.TargetGUID.ToString());
         return;
     }
 
-    WorldPacket data(MSG_INSPECT_HONOR_STATS, 8 + 1 + 4 * 4);
-    data << player->GetGUID();
-    data << uint8(player->GetHonorPoints());
-    data << uint32(player->GetUInt32Value(PLAYER_FIELD_KILLS));
-    data << uint32(player->GetTodayContribution());
-    data << uint32(player->GetYesterdayContribution());
-    data << uint32(player->GetUInt32Value(PLAYER_FIELD_LIFETIME_HONORABLE_KILLS));
-    SendPacket(&data);
+    if (!GetPlayer()->IsWithinDistInMap(player, INSPECT_DISTANCE, false))
+        return;
+
+    if (GetPlayer()->IsValidAttackTarget(player))
+        return;
+
+    // rated battlegrounds keep no per-player statistics yet
+    WorldPackets::Inspect::InspectRatedBgStats inspectRatedBgStats;
+    inspectRatedBgStats.PlayerGUID = player->GetGUID();
+    SendPacket(inspectRatedBgStats.Write());
 }
 
 void WorldSession::HandleWorldTeleportOpcode(WorldPacket& recv_data)

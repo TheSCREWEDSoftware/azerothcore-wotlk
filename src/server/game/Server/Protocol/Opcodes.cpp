@@ -244,6 +244,8 @@ void OpcodeTable::Initialize()
     /*0x34A3*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GUILD_PERMISSIONS_QUERY_RESULTS,                    STATUS_NEVER);
     /*0x10B2*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GUILD_EVENT_LOG_QUERY_RESULTS,                      STATUS_NEVER);
     /*0x30B4*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GUILD_RANKS,                                        STATUS_NEVER);
+    /*0x19A5*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_INSPECT_RATED_BG_STATS,                             STATUS_NEVER);
+    /*0x79A5*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_INSPECT_HONOR_STATS,                                STATUS_NEVER);
     /*0x54B5*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_LFG_SLOT_INVALID,                                   STATUS_NEVER);
     /*0x54A1*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_LFG_SEARCH_RESULT,                                  STATUS_NEVER);
     /*0x7CA1*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_LFG_UPDATE_STATUS_NONE,                             STATUS_NEVER);
@@ -865,6 +867,8 @@ void OpcodeTable::Initialize()
     /*0x1026*/ DEFINE_HANDLER(CMSG_GUILD_QUERY_RANKS,                                                STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildQueryRanksOpcode              );
     /*0x3032*/ DEFINE_HANDLER(CMSG_GUILD_ASSIGN_MEMBER_RANK,                                         STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildAssignRankOpcode              );
     /*0x1221*/ DEFINE_HANDLER(CMSG_GUILD_SWITCH_RANK,                                                STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildSwitchRankOpcode              );
+    /*0x3010*/ DEFINE_HANDLER(CMSG_REQUEST_INSPECT_RATED_BG_STATS,                                   STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleRequestInspectRatedBgStatsOpcode   );
+    /*0x791E*/ DEFINE_HANDLER(CMSG_REQUEST_HONOR_STATS,                                              STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleRequestHonorStatsOpcode            );
     /*0x2530*/ DEFINE_HANDLER(CMSG_SET_EVERYONE_IS_ASSISTANT,                                        STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleSetEveryoneIsAssistant             );
     /*0x25B1*/ DEFINE_HANDLER(CMSG_SET_ROLE,                                                         STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleSetRoleOpcode                      );
     /*0x0410*/ DEFINE_HANDLER(CMSG_PARTY_INVITE_RESPONSE,                                            STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandlePartyInviteResponseOpcode          );
@@ -1087,8 +1091,6 @@ void OpcodeTable::Initialize()
     /*0x2500*/ DEFINE_HANDLER(CMSG_BATTLEFIELD_STATUS,                                               STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleBattlefieldStatusOpcode            );
     /*0x7DA1*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_BATTLEFIELD_STATUS,                                 STATUS_NEVER);
     /*0x711A*/ DEFINE_HANDLER(CMSG_BATTLEFIELD_PORT,                                                 STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleBattleFieldPortOpcode              );
-    /*0x02D6*/ DEFINE_HANDLER(MSG_INSPECT_HONOR_STATS,                                               STATUS_LOGGEDIN,   PROCESS_INPLACE,        &WorldSession::HandleInspectHonorStatsOpcode            );
-    DEFINE_BIDIRECTIONAL_OPCODE(MSG_INSPECT_HONOR_STATS, MSG_INSPECT_HONOR_STATS, MSG_INSPECT_HONOR_STATS_SERVER);
     /*0x0234*/ DEFINE_HANDLER(CMSG_BATTLEMASTER_HELLO,                                               STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleBattlemasterHelloOpcode            );
     /*0x02D8*/ DEFINE_HANDLER(CMSG_MOVE_START_SWIM_CHEAT,                                            STATUS_NEVER,      PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );
     /*0x02D9*/ DEFINE_HANDLER(CMSG_MOVE_STOP_SWIM_CHEAT,                                             STATUS_NEVER,      PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );
