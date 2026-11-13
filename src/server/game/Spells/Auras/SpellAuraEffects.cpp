@@ -4845,12 +4845,16 @@ void AuraEffect::HandleModCombatSpeedPct(AuraApplication const* aurApp, uint8 mo
         target->ApplyAttackTimePercentMod(BASE_ATTACK, float(spellGroupVal), !apply);
         target->ApplyAttackTimePercentMod(OFF_ATTACK, float(spellGroupVal), !apply);
         target->ApplyAttackTimePercentMod(RANGED_ATTACK, float(spellGroupVal), !apply);
+
+        target->ApplyHasteRegenMod(float(spellGroupVal), !apply);
     }
 
     target->ApplyCastTimePercentMod(float(GetAmount()), apply);
     target->ApplyAttackTimePercentMod(BASE_ATTACK, float(GetAmount()), apply);
     target->ApplyAttackTimePercentMod(OFF_ATTACK, float(GetAmount()), apply);
     target->ApplyAttackTimePercentMod(RANGED_ATTACK, float(GetAmount()), apply);
+
+    target->ApplyHasteRegenMod(float(GetAmount()), apply);
 }
 
 void AuraEffect::HandleModAttackSpeed(AuraApplication const* aurApp, uint8 mode, bool apply) const
@@ -4878,9 +4882,13 @@ void AuraEffect::HandleModMeleeSpeedPct(AuraApplication const* aurApp, uint8 mod
     {
         target->ApplyAttackTimePercentMod(BASE_ATTACK, float(spellGroupVal), !apply);
         target->ApplyAttackTimePercentMod(OFF_ATTACK, float(spellGroupVal), !apply);
+
+        target->ApplyHasteRegenMod(float(spellGroupVal), !apply);
     }
     target->ApplyAttackTimePercentMod(BASE_ATTACK, float(GetAmount()), apply);
     target->ApplyAttackTimePercentMod(OFF_ATTACK,  float(GetAmount()), apply);
+
+    target->ApplyHasteRegenMod(float(GetAmount()), apply);
 }
 
 void AuraEffect::HandleAuraModRangedHaste(AuraApplication const* aurApp, uint8 mode, bool apply) const
@@ -4891,6 +4899,7 @@ void AuraEffect::HandleAuraModRangedHaste(AuraApplication const* aurApp, uint8 m
     Unit* target = aurApp->GetTarget();
 
     target->ApplyAttackTimePercentMod(RANGED_ATTACK, (float)GetAmount(), apply);
+    target->ApplyHasteRegenMod((float)GetAmount(), apply);
 }
 
 void AuraEffect::HandleRangedAmmoHaste(AuraApplication const* aurApp, uint8 mode, bool apply) const

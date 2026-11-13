@@ -983,6 +983,12 @@ void Player::UpdateEnergyRegen()
         return;
 
     float regenPerSecond = 10.f;   // +10 energy per second
+
+    // Haste speeds up energy regeneration
+    float const hasteRegen = GetFloatValue(PLAYER_FIELD_MOD_HASTE_REGEN);
+    if (hasteRegen > 0.f)
+        regenPerSecond /= hasteRegen;
+
     regenPerSecond *= GetTotalAuraMultiplierByMiscValue(SPELL_AURA_MOD_POWER_REGEN_PERCENT, POWER_ENERGY);
     regenPerSecond += static_cast<float>(GetTotalAuraModifierByMiscValue(SPELL_AURA_MOD_POWER_REGEN, POWER_ENERGY)) / static_cast<float>((5 * IN_MILLISECONDS));
 
@@ -1008,6 +1014,12 @@ void Player::UpdateRuneRegen(RuneType rune)
         return;
 
     float regen = float(1 * IN_MILLISECONDS) / float(cooldown);
+
+    // Haste speeds up rune recharge
+    float const hasteRegenMod = GetFloatValue(PLAYER_FIELD_MOD_HASTE_REGEN);
+    if (hasteRegenMod > 0.0f)
+        regen /= hasteRegenMod;
+
     SetFloatValue(PLAYER_RUNE_REGEN_1 + uint8(rune), regen);
 }
 

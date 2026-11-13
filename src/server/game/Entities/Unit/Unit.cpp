@@ -13170,6 +13170,28 @@ void Unit::ApplyAttackTimePercentMod(WeaponAttackType att, float val, bool apply
     m_attackTimer[att] = uint32(GetAttackTime(att) * m_modAttackSpeedPct[att] * remainingTimePct);
 }
 
+void Unit::ApplyHasteRegenMod(float val, bool apply)
+{
+    if (!IsPlayer())
+        return;
+
+    float amount = GetFloatValue(PLAYER_FIELD_MOD_HASTE_REGEN);
+
+    if (val > 0.f)
+        ApplyPercentModFloatVar(amount, val, !apply);
+    else
+        ApplyPercentModFloatVar(amount, -val, apply);
+
+    SetFloatValue(PLAYER_FIELD_MOD_HASTE_REGEN, amount);
+
+    Player* player = ToPlayer();
+    player->UpdateEnergyRegen();
+
+    if (getClass() == CLASS_DEATH_KNIGHT)
+        for (uint8 i = 0; i < NUM_RUNE_TYPES; ++i)
+            player->UpdateRuneRegen(RuneType(i));
+}
+
 void Unit::ApplyCastTimePercentMod(float val, bool apply)
 {
     float amount = GetFloatValue(UNIT_MOD_CAST_SPEED);

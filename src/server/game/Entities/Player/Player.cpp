@@ -5411,6 +5411,10 @@ void Player::ApplyRatingMod(CombatRating cr, int32 value, bool apply)
                 ApplyAttackTimePercentMod(OFF_ATTACK, oldVal, false);
                 ApplyAttackTimePercentMod(BASE_ATTACK, newVal, true);
                 ApplyAttackTimePercentMod(OFF_ATTACK, newVal, true);
+
+                // Haste rating also speeds up energy and rune regeneration
+                ApplyHasteRegenMod(oldVal, false);
+                ApplyHasteRegenMod(newVal, true);
                 break;
             case CR_HASTE_RANGED:
                 ApplyAttackTimePercentMod(RANGED_ATTACK, oldVal, false);
