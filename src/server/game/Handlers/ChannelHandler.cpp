@@ -27,13 +27,14 @@ void WorldSession::HandleJoinChannel(WorldPacket& recvPacket)
     uint32 channelId;
     std::string channelName, password;
 
+    // 5.4.8 18414, from Project SkyFire (WorldSession::HandleJoinChannel)
     recvPacket >> channelId;
     uint8 unknown1 = recvPacket.ReadBit();
+    uint32 channelLength = recvPacket.ReadBits(7);
+    uint32 passLength = recvPacket.ReadBits(7);
     uint8 unknown2 = recvPacket.ReadBit();
-    uint32 channelLength = recvPacket.ReadBits(8);
-    uint32 passLength = recvPacket.ReadBits(8);
-    channelName = recvPacket.ReadString(channelLength);
     password = recvPacket.ReadString(passLength);
+    channelName = recvPacket.ReadString(channelLength);
 
     LOG_DEBUG("chat.system", "CMSG_JOIN_CHANNEL {} Channel: {}, unk1: {}, unk2: {}, channel: {}, password: {}", GetPlayerInfo(), channelId, unknown1, unknown2, channelName, password);
     if (channelId)
@@ -82,7 +83,7 @@ void WorldSession::HandleLeaveChannel(WorldPacket& recvPacket)
 {
     uint32 unk;
     recvPacket >> unk;
-    std::string channelName = recvPacket.ReadString(recvPacket.ReadBits(8));
+    std::string channelName = recvPacket.ReadString(recvPacket.ReadBits(7));
 
     LOG_DEBUG("chat.system", "CMSG_LEAVE_CHANNEL {} Channel: {}, unk1: {}",
                    GetPlayerInfo(), channelName, unk);
@@ -96,7 +97,7 @@ void WorldSession::HandleLeaveChannel(WorldPacket& recvPacket)
 
 void WorldSession::HandleChannelList(WorldPacket& recvPacket)
 {
-    std::string channelName = recvPacket.ReadString(recvPacket.ReadBits(8));
+    std::string channelName = recvPacket.ReadString(recvPacket.ReadBits(7));
 
     LOG_DEBUG("chat.system", "{} {} Channel: {}",
                    recvPacket.GetOpcode() == CMSG_CHAT_CHANNEL_DISPLAY_LIST ? "CMSG_CHAT_CHANNEL_DISPLAY_LIST" : "CMSG_CHAT_CHANNEL_LIST",
@@ -126,11 +127,11 @@ void WorldSession::HandleChannelPassword(WorldPacket& recvPacket)
 
 void WorldSession::HandleChannelSetOwner(WorldPacket& recvPacket)
 {
-    uint32 channelLength = recvPacket.ReadBits(8);
-    uint32 targetLength = recvPacket.ReadBits(7);
+    uint32 targetLength = recvPacket.ReadBits(9);
+    uint32 channelLength = recvPacket.ReadBits(7);
 
-    std::string targetName = recvPacket.ReadString(targetLength);
     std::string channelName = recvPacket.ReadString(channelLength);
+    std::string targetName = recvPacket.ReadString(targetLength);
 
     LOG_DEBUG("chat.system", "CMSG_CHAT_CHANNEL_SET_OWNER {} Channel: {}, Target: {}",
                    GetPlayerInfo(), channelName, targetName);
