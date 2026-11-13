@@ -40,6 +40,7 @@ enum GuidType : uint8
 
     // 64 bit long guids
     GUID_TYPE_EQUIPMENT_SET,
+    GUID_TYPE_VOID_STORAGE_ITEM,
 
     // special types
     GUID_TYPE_NULL // set to null
@@ -116,6 +117,7 @@ DumpTable const DumpTables[] =
     { "character_spell",                DTT_CHAR_TABLE   },
     { "character_spell_cooldown",       DTT_CHAR_TABLE   },
     { "character_talent",               DTT_CHAR_TABLE   },
+    { "character_void_storage",         DTT_VOID_STORAGE },
     { "mail",                           DTT_MAIL         },
     { "mail_items",                     DTT_MAIL_ITEM    }, // must be after mail
     { "pet_aura",                       DTT_PET_TABLE    }, // must be after character_pet
@@ -355,6 +357,12 @@ void PlayerDump::InitializeTables()
             MarkWhereField(t, "guid");
 
             MarkDependentColumn(t, "guid", GUID_TYPE_PET);
+            break;
+        case DTT_VOID_STORAGE:
+            MarkWhereField(t, "playerGuid");
+
+            MarkDependentColumn(t, "itemId", GUID_TYPE_VOID_STORAGE_ITEM);
+            MarkDependentColumn(t, "playerGuid", GUID_TYPE_CHAR);
             break;
         default:
             LOG_FATAL("server.loading", "Wrong dump table type {}, probably added a new table type without updating code", uint32(dumpTable.Type));
@@ -820,6 +828,9 @@ DumpReturn PlayerDumpReader::LoadDump(std::istream& input, uint32 account, std::
     std::map<uint64, uint64> equipmentSetIds;
     uint64 equipmentSetGuidOffset = sObjectMgr->_equipmentSetGuid;
 
+    std::map<uint64, uint64> voidStorageItemIds;
+    uint64 voidStorageItemIdOffset = sObjectMgr->_voidItemId;
+
     std::string line;
 
     uint8 gender = GENDER_NONE;
@@ -906,6 +917,10 @@ DumpReturn PlayerDumpReader::LoadDump(std::istream& input, uint32 account, std::
                 if (!ChangeGuid(ts, line, field.FieldName, equipmentSetIds, equipmentSetGuidOffset))
                     return DUMP_FILE_BROKEN;
                 break;
+            case GUID_TYPE_VOID_STORAGE_ITEM:
+                if (!ChangeGuid(ts, line, field.FieldName, voidStorageItemIds, voidStorageItemIdOffset))
+                    return DUMP_FILE_BROKEN;
+                break;
             case GUID_TYPE_NULL:
             {
                 static std::string const NullString("NULL");
@@ -977,6 +992,7 @@ DumpReturn PlayerDumpReader::LoadDump(std::istream& input, uint32 account, std::
     sObjectMgr->_mailId += mails.size();
     sObjectMgr->_hiPetNumber += petIds.size();
     sObjectMgr->_equipmentSetGuid += equipmentSetIds.size();
+    sObjectMgr->_voidItemId += voidStorageItemIds.size();
 
     if (incHighest)
         sObjectMgr->GetGenerator<HighGuid::Player>().Generate();
