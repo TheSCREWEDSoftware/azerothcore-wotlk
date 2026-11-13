@@ -3397,6 +3397,10 @@ void Player::learnSpell(uint32 spellId, bool temporary /*= false*/, bool learnFr
         // Learning Mastery unlocks the specialization's mastery spells
         if (spellId == MasterySpells[getClass()])
             LearnSpecializationSpells();
+
+        // Control Pet / Control Demon unlock the pet action bar
+        if (CanControlPet(spellId) && GetPet())
+            PetSpellInitialize();
     }
 
     // pussywizard: rank stuff at the end!
@@ -9840,8 +9844,36 @@ bool Player::IsChatFiltered(std::string_view text)
     return sObjectMgr->IsChatFiltered(text);
 }
 
+bool Player::CanControlPet(uint32 spellId /*= 0*/) const
+{
+    // Since 4.0 Hunters and Warlocks cannot control their pets until they learned their spell
+    if (spellId)
+    {
+        switch (spellId)
+        {
+            case 93321: // Control Pet
+                return getClass() == CLASS_HUNTER;
+            case 93375: // Control Demon
+                return getClass() == CLASS_WARLOCK;
+            default:
+                return false;
+        }
+    }
+
+    if (getClass() == CLASS_HUNTER && !HasAura(93321))
+        return false;
+    if (getClass() == CLASS_WARLOCK && !HasAura(93375))
+        return false;
+
+    return true;
+}
+
 void Player::PetSpellInitialize()
 {
+    // Do not send the pet action bar when Hunters or Warlocks cannot control their pet
+    if (!CanControlPet())
+        return;
+
     Pet* pet = GetPet();
 
     if (!pet)

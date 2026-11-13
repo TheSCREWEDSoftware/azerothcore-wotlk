@@ -2432,16 +2432,10 @@ void Pet::SynchronizeLevelWithOwner()
 
     switch (getPetType())
     {
-        // always same level
+        // always same level, hunter pets too since 4.1
         case SUMMON_PET:
-            GivePetLevel(owner->GetLevel());
-            break;
-        // can't be greater owner level
         case HUNTER_PET:
-            if (GetLevel() > owner->GetLevel())
-                GivePetLevel(owner->GetLevel());
-            else if (GetLevel() + 5 < owner->GetLevel())
-                GivePetLevel(owner->GetLevel() - 5);
+            GivePetLevel(owner->GetLevel());
             break;
         default:
             break;
