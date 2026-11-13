@@ -35,6 +35,8 @@ class BattlegroundMap;
 class BattlegroundAV;
 class BattlegroundWS;
 class BattlegroundAB;
+class BattlegroundTP;
+class BattlegroundBFG;
 class BattlegroundNA;
 class BattlegroundBE;
 class BattlegroundEY;
@@ -584,6 +586,12 @@ public:
 
     BattlegroundAB* ToBattlegroundAB() { if (GetBgTypeID(true) == BATTLEGROUND_AB) return reinterpret_cast<BattlegroundAB*>(this); else return nullptr; }
     [[nodiscard]] BattlegroundAB const* ToBattlegroundAB() const { if (GetBgTypeID(true) == BATTLEGROUND_AB) return reinterpret_cast<BattlegroundAB const*>(this); else return nullptr; }
+
+    BattlegroundTP* ToBattlegroundTP() { if (GetBgTypeID(true) == BATTLEGROUND_TP) return reinterpret_cast<BattlegroundTP*>(this); else return nullptr; }
+    [[nodiscard]] BattlegroundTP const* ToBattlegroundTP() const { if (GetBgTypeID(true) == BATTLEGROUND_TP) return reinterpret_cast<BattlegroundTP const*>(this); else return nullptr; }
+
+    BattlegroundBFG* ToBattlegroundBFG() { if (GetBgTypeID(true) == BATTLEGROUND_BFG) return reinterpret_cast<BattlegroundBFG*>(this); else return nullptr; }
+    [[nodiscard]] BattlegroundBFG const* ToBattlegroundBFG() const { if (GetBgTypeID(true) == BATTLEGROUND_BFG) return reinterpret_cast<BattlegroundBFG const*>(this); else return nullptr; }
 
     BattlegroundNA* ToBattlegroundNA() { if (GetBgTypeID(true) == BATTLEGROUND_NA) return reinterpret_cast<BattlegroundNA*>(this); else return nullptr; }
     [[nodiscard]] BattlegroundNA const* ToBattlegroundNA() const { if (GetBgTypeID(true) == BATTLEGROUND_NA) return reinterpret_cast<BattlegroundNA const*>(this); else return nullptr; }

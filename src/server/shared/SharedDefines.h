@@ -3069,7 +3069,9 @@ enum HolidayIds
     HOLIDAY_DAY_OF_DEAD              = 409,
     HOLIDAY_CALL_TO_ARMS_IC          = 420,
     HOLIDAY_LOVE_IS_IN_THE_AIR       = 423,
-    HOLIDAY_KALU_AK_FISHING_DERBY    = 424
+    HOLIDAY_KALU_AK_FISHING_DERBY    = 424,
+    HOLIDAY_CALL_TO_ARMS_BFG         = 435,
+    HOLIDAY_CALL_TO_ARMS_TP          = 436
 };
 
 // values based at QuestInfo.dbc
@@ -3818,7 +3820,9 @@ enum BattlegroundTypeId : uint8
     BATTLEGROUND_DS            = 10, // Dalaran Sewers
     BATTLEGROUND_RV            = 11, // Ring of Valor
     BATTLEGROUND_IC            = 30, // Isle of Conquest
-    BATTLEGROUND_RB            = 32 // Random Battleground
+    BATTLEGROUND_RB            = 32, // Random Battleground
+    BATTLEGROUND_TP            = 108, // Twin Peaks
+    BATTLEGROUND_BFG           = 120 // Battle for Gilneas
 };
 
 #define MAX_BATTLEGROUND_TYPE_ID 33
@@ -3956,6 +3960,9 @@ enum BattlegroundQueueTypeId : uint8
     BATTLEGROUND_QUEUE_2v2       = 8,
     BATTLEGROUND_QUEUE_3v3       = 9,
     BATTLEGROUND_QUEUE_5v5       = 10,
+    // TrinityCore uses 7 and 8, which are taken here
+    BATTLEGROUND_QUEUE_TP        = 11,
+    BATTLEGROUND_QUEUE_BFG       = 12,
     MAX_BATTLEGROUND_QUEUE_TYPES = 20,
 };
 

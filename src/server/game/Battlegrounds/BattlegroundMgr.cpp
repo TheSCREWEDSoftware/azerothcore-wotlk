@@ -21,6 +21,7 @@
 #include "BattlegroundAB.h"
 #include "BattlegroundAV.h"
 #include "BattlegroundBE.h"
+#include "BattlegroundBFG.h"
 #include "BattlegroundDS.h"
 #include "BattlegroundEY.h"
 #include "BattlegroundIC.h"
@@ -29,6 +30,7 @@
 #include "BattlegroundRL.h"
 #include "BattlegroundRV.h"
 #include "BattlegroundSA.h"
+#include "BattlegroundTP.h"
 #include "BattlegroundWS.h"
 #include "Chat.h"
 #include "Common.h"
@@ -880,6 +882,10 @@ HolidayIds BattlegroundMgr::BGTypeToWeekendHolidayId(BattlegroundTypeId bgTypeId
             return HOLIDAY_CALL_TO_ARMS_AB;
         case BATTLEGROUND_IC:
             return HOLIDAY_CALL_TO_ARMS_IC;
+        case BATTLEGROUND_TP:
+            return HOLIDAY_CALL_TO_ARMS_TP;
+        case BATTLEGROUND_BFG:
+            return HOLIDAY_CALL_TO_ARMS_BFG;
         default:
             return HOLIDAY_NONE;
     }
@@ -901,6 +907,10 @@ BattlegroundTypeId BattlegroundMgr::WeekendHolidayIdToBGType(HolidayIds holiday)
             return BATTLEGROUND_AB;
         case HOLIDAY_CALL_TO_ARMS_IC:
             return BATTLEGROUND_IC;
+        case HOLIDAY_CALL_TO_ARMS_TP:
+            return BATTLEGROUND_TP;
+        case HOLIDAY_CALL_TO_ARMS_BFG:
+            return BATTLEGROUND_BFG;
         default:
             return BATTLEGROUND_TYPE_NONE;
     }
@@ -986,6 +996,8 @@ std::unordered_map<int, BattlegroundQueueTypeId> BattlegroundMgr::bgToQueue =
     { BATTLEGROUND_SA, BATTLEGROUND_QUEUE_SA},
     { BATTLEGROUND_IC, BATTLEGROUND_QUEUE_IC},
     { BATTLEGROUND_RB, BATTLEGROUND_QUEUE_RB},
+    { BATTLEGROUND_TP, BATTLEGROUND_QUEUE_TP},
+    { BATTLEGROUND_BFG, BATTLEGROUND_QUEUE_BFG},
     // Arena Battlegrounds
     { BATTLEGROUND_NA, BattlegroundQueueTypeId(0)},        // Nagrand Arena
     { BATTLEGROUND_BE, BattlegroundQueueTypeId(0)},        // Blade's Edge Arena
@@ -1005,6 +1017,8 @@ std::unordered_map<int, BattlegroundTypeId> BattlegroundMgr::queueToBg =
     { BATTLEGROUND_QUEUE_SA,    BATTLEGROUND_SA },
     { BATTLEGROUND_QUEUE_IC,    BATTLEGROUND_IC },
     { BATTLEGROUND_QUEUE_RB,    BATTLEGROUND_RB },
+    { BATTLEGROUND_QUEUE_TP,    BATTLEGROUND_TP },
+    { BATTLEGROUND_QUEUE_BFG,   BATTLEGROUND_BFG },
     { BATTLEGROUND_QUEUE_2v2,   BATTLEGROUND_AA },
     { BATTLEGROUND_QUEUE_3v3,   BATTLEGROUND_AA },
     { BATTLEGROUND_QUEUE_5v5,   BATTLEGROUND_AA },
@@ -1023,6 +1037,8 @@ std::unordered_map<int, Battleground*> BattlegroundMgr::bgtypeToBattleground =
     { BATTLEGROUND_DS, new BattlegroundDS },
     { BATTLEGROUND_RV, new BattlegroundRV },
     { BATTLEGROUND_IC, new BattlegroundIC },
+    { BATTLEGROUND_TP, new BattlegroundTP },
+    { BATTLEGROUND_BFG, new BattlegroundBFG },
     { BATTLEGROUND_AA, new Battleground },
     { BATTLEGROUND_RB, new Battleground },
 };
@@ -1040,6 +1056,8 @@ std::unordered_map<int, bgRef> BattlegroundMgr::bgTypeToTemplate =
     { BATTLEGROUND_DS, [](Battleground * bg_t) -> Battleground* { return new BattlegroundDS(*(BattlegroundDS*)bg_t); } },
     { BATTLEGROUND_RV, [](Battleground * bg_t) -> Battleground* { return new BattlegroundRV(*(BattlegroundRV*)bg_t); } },
     { BATTLEGROUND_IC, [](Battleground * bg_t) -> Battleground* { return new BattlegroundIC(*(BattlegroundIC*)bg_t); } },
+    { BATTLEGROUND_TP, [](Battleground * bg_t) -> Battleground* { return new BattlegroundTP(*(BattlegroundTP*)bg_t); } },
+    { BATTLEGROUND_BFG, [](Battleground * bg_t) -> Battleground* { return new BattlegroundBFG(*(BattlegroundBFG*)bg_t); } },
 
     { BATTLEGROUND_RB, [](Battleground * bg_t) -> Battleground* { return new Battleground(*bg_t); }, },
     { BATTLEGROUND_AA, [](Battleground * bg_t) -> Battleground* { return new Battleground(*bg_t); }, },
