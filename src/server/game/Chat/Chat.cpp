@@ -18,6 +18,7 @@
 #include "Chat.h"
 #include "AccountMgr.h"
 #include "CellImpl.h"
+#include "ChatPackets.h"
 #include "Common.h"
 #include "GridNotifiersImpl.h"
 #include "Language.h"
@@ -115,9 +116,7 @@ void ChatHandler::SendNotification(std::string_view str)
     std::vector<std::string_view> lines = Acore::Tokenize(str, '\n', true);
     for (std::string_view line : lines)
     {
-        WorldPacket data(SMSG_NOTIFICATION, line.size() + 1);
-        data << line.data();
-        m_session->SendPacket(&data);
+        m_session->SendPacket(WorldPackets::Chat::PrintNotification(line).Write());
     }
 }
 

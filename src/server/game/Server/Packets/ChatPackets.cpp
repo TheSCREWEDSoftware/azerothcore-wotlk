@@ -37,3 +37,12 @@ WorldPacket const* WorldPackets::Chat::ChatServerMessage::Write()
 
     return &_worldPacket;
 }
+
+WorldPacket const* WorldPackets::Chat::PrintNotification::Write()
+{
+    _worldPacket.WriteBits(NotifyText.size(), 13);
+    _worldPacket.FlushBits();
+    _worldPacket.WriteString(NotifyText);
+
+    return &_worldPacket;
+}

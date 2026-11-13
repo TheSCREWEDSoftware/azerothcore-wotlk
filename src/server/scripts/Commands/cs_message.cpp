@@ -17,6 +17,7 @@
 
 #include "Channel.h"
 #include "Chat.h"
+#include "ChatPackets.h"
 #include "CommandScript.h"
 #include "DatabaseEnv.h"
 #include "Language.h"
@@ -105,9 +106,7 @@ public:
         std::string str = handler->GetAcoreString(LANG_GLOBAL_NOTIFY);
         str += message;
 
-        WorldPacket data(SMSG_NOTIFICATION, (str.size() + 1));
-        data << str;
-        sWorldSessionMgr->SendGlobalMessage(&data);
+        sWorldSessionMgr->SendGlobalMessage(WorldPackets::Chat::PrintNotification(str).Write());
 
         return true;
     }
@@ -121,9 +120,7 @@ public:
         std::string str = handler->GetAcoreString(LANG_GM_NOTIFY);
         str += message;
 
-        WorldPacket data(SMSG_NOTIFICATION, (str.size() + 1));
-        data << str;
-        sWorldSessionMgr->SendGlobalGMMessage(&data);
+        sWorldSessionMgr->SendGlobalGMMessage(WorldPackets::Chat::PrintNotification(str).Write());
 
         return true;
     }

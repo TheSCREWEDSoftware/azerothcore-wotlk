@@ -17,6 +17,7 @@
 
 #include "AutobroadcastMgr.h"
 #include "Chat.h"
+#include "ChatPackets.h"
 #include "Config.h"
 #include "GridNotifiers.h"
 #include "Player.h"
@@ -198,11 +199,6 @@ void AutobroadcastMgr::SendNotificationAnnouncement(uint8 textId)
         if (localizedMessage.empty())
             localizedMessage = ObjectMgr::GetLocaleString(_autobroadcasts[textId], DEFAULT_LOCALE);
 
-        // Prepare the WorldPacket
-        WorldPacket data(SMSG_NOTIFICATION, (localizedMessage.size() + 1));
-        data << localizedMessage;
-
-        // Send packet to the player
-        player->SendDirectMessage(&data);
+        player->SendDirectMessage(WorldPackets::Chat::PrintNotification(localizedMessage).Write());
     });
 }

@@ -222,10 +222,10 @@ public:
         return retval;
     }
 
-    void WriteString(std::string const& str)
+    void WriteString(std::string_view str)
     {
-        if (size_t len = str.length())
-            append(str.c_str(), len);
+        if (std::size_t len = str.length())
+            append(str.data(), len);
     }
 
     // Reads a byte (if needed) in-place

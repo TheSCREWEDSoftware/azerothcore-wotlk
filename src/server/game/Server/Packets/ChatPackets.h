@@ -56,6 +56,16 @@ namespace WorldPackets
             int32 MessageID = 0;
             std::string StringParam;
         };
+
+        class PrintNotification final : public ServerPacket
+        {
+        public:
+            PrintNotification(std::string_view notifyText) : ServerPacket(SMSG_NOTIFICATION, 2 + notifyText.size()), NotifyText(notifyText) { }
+
+            WorldPacket const* Write() override;
+
+            std::string_view NotifyText;
+        };
     }
 }
 
