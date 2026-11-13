@@ -149,6 +149,14 @@ namespace WorldPackets
         class SetSheathed;
     }
 
+    namespace Party
+    {
+        class PartyInviteClient;
+        class PartyInviteResponse;
+        class SetRole;
+        class SetEveryoneIsAssistant;
+    }
+
     namespace Guild
     {
         class QueryGuildInfo;
@@ -690,8 +698,6 @@ public:
     void SendNotInArenaTeamPacket(uint8 type);
     void SendPetitionShowList(ObjectGuid guid);
 
-    void BuildPartyMemberStatsChangedPacket(Player* player, WorldPacket* data);
-
     void DoLootRelease(ObjectGuid lguid);
 
     // Account mute time
@@ -881,9 +887,12 @@ public:                                                 // opcodes handlers
 
     void HandleBattlefieldStatusOpcode(WorldPacket& recvData);
 
-    void HandleGroupInviteOpcode(WorldPacket& recvPacket);
-    void HandleGroupAcceptOpcode(WorldPacket& recvPacket);
-    void HandleGroupDeclineOpcode(WorldPacket& recvPacket);
+    void HandlePartyInviteOpcode(WorldPackets::Party::PartyInviteClient& packet);
+    void HandlePartyInviteResponseOpcode(WorldPackets::Party::PartyInviteResponse& packet);
+    void AcceptPartyInvite();
+    void DeclinePartyInvite();
+    void HandleSetRoleOpcode(WorldPackets::Party::SetRole& packet);
+    void HandleSetEveryoneIsAssistant(WorldPackets::Party::SetEveryoneIsAssistant& packet);
     void HandleGroupUninviteOpcode(WorldPacket& recvPacket);
     void HandleGroupUninviteGuidOpcode(WorldPacket& recvPacket);
     void HandleGroupSetLeaderOpcode(WorldPacket& recvPacket);

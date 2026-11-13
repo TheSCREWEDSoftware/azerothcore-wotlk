@@ -106,9 +106,6 @@ c2s	CMSG_GM_UNTEACH	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
 c2s	CMSG_GM_UPDATE_TICKET_STATUS	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
 c2s	CMSG_GM_WHISPER	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
 c2s	CMSG_GODMODE	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
-c2s	CMSG_GROUP_ACCEPT	#182	grouping and social packets are ported with phase 9
-c2s	CMSG_GROUP_DECLINE	#182	grouping and social packets are ported with phase 9
-c2s	CMSG_GROUP_INVITE	#182	grouping and social packets are ported with phase 9
 c2s	CMSG_GUILD_CREATE	#182	grouping and social packets are ported with phase 9
 c2s	CMSG_IGNORE_DIMINISHING_RETURNS_CHEAT	#168	WotLK-only debug or cheat handler; no 4.3.4 opcode
 c2s	CMSG_IGNORE_KNOCKBACK_CHEAT	#168	WotLK-only debug or cheat handler; no 4.3.4 opcode
@@ -273,9 +270,7 @@ s2c	SMSG_FORCE_SET_VEHICLE_REC_ID	#186	movement packet layout is ported with the
 s2c	SMSG_GHOSTEE_GONE	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
 s2c	SMSG_GMRESPONSE_CREATE_TICKET	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
 s2c	SMSG_GOGOGO_OBSOLETE	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
-s2c	SMSG_GROUP_INVITE	#182	grouping and social packets are ported with phase 9
 s2c	SMSG_GROUP_JOINED_BATTLEGROUND	#182	grouping and social packets are ported with phase 9
-s2c	SMSG_GROUP_LIST	#182	grouping and social packets are ported with phase 9
 s2c	SMSG_GUILD_INFO	#182	grouping and social packets are ported with phase 9
 s2c	SMSG_INIT_EXTRA_AURA_INFO_OBSOLETE	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
 s2c	SMSG_INSTANCE_LOCK_WARNING_QUERY	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
@@ -290,8 +285,6 @@ s2c	SMSG_LOTTERY_RESULT_OBSOLETE	#168	WotLK-only opcode with no 4.3.4 counterpar
 s2c	SMSG_MINIGAME_MOVE_FAILED	#186	movement packet layout is ported with the movement work
 s2c	SMSG_MOVE_CHARACTER_CHEAT	#168	WotLK-only debug or cheat handler; no 4.3.4 opcode
 s2c	SMSG_MULTIPLE_MOVES	#186	movement packet layout is ported with the movement work
-s2c	SMSG_PARTY_MEMBER_STATS	#182	grouping and social packets are ported with phase 9
-s2c	SMSG_PARTY_MEMBER_STATS_FULL	#182	grouping and social packets are ported with phase 9
 s2c	SMSG_PET_UNLEARNED_SPELL	#177	class mechanics are ported with phase 4
 s2c	SMSG_PET_UNLEARN_CONFIRM	#177	class mechanics are ported with phase 4
 s2c	SMSG_PLAY_SPELL_IMPACT	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin

@@ -244,6 +244,12 @@ void OpcodeTable::Initialize()
     /*0x34A3*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GUILD_PERMISSIONS_QUERY_RESULTS,                    STATUS_NEVER);
     /*0x10B2*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GUILD_EVENT_LOG_QUERY_RESULTS,                      STATUS_NEVER);
     /*0x30B4*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GUILD_RANKS,                                        STATUS_NEVER);
+    /*0x18B6*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_SUMMON_RAID_MEMBER_VALIDATE_FAILED,                 STATUS_NEVER);
+    /*0x39A6*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_ROLE_CHANGED_INFORM,                                STATUS_NEVER);
+    /*0x0215*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_PARTY_MEMBER_FULL_STATE,                            STATUS_NEVER);
+    /*0x2104*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_PARTY_MEMBER_STATE,                                 STATUS_NEVER);
+    /*0x4C24*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_PARTY_UPDATE,                                       STATUS_NEVER);
+    /*0x31B2*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_PARTY_INVITE,                                       STATUS_NEVER);
     /*0x59A3*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_MOVE_UPDATE_COLLISION_HEIGHT,                       STATUS_NEVER);
     /*0x11B0*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_MOVE_SET_COLLISION_HEIGHT,                          STATUS_NEVER);
     /*0x1DB5*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_MOVE_UPDATE_PITCH_RATE,                             STATUS_NEVER);
@@ -327,12 +333,8 @@ void OpcodeTable::Initialize()
     /*0x6135*/ DEFINE_HANDLER(CMSG_SET_CONTACT_NOTES,                                                STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleSetContactNotesOpcode              );
     /*0x4726*/ DEFINE_HANDLER(CMSG_ADD_IGNORE,                                                       STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleAddIgnoreOpcode                    );
     /*0x6D26*/ DEFINE_HANDLER(CMSG_DEL_IGNORE,                                                       STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleDelIgnoreOpcode                    );
-    /*0x006E*/ DEFINE_HANDLER(CMSG_GROUP_INVITE,                                                     STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGroupInviteOpcode                  );
-    /*0x006F*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GROUP_INVITE,                                       STATUS_NEVER);
     /*0x0000*/ DEFINE_HANDLER(CMSG_GROUP_CANCEL,                                                     STATUS_LOGGEDIN,   PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );
     /*0x4D25*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GROUP_CANCEL,                                       STATUS_NEVER);
-    /*0x0072*/ DEFINE_HANDLER(CMSG_GROUP_ACCEPT,                                                     STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGroupAcceptOpcode                  );
-    /*0x0073*/ DEFINE_HANDLER(CMSG_GROUP_DECLINE,                                                    STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGroupDeclineOpcode                 );
     /*0x6835*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GROUP_DECLINE,                                      STATUS_NEVER);
     /*0x0000*/ DEFINE_HANDLER(CMSG_GROUP_UNINVITE,                                                   STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGroupUninviteOpcode                );
     /*0x2E07*/ DEFINE_HANDLER(CMSG_GROUP_UNINVITE_GUID,                                              STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGroupUninviteGuidOpcode            );
@@ -342,8 +344,6 @@ void OpcodeTable::Initialize()
     /*0x2F24*/ DEFINE_HANDLER(CMSG_LOOT_METHOD,                                                      STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleLootMethodOpcode                   );
     /*0x2804*/ DEFINE_HANDLER(CMSG_GROUP_DISBAND,                                                    STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGroupDisbandOpcode                 );
     /*0x2207*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GROUP_DESTROYED,                                    STATUS_NEVER);
-    /*0x007D*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GROUP_LIST,                                         STATUS_NEVER);
-    /*0x007E*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_PARTY_MEMBER_STATS,                                 STATUS_NEVER);
     /*0x6E07*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_PARTY_COMMAND_RESULT,                               STATUS_NEVER);
     /*0x080*/ DEFINE_HANDLER(UMSG_UPDATE_GROUP_MEMBERS,                                             STATUS_NEVER,      PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );
     /*0x0081*/ DEFINE_HANDLER(CMSG_GUILD_CREATE,                                                     STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildCreateOpcode                  );
@@ -856,6 +856,10 @@ void OpcodeTable::Initialize()
     /*0x1026*/ DEFINE_HANDLER(CMSG_GUILD_QUERY_RANKS,                                                STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildQueryRanksOpcode              );
     /*0x3032*/ DEFINE_HANDLER(CMSG_GUILD_ASSIGN_MEMBER_RANK,                                         STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildAssignRankOpcode              );
     /*0x1221*/ DEFINE_HANDLER(CMSG_GUILD_SWITCH_RANK,                                                STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildSwitchRankOpcode              );
+    /*0x2530*/ DEFINE_HANDLER(CMSG_SET_EVERYONE_IS_ASSISTANT,                                        STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleSetEveryoneIsAssistant             );
+    /*0x25B1*/ DEFINE_HANDLER(CMSG_SET_ROLE,                                                         STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleSetRoleOpcode                      );
+    /*0x0410*/ DEFINE_HANDLER(CMSG_PARTY_INVITE_RESPONSE,                                            STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandlePartyInviteResponseOpcode          );
+    /*0x0513*/ DEFINE_HANDLER(CMSG_PARTY_INVITE,                                                     STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandlePartyInviteOpcode                  );
     /*0x7114*/ DEFINE_HANDLER(CMSG_MOVE_SET_COLLISION_HEIGHT_ACK,                                    STATUS_LOGGEDIN,   PROCESS_THREADSAFE,     &WorldSession::HandleSetCollisionHeightAck              );
     /*0x3100*/ DEFINE_HANDLER(CMSG_MOVE_FORCE_PITCH_RATE_CHANGE_ACK,                                 STATUS_LOGGEDIN,   PROCESS_THREADSAFE,     &WorldSession::HandleForceSpeedChangeAck                );
     /*0x310E*/ DEFINE_HANDLER(CMSG_MOVE_FORCE_FLIGHT_BACK_SPEED_CHANGE_ACK,                          STATUS_LOGGEDIN,   PROCESS_THREADSAFE,     &WorldSession::HandleForceSpeedChangeAck                );
@@ -1099,7 +1103,6 @@ void OpcodeTable::Initialize()
     /*0x2C14*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_ADDON_INFO,                                         STATUS_NEVER);
     /*0x02F0*/ DEFINE_HANDLER(CMSG_PET_UNLEARN,                                                      STATUS_NEVER,      PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );
     /*0x02F1*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_PET_UNLEARN_CONFIRM,                                STATUS_NEVER);
-    /*0x02F2*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_PARTY_MEMBER_STATS_FULL,                            STATUS_NEVER);
     /*0x2514*/ DEFINE_HANDLER(CMSG_PET_SPELL_AUTOCAST,                                               STATUS_LOGGEDIN,   PROCESS_INPLACE,     &WorldSession::HandlePetSpellAutocastOpcode             );
     /*0x2904*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_WEATHER,                                            STATUS_NEVER);
     /*0x4814*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_PLAY_TIME_WARNING,                                  STATUS_NEVER);
@@ -1661,7 +1664,6 @@ void OpcodeTable::Initialize()
     /*0x0510*/ DEFINE_HANDLER(CMSG_SUSPEND_COMMS_ACK,                                                STATUS_NEVER,      PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );
     /*0x0511*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_FORCE_SEND_QUEUED_PACKETS,                          STATUS_NEVER);
     /*0x0512*/ DEFINE_HANDLER(CMSG_REDIRECTION_AUTH_PROOF,                                           STATUS_NEVER,      PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );
-    /*0x0513*/ DEFINE_HANDLER(CMSG_DROP_NEW_CONNECTION,                                              STATUS_NEVER,      PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );
     /*0x0514*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_SEND_ALL_COMBAT_LOG,                                STATUS_NEVER);
     /*0x2C37*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_OPEN_LFG_DUNGEON_FINDER,                            STATUS_NEVER);
     /*0x0519*/ DEFINE_HANDLER(CMSG_CLEAR_RANDOM_BG_WIN_TIME,                                         STATUS_NEVER,      PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );

@@ -28,6 +28,10 @@
 /// Lists of opcodes by wire direction
 enum OpcodeClient : uint16
 {
+    CMSG_SET_EVERYONE_IS_ASSISTANT                  = 0x2530,
+    CMSG_SET_ROLE                                   = 0x25B1,
+    CMSG_PARTY_INVITE_RESPONSE                      = 0x0410,
+    CMSG_PARTY_INVITE                               = 0x0513,
     CMSG_MOVE_SET_COLLISION_HEIGHT_ACK              = 0x7114,
     CMSG_MOVE_FORCE_PITCH_RATE_CHANGE_ACK           = 0x3100,
     CMSG_MOVE_FORCE_FLIGHT_BACK_SPEED_CHANGE_ACK    = 0x310E,
@@ -124,10 +128,7 @@ enum OpcodeClient : uint16
     CMSG_SET_CONTACT_NOTES                          = 0x6135,
     CMSG_ADD_IGNORE                                 = 0x4726,
     CMSG_DEL_IGNORE                                 = 0x6D26, // got here
-    CMSG_GROUP_INVITE                               = 0x06E,
     CMSG_GROUP_CANCEL                               = 0x0000,
-    CMSG_GROUP_ACCEPT                               = 0x072,
-    CMSG_GROUP_DECLINE                              = 0x073,
     CMSG_GROUP_UNINVITE                             = 0x0000,
     CMSG_GROUP_UNINVITE_GUID                        = 0x2E07,
     CMSG_GROUP_SET_LEADER                           = 0x4C17,
@@ -795,7 +796,6 @@ enum OpcodeClient : uint16
     CMSG_REDIRECTION_FAILED                         = 0x50E, // something with networking
     CMSG_SUSPEND_COMMS_ACK                          = 0x510,
     CMSG_REDIRECTION_AUTH_PROOF                     = 0x512,
-    CMSG_DROP_NEW_CONNECTION                        = 0x513,
     CMSG_CLEAR_RANDOM_BG_WIN_TIME                   = 0x519,
     CMSG_CLEAR_HOLIDAY_BG_WIN_TIME                  = 0x51A,
     CMSG_COMMENTATOR_SKIRMISH_QUEUE_COMMAND         = 0x0025,
@@ -809,6 +809,12 @@ enum OpcodeClient : uint16
 
 enum OpcodeServer : uint16
 {
+    SMSG_SUMMON_RAID_MEMBER_VALIDATE_FAILED         = 0x18B6,
+    SMSG_ROLE_CHANGED_INFORM                        = 0x39A6,
+    SMSG_PARTY_MEMBER_FULL_STATE                    = 0x0215,
+    SMSG_PARTY_MEMBER_STATE                         = 0x2104,
+    SMSG_PARTY_UPDATE                               = 0x4C24,
+    SMSG_PARTY_INVITE                               = 0x31B2,
     SMSG_MOVE_UPDATE_COLLISION_HEIGHT               = 0x59A3,
     SMSG_MOVE_SET_COLLISION_HEIGHT                  = 0x11B0,
     SMSG_MOVE_UPDATE_PITCH_RATE                     = 0x1DB5,
@@ -914,14 +920,11 @@ enum OpcodeServer : uint16
     SMSG_WHOIS                                      = 0x6917,
     SMSG_CONTACT_LIST                               = 0x6017,
     SMSG_FRIEND_STATUS                              = 0x0717,
-    SMSG_GROUP_INVITE                               = 0x06F,
     SMSG_GROUP_CANCEL                               = 0x4D25,
     SMSG_GROUP_DECLINE                              = 0x6835,
     SMSG_GROUP_UNINVITE                             = 0x0A07,
     SMSG_GROUP_SET_LEADER                           = 0x0526,
     SMSG_GROUP_DESTROYED                            = 0x2207,
-    SMSG_GROUP_LIST                                 = 0x07D,
-    SMSG_PARTY_MEMBER_STATS                         = 0x07E,
     SMSG_PARTY_COMMAND_RESULT                       = 0x6E07,
     SMSG_GUILD_INVITE                               = 0x14A2,
     SMSG_GUILD_DECLINE                              = 0x2C07,
@@ -1194,7 +1197,6 @@ enum OpcodeServer : uint16
     SMSG_BATTLEGROUND_PLAYER_LEFT                   = 0x59A6,
     SMSG_ADDON_INFO                                 = 0x2C14,
     SMSG_PET_UNLEARN_CONFIRM                        = 0x2F1,    // Deprecated 3.x
-    SMSG_PARTY_MEMBER_STATS_FULL                    = 0x2F2,
     SMSG_WEATHER                                    = 0x2904,
     SMSG_PLAY_TIME_WARNING                          = 0x4814,
     SMSG_MINIGAME_SETUP                             = 0x6727,

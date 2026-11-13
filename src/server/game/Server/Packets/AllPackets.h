@@ -34,6 +34,7 @@
 #include "MiscPackets.h"
 #include "MovementPackets.h"
 #include "NPCPackets.h"
+#include "PartyPackets.h"
 #include "PetPackets.h"
 #include "QueryPackets.h"
 #include "QuestPackets.h"
