@@ -1065,19 +1065,33 @@ namespace lfg
         RBCacheMap::iterator itr = RBCacheStore[player->GetTeamId()].find(dungeonId);
         if (itr != RBCacheStore[player->GetTeamId()].end())
         {
-            player->SendDirectMessage(&(itr->second));
+            RBSendSearchResults(player, itr->second);
             return;
         }
-        // send empty packet if cache not found
-        WorldPacket data(SMSG_UPDATE_LFG_LIST, 1000);
-        data << (uint32)LFG_TYPE_RAID;
-        data << (uint32)dungeonId;
-        data << (uint8)0;
-        data << (uint32)0;
-        data << (uint32)0;
-        data << (uint32)0;
-        data << (uint32)0;
-        player->SendDirectMessage(&data);
+
+        // send empty list if cache not found
+        RBSearchList empty;
+        empty.SlotID = dungeonId;
+        empty.SlotType = LFG_TYPE_RAID;
+        RBSendSearchResults(player, empty);
+    }
+
+    void LFGMgr::RBSendSearchResults(Player* player, RBSearchList const& results)
+    {
+        // the cached list is shared by every searcher, only the ticket belongs to the receiver
+        WorldPackets::LFG::LFGSearchResults packet;
+        packet.Incremental = results.Incremental;
+        packet.Removes = results.Removes;
+        packet.SlotID = results.SlotID;
+        packet.SlotType = results.SlotType;
+        packet.CountTotalParties = results.CountTotalParties;
+        packet.CountTotalPlayers = results.CountTotalPlayers;
+        packet.Parties = results.Parties;
+        packet.Players = results.Players;
+        packet.Ticket.Type = WorldPackets::LFG::RideType::Lfg;
+        packet.Ticket.RequesterGuid = player->GetGUID();
+        packet.Ticket.Id = player->GetGUID().GetCounter();
+        player->SendDirectMessage(packet.Write());
     }
 
     static RBInternalInfo BuildRBInternalInfo(Player* player, std::string const& comment, ObjectGuid groupGuid,
@@ -1139,7 +1153,6 @@ namespace lfg
         ObjectGuid guid, groupGuid, instanceGuid;
         uint8 level, Class, race, talents[3];
         uint32 dungeonId, encounterMask;
-        uint32 deletedCounter, groupCounter, playerCounter;
         std::string emptyComment;
 
         for (uint8 team = 0; team < 2; ++team)
@@ -1260,27 +1273,17 @@ namespace lfg
                 }
 
                 // compare prev with curr to build difference packet
-                deletedCounter = 0;
-                groupCounter = 0;
-                playerCounter = 0;
-                _rbBufferDeleted.clear();
-                _rbBufferGroups.clear();
-                _rbBufferPlayers.clear();
+                _rbDifference = RBSearchList();
+                _rbDifference.Incremental = true;
+                _rbDifference.SlotID = dungeonId;
+                _rbDifference.SlotType = LFG_TYPE_RAID;
 
                 for (ObjectGuid const& droppedGroup : _rbDroppedGroups)
-                {
-                    ++deletedCounter;
-                    _rbBufferDeleted << droppedGroup;
-                }
+                    _rbDifference.Removes.push_back(droppedGroup);
 
                 for (auto const& [prevGuid, prevInfo] : prevInternalInfoMap)
-                {
                     if (!prevInfo.groupGuid && !_rbCopy.contains(prevGuid))
-                    {
-                        ++deletedCounter;
-                        _rbBufferDeleted << prevGuid;
-                    }
-                }
+                        _rbDifference.Removes.push_back(prevGuid);
 
                 for (auto const& [currGuid, currInfo] : _rbCopy)
                 {
@@ -1298,10 +1301,7 @@ namespace lfg
                     }
 
                     if (sendGroup)
-                    {
-                        ++groupCounter;
-                        RBPacketAppendGroup(currInfo, _rbBufferGroups);
-                    }
+                        RBPacketAppendGroup(currInfo, _rbDifference.Parties);
                 }
 
                 for (auto const& [currGuid, currInfo] : _rbCopy)
@@ -1314,16 +1314,13 @@ namespace lfg
                         || !prevItr->second.PlayerSameAs(currInfo);
 
                     if (sendPlayer)
-                    {
-                        ++playerCounter;
-                        RBPacketAppendPlayer(currInfo, _rbBufferPlayers);
-                    }
+                        RBPacketAppendPlayer(currInfo, _rbDifference.Players);
                 }
 
-                WorldPacket differencePacket(SMSG_UPDATE_LFG_LIST, 1000);
-                RBPacketBuildDifference(differencePacket, dungeonId, deletedCounter, _rbBufferDeleted, groupCounter, _rbBufferGroups, playerCounter, _rbBufferPlayers);
-                WorldPacket fullPacket(SMSG_UPDATE_LFG_LIST, 1000);
+                RBSearchList fullPacket;
                 RBPacketBuildFull(fullPacket, dungeonId, _rbCopy);
+                _rbDifference.CountTotalParties = fullPacket.CountTotalParties;
+                _rbDifference.CountTotalPlayers = fullPacket.CountTotalPlayers;
 
                 RBCacheStore[team][dungeonId] = fullPacket;
                 prevInternalInfoMap = _rbCopy;
@@ -1336,7 +1333,7 @@ namespace lfg
                 for (RBSearchersMap::const_iterator sitr = RBSearchersStore[team].begin(); sitr != RBSearchersStore[team].end(); ++sitr)
                     if (sitr->second == dungeonId)
                         if (Player* p = ObjectAccessor::FindConnectedPlayer(sitr->first))
-                            p->SendDirectMessage(&differencePacket);
+                            RBSendSearchResults(p, _rbDifference);
 
                 break; // one dungeon updated in one LFGMgr::UpdateRaidBrowser
             }
@@ -1347,116 +1344,73 @@ namespace lfg
         }
     }
 
-    void LFGMgr::RBPacketAppendGroup(RBInternalInfo const& info, ByteBuffer& buffer)
+    void LFGMgr::RBPacketAppendGroup(RBInternalInfo const& info, std::vector<WorldPackets::LFG::ClientLFGSearchResultParty>& parties)
     {
-        buffer << info.groupGuid;
-        uint32 flags = LFG_UPDATE_FLAG_COMMENT | LFG_UPDATE_FLAG_ROLES | LFG_UPDATE_FLAG_BINDED;
-        buffer << (uint32)flags;
-        if (flags & LFG_UPDATE_FLAG_COMMENT)
-            buffer << info.comment;
-        if (flags & LFG_UPDATE_FLAG_ROLES)
-            for (uint8 j = 0; j < 3; ++j)
-                buffer << (uint8)0;
-        if (!(flags & LFG_UPDATE_FLAG_BINDED))
-            return;
-        buffer << info.instanceGuid;
-        buffer << (uint32)info.encounterMask;
+        WorldPackets::LFG::ClientLFGSearchResultParty& party = parties.emplace_back();
+        party.Guid = info.groupGuid;
+        party.ChangeMask = LFG_UPDATE_FLAG_COMMENT | LFG_UPDATE_FLAG_ROLES | LFG_UPDATE_FLAG_BINDED;
+        party.Comment = info.comment;
+        party.InstanceID = info.instanceGuid;
+        party.InstanceCompletedMask = info.encounterMask;
     }
 
-    void LFGMgr::RBPacketAppendPlayer(RBInternalInfo const& info, ByteBuffer& buffer)
+    void LFGMgr::RBPacketAppendPlayer(RBInternalInfo const& info, std::vector<WorldPackets::LFG::ClientLFGSearchResultPlayer>& players)
     {
-        buffer << info.guid;
-        uint32 flags = LFG_UPDATE_FLAG_CHARACTERINFO | LFG_UPDATE_FLAG_ROLES | LFG_UPDATE_FLAG_COMMENT
+        WorldPackets::LFG::ClientLFGSearchResultPlayer& player = players.emplace_back();
+        player.Guid = info.guid;
+        player.ChangeMask = LFG_UPDATE_FLAG_CHARACTERINFO | LFG_UPDATE_FLAG_ROLES | LFG_UPDATE_FLAG_COMMENT
             | LFG_UPDATE_FLAG_AREA | (info.groupGuid ? LFG_UPDATE_FLAG_GROUPGUID : LFG_UPDATE_FLAG_BINDED)
             | (info.isGroupLeader ? LFG_UPDATE_FLAG_GROUPLEADER : 0);
-        buffer << (uint32)flags;
-
-        if (flags & LFG_UPDATE_FLAG_CHARACTERINFO)
+        player.Level = info._level;
+        player.ChrClass = info._class;
+        player.Race = info._race;
+        player.Talents = { int8(info._talents0), int8(info._talents1), int8(info._talents2) };
+        player.Armor = info._armor;
+        player.SpellDamage = info._spellDamage;
+        player.PlusHealing = info._spellHeal;
+        player.CritMelee = info._critRatingMelee;
+        player.CritRanged = info._critRatingRanged;
+        player.CritSpell = info._critRatingSpell;
+        player.Mp5 = info._mp5;
+        player.Mp5InCombat = info._mp5combat;
+        player.AttackPower = info._attackPower;
+        player.Agility = info._agility;
+        player.MaxHealth = info._health;
+        player.MaxMana = info._mana;
+        player.AvgItemLevel = info._avgItemLevel;
+        player.DefenseRating = info._defenseRating;
+        player.DodgeRating = info._dodgeRating;
+        player.BlockRating = info._blockRating;
+        player.ParryRating = info._parryRating;
+        player.HasteRating = info._hasteRating;
+        player.Expertise = float(info._expertiseRating);
+        player.Comment = info.groupGuid ? std::string() : info.comment;
+        player.IsLeader = info.isGroupLeader;
+        player.PartyGuid = info.groupGuid;
+        player.RolesDesired = info.groupGuid ? (info.isGroupLeader ? PLAYER_ROLE_LEADER : 0) : info.roles;
+        player.Area = info._area;
+        if (!info.groupGuid)
         {
-            buffer << (uint8)info._level;
-            buffer << (uint8)info._class;
-            buffer << (uint8)info._race;
-            buffer << (uint8)info._talents0;
-            buffer << (uint8)info._talents1;
-            buffer << (uint8)info._talents2;
-            buffer << (uint32)info._armor;
-            buffer << (uint32)info._spellDamage;
-            buffer << (uint32)info._spellHeal;
-            buffer << (uint32)info._critRatingMelee;
-            buffer << (uint32)info._critRatingRanged;
-            buffer << (uint32)info._critRatingSpell;
-            buffer << (float)info._mp5;
-            buffer << (float)info._mp5combat;
-            buffer << (uint32)info._attackPower;
-            buffer << (uint32)info._agility;
-            buffer << (uint32)info._health;
-            buffer << (uint32)info._mana;
-            buffer << uint32(0); // gear rating, Blizzard's formula is unknown
-            buffer << (float)info._avgItemLevel;
-            buffer << (uint32)info._defenseRating;
-            buffer << (uint32)info._dodgeRating;
-            buffer << (uint32)info._blockRating;
-            buffer << (uint32)info._parryRating;
-            buffer << (uint32)info._hasteRating;
-            buffer << (uint32)info._expertiseRating;
+            player.InstanceID = info.instanceGuid;
+            player.InstanceCompletedMask = info.encounterMask;
         }
-
-        if (flags & LFG_UPDATE_FLAG_COMMENT)
-            buffer << (info.groupGuid ? std::string("") : info.comment);
-        if (flags & LFG_UPDATE_FLAG_GROUPLEADER)
-            buffer << (uint8)1; // isLFM
-        if (flags & LFG_UPDATE_FLAG_GROUPGUID)
-            buffer << info.groupGuid;
-        if (flags & LFG_UPDATE_FLAG_ROLES)
-            buffer << (uint8)(info.groupGuid ? (info.isGroupLeader ? PLAYER_ROLE_LEADER : 0) : info.roles);
-        if (flags & LFG_UPDATE_FLAG_AREA)
-            buffer << (uint32)info._area;
-        if (flags & LFG_UPDATE_FLAG_STATUS)
-            buffer << (uint8)0;
-        if (!(flags & LFG_UPDATE_FLAG_BINDED))
-            return;
-        buffer << info.instanceGuid;
-        buffer << (uint32)info.encounterMask;
     }
 
-    void LFGMgr::RBPacketBuildDifference(WorldPacket& differencePacket, uint32 dungeonId, uint32 deletedCounter, ByteBuffer const& bufferDeleted, uint32 groupCounter, ByteBuffer const& bufferGroups, uint32 playerCounter, ByteBuffer const& bufferPlayers)
+    void LFGMgr::RBPacketBuildFull(RBSearchList& fullPacket, uint32 dungeonId, RBInternalInfoMap const& infoMap)
     {
-        differencePacket << (uint32)LFG_TYPE_RAID;
-        differencePacket << (uint32)dungeonId;
-        differencePacket << (uint8)1;
-        differencePacket << (uint32)deletedCounter;
-        differencePacket.append(bufferDeleted);
-        differencePacket << (uint32)groupCounter;
-        differencePacket << (uint32)0;
-        differencePacket.append(bufferGroups);
-        differencePacket << (uint32)playerCounter;
-        differencePacket << (uint32)0;
-        differencePacket.append(bufferPlayers);
-    }
-
-    void LFGMgr::RBPacketBuildFull(WorldPacket& fullPacket, uint32 dungeonId, RBInternalInfoMap const& infoMap)
-    {
-        fullPacket << (uint32)LFG_TYPE_RAID;
-        fullPacket << (uint32)dungeonId;
-        fullPacket << (uint8)0;
-        uint32 groupCounter = 0, playerCounter = 0;
-        ByteBuffer bufferGroups, bufferPlayers;
-        for (RBInternalInfoMap::const_iterator itr = infoMap.begin(); itr != infoMap.end(); ++itr)
+        fullPacket.Incremental = false;
+        fullPacket.SlotID = dungeonId;
+        fullPacket.SlotType = LFG_TYPE_RAID;
+        for (auto const& [guid, info] : infoMap)
         {
-            if (itr->second.isGroupLeader)
-            {
-                ++groupCounter;
-                RBPacketAppendGroup(itr->second, bufferGroups);
-            }
-            ++playerCounter;
-            RBPacketAppendPlayer(itr->second, bufferPlayers);
+            if (info.isGroupLeader)
+                RBPacketAppendGroup(info, fullPacket.Parties);
+
+            RBPacketAppendPlayer(info, fullPacket.Players);
         }
-        fullPacket << (uint32)groupCounter;
-        fullPacket << (uint32)0;
-        fullPacket.append(bufferGroups);
-        fullPacket << (uint32)playerCounter;
-        fullPacket << (uint32)0;
-        fullPacket.append(bufferPlayers);
+
+        fullPacket.CountTotalParties = fullPacket.Parties.size();
+        fullPacket.CountTotalPlayers = fullPacket.Players.size();
     }
 
     // pussywizard:

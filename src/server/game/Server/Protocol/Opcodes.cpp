@@ -1227,7 +1227,6 @@ void OpcodeTable::Initialize()
     /*0x2433*/ DEFINE_HANDLER(CMSG_LFG_LEAVE,                                                        STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleLfgLeaveOpcode                     );
     /*0x0531*/ DEFINE_HANDLER(CMSG_LFG_LFR_JOIN,                                                     STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleLfrSearchJoinOpcode                );
     /*0x0500*/ DEFINE_HANDLER(CMSG_LFG_LFR_LEAVE,                                                    STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleLfrSearchLeaveOpcode               );
-    /*0x0360*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_UPDATE_LFG_LIST,                                    STATUS_NEVER);
     /*0x7DA6*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_LFG_PROPOSAL_UPDATE,                                STATUS_NEVER);
     /*0x0403*/ DEFINE_HANDLER(CMSG_LFG_PROPOSAL_RESULT,                                              STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleLfgProposalResultOpcode            );
     /*0x0336*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_LFG_ROLE_CHECK_UPDATE,                              STATUS_NEVER);

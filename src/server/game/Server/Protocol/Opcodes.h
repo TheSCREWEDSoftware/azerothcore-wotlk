@@ -1259,7 +1259,6 @@ enum OpcodeServer : uint16
     SMSG_ARENA_TEAM_INVITE                          = 0x0F36,
     SMSG_ARENA_TEAM_EVENT                           = 0x0617,
     SMSG_ARENA_TEAM_STATS                           = 0x4425,
-    SMSG_UPDATE_LFG_LIST                            = 0x360,    // uint32, uint32, if (uint8) { uint32 count, for (count) { uint64} }, uint32 count2, uint32, for (count2) { uint64, uint32 flags, if (flags & 0x2) {string}, if (flags & 0x10) {for (3) uint8}, if (flags & 0x80) {uint64, uint32}}, uint32 count3, uint32, for (count3) {uint64, uint32 flags, if (flags & 0x1) {uint8, uint8, uint8, for (3) uint8, uint32, uint32, uint32, uint32, uint32, uint32, float, float, uint32, uint32, uint32, uint32, uint32, float, uint32, uint32, uint32, uint32, uint32, uint32}, if (flags&0x2) string, if (flags&0x4) uint8, if (flags&0x8) uint64, if (flags&0x10) uint8, if (flags&0x20) uint32, if (flags&0x40) uint8, if (flags& 0x80) {uint64, uint32}}
     SMSG_LFG_PROPOSAL_UPDATE                        = 0x7DA6,    // uint32, uint8, uint32, uint32, uint8, for (uint8) {uint32, uint8, uint8, uint8, uint8}
     SMSG_LFG_ROLE_CHECK_UPDATE                      = 0x0336,    // uint32, uint8, for (uint8) uint32, uint8, for (uint8) { uint64, uint8, uint32, uint8, }
     SMSG_LFG_JOIN_RESULT                            = 0x38B6,    // uint32 unk, uint32, if (unk == 6) { uint8 count, for (count) uint64 }

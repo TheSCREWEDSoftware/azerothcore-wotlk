@@ -25,6 +25,7 @@
 #include "Field.h"
 #include "LFG.h"
 #include "LFGGroupData.h"
+#include "LFGPackets.h"
 #include "LFGPlayerData.h"
 #include "LFGQueue.h"
 #include "Map.h"
@@ -158,6 +159,19 @@ namespace lfg
         RBEntryInfo(uint8 _roles, std::string  _comment) : roles(_roles), comment(std::move(_comment)) {}
         uint8 roles;
         std::string comment;
+    };
+
+    // raid browser list for one dungeon, sent as SMSG_LFG_SEARCH_RESULT
+    struct RBSearchList
+    {
+        bool Incremental = false;
+        std::vector<ObjectGuid> Removes;
+        uint32 SlotID = 0;
+        uint32 SlotType = 0;
+        uint32 CountTotalParties = 0;
+        uint32 CountTotalPlayers = 0;
+        std::vector<WorldPackets::LFG::ClientLFGSearchResultParty> Parties;
+        std::vector<WorldPackets::LFG::ClientLFGSearchResultPlayer> Players;
     };
 
     struct RBInternalInfo
@@ -443,7 +457,7 @@ namespace lfg
         RBStoreMap RaidBrowserStore[2]; // for 2 factions
         typedef std::unordered_map<ObjectGuid /*playerGuid*/, uint32 /*dungeonId*/> RBSearchersMap;
         RBSearchersMap RBSearchersStore[2]; // for 2 factions
-        typedef std::unordered_map<uint32 /*dungeonId*/, WorldPacket> RBCacheMap;
+        typedef std::unordered_map<uint32 /*dungeonId*/, RBSearchList> RBCacheMap;
         RBCacheMap RBCacheStore[2]; // for 2 factions
         typedef std::unordered_map<ObjectGuid /*guid*/, RBInternalInfo> RBInternalInfoMap;
         typedef std::unordered_map<uint32 /*dungeonId*/, RBInternalInfoMap> RBInternalInfoMapMap;
@@ -575,10 +589,10 @@ namespace lfg
         void UpdateRaidBrowser(uint32 diff);
         void LfrSetComment(Player* p, std::string comment);
         void SendRaidBrowserJoinedPacket(Player* p, LfgDungeonSet& dungeons, std::string comment);
-        void RBPacketAppendGroup(RBInternalInfo const& info, ByteBuffer& buffer);
-        void RBPacketAppendPlayer(RBInternalInfo const& info, ByteBuffer& buffer);
-        void RBPacketBuildDifference(WorldPacket& differencePacket, uint32 dungeonId, uint32 deletedCounter, ByteBuffer const& bufferDeleted, uint32 groupCounter, ByteBuffer const& bufferGroups, uint32 playerCounter, ByteBuffer const& bufferPlayers);
-        void RBPacketBuildFull(WorldPacket& fullPacket, uint32 dungeonId, RBInternalInfoMap const& infoMap);
+        void RBPacketAppendGroup(RBInternalInfo const& info, std::vector<WorldPackets::LFG::ClientLFGSearchResultParty>& parties);
+        void RBPacketAppendPlayer(RBInternalInfo const& info, std::vector<WorldPackets::LFG::ClientLFGSearchResultPlayer>& players);
+        void RBPacketBuildFull(RBSearchList& fullPacket, uint32 dungeonId, RBInternalInfoMap const& infoMap);
+        void RBSendSearchResults(Player* player, RBSearchList const& results);
 
         // LfgQueue
         /// Get last lfg state (NONE, DUNGEON or FINISHED_DUNGEON)
@@ -645,9 +659,7 @@ namespace lfg
         uint32 lastProposalId;                             ///< pussywizard, store it here because of splitting LFGMgr update into tasks
         uint32 m_raidBrowserUpdateTimer[2];                ///< pussywizard
         uint32 m_raidBrowserLastUpdatedDungeonId[2];       ///< pussywizard: for 2 factions
-        ByteBuffer _rbBufferDeleted;
-        ByteBuffer _rbBufferGroups;
-        ByteBuffer _rbBufferPlayers;
+        RBSearchList _rbDifference;
         GuidSet _rbPrevGroups;
         GuidSet _rbDroppedGroups;
         RBInternalInfoMap _rbCopy;
