@@ -2215,62 +2215,40 @@ uint32 Unit::CalcArmorReducedDamage(Unit const* attacker, Unit const* victim, co
 {
     float armor = float(victim->GetArmor());
 
-    // Ignore enemy armor by SPELL_AURA_MOD_TARGET_RESISTANCE aura
     if (attacker)
     {
+        // bypass enemy armor by SPELL_AURA_BYPASS_ARMOR_FOR_CASTER (Colossus Smash)
+        int32 armorBypassPct = victim->GetTotalAuraModifier(SPELL_AURA_BYPASS_ARMOR_FOR_CASTER, [attacker](AuraEffect const* aurEff)
+        {
+            return aurEff->GetCasterGUID() == attacker->GetGUID();
+        });
+        armor = CalculatePct(armor, 100 - std::min(armorBypassPct, 100));
+
+        // Ignore enemy armor by SPELL_AURA_MOD_TARGET_RESISTANCE aura
         armor += attacker->GetTotalAuraModifierByMiscMask(SPELL_AURA_MOD_TARGET_RESISTANCE, SPELL_SCHOOL_MASK_NORMAL);
 
         if (spellInfo)
             if (Player* modOwner = attacker->GetSpellModOwner())
                 modOwner->ApplySpellMod(spellInfo->Id, SPELLMOD_IGNORE_ARMOR, armor);
 
-        // Apply ability-specific ignore target resist effects for physical damage (armor)
-        AuraEffectList const& targetIgnoreRes = attacker->GetAuraEffectsByType(SPELL_AURA_MOD_ABILITY_IGNORE_TARGET_RESIST);
-        for (AuraEffect const* aurEff : targetIgnoreRes)
-            if (aurEff->GetMiscValue() & SPELL_SCHOOL_MASK_NORMAL && aurEff->IsAffectedOnSpell(spellInfo))
+        // 4.3.4 ignores a share of the target's armor with SPELL_AURA_MOD_IGNORE_TARGET_RESIST_MODIFIERS (269)
+        for (AuraEffect const* aurEff : attacker->GetAuraEffectsByType(SPELL_AURA_MOD_IGNORE_TARGET_RESIST_MODIFIERS))
+            if (aurEff->GetMiscValue() & SPELL_SCHOOL_MASK_NORMAL)
                 armor = std::floor(AddPct(armor, -aurEff->GetAmount()));
 
-        // Apply Player CR_ARMOR_PENETRATION rating and buffs from stances\specializations etc.
-        if (attacker->IsPlayer())
-        {
-            float bonusPct = 0;
-            bonusPct += attacker->GetTotalAuraModifier(SPELL_AURA_MOD_ARMOR_PENETRATION_PCT, [spellInfo,attacker](AuraEffect const* aurEff)
-            {
-                if (aurEff->GetSpellInfo()->EquippedItemClass == -1)
-                {
-                    if (!spellInfo || aurEff->IsAffectedOnSpell(spellInfo) || aurEff->GetMiscValue() & spellInfo->GetSchoolMask())
-                        return true;
-                    else if (!aurEff->GetMiscValue() && !aurEff->HasSpellClassMask())
-                        return true;
-                }
-                else
-                {
-                    if (attacker->ToPlayer()->HasItemFitToSpellRequirements(aurEff->GetSpellInfo()))
-                        return true;
-                }
-                return false;
-            });
-
-            float maxArmorPen = 0;
-            if (victim->GetLevel() < 60)
-                maxArmorPen = float(400 + 85 * victim->GetLevel());
-            else
-                maxArmorPen = 400 + 85 * victim->GetLevel() + 4.5f * 85 * (victim->GetLevel() - 59);
-
-            // Cap armor penetration to this number
-            maxArmorPen = std::min((armor + maxArmorPen) / 3, armor);
-            // Figure out how much armor do we ignore
-            float armorPen = CalculatePct(maxArmorPen, bonusPct + attacker->ToPlayer()->GetRatingBonusValue(CR_ARMOR_PENETRATION));
-            // Got the value, apply it
-            armor -= std::min(armorPen, maxArmorPen);
-        }
+        // Spell corrections still use the WotLK ability-specific aura for physical damage
+        for (AuraEffect const* aurEff : attacker->GetAuraEffectsByType(SPELL_AURA_MOD_ABILITY_IGNORE_TARGET_RESIST))
+            if (aurEff->GetMiscValue() & SPELL_SCHOOL_MASK_NORMAL && aurEff->IsAffectedOnSpell(spellInfo))
+                armor = std::floor(AddPct(armor, -aurEff->GetAmount()));
     }
 
     if (armor < 0.0f)
         armor = 0.0f;
 
     float levelModifier = attacker ? attacker->GetLevel() : attackerLevel;
-    if (levelModifier > 59)
+    if (levelModifier > 80)
+        levelModifier = levelModifier + (4.5f * (levelModifier - 59)) + (20.0f * (levelModifier - 80));
+    else if (levelModifier > 59)
         levelModifier = levelModifier + (4.5f * (levelModifier - 59));
 
     float tmpvalue = 0.1f * armor / (8.5f * levelModifier + 40);
