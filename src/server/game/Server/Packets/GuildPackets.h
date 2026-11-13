@@ -19,6 +19,7 @@
 
 #include "Guild.h"
 #include "ObjectGuid.h"
+#include "Optional.h"
 #include "Packet.h"
 #include "PacketUtilities.h"
 #include <array>
@@ -450,7 +451,7 @@ namespace WorldPackets
         class GuildBankActivate final : public ClientPacket
         {
         public:
-            GuildBankActivate(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_BANKER_ACTIVATE, std::move(packet)) { }
+            GuildBankActivate(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_BANK_ACTIVATE, std::move(packet)) { }
 
             void Read() override;
 
@@ -490,7 +491,7 @@ namespace WorldPackets
             void Read() override;
 
             ObjectGuid Banker;
-            uint32 Money = 0;
+            uint64 Money = 0;
         };
 
         class GuildBankQueryTab final : public ClientPacket
@@ -532,12 +533,12 @@ namespace WorldPackets
             void Read() override;
 
             ObjectGuid Banker;
-            uint32 Money = 0;
+            uint64 Money = 0;
         };
 
         struct GuildBankSocketEnchant
         {
-            uint8 SocketIndex = 0;
+            uint32 SocketIndex = 0;
             int32 SocketEnchantID = 0;
         };
 
@@ -551,11 +552,15 @@ namespace WorldPackets
             int32 EnchantmentID = 0;
             int32 Charges = 0;
             int32 Flags = 0;
+            int32 ReforgeEnchantmentID = 0;
+            int32 OnUseEnchantmentID = 0;
+            bool Locked = false;
             std::vector<GuildBankSocketEnchant> SocketEnchant;
         };
 
         struct GuildBankTabInfo
         {
+            int32 TabIndex = 0;
             std::string Name;
             std::string Icon;
         };
@@ -563,14 +568,14 @@ namespace WorldPackets
         class GuildBankQueryResults final : public ServerPacket
         {
         public:
-            GuildBankQueryResults() : ServerPacket(SMSG_GUILD_BANK_LIST, 25) { }
+            GuildBankQueryResults() : ServerPacket(SMSG_GUILD_BANK_QUERY_RESULTS, 25) { }
 
             WorldPacket const* Write() override;
 
             std::vector<GuildBankItemInfo> ItemInfo;
             std::vector<GuildBankTabInfo> TabInfo;
             int32 WithdrawalsRemaining = 0;
-            uint8 Tab = 0;
+            int32 Tab = 0;
             uint64 Money = 0;
             bool FullUpdate = false;
 
@@ -606,11 +611,11 @@ namespace WorldPackets
         class GuildBankLogQuery final : public ClientPacket
         {
         public:
-            GuildBankLogQuery(WorldPacket&& packet) : ClientPacket(MSG_GUILD_BANK_LOG_QUERY, std::move(packet)) { }
+            GuildBankLogQuery(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_BANK_LOG_QUERY, std::move(packet)) { }
 
             void Read() override;
 
-            uint8 Tab = 0;
+            int32 Tab = 0;
         };
 
         struct GuildBankLogEntry
@@ -618,27 +623,28 @@ namespace WorldPackets
             ObjectGuid PlayerGUID;
             uint32 TimeOffset = 0;
             int8 EntryType = 0;
-            uint32 Money = 0;
-            int32 ItemID = 0;
-            int32 Count = 0;
-            int8 OtherTab = 0;
+            Optional<uint64> Money;
+            Optional<int32> ItemID;
+            Optional<int32> Count;
+            Optional<int8> OtherTab;
         };
 
         class GuildBankLogQueryResults final : public ServerPacket
         {
         public:
-            GuildBankLogQueryResults() : ServerPacket(MSG_GUILD_BANK_LOG_QUERY_SERVER, 25) { }
+            GuildBankLogQueryResults() : ServerPacket(SMSG_GUILD_BANK_LOG_QUERY_RESULTS, 25) { }
 
             WorldPacket const* Write() override;
 
-            uint8 Tab = 0;
+            int32 Tab = 0;
             std::vector<GuildBankLogEntry> Entry;
+            Optional<uint64> WeeklyBonusMoney;
         };
 
         class GuildBankTextQuery final : public ClientPacket
         {
         public:
-            GuildBankTextQuery(WorldPacket&& packet) : ClientPacket(MSG_QUERY_GUILD_BANK_TEXT, std::move(packet)) { }
+            GuildBankTextQuery(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_BANK_TEXT_QUERY, std::move(packet)) { }
 
             void Read() override;
 
@@ -648,7 +654,7 @@ namespace WorldPackets
         class GuildBankTextQueryResult : public ServerPacket
         {
         public:
-            GuildBankTextQueryResult() : ServerPacket(MSG_QUERY_GUILD_BANK_TEXT_SERVER, 4 + 2) { }
+            GuildBankTextQueryResult() : ServerPacket(SMSG_GUILD_BANK_TEXT_QUERY_RESULT, 4 + 2) { }
 
             WorldPacket const* Write() override;
 
@@ -659,7 +665,7 @@ namespace WorldPackets
         class GuildBankSetTabText final : public ClientPacket
         {
         public:
-            GuildBankSetTabText(WorldPacket&& packet) : ClientPacket(CMSG_SET_GUILD_BANK_TEXT, std::move(packet)) { }
+            GuildBankSetTabText(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_BANK_SET_TAB_TEXT, std::move(packet)) { }
 
             void Read() override;
 

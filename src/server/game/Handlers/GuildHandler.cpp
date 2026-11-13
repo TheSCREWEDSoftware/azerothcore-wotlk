@@ -23,6 +23,7 @@
 #include "SocialMgr.h"
 #include "World.h"
 #include "WorldSession.h"
+#include <limits>
 
 void WorldSession::HandleGuildQueryOpcode(WorldPackets::Guild::QueryGuildInfo& query)
 {
@@ -344,19 +345,26 @@ void WorldSession::HandleGuildBankDepositMoney(WorldPackets::Guild::GuildBankDep
     LOG_DEBUG("guild", "CMSG_GUILD_BANK_DEPOSIT_MONEY [{}]: Go: [{}], money: {}",
               GetPlayerInfo(), packet.Banker.ToString(), packet.Money);
 
+    // 4.3.4 sends a 64-bit amount; player money here is 32-bit
+    if (packet.Money > std::numeric_limits<uint32>::max())
+        return;
+
     if (GetPlayer()->GetGameObjectIfCanInteractWith(packet.Banker, GAMEOBJECT_TYPE_GUILD_BANK))
-        if (packet.Money && GetPlayer()->HasEnoughMoney(packet.Money))
+        if (packet.Money && GetPlayer()->HasEnoughMoney(uint32(packet.Money)))
             if (Guild* guild = GetPlayer()->GetGuild())
-                guild->HandleMemberDepositMoney(this, packet.Money);
+                guild->HandleMemberDepositMoney(this, uint32(packet.Money));
 }
 
 void WorldSession::HandleGuildBankWithdrawMoney(WorldPackets::Guild::GuildBankWithdrawMoney& packet)
 {
     LOG_DEBUG("guild", "CMSG_GUILD_BANK_WITHDRAW_MONEY [{}]: Go: [{}], money: {}",
                    GetPlayerInfo(), packet.Banker.ToString(), packet.Money);
+    if (packet.Money > std::numeric_limits<uint32>::max())
+        return;
+
     if (packet.Money && GetPlayer()->GetGameObjectIfCanInteractWith(packet.Banker, GAMEOBJECT_TYPE_GUILD_BANK))
         if (Guild* guild = GetPlayer()->GetGuild())
-            guild->HandleMemberWithdrawMoney(this, packet.Money);
+            guild->HandleMemberWithdrawMoney(this, uint32(packet.Money));
 }
 
 void WorldSession::HandleGuildBankSwapItems(WorldPackets::Guild::GuildBankSwapItems& packet)
@@ -373,7 +381,7 @@ void WorldSession::HandleGuildBankSwapItems(WorldPackets::Guild::GuildBankSwapIt
     }
 
     if (packet.BankOnly)
-        guild->SwapItems(GetPlayer(), packet.BankTab1, packet.BankSlot1, packet.BankTab, packet.BankSlot, packet.BankItemCount);
+        guild->SwapItems(GetPlayer(), packet.BankTab1, packet.BankSlot1, packet.BankTab, packet.BankSlot, packet.StackCount);
     else
     {
         uint8 playerBag = NULL_BAG;
@@ -420,10 +428,14 @@ void WorldSession::HandleGuildBankUpdateTab(WorldPackets::Guild::GuildBankUpdate
 
 void WorldSession::HandleGuildBankLogQuery(WorldPackets::Guild::GuildBankLogQuery& packet)
 {
-    LOG_DEBUG("guild", "MSG_GUILD_BANK_LOG_QUERY [{}]: TabId: {}", GetPlayerInfo(), packet.Tab);
+    LOG_DEBUG("guild", "CMSG_GUILD_BANK_LOG_QUERY [{}]: TabId: {}", GetPlayerInfo(), packet.Tab);
+
+    // Tab GUILD_BANK_MAX_TABS is the money log
+    if (packet.Tab < 0 || packet.Tab > int32(GUILD_BANK_MAX_TABS))
+        return;
 
     if (Guild* guild = GetPlayer()->GetGuild())
-        guild->SendBankLog(this, packet.Tab);
+        guild->SendBankLog(this, uint8(packet.Tab));
 }
 
 void WorldSession::HandleQueryGuildBankTabText(WorldPackets::Guild::GuildBankTextQuery& packet)

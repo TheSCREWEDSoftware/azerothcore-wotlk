@@ -618,14 +618,14 @@ enum OpcodeClient : uint16
     CMSG_PARTY_UNSILENCE                            = 0x4D24,
     MSG_NOTIFY_PARTY_SQUELCH                        = 0x4D06,
     CMSG_REPORT_PVP_AFK                             = 0x6734,
-    CMSG_GUILD_BANKER_ACTIVATE                      = 0x3E6,
+    CMSG_GUILD_BANK_ACTIVATE                        = 0x2E37,
     CMSG_GUILD_BANK_QUERY_TAB                       = 0x2E35,
     CMSG_GUILD_BANK_SWAP_ITEMS                      = 0x2315,
     CMSG_GUILD_BANK_BUY_TAB                         = 0x0C37,
     CMSG_GUILD_BANK_UPDATE_TAB                      = 0x0106,
     CMSG_GUILD_BANK_DEPOSIT_MONEY                   = 0x0707,
     CMSG_GUILD_BANK_WITHDRAW_MONEY                  = 0x0037,
-    MSG_GUILD_BANK_LOG_QUERY                        = 0x3EE,
+    CMSG_GUILD_BANK_LOG_QUERY                       = 0x3224,
     CMSG_SET_CHANNEL_WATCH                          = 0x4517,
     CMSG_CLEAR_CHANNEL_WATCH                        = 0x2604,
     CMSG_SET_TITLE_SUFFIX                           = 0x3F7,
@@ -641,8 +641,8 @@ enum OpcodeClient : uint16
     CMSG_IGNORE_DIMINISHING_RETURNS_CHEAT           = 0x405,
     CMSG_KEEP_ALIVE                                 = 0x0015,
     CMSG_OPT_OUT_OF_LOOT                            = 0x6B16,
-    MSG_QUERY_GUILD_BANK_TEXT                       = 0x40A,
-    CMSG_SET_GUILD_BANK_TEXT                        = 0x40B,
+    CMSG_GUILD_BANK_TEXT_QUERY                      = 0x3220,
+    CMSG_GUILD_BANK_SET_TAB_TEXT                    = 0x3023,
     CMSG_SET_GRANTABLE_LEVELS                       = 0x40C,
     CMSG_GRANT_LEVEL                                = 0x6D16,
     CMSG_REFER_A_FRIEND                             = 0x40E,
@@ -1245,7 +1245,9 @@ enum OpcodeServer : uint16
     SMSG_COMSAT_CONNECT_FAIL                        = 0x6317,
     SMSG_VOICE_CHAT_STATUS                          = 0x0F15,
     SMSG_REPORT_PVP_AFK_RESULT                      = 0x2D06,
-    SMSG_GUILD_BANK_LIST                            = 0x3E8,
+    SMSG_GUILD_BANK_QUERY_RESULTS                   = 0x78A5,
+    SMSG_GUILD_BANK_LOG_QUERY_RESULTS               = 0x30B2,
+    SMSG_GUILD_BANK_TEXT_QUERY_RESULT               = 0x75A3,
     SMSG_GUILD_BANK_MONEY_WITHDRAWN                  = 0x5DB4,
     SMSG_USERLIST_ADD                               = 0x0F37,
     SMSG_USERLIST_REMOVE                            = 0x2006,
@@ -1589,10 +1591,6 @@ inline constexpr OpcodeServer MSG_RAID_READY_CHECK_FINISHED_SERVER =
     static_cast<OpcodeServer>(MSG_RAID_READY_CHECK_FINISHED);
 inline constexpr OpcodeServer MSG_NOTIFY_PARTY_SQUELCH_SERVER =
     static_cast<OpcodeServer>(MSG_NOTIFY_PARTY_SQUELCH);
-inline constexpr OpcodeServer MSG_GUILD_BANK_LOG_QUERY_SERVER =
-    static_cast<OpcodeServer>(MSG_GUILD_BANK_LOG_QUERY);
-inline constexpr OpcodeServer MSG_QUERY_GUILD_BANK_TEXT_SERVER =
-    static_cast<OpcodeServer>(MSG_QUERY_GUILD_BANK_TEXT);
 inline constexpr OpcodeServer MSG_GM_CHANGE_ARENA_RATING_SERVER =
     static_cast<OpcodeServer>(MSG_GM_CHANGE_ARENA_RATING);
 inline constexpr OpcodeServer MSG_MOVE_SET_PITCH_RATE_CHEAT_SERVER =

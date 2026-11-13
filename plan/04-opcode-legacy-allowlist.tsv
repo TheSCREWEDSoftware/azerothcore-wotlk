@@ -117,7 +117,6 @@ c2s	CMSG_GODMODE	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
 c2s	CMSG_GROUP_ACCEPT	#182	grouping and social packets are ported with phase 9
 c2s	CMSG_GROUP_DECLINE	#182	grouping and social packets are ported with phase 9
 c2s	CMSG_GROUP_INVITE	#182	grouping and social packets are ported with phase 9
-c2s	CMSG_GUILD_BANKER_ACTIVATE	#182	grouping and social packets are ported with phase 9
 c2s	CMSG_GUILD_CREATE	#182	grouping and social packets are ported with phase 9
 c2s	CMSG_IGNORE_DIMINISHING_RETURNS_CHEAT	#168	WotLK-only debug or cheat handler; no 4.3.4 opcode
 c2s	CMSG_IGNORE_KNOCKBACK_CHEAT	#168	WotLK-only debug or cheat handler; no 4.3.4 opcode
@@ -189,7 +188,6 @@ c2s	CMSG_SET_EXPLORATION_ALL	#168	WotLK-only opcode with no 4.3.4 counterpart in
 c2s	CMSG_SET_GLYPH	#177	class mechanics are ported with phase 4
 c2s	CMSG_SET_GLYPH_SLOT	#177	class mechanics are ported with phase 4
 c2s	CMSG_SET_GRANTABLE_LEVELS	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
-c2s	CMSG_SET_GUILD_BANK_TEXT	#182	grouping and social packets are ported with phase 9
 c2s	CMSG_SET_PAID_SERVICE_CHEAT	#168	WotLK-only debug or cheat handler; no 4.3.4 opcode
 c2s	CMSG_SET_PVP_RANK_CHEAT	#168	WotLK-only debug or cheat handler; no 4.3.4 opcode
 c2s	CMSG_SET_PVP_TITLE	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
@@ -234,7 +232,6 @@ c2s	MSG_GM_CHANGE_ARENA_RATING	#182	grouping and social packets are ported with 
 c2s	MSG_GM_DESTROY_CORPSE	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
 c2s	MSG_GM_GEARRATING	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
 c2s	MSG_GM_RESETINSTANCELIMIT	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
-c2s	MSG_GUILD_BANK_LOG_QUERY	#182	grouping and social packets are ported with phase 9
 c2s	MSG_INSPECT_HONOR_STATS	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
 c2s	MSG_MOVE_FEATHER_FALL	#186	movement packet layout is ported with the movement work
 c2s	MSG_MOVE_KNOCK_BACK	#186	movement packet layout is ported with the movement work
@@ -256,7 +253,6 @@ c2s	MSG_MOVE_UNROOT	#186	movement packet layout is ported with the movement work
 c2s	MSG_MOVE_UPDATE_CAN_FLY	#186	movement packet layout is ported with the movement work
 c2s	MSG_MOVE_UPDATE_CAN_TRANSITION_BETWEEN_SWIM_AND_FLY	#186	movement packet layout is ported with the movement work
 c2s	MSG_MOVE_WATER_WALK	#186	movement packet layout is ported with the movement work
-c2s	MSG_QUERY_GUILD_BANK_TEXT	#182	grouping and social packets are ported with phase 9
 c2s	MSG_VIEW_PHASE_SHIFT	#180	Cata phasing payload is ported with phase 7
 c2s	TC9_CMSG_PREPARE_FOR_REDIRECT	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
 c2s	UMSG_DELETE_GUILD_CHARTER	#182	grouping and social packets are ported with phase 9
@@ -265,7 +261,6 @@ c2s	UMSG_UPDATE_GROUP_MEMBERS	#182	grouping and social packets are ported with p
 c2s	UMSG_UPDATE_GUILD	#182	grouping and social packets are ported with phase 9
 s2c	CMSG_GMTICKETSYSTEM_TOGGLE	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
 s2c	MSG_BATTLEGROUND_PLAYER_POSITIONS	#182	grouping and social packets are ported with phase 9
-s2c	MSG_GUILD_BANK_LOG_QUERY	#182	grouping and social packets are ported with phase 9
 s2c	MSG_INSPECT_HONOR_STATS	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
 s2c	MSG_MOVE_GRAVITY_CHNG	#186	movement packet layout is ported with the movement work
 s2c	MSG_MOVE_HOVER	#186	movement packet layout is ported with the movement work
@@ -273,7 +268,6 @@ s2c	MSG_MOVE_KNOCK_BACK	#186	movement packet layout is ported with the movement 
 s2c	MSG_MOVE_ROOT	#186	movement packet layout is ported with the movement work
 s2c	MSG_MOVE_SET_COLLISION_HGT	#186	movement packet layout is ported with the movement work
 s2c	MSG_MOVE_UNROOT	#186	movement packet layout is ported with the movement work
-s2c	MSG_QUERY_GUILD_BANK_TEXT	#182	grouping and social packets are ported with phase 9
 s2c	SMSG_AFK_MONITOR_INFO_RESPONSE	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
 s2c	SMSG_AUTH_SRP6_RESPONSE	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
 s2c	SMSG_CHANGEPLAYER_DIFFICULTY_RESULT	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
@@ -309,7 +303,6 @@ s2c	SMSG_GOGOGO_OBSOLETE	#168	WotLK-only opcode with no 4.3.4 counterpart in the
 s2c	SMSG_GROUP_INVITE	#182	grouping and social packets are ported with phase 9
 s2c	SMSG_GROUP_JOINED_BATTLEGROUND	#182	grouping and social packets are ported with phase 9
 s2c	SMSG_GROUP_LIST	#182	grouping and social packets are ported with phase 9
-s2c	SMSG_GUILD_BANK_LIST	#182	grouping and social packets are ported with phase 9
 s2c	SMSG_GUILD_INFO	#182	grouping and social packets are ported with phase 9
 s2c	SMSG_INIT_EXTRA_AURA_INFO_OBSOLETE	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
 s2c	SMSG_INSTANCE_LOCK_WARNING_QUERY	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin

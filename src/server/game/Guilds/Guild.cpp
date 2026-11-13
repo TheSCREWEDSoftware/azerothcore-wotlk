@@ -256,7 +256,7 @@ void Guild::BankEventLogEntry::WritePacket(WorldPackets::Guild::GuildBankLogQuer
             bankLogEntry.OtherTab = int8(m_destTabId);
             break;
         default:
-            bankLogEntry.Money = uint32(m_itemOrMoney);
+            bankLogEntry.Money = uint64(m_itemOrMoney);
     }
 
     packet.Entry.push_back(bankLogEntry);
@@ -3005,6 +3005,7 @@ void Guild::_SendBankList(WorldSession* session /* = nullptr*/, uint8 tabId /*= 
         for (uint8 i = 0; i < _GetPurchasedTabsSize(); ++i)
         {
             WorldPackets::Guild::GuildBankTabInfo tabInfo;
+            tabInfo.TabIndex = i;
             tabInfo.Name = m_bankTabs[i].GetName();
             tabInfo.Icon = m_bankTabs[i].GetIcon();
             packet.TabInfo.push_back(tabInfo);
@@ -3026,6 +3027,7 @@ void Guild::_SendBankList(WorldSession* session /* = nullptr*/, uint8 tabId /*= 
                     itemInfo.Count = int32(tabItem->GetCount());
                     itemInfo.Charges = int32(std::abs(tabItem->GetSpellCharges()));
                     itemInfo.EnchantmentID = int32(tabItem->GetEnchantmentId(PERM_ENCHANTMENT_SLOT));
+                    itemInfo.ReforgeEnchantmentID = int32(tabItem->GetEnchantmentId(REFORGE_ENCHANTMENT_SLOT));
                     itemInfo.Flags = tabItem->GetInt32Value(ITEM_FIELD_FLAGS);
                     itemInfo.RandomPropertiesID = tabItem->GetItemRandomPropertyId();
                     itemInfo.RandomPropertiesSeed = int32(tabItem->GetItemSuffixFactor());
@@ -3068,7 +3070,7 @@ void Guild::_SendBankList(WorldSession* session /* = nullptr*/, uint8 tabId /*= 
             packet.WithdrawalsRemaining = _GetMemberRemainingSlots(*member, tabId);
 
         session->SendPacket(packet.Write());
-        LOG_DEBUG("guild", "SMSG_GUILD_BANK_LIST [{}]: TabId: {}, FullSlots: {}, slots: {}",
+        LOG_DEBUG("guild", "SMSG_GUILD_BANK_QUERY_RESULTS [{}]: TabId: {}, FullSlots: {}, slots: {}",
                      session->GetPlayerInfo(), tabId, sendAllSlots, packet.WithdrawalsRemaining);
     }
     else
@@ -3088,7 +3090,7 @@ void Guild::_SendBankList(WorldSession* session /* = nullptr*/, uint8 tabId /*= 
 
             packet.SetWithdrawalsRemaining(_GetMemberRemainingSlots(member, tabId));
             player->SendDirectMessage(packet.GetRawPacket());
-            LOG_DEBUG("guild", "SMSG_GUILD_BANK_LIST [{}]: TabId: {}, FullSlots: {}, slots: {}"
+            LOG_DEBUG("guild", "SMSG_GUILD_BANK_QUERY_RESULTS [{}]: TabId: {}, FullSlots: {}, slots: {}"
                     , player->GetName(), tabId, sendAllSlots, packet.WithdrawalsRemaining);
         }
     }
