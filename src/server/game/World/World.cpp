@@ -30,6 +30,7 @@
 #include "AutobroadcastMgr.h"
 #include "BattlefieldMgr.h"
 #include "BattlegroundMgr.h"
+#include "BlackMarketMgr.h"
 #include "CalendarMgr.h"
 #include "Channel.h"
 #include "ChannelMgr.h"
@@ -925,6 +926,12 @@ void World::SetInitialWorldSettings()
     LOG_INFO("server.loading", "Loading Calendar Data...");
     sCalendarMgr->LoadFromDB();
 
+    LOG_INFO("server.loading", "Loading Black Market Templates...");
+    sBlackMarketMgr->LoadTemplates();
+
+    LOG_INFO("server.loading", "Loading Black Market Auctions...");
+    sBlackMarketMgr->LoadAuctions();
+
     LOG_INFO("server.loading", "Initializing SpellInfo Precomputed Data..."); // must be called after loading items, professions, spells and pretty much anything
     LOG_INFO("server.loading", " ");
     sObjectMgr->InitializeSpellInfoPrecomputedData();
@@ -965,6 +972,8 @@ void World::SetInitialWorldSettings()
     _timers[WUPDATE_5_SECS].SetInterval(5 * IN_MILLISECONDS);
 
     _timers[WUPDATE_WHO_LIST].SetInterval(5 * IN_MILLISECONDS); // update who list cache every 5 seconds
+
+    _timers[WUPDATE_BLACK_MARKET].SetInterval(MINUTE * IN_MILLISECONDS);
 
     _mail_expire_check_timer = GameTime::GetGameTime() + 6h;
 
@@ -1206,6 +1215,14 @@ void World::Update(uint32 diff)
         METRIC_TIMER("world_update_time", METRIC_TAG("type", "Update who list"));
         _timers[WUPDATE_WHO_LIST].Reset();
         sWhoListCacheMgr->Update();
+    }
+
+    ///- Update the Black Market
+    if (_timers[WUPDATE_BLACK_MARKET].Passed())
+    {
+        METRIC_TIMER("world_update_time", METRIC_TAG("type", "Update black market"));
+        _timers[WUPDATE_BLACK_MARKET].Reset();
+        sBlackMarketMgr->Update();
     }
 
     {

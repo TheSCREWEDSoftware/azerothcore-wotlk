@@ -194,6 +194,13 @@ void WorldSession::HandleGossipHelloOpcode(WorldPacket& recvData)
         unit->GetMotionMaster()->GetCurrentMovementGeneratorType() == WAYPOINT_MOTION_TYPE)
         unit->SetHomePosition(unit->GetPosition());
 
+    // The black market auctioneer opens the auction window instead of a gossip menu
+    if (unit->HasNpcFlag(UNIT_NPC_FLAG_BLACK_MARKET))
+    {
+        SendBlackMarketHello(guid);
+        return;
+    }
+
     // If spiritguide, no need for gossip menu, just put player into resurrect queue
     if (unit->IsSpiritGuide())
     {

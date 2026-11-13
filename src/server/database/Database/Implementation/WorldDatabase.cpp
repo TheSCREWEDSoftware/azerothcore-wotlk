@@ -117,6 +117,7 @@ void WorldDatabaseConnection::DoPrepareStatements()
     PrepareStatement(WORLD_SEL_PHASE_AREA, "SELECT AreaId, PhaseId, PhaseGroup FROM phase_area", CONNECTION_SYNCH);
     PrepareStatement(WORLD_SEL_TERRAIN_WORLD_MAP, "SELECT TerrainSwapMap, WorldMapArea FROM terrain_worldmap", CONNECTION_SYNCH);
     PrepareStatement(WORLD_SEL_TERRAIN_SWAP_DEFAULTS, "SELECT MapId, TerrainSwapMap FROM terrain_swap_defaults", CONNECTION_SYNCH);
+    PrepareStatement(WORLD_SEL_BLACKMARKET_TEMPLATE, "SELECT Id, MarketId, SellerId, ItemEntry, Quantity, MinBid, Duration, Chance FROM blackmarket_template", CONNECTION_SYNCH);
 }
 
 WorldDatabaseConnection::WorldDatabaseConnection(MySQLConnectionInfo& connInfo) : MySQLConnection(connInfo)

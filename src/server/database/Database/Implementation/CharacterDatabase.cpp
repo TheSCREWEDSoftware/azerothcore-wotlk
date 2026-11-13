@@ -703,6 +703,12 @@ void CharacterDatabaseConnection::DoPrepareStatements()
     // By providing the realm ID explicitly, this ensures that mysql reverse proxy will use
     // correct realm database for the transaction.
     PrepareStatement(CHAR_NO_OP_PROVIDE_REALM_CONTEXT, "SELECT ? AS no_op", CONNECTION_ASYNC);
+
+    // Black Market
+    PrepareStatement(CHAR_SEL_BLACKMARKET_AUCTIONS, "SELECT auctionId, templateId, startTime, currentBidder, currentBid, minIncrement, numBids FROM blackmarket_auctions", CONNECTION_SYNCH);
+    PrepareStatement(CHAR_INS_BLACKMARKET_AUCTION, "INSERT INTO blackmarket_auctions (auctionId, templateId, startTime, currentBidder, currentBid, minIncrement, numBids) VALUES (?, ?, ?, ?, ?, ?, ?)", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_UPD_BLACKMARKET_AUCTION, "UPDATE blackmarket_auctions SET currentBidder = ?, currentBid = ?, minIncrement = ?, numBids = ? WHERE auctionId = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_DEL_BLACKMARKET_AUCTION, "DELETE FROM blackmarket_auctions WHERE auctionId = ?", CONNECTION_ASYNC);
 }
 
 CharacterDatabaseConnection::CharacterDatabaseConnection(MySQLConnectionInfo& connInfo) : MySQLConnection(connInfo)

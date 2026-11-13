@@ -4766,6 +4766,40 @@ Calendar.DeleteOldEventsHour = 6
 ###################################################################################################
 
 ###################################################################################################
+# BLACK MARKET
+#
+#    BlackMarket.Open
+#        Description: Open the Black Market Auction House.
+#        Default:     0 - (Closed)
+#                     1 - (Open)
+
+BlackMarket.Open = 0
+
+#
+#    BlackMarket.MaxAuctions
+#        Description: Number of auctions the Black Market keeps on offer.
+#        Default:     12
+
+BlackMarket.MaxAuctions = 12
+
+#
+#    BlackMarket.AuctionDelay
+#        Description: Time in seconds between the creation of an auction and its start.
+#        Default:     120
+
+BlackMarket.AuctionDelay = 120
+
+#
+#    BlackMarket.AuctionDelayMod
+#        Description: Random variation in seconds added to BlackMarket.AuctionDelay.
+#        Default:     120
+
+BlackMarket.AuctionDelayMod = 120
+
+#
+###################################################################################################
+
+###################################################################################################
 # GAME EVENT
 #
 #    Event.Announce

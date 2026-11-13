@@ -1344,6 +1344,13 @@ public:                                                 // opcodes handlers
     void HandleCalendarEventModeratorStatus(WorldPacket& recvData);
     void HandleCalendarComplain(WorldPackets::Calendar::CalendarComplain& packet);
     void HandleCalendarGetNumPending(WorldPacket& recvData);
+
+    // Black Market
+    void HandleBlackMarketHelloOpcode(WorldPacket& recvData);
+    void SendBlackMarketHello(ObjectGuid npcGuid);
+    void HandleBlackMarketRequestItemsOpcode(WorldPacket& recvData);
+    void SendBlackMarketItemsResult();
+    void HandleBlackMarketBidOpcode(WorldPacket& recvData);
     void HandleCalendarEventSignup(WorldPacket& recvData);
 
     void SendCalendarRaidLockout(InstanceSave const* save, bool add);
