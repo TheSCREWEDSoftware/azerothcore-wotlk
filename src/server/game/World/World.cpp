@@ -52,6 +52,7 @@
 #include "GitRevision.h"
 #include "GridNotifiersImpl.h"
 #include "GroupMgr.h"
+#include "GuildFinderMgr.h"
 #include "GuildMgr.h"
 #include "InstanceSaveMgr.h"
 #include "IPLocation.h"
@@ -780,6 +781,9 @@ void World::SetInitialWorldSettings()
     sGuildMgr->LoadGuildProfessionData();
 
     sGuildMgr->LoadGuilds();
+
+    LOG_INFO("server.loading", "Loading Guild Finder Data...");
+    sGuildFinderMgr->LoadFromDB();
 
     LOG_INFO("server.loading", "Loading ArenaTeams...");
     sArenaTeamMgr->LoadArenaTeams();

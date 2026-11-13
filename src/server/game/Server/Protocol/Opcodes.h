@@ -28,6 +28,14 @@
 /// Lists of opcodes by wire direction
 enum OpcodeClient : uint16
 {
+    CMSG_LF_GUILD_SET_GUILD_POST                    = 0x0448,
+    CMSG_LF_GUILD_REMOVE_RECRUIT                    = 0x3027,
+    CMSG_LF_GUILD_POST_REQUEST                      = 0x3237,
+    CMSG_LF_GUILD_GET_RECRUITS                      = 0x3230,
+    CMSG_LF_GUILD_GET_APPLICATIONS                  = 0x1230,
+    CMSG_LF_GUILD_DECLINE_RECRUIT                   = 0x1031,
+    CMSG_LF_GUILD_BROWSE                            = 0x0548,
+    CMSG_LF_GUILD_ADD_RECRUIT                       = 0x4448,
     CMSG_GUILD_QUERY_RECIPES                        = 0x3033,
     CMSG_REQUEST_GUILD_REWARDS_LIST                 = 0x3012,
     CMSG_GUILD_REQUEST_CHALLENGE_UPDATE             = 0x1224,
@@ -798,6 +806,13 @@ enum OpcodeClient : uint16
 
 enum OpcodeServer : uint16
 {
+    SMSG_LF_GUILD_RECRUIT_LIST_UPDATED              = 0x1CB2,
+    SMSG_LF_GUILD_POST_UPDATED                      = 0x35B7,
+    SMSG_LF_GUILD_MEMBERSHIP_LIST_UPDATED           = 0x1CA5,
+    SMSG_LF_GUILD_COMMAND_RESULT                    = 0x54A6,
+    SMSG_LF_GUILD_BROWSE_UPDATED                    = 0x1DA3,
+    SMSG_LF_GUILD_APPLICATIONS_LIST_CHANGED         = 0x71A5,
+    SMSG_LF_GUILD_APPLICANT_LIST_UPDATED            = 0x10A4,
     SMSG_GUILD_KNOWN_RECIPES                        = 0x10B3,
     SMSG_GUILD_REWARD_LIST                          = 0x1DB0,
     SMSG_GUILD_REPUTATION_REACTION_CHANGED          = 0x74B0,

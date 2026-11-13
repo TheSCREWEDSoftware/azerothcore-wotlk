@@ -24,6 +24,7 @@
 #include "DatabaseEnv.h"
 #include "DBCStores.h"
 #include "GameTime.h"
+#include "GuildFinderMgr.h"
 #include "GuildMgr.h"
 #include "GuildPackets.h"
 #include "Language.h"
@@ -1265,6 +1266,11 @@ void Guild::Disband()
     trans->Append(stmt);
 
     CharacterDatabase.CommitTransaction(trans);
+
+    // Wipe any Guild Finder recruitment settings/pending applications for this guild - it no
+    // longer exists to receive them (see GuildFinderMgr::DeleteGuild).
+    sGuildFinderMgr->DeleteGuild(m_id);
+
     sGuildMgr->RemoveGuild(m_id);
 }
 
@@ -2600,6 +2606,11 @@ bool Guild::AddMember(ObjectGuid guid, uint8 rankId)
     _UpdateAccountsNumber();
     _LogEvent(GUILD_EVENT_LOG_JOIN_GUILD, guid);
     _BroadcastEvent(GE_JOINED, guid, name);
+
+    // A player joining by any path (Guild Finder application accepted via the ordinary
+    // CMSG_GUILD_INVITE/CMSG_GUILD_ACCEPT flow, or a plain invite) is no longer a pending
+    // applicant anywhere - drop any Guild Finder membership requests they had filed.
+    sGuildFinderMgr->RemoveAllMembershipRequestsFromPlayer(guid.GetCounter());
 
     // Call scripts if member was succesfully added (and stored to database)
     sScriptMgr->OnGuildAddMember(this, player, rankId);

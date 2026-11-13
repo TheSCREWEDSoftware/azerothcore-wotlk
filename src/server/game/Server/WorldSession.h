@@ -88,6 +88,18 @@ namespace WorldPackets
         class LFGLeave;
     }
 
+    namespace GuildFinder
+    {
+        class AddRecruit;
+        class Browse;
+        class DeclineRecruit;
+        class GetApplications;
+        class GetRecruits;
+        class PostRequest;
+        class RemoveRecruit;
+        class SetGuildPost;
+    }
+
     namespace Chat
     {
         class EmoteClient;
@@ -904,6 +916,15 @@ public:                                                 // opcodes handlers
     void HandleRequestGuildRewardsListOpcode(WorldPackets::Guild::RequestGuildRewardsList& packet);
     void HandleSaveGuildEmblemOpcode(WorldPackets::Guild::SaveGuildEmblem& packet);
     void HandleGuildQueryRecipesOpcode(WorldPackets::Guild::GuildQueryRecipes& packet);
+
+    void HandleGuildFinderAddRecruitOpcode(WorldPackets::GuildFinder::AddRecruit& packet);
+    void HandleGuildFinderBrowseOpcode(WorldPackets::GuildFinder::Browse& packet);
+    void HandleGuildFinderDeclineRecruitOpcode(WorldPackets::GuildFinder::DeclineRecruit& packet);
+    void HandleGuildFinderGetApplicationsOpcode(WorldPackets::GuildFinder::GetApplications& packet);
+    void HandleGuildFinderGetRecruitsOpcode(WorldPackets::GuildFinder::GetRecruits& packet);
+    void HandleGuildFinderPostRequestOpcode(WorldPackets::GuildFinder::PostRequest& packet);
+    void HandleGuildFinderRemoveRecruitOpcode(WorldPackets::GuildFinder::RemoveRecruit& packet);
+    void HandleGuildFinderSetGuildPostOpcode(WorldPackets::GuildFinder::SetGuildPost& packet);
 
     void HandleTaxiNodeStatusQueryOpcode(WorldPacket& recvPacket);
     void HandleTaxiQueryAvailableNodes(WorldPacket& recvPacket);
