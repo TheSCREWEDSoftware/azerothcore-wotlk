@@ -1435,12 +1435,12 @@ enum OpcodeServer : uint16
     SMSG_FORCE_ANIM                                 = 0x4C05,
     SMSG_CHAR_FACTION_CHANGE                        = 0x4C06,
     SMSG_PVP_QUEUE_STATS                            = 0x4DC,
-    SMSG_BATTLEFIELD_MGR_ENTRY_INVITE               = 0x34B3, // uint32
-    SMSG_BATTLEFIELD_MGR_ENTERED                    = 0x5CA0, // uint32, uint8, uint8
-    SMSG_BATTLEFIELD_MGR_QUEUE_INVITE               = 0x15A6, // uint32
-    SMSG_BATTLEFIELD_MGR_QUEUE_REQUEST_RESPONSE     = 0x79B6, // uint32, uint8
+    SMSG_BATTLEFIELD_MGR_ENTRY_INVITE               = 0x34B3,
+    SMSG_BATTLEFIELD_MGR_ENTERED                    = 0x5CA0,
+    SMSG_BATTLEFIELD_MGR_QUEUE_INVITE               = 0x15A6,
+    SMSG_BATTLEFIELD_MGR_QUEUE_REQUEST_RESPONSE     = 0x79B6,
     SMSG_BATTLEFIELD_MGR_EJECT_PENDING              = 0x34A2, // uint32
-    SMSG_BATTLEFIELD_MGR_EJECTED                    = 0x7DB7, // uint32, uint32, uint8
+    SMSG_BATTLEFIELD_MGR_EJECTED                    = 0x7DB7,
     SMSG_BATTLEFIELD_MGR_STATE_CHANGE               = 0x35B4, // uint32, uint32
     SMSG_TOGGLE_XP_GAIN                             = 0x6704, // enable/disable XP gain console message
     SMSG_GMRESPONSE_DB_ERROR                        = 0x0006, // empty

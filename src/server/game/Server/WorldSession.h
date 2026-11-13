@@ -1205,6 +1205,7 @@ public:                                                 // opcodes handlers
     void HandleBfQueueInviteResponse(WorldPacket& recvData);
     void HandleBfEntryInviteResponse(WorldPacket& recvData);
     void HandleBfExitRequest(WorldPacket& recvData);
+    void HandleBfQueueRequest(WorldPacket& recvData);
 
     // Looking for Dungeon/Raid
     void HandleLfgSetCommentOpcode(WorldPacket& recvData);
