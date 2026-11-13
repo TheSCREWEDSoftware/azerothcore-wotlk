@@ -1741,6 +1741,7 @@ public:
         return mMitems.erase(itemLowGuid);
     }
 
+    [[nodiscard]] bool CanControlPet(uint32 spellId = 0) const;
     void PetSpellInitialize();
     void CharmSpellInitialize();
     void PossessSpellInitialize();

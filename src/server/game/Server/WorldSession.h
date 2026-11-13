@@ -669,6 +669,7 @@ public:
     void SendPetNameQuery(ObjectGuid guid, uint64 petnumber);
     void SendStablePet(ObjectGuid guid);
     void SendStableResult(uint8 guid);
+    void SendPetSlotUpdated(int32 petNumberA, int32 petSlotA, int32 petNumberB, int32 petSlotB);
     bool CheckStableMaster(ObjectGuid guid);
 
     // Account Data
@@ -865,6 +866,9 @@ public:                                                 // opcodes handlers
     void HandleDelIgnoreOpcode(WorldPacket& recvPacket);
     void HandleSetContactNotesOpcode(WorldPacket& recvPacket);
     void HandleBugOpcode(WorldPacket& recvPacket);
+    void HandleSupportTicketSubmitBugOpcode(WorldPacket& recvData);
+    void HandleSupportTicketSubmitSuggestionOpcode(WorldPacket& recvData);
+    void HandleSupportTicketSubmitComplaintOpcode(WorldPacket& recvData);
     void HandleSetAmmoOpcode(WorldPacket& recvPacket);
     void HandleItemNameQueryOpcode(WorldPacket& recvPacket);
 

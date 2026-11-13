@@ -882,6 +882,10 @@ enum OpcodeClient : uint16
 
 enum OpcodeServer : uint16
 {
+    SMSG_GAME_OBJECT_ACTIVATE_ANIM_KIT              = 0xF281,
+    SMSG_SET_MELEE_ANIM_KIT                         = 0xF280,
+    SMSG_SET_AI_ANIM_KIT                            = 0xF27F,
+    SMSG_PET_SLOT_UPDATED                           = 0xF27E,
     // 5.4.8 opcodes without a handler yet (SkyFire names)
     SMSG_ACCOUNT_CRITERIA_UPDATE                    = 0x189E,
     SMSG_AE_LOOT_TARGETS                            = 0x0C32,

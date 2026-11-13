@@ -72,6 +72,7 @@ namespace WorldPackets
             uint32 BackgroundColor = 0;
             uint32 GuildLevel = 0;
             uint32 MemberCount = 0;
+            uint32 AchievementPoints = 0;
             uint32 Interests = 0;
             uint32 Availability = 0;
             uint32 ClassRoles = 0;

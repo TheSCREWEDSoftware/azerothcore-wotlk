@@ -980,6 +980,8 @@ uint64 Spell::CalculateDelayMomentForDst() const
             if (speed > 0.0f)
                 return (uint64)std::floor(m_targets.GetDist2d() / speed * 1000.0f);
         }
+        else if (m_spellInfo->HasAttribute(SPELL_ATTR9_SPECIAL_DELAY_CALCULATION))
+            return uint64(std::floor(m_spellInfo->Speed * 1000.0f));    // speed is the travel time in seconds
         else if (m_spellInfo->Speed > 0.0f)
         {
             // We should not subtract caster size from dist calculation (fixes execution time desync with animation on client, eg. Malleable Goo cast by PP)
@@ -1428,7 +1430,33 @@ void Spell::SelectImplicitAreaTargets(SpellEffIndex effIndex, SpellImplicitTarge
             break;
     }
 
-    SearchAreaTargets(targets, radius, center, referer, targetType.GetObjectType(), targetType.GetCheckType(), m_spellInfo->Effects[effIndex].ImplicitTargetConditions, Acore::WorldObjectSpellAreaTargetSearchReason::Area, targetType.GetReferenceType());
+    switch (targetType.GetTarget())
+    {
+        case TARGET_UNIT_CASTER_AND_PASSENGERS:
+            targets.push_back(m_caster);
+            if (Unit* unit = m_caster->ToUnit())
+                if (Vehicle const* vehicleKit = unit->GetVehicleKit())
+                    for (int8 seat = 0; seat < MAX_VEHICLE_SEATS; ++seat)
+                        if (Unit* passenger = vehicleKit->GetPassenger(seat))
+                            targets.push_back(passenger);
+            break;
+        case TARGET_UNIT_TARGET_ALLY_OR_RAID:
+            if (Unit* targetedUnit = m_targets.GetUnitTarget())
+            {
+                if (!m_caster->IsUnit() || !m_caster->ToUnit()->IsInRaidWith(targetedUnit))
+                    targets.push_back(targetedUnit);
+                else
+                    SearchAreaTargets(targets, radius, targetedUnit, referer, targetType.GetObjectType(), targetType.GetCheckType(), m_spellInfo->Effects[effIndex].ImplicitTargetConditions, Acore::WorldObjectSpellAreaTargetSearchReason::Area, targetType.GetReferenceType());
+            }
+            break;
+        case TARGET_UNIT_CASTER_AND_SUMMONS:
+            targets.push_back(m_caster);
+            SearchAreaTargets(targets, radius, center, referer, targetType.GetObjectType(), targetType.GetCheckType(), m_spellInfo->Effects[effIndex].ImplicitTargetConditions, Acore::WorldObjectSpellAreaTargetSearchReason::Area, targetType.GetReferenceType());
+            break;
+        default:
+            SearchAreaTargets(targets, radius, center, referer, targetType.GetObjectType(), targetType.GetCheckType(), m_spellInfo->Effects[effIndex].ImplicitTargetConditions, Acore::WorldObjectSpellAreaTargetSearchReason::Area, targetType.GetReferenceType());
+            break;
+    }
 
     CallScriptObjectAreaTargetSelectHandlers(targets, effIndex, targetType);
 
@@ -1461,6 +1489,9 @@ void Spell::SelectImplicitCasterDestTargets(SpellEffIndex effIndex, SpellImplici
     {
         case TARGET_DEST_CASTER:
         case TARGET_DEST_CASTER_36:
+            break;
+        case TARGET_DEST_CASTER_GROUND_2:
+            dest._position.m_positionZ = m_caster->GetMapWaterOrGroundLevel(dest._position.GetPositionX(), dest._position.GetPositionY(), dest._position.GetPositionZ());
             break;
         case TARGET_DEST_HOME:
             if (Player* playerCaster = m_caster->ToPlayer())
@@ -1771,7 +1802,7 @@ void Spell::SelectImplicitCasterDestTargets(SpellEffIndex effIndex, SpellImplici
                     break;
                 case TARGET_DEST_CASTER_RANDOM:
                     if (dist > objSize)
-                        dist = objSize + (dist - objSize) * float(rand_norm());
+                        dist = objSize + (dist - objSize) * std::sqrt(float(rand_norm())); // uniform over the area
                     break;
                 case TARGET_DEST_CASTER_FRONT_LEFT:
                 case TARGET_DEST_CASTER_BACK_LEFT:
@@ -1821,7 +1852,7 @@ void Spell::SelectImplicitTargetDestTargets(SpellEffIndex effIndex, SpellImplici
             float dist = m_spellInfo->Effects[effIndex].CalcRadius(nullptr);
             if (targetType.GetTarget() == TARGET_DEST_TARGET_RANDOM)
             {
-                dist *= float(rand_norm());
+                dist *= std::sqrt(float(rand_norm()));      // uniform over the area
             }
 
             if (targetType.GetTarget() == TARGET_DEST_TARGET_BACK)
@@ -1863,7 +1894,7 @@ void Spell::SelectImplicitDestDestTargets(SpellEffIndex effIndex, SpellImplicitT
             float angle = targetType.CalcDirectionAngle();
             float dist = m_spellInfo->Effects[effIndex].CalcRadius(m_caster);
             if (targetType.GetTarget() == TARGET_DEST_DEST_RANDOM)
-                dist *= float(rand_norm());
+                dist *= std::sqrt(float(rand_norm()));          // uniform over the area
 
             Position pos = dest._position;
             m_caster->MovePositionToFirstCollision(pos, dist, angle);
@@ -1919,6 +1950,10 @@ void Spell::SelectImplicitCasterObjectTargets(SpellEffIndex effIndex, SpellImpli
             if (Unit* unitCaster = m_caster->ToUnit())
                 if (unitCaster->IsCreature() && unitCaster->ToCreature()->IsVehicle())
                     target = unitCaster->GetVehicleKit()->GetPassenger(targetType.GetTarget() - TARGET_UNIT_PASSENGER_0);
+            break;
+        case TARGET_UNIT_TARGET_TAP_LIST:
+            if (Creature* creatureCaster = m_caster->ToCreature())
+                target = creatureCaster->GetLootRecipient();
             break;
         default:
             break;
@@ -2502,7 +2537,10 @@ void Spell::AddUnitTarget(Unit* target, uint32 effectMask, bool checkIfValid /*=
 
         if (dist < 5.0f)
             dist = 5.0f;
-        targetInfo.timeDelay = (uint64) std::floor(dist / m_spellInfo->Speed * 1000.0f);
+        if (m_spellInfo->HasAttribute(SPELL_ATTR9_SPECIAL_DELAY_CALCULATION))
+            targetInfo.timeDelay = uint64(std::floor(m_spellInfo->Speed * 1000.0f)); // speed is the travel time in seconds
+        else
+            targetInfo.timeDelay = (uint64) std::floor(dist / m_spellInfo->Speed * 1000.0f);
 
         // Calculate minimum incoming time
         if (m_delayMoment == 0 || m_delayMoment > targetInfo.timeDelay)
@@ -2602,7 +2640,10 @@ void Spell::AddGOTarget(GameObject* go, uint32 effectMask)
         float dist = m_caster->GetDistance(go->GetPositionX(), go->GetPositionY(), go->GetPositionZ());
         if (dist < 5.0f)
             dist = 5.0f;
-        target.timeDelay = uint64(std::floor(dist / m_spellInfo->Speed * 1000.0f));
+        if (m_spellInfo->HasAttribute(SPELL_ATTR9_SPECIAL_DELAY_CALCULATION))
+            target.timeDelay = uint64(std::floor(m_spellInfo->Speed * 1000.0f)); // speed is the travel time in seconds
+        else
+            target.timeDelay = uint64(std::floor(dist / m_spellInfo->Speed * 1000.0f));
         if (m_delayMoment == 0 || m_delayMoment > target.timeDelay)
             m_delayMoment = target.timeDelay;
     }
@@ -2853,7 +2894,9 @@ void Spell::DoAllEffectOnTarget(TargetInfo* target)
         // Do healing and triggers
         if (m_healing > 0)
         {
-            bool crit = target->crit;
+            // SPELL_EFFECT_HEAL_PCT must never crit, even if other spell effects do crit. As of 4.3.4.15595,
+            // this spell effect does not share other healing effects in any spell so we can use this rule here
+            bool crit = target->crit && !m_spellInfo->HasEffect(SPELL_EFFECT_HEAL_PCT);
             uint32 addhealth = m_healing;
 
             if (crit)
@@ -5853,7 +5896,8 @@ void Spell::TakeCastItem()
 
     for (int i = 0; i < MAX_ITEM_PROTO_SPELLS; ++i)
     {
-        if (proto->Spells[i].SpellId)
+        // only on use effects have charges
+        if (proto->Spells[i].SpellId > 0 && proto->Spells[i].SpellTrigger == ITEM_SPELLTRIGGER_ON_USE)
         {
             // item has limited charges
             if (proto->Spells[i].SpellCharges)
@@ -5863,8 +5907,8 @@ void Spell::TakeCastItem()
 
                 int32 charges = m_CastItem->GetSpellCharges(i);
 
-                // item has charges left
-                if (charges)
+                // item has charges left for this slot
+                if (charges && uint32(proto->Spells[i].SpellId) == m_spellInfo->Id)
                 {
                     (charges > 0) ? --charges : ++charges;  // std::abs(charges) less at 1 after use
                     if (proto->Stackable == 1)
@@ -6617,7 +6661,8 @@ SpellCastResult Spell::CheckCast(bool strict, uint32* /*param1*/, uint32* /*para
     // do not allow spells to be cast in arenas
     // - with greater than 10 min CD without SPELL_ATTR4_IGNORE_DEFAULT_ARENA_RESTRICTIONS flag
     // - with SPELL_ATTR4_NOT_IN_ARENA_OR_RATED_BATTLEGROUND flag
-    if (m_spellInfo->HasAttribute(SPELL_ATTR4_NOT_IN_ARENA_OR_RATED_BATTLEGROUND) ||
+    // - with SPELL_ATTR9_NOT_USABLE_IN_ARENA flag
+    if (m_spellInfo->HasAttribute(SPELL_ATTR4_NOT_IN_ARENA_OR_RATED_BATTLEGROUND) || m_spellInfo->HasAttribute(SPELL_ATTR9_NOT_USABLE_IN_ARENA) ||
             (m_spellInfo->GetRecoveryTime() >= 10 * MINUTE * IN_MILLISECONDS && !m_spellInfo->HasAttribute(SPELL_ATTR4_IGNORE_DEFAULT_ARENA_RESTRICTIONS)))
         if (MapEntry const* mapEntry = sMapStore.LookupEntry(m_caster->GetMapId()))
             if (mapEntry->IsBattleArena())
@@ -9865,6 +9910,22 @@ namespace Acore
                     break;
                 case TARGET_CHECK_CORPSE:
                     if (_caster->IsFriendlyTo(unitTarget))
+                        return false;
+                    break;
+                case TARGET_CHECK_SUMMONED:
+                    if (!unitTarget->IsSummon())
+                        return false;
+                    if (unitTarget->ToTempSummon()->GetSummonerGUID() != _caster->GetGUID())
+                        return false;
+                    break;
+                case TARGET_CHECK_THREAT:
+                    if (!refUnit || refUnit->GetThreatMgr().GetThreat(unitTarget, true) <= 0.0f)
+                        return false;
+                    break;
+                case TARGET_CHECK_TAP:
+                    if (!_referer->IsCreature() || !unitTarget->IsPlayer())
+                        return false;
+                    if (!_referer->ToCreature()->isTappedBy(unitTarget->ToPlayer()))
                         return false;
                     break;
                 case TARGET_CHECK_ENTRY:

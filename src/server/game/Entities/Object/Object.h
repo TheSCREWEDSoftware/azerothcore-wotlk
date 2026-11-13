@@ -699,6 +699,13 @@ public:
     //used to check all object's GetMap() calls when object is not in world!
 
     void SetZoneScript();
+
+    [[nodiscard]] uint16 GetAIAnimKitId() const { return m_aiAnimKitId; }
+    void SetAIAnimKitId(uint16 animKitId);
+    [[nodiscard]] uint16 GetMovementAnimKitId() const { return m_movementAnimKitId; }
+    void SetMovementAnimKitId(uint16 animKitId);
+    [[nodiscard]] uint16 GetMeleeAnimKitId() const { return m_meleeAnimKitId; }
+    void SetMeleeAnimKitId(uint16 animKitId);
     void ClearZoneScript();
     [[nodiscard]] ZoneScript* GetZoneScript() const { return m_zoneScript; }
 
@@ -861,6 +868,9 @@ protected:
     bool m_isActive;
     VisibilityDistanceType _visibilityDistanceOverrideType;
     ZoneScript* m_zoneScript;
+    uint16 m_aiAnimKitId;
+    uint16 m_movementAnimKitId;
+    uint16 m_meleeAnimKitId;
 
     virtual void ProcessPositionDataChanged(PositionFullTerrainStatus const& data);
     uint32 _zoneId;

@@ -228,6 +228,9 @@ void Object::BuildCreateUpdateBlockForPlayer(UpdateData* data, Player* target)
     {
         if (!flags.MovementUpdate && !worldObject->m_movementInfo.transport.guid.IsEmpty())
             flags.MovementTransport = true;
+
+        if (worldObject->GetAIAnimKitId() || worldObject->GetMovementAnimKitId() || worldObject->GetMeleeAnimKitId())
+            flags.AnimKit = true;
     }
 
     if (IsUnit())
@@ -475,11 +478,13 @@ void Object::BuildMovementUpdate(ByteBuffer* data, CreateObjectBits flags) const
         data->WriteBit(hasGoTransportVehicleId);
     }
 
-    if (flags.AnimKit)
+    // anim kit 1 = AI, 2 = movement, 3 = melee
+    WorldObject const* animKitOwner = flags.AnimKit ? static_cast<WorldObject const*>(this) : nullptr;
+    if (animKitOwner)
     {
-        data->WriteBit(1);                                  // !has anim kit 1
-        data->WriteBit(1);                                  // !has anim kit 2
-        data->WriteBit(1);                                  // !has anim kit 3
+        data->WriteBit(!animKitOwner->GetAIAnimKitId());
+        data->WriteBit(!animKitOwner->GetMovementAnimKitId());
+        data->WriteBit(!animKitOwner->GetMeleeAnimKitId());
     }
 
     Unit const* victimOwner = flags.CombatVictim ? ToUnit() : nullptr;
@@ -634,6 +639,16 @@ void Object::BuildMovementUpdate(ByteBuffer* data, CreateObjectBits flags) const
         *data << float(stationary->GetStationaryZ());
         *data << float(Position::NormalizeOrientation(stationary->GetStationaryO()));
         *data << float(stationary->GetStationaryX());
+    }
+
+    if (animKitOwner)
+    {
+        if (uint16 meleeAnimKit = animKitOwner->GetMeleeAnimKitId())
+            *data << uint16(meleeAnimKit);
+        if (uint16 movementAnimKit = animKitOwner->GetMovementAnimKitId())
+            *data << uint16(movementAnimKit);
+        if (uint16 aiAnimKit = animKitOwner->GetAIAnimKitId())
+            *data << uint16(aiAnimKit);
     }
 
     if (flags.ServerTime)
@@ -1226,6 +1241,7 @@ void MovementInfo::OutDebug()
 
 WorldObject::WorldObject() : WorldLocation(),
     LastUsedScriptID(0), m_name(""), m_isActive(false), _visibilityDistanceOverrideType(VisibilityDistanceType::Normal), m_zoneScript(nullptr),
+    m_aiAnimKitId(0), m_movementAnimKitId(0), m_meleeAnimKitId(0),
     _zoneId(0), _areaId(0), _floorZ(INVALID_HEIGHT), _outdoors(false), _liquidData(), _updatePositionData(false), m_transport(nullptr),
     m_currMap(nullptr), _heartbeatTimer(HEARTBEAT_INTERVAL), m_InstanceId(0), m_phaseMask(PHASEMASK_NORMAL), m_useCombinedPhases(true),
     m_spawnPhaseId(0), m_spawnPhaseGroup(0), m_hasSpawnPhase(false), m_hasPhaseShift(false), m_notifyflags(0),
@@ -4552,4 +4568,52 @@ Unit* WorldObject::GetMeleeHitRedirectTarget(Unit* victim, SpellInfo const* spel
         return unitSelf->GetMeleeHitRedirectTarget(victim, spellInfo);
 
     return victim;
+}
+
+void WorldObject::SetAIAnimKitId(uint16 animKitId)
+{
+    if (m_aiAnimKitId == animKitId)
+        return;
+
+    if (animKitId && !sAnimKitStore.LookupEntry(animKitId))
+        return;
+
+    m_aiAnimKitId = animKitId;
+
+    WorldPackets::Misc::SetAIAnimKit packet;
+    packet.Unit = GetGUID();
+    packet.AnimKitID = animKitId;
+    SendMessageToSet(packet.Write(), true);
+}
+
+void WorldObject::SetMovementAnimKitId(uint16 animKitId)
+{
+    if (m_movementAnimKitId == animKitId)
+        return;
+
+    if (animKitId && !sAnimKitStore.LookupEntry(animKitId))
+        return;
+
+    m_movementAnimKitId = animKitId;
+
+    WorldPackets::Misc::SetMovementAnimKit packet;
+    packet.Unit = GetGUID();
+    packet.AnimKitID = animKitId;
+    SendMessageToSet(packet.Write(), true);
+}
+
+void WorldObject::SetMeleeAnimKitId(uint16 animKitId)
+{
+    if (m_meleeAnimKitId == animKitId)
+        return;
+
+    if (animKitId && !sAnimKitStore.LookupEntry(animKitId))
+        return;
+
+    m_meleeAnimKitId = animKitId;
+
+    WorldPackets::Misc::SetMeleeAnimKit packet;
+    packet.Unit = GetGUID();
+    packet.AnimKitID = animKitId;
+    SendMessageToSet(packet.Write(), true);
 }

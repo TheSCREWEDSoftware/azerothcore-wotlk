@@ -26,7 +26,6 @@ c2s	CMSG_CLEAR_HOLIDAY_BG_WIN_TIME	#168	WotLK-only opcode with no 4.3.4 counterp
 c2s	CMSG_CLEAR_QUEST	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
 c2s	CMSG_CLEAR_RANDOM_BG_WIN_TIME	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
 c2s	CMSG_CLEAR_SERVER_BUCK_DATA	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
-c2s	CMSG_COMPLAIN	#182	grouping and social packets are ported with phase 9
 c2s	CMSG_COMPLETE_ACHIEVEMENT_CHEAT	#168	WotLK-only debug or cheat handler; no 4.3.4 opcode
 c2s	CMSG_CONTROLLER_EJECT_PASSENGER	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
 c2s	CMSG_COOLDOWN_CHEAT	#168	WotLK-only debug or cheat handler; no 4.3.4 opcode
@@ -225,7 +224,6 @@ s2c	SMSG_CHEAT_DUMP_ITEMS_DEBUG_ONLY_RESPONSE_WRITE_FILE	#168	WotLK-only debug o
 s2c	SMSG_CHEAT_PLAYER_LOOKUP	#168	WotLK-only debug or cheat handler; no 4.3.4 opcode
 s2c	SMSG_CLEAR_EXTRA_AURA_INFO_OBSOLETE	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
 s2c	SMSG_COMMENTATOR_GET_PLAYER_INFO	#182	grouping and social packets are ported with phase 9
-s2c	SMSG_COMPLAIN_RESULT	#182	grouping and social packets are ported with phase 9
 s2c	SMSG_COMPRESSED_UPDATE_OBJECT	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
 s2c	SMSG_DBLOOKUP	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
 s2c	SMSG_DEBUGAURAPROC	#168	WotLK-only debug or cheat handler; no 4.3.4 opcode

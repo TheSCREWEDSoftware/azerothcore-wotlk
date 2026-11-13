@@ -627,6 +627,13 @@ struct AchievementCriteriaEntry
     uint32  additionalRequirement_value[MAX_CRITERIA_REQUIREMENTS]; // 20-22, real column is AdditionalConditionValue
 };
 
+struct AnimKitEntry
+{
+    uint32  ID;                                             // 0
+    //uint32  OneShotDuration;                              // 1
+    //uint32  OneShotStopAnimKitID;                         // 2
+};
+
 struct AreaTableEntry
 {
     uint32  ID;                                             // 0

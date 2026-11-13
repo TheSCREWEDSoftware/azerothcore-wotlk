@@ -121,6 +121,9 @@ enum SpellTargetCheckTypes
     TARGET_CHECK_RAID_CLASS,
     TARGET_CHECK_PASSENGER,
     TARGET_CHECK_CORPSE,
+    TARGET_CHECK_SUMMONED,
+    TARGET_CHECK_THREAT,
+    TARGET_CHECK_TAP,
 };
 
 enum SpellTargetDirectionTypes
@@ -466,6 +469,8 @@ public:
     inline bool HasAttribute(SpellAttr6 attribute) const { return (AttributesEx6 & attribute) != 0; }
     inline bool HasAttribute(SpellAttr7 attribute) const { return (AttributesEx7 & attribute) != 0; }
     inline bool HasAttribute(SpellAttr8 attribute) const { return (AttributesEx8 & attribute) != 0; }
+    inline bool HasAttribute(SpellAttr9 attribute) const { return (AttributesEx9 & attribute) != 0; }
+    inline bool HasAttribute(SpellAttr10 attribute) const { return (AttributesEx10 & attribute) != 0; }
     inline bool HasAttribute(SpellCustomAttributes customAttribute) const { return (AttributesCu & customAttribute) != 0; }
 
     bool IsExplicitDiscovery() const;

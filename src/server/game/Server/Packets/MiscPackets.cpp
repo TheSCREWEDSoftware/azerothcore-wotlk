@@ -304,7 +304,21 @@ void WorldPackets::Misc::Complain::Read()
 
 WorldPacket const* WorldPackets::Misc::ComplainResult::Write()
 {
-    _worldPacket << Unk;
+    _worldPacket << uint8(Result);
+    _worldPacket << uint8(ComplaintType);
+
+    return &_worldPacket;
+}
+
+WorldPacket const* WorldPackets::Misc::AnimKitPacket::Write()
+{
+    // 5.4.8 18414, from Project SkyFire (Unit::PlayOneShotAnimKit). The AI, melee and movement
+    // anim kit packets have no known 5.4.8 layout; their opcodes are parked and never sent.
+    _worldPacket.WriteGuidMask(Unit, { 3, 1, 7, 6, 0, 4, 5, 2 });
+    _worldPacket.FlushBits();
+    _worldPacket.WriteGuidBytes(Unit, { 3, 6, 1, 4 });
+    _worldPacket << uint16(AnimKitID);
+    _worldPacket.WriteGuidBytes(Unit, { 2, 7, 5, 0 });
 
     return &_worldPacket;
 }

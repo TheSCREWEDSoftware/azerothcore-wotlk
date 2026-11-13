@@ -304,6 +304,7 @@ public:
     using WorldObject::CastSpell;
     void CastSpell(Unit* target, uint32 spellId);
     void SendCustomAnim(uint32 anim);
+    void PlayAnimKit(int32 animKit);
     bool IsInRange2d(float x, float y, float radius) const;
     bool IsInRange3d(float x, float y, float z, float radius) const;
 

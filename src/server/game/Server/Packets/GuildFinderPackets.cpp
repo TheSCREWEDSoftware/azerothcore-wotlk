@@ -149,9 +149,7 @@ WorldPacket const* WorldPackets::GuildFinder::BrowseUpdated::Write()
 
         bufferData.WriteString(entry.GuildName);
 
-        bufferData << uint32(0); // Guild achievement points - not tracked by this fork (no Guild
-                                  // AchievementMgr exists yet); sent as 0, matching a guild with no
-                                  // achievement points rather than inventing a value.
+        bufferData << uint32(entry.AchievementPoints);
 
         WriteGuidBytes(bufferData, entry.GuildGuid, { 7 });
 

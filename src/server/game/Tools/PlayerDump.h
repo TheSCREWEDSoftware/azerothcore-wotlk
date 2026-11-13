@@ -46,7 +46,9 @@ enum DumpTableType
     DTT_ITEM_GIFT,      // <- item guids                    // character_gifts
 
     DTT_PET,            //    -> pet guids collection       // character_pet
-    DTT_PET_TABLE       // <- pet guids                     // pet_aura, pet_spell, pet_spell_cooldown
+    DTT_PET_TABLE,      // <- pet guids                     // pet_aura, pet_spell, pet_spell_cooldown
+
+    DTT_VOID_STORAGE    //    -> void storage item ids      // character_void_storage
 };
 
 enum DumpReturn

@@ -742,6 +742,43 @@ void WorldSession::HandleBugOpcode(WorldPacket& recv_data)
     CharacterDatabase.Execute(stmt);
 }
 
+// Bug and suggestion reports go to the bug report table; complaints are read and dropped.
+// 5.4.8 18414 layout, from Project SkyFire: position, facing and map, then the note.
+static std::string ReadSupportTicketNote(WorldPacket& recvData)
+{
+    recvData.read_skip<float>();                            // x
+    recvData.read_skip<float>();                            // y
+    recvData.read_skip<float>();                            // z
+    recvData.read_skip<float>();                            // facing
+    recvData.read_skip<uint32>();                           // map
+    return recvData.ReadString(recvData.ReadBits(10));
+}
+
+void WorldSession::HandleSupportTicketSubmitBugOpcode(WorldPacket& recvData)
+{
+    std::string note = ReadSupportTicketNote(recvData);
+
+    CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_INS_BUG_REPORT);
+    stmt->SetData(0, std::string("Bug"));
+    stmt->SetData(1, note);
+    CharacterDatabase.Execute(stmt);
+}
+
+void WorldSession::HandleSupportTicketSubmitSuggestionOpcode(WorldPacket& recvData)
+{
+    std::string note = ReadSupportTicketNote(recvData);
+
+    CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_INS_BUG_REPORT);
+    stmt->SetData(0, std::string("Suggestion"));
+    stmt->SetData(1, note);
+    CharacterDatabase.Execute(stmt);
+}
+
+void WorldSession::HandleSupportTicketSubmitComplaintOpcode(WorldPacket& recvData)
+{
+    recvData.rfinish();
+}
+
 void WorldSession::HandleReclaimCorpseOpcode(WorldPacket& recv_data)
 {
     ObjectGuid guid;

@@ -320,7 +320,17 @@ void Player::UpdateMaxHealth()
     value *= GetPctModifierValue(unitMod, TOTAL_PCT);
 
     sScriptMgr->OnPlayerAfterUpdateMaxHealth(this, value);
-    SetMaxHealth((uint32)value);
+
+    // since 4.0 a change of maximum health keeps the current health percentage
+    if (!GetMaxHealth() || !IsAlive())
+    {
+        SetMaxHealth(uint32(value));
+        return;
+    }
+
+    float healthPct = GetHealthPct();
+    SetMaxHealth(uint32(value));
+    SetHealth(std::max<uint32>(1, CalculatePct(GetMaxHealth(), healthPct)));
 }
 
 void Player::UpdateMaxPower(Powers power)
@@ -534,7 +544,8 @@ void Player::UpdateAttackPowerAndDamage(bool ranged)
         UpdateDamagePhysical(BASE_ATTACK);
         if (CanDualWield() && HasOffhandWeaponForAttack()) //allow update offhand damage only if player knows DualWield Spec and has equipped offhand weapon
             UpdateDamagePhysical(OFF_ATTACK);
-        if (IsClass(CLASS_SHAMAN, CLASS_CONTEXT_STATS) || IsClass(CLASS_PALADIN, CLASS_CONTEXT_STATS))                      // mental quickness
+        if (IsClass(CLASS_SHAMAN, CLASS_CONTEXT_STATS) || IsClass(CLASS_PALADIN, CLASS_CONTEXT_STATS) // mental quickness
+            || HasAuraType(SPELL_AURA_OVERRIDE_SPELL_POWER_BY_AP_PCT))
             UpdateSpellDamageAndHealingBonus();
     }
 }
