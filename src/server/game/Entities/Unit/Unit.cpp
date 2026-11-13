@@ -11877,10 +11877,11 @@ float Unit::GetTotalStatValue(Stats stat, float additionalValue) const
         return 0.0f;
 
     // value = ((base_value * base_pct) + total_value) * total_pct
+    // percentage bonuses are rounded to the nearest whole number, matching 4.3.4 sniffs
     float value  = GetFlatModifierValue(unitMod, BASE_VALUE) + GetCreateStat(stat);
-    value *= GetPctModifierValue(unitMod, BASE_PCT);
+    value = std::round(value * GetPctModifierValue(unitMod, BASE_PCT));
     value += GetFlatModifierValue(unitMod, TOTAL_VALUE) + additionalValue;
-    value *= GetPctModifierValue(unitMod, TOTAL_PCT);
+    value = std::round(value * GetPctModifierValue(unitMod, TOTAL_PCT));
 
     return value;
 }
