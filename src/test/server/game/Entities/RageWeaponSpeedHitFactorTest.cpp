@@ -19,6 +19,7 @@
 #include "gtest/gtest.h"
 
 // Haste must shorten the swing interval but never the per-swing rage reward.
+// 4.3.4: a swing grants weapon speed * 6.5 rage (half for the off hand).
 TEST_F(IntegrationTestFixture, HasteChangesIntervalNotRage)
 {
     TestPlayer* player = CreateTestPlayer(1, "RageTest", SEC_PLAYER);
@@ -28,21 +29,16 @@ TEST_F(IntegrationTestFixture, HasteChangesIntervalNotRage)
     player->SetMaxPower(POWER_RAGE, 10000);
     player->SetAttackTime(BASE_ATTACK, 2000);
 
+    uint32 const rageNoHaste = Unit::CalcMeleeAttackRageGain(player, player, BASE_ATTACK);
+    EXPECT_EQ(rageNoHaste, 130u);                           // 2.0 * 6.5 rage, 10 internal units per point
+
     uint32 const before = player->GetPower(POWER_RAGE);
-    player->RewardRage(1000, player->GetRageWeaponSpeedHitFactor(BASE_ATTACK), true);
-    uint32 const rageNoHaste = player->GetPower(POWER_RAGE) - before;
-    EXPECT_GT(rageNoHaste, 0u); // rage was granted
+    player->RewardRage(rageNoHaste);
+    EXPECT_GT(player->GetPower(POWER_RAGE), before);        // rage was granted
 
     player->ApplyAttackTimePercentMod(BASE_ATTACK, 50.0f, true); // 50% haste
-
-    EXPECT_EQ(player->GetRageWeaponSpeedHitFactor(BASE_ATTACK), 7u); // 2000/1000 * 3.5
-
-    uint32 const beforeHasted = player->GetPower(POWER_RAGE);
-    player->RewardRage(1000, player->GetRageWeaponSpeedHitFactor(BASE_ATTACK), true);
-    uint32 const rageHasted = player->GetPower(POWER_RAGE) - beforeHasted;
-
-    EXPECT_EQ(rageHasted, rageNoHaste); // per-swing rage unaffected by haste
+    EXPECT_EQ(Unit::CalcMeleeAttackRageGain(player, player, BASE_ATTACK), rageNoHaste); // per-swing rage unaffected by haste
 
     player->resetAttackTimer(BASE_ATTACK);
-    EXPECT_EQ(player->getAttackTimer(BASE_ATTACK), 1333); // 2000 / 1.5 (50% haste)
+    EXPECT_EQ(player->getAttackTimer(BASE_ATTACK), 1333);   // 2000 / 1.5 (50% haste)
 }

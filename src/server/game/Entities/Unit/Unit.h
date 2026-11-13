@@ -912,11 +912,6 @@ public:
         return (uint32)f_BaseAttackTime;
     }
 
-    [[nodiscard]] inline uint32 GetRageWeaponSpeedHitFactor(WeaponAttackType att) const
-    {
-        return uint32(GetAttackTime(att) / 1000.0f * (att == BASE_ATTACK ? 3.5f : 1.75f));
-    }
-
     void SetAttackTime(WeaponAttackType att, uint32 val) { SetFloatValue(static_cast<uint16>(UNIT_FIELD_BASEATTACKTIME) + att, val * m_modAttackSpeedPct[att]); }
     void ApplyAttackTimePercentMod(WeaponAttackType att, float val, bool apply);
     void ApplyHasteRegenMod(float val, bool apply);
@@ -1146,7 +1141,9 @@ public:
 
     int32 ModifyPower(Powers power, int32 val, bool withPowerUpdate = true);
 
-    void RewardRage(uint32 damage, uint32 weaponSpeedHitFactor, bool attacker);
+    void RewardRage(uint32 rage);
+    static uint32 CalcMeleeAttackRageGain(Unit const* attacker, Unit const* victim, WeaponAttackType attType);
+    static uint32 CalcDamageTakenRageGain(Unit const* victim, uint32 damage);
 
     [[nodiscard]] uint32 GetCreateMana() const { return GetUInt32Value(UNIT_FIELD_BASE_MANA); }
     void SetCreateMana(uint32 val) { SetUInt32Value(UNIT_FIELD_BASE_MANA, val); }
