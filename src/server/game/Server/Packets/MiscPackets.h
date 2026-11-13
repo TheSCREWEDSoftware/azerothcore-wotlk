@@ -18,6 +18,7 @@
 #ifndef MiscPackets_h__
 #define MiscPackets_h__
 
+#include "CUFProfile.h"
 #include "ObjectGuid.h"
 #include "Packet.h"
 #include "Weather.h"
@@ -369,13 +370,14 @@ namespace WorldPackets
             std::vector<uint16> PreloadMapIDs;
         };
 
-        // Empty stub: no saved Compact Unit Frames profiles for a fresh character.
         class LoadCufProfiles final : public ServerPacket
         {
         public:
-            LoadCufProfiles() : ServerPacket(SMSG_LOAD_CUF_PROFILES, 4) { }
+            LoadCufProfiles() : ServerPacket(SMSG_LOAD_CUF_PROFILES, 20) { }
 
             WorldPacket const* Write() override;
+
+            std::vector<CUFProfile const*> CUFProfiles;
         };
     }
 }

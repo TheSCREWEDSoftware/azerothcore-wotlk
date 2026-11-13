@@ -1934,3 +1934,69 @@ void WorldSession::HandleRequestResearchHistory(WorldPackets::Archaeology::Reque
 {
     _player->NotifyRequestResearchHistory();
 }
+
+void WorldSession::HandleSaveCUFProfiles(WorldPacket& recvData)
+{
+    uint8 count = uint8(recvData.ReadBits(20));
+    if (count > MAX_CUF_PROFILES)
+    {
+        LOG_ERROR("entities.player", "HandleSaveCUFProfiles - {} tried to save more than {} CUF profiles. Hacking attempt?", GetPlayerInfo(), MAX_CUF_PROFILES);
+        recvData.rfinish();
+        return;
+    }
+
+    std::array<std::unique_ptr<CUFProfile>, MAX_CUF_PROFILES> profiles;
+    std::array<uint8, MAX_CUF_PROFILES> nameLengths = { };
+
+    for (uint8 i = 0; i < count; ++i)
+    {
+        std::unique_ptr<CUFProfile>& profile = profiles[i];
+        profile = std::make_unique<CUFProfile>();
+        profile->BoolOptions.set(CUF_AUTO_ACTIVATE_SPEC_2, recvData.ReadBit());
+        profile->BoolOptions.set(CUF_AUTO_ACTIVATE_10_PLAYERS, recvData.ReadBit());
+        profile->BoolOptions.set(CUF_UNK_157, recvData.ReadBit());
+        profile->BoolOptions.set(CUF_DISPLAY_HEAL_PREDICTION, recvData.ReadBit());
+        profile->BoolOptions.set(CUF_AUTO_ACTIVATE_SPEC_1, recvData.ReadBit());
+        profile->BoolOptions.set(CUF_AUTO_ACTIVATE_PVP, recvData.ReadBit());
+        profile->BoolOptions.set(CUF_DISPLAY_POWER_BAR, recvData.ReadBit());
+        profile->BoolOptions.set(CUF_AUTO_ACTIVATE_15_PLAYERS, recvData.ReadBit());
+        profile->BoolOptions.set(CUF_AUTO_ACTIVATE_40_PLAYERS, recvData.ReadBit());
+        profile->BoolOptions.set(CUF_DISPLAY_PETS, recvData.ReadBit());
+        profile->BoolOptions.set(CUF_AUTO_ACTIVATE_5_PLAYERS, recvData.ReadBit());
+        profile->BoolOptions.set(CUF_DISPLAY_ONLY_DISPELLABLE_DEBUFFS, recvData.ReadBit());
+        profile->BoolOptions.set(CUF_AUTO_ACTIVATE_2_PLAYERS, recvData.ReadBit());
+        profile->BoolOptions.set(CUF_UNK_156, recvData.ReadBit());
+        profile->BoolOptions.set(CUF_DISPLAY_NON_BOSS_DEBUFFS, recvData.ReadBit());
+        profile->BoolOptions.set(CUF_DISPLAY_MAIN_TANK_AND_ASSIST, recvData.ReadBit());
+        profile->BoolOptions.set(CUF_DISPLAY_AGGRO_HIGHLIGHT, recvData.ReadBit());
+        profile->BoolOptions.set(CUF_AUTO_ACTIVATE_3_PLAYERS, recvData.ReadBit());
+        profile->BoolOptions.set(CUF_DISPLAY_BORDER, recvData.ReadBit());
+        profile->BoolOptions.set(CUF_USE_CLASS_COLORS, recvData.ReadBit());
+        profile->BoolOptions.set(CUF_UNK_145, recvData.ReadBit());
+        nameLengths[i] = uint8(recvData.ReadBits(8));
+        profile->BoolOptions.set(CUF_AUTO_ACTIVATE_PVE, recvData.ReadBit());
+        profile->BoolOptions.set(CUF_DISPLAY_HORIZONTAL_GROUPS, recvData.ReadBit());
+        profile->BoolOptions.set(CUF_AUTO_ACTIVATE_25_PLAYERS, recvData.ReadBit());
+        profile->BoolOptions.set(CUF_KEEP_GROUPS_TOGETHER, recvData.ReadBit());
+    }
+
+    for (uint8 i = 0; i < count; ++i)
+    {
+        std::unique_ptr<CUFProfile>& profile = profiles[i];
+        recvData >> profile->TopPoint;
+        profile->ProfileName = recvData.ReadString(nameLengths[i]);
+        recvData >> profile->BottomOffset;
+        recvData >> profile->FrameHeight;
+        recvData >> profile->FrameWidth;
+        recvData >> profile->TopOffset;
+        recvData >> profile->HealthText;
+        recvData >> profile->BottomPoint;
+        recvData >> profile->SortBy;
+        recvData >> profile->LeftOffset;
+        recvData >> profile->LeftPoint;
+    }
+
+    // the client sends every profile it keeps; the rest were deleted
+    for (uint8 i = 0; i < MAX_CUF_PROFILES; ++i)
+        GetPlayer()->SaveCUFProfile(i, std::move(profiles[i]));
+}

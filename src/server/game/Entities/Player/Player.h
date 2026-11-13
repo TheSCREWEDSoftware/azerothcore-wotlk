@@ -21,6 +21,7 @@
 #include "ArenaTeam.h"
 #include "Battleground.h"
 #include "CharmInfo.h"
+#include "CUFProfile.h"
 #include "CharacterCache.h"
 #include "CinematicMgr.h"
 #include "DBCStores.h"
@@ -907,6 +908,7 @@ enum PlayerLoginQueryIndex
     PLAYER_LOGIN_QUERY_LOAD_ARCHAEOLOGY_SITES            = 41,
     PLAYER_LOGIN_QUERY_LOAD_ARCHAEOLOGY_COMPLETED        = 42,
     PLAYER_LOGIN_QUERY_LOAD_ARCHAEOLOGY_PROJECTS         = 43,
+    PLAYER_LOGIN_QUERY_LOAD_CUF_PROFILES                 = 44,
     MAX_PLAYER_LOGIN_QUERY
 };
 
@@ -1789,6 +1791,10 @@ public:
     bool SwapVoidStorageItem(uint8 oldSlot, uint8 newSlot);
     [[nodiscard]] VoidStorageItem* GetVoidStorageItem(uint8 slot) const;
     [[nodiscard]] VoidStorageItem* GetVoidStorageItem(uint64 id, uint8& slot) const;
+
+    // Compact unit frame profiles, slots 0 to MAX_CUF_PROFILES - 1
+    void SaveCUFProfile(uint8 id, std::unique_ptr<CUFProfile> profile) { _CUFProfiles[id] = std::move(profile); }
+    [[nodiscard]] CUFProfile const* GetCUFProfile(uint8 id) const { return _CUFProfiles[id].get(); }
     void SendKnownSpells(bool firstLogin = false);
     void SendSpellModifiers() const;
     void SendLearnPacket(uint32 spellId, bool learn);
@@ -2911,6 +2917,7 @@ protected:
     void _LoadEntryPointData(PreparedQueryResult result);
     void _LoadGlyphs(PreparedQueryResult result);
     void _LoadVoidStorage(PreparedQueryResult result);
+    void _LoadCUFProfiles(PreparedQueryResult result);
     void _LoadTalents(PreparedQueryResult result);
     void _LoadInstanceTimeRestrictions(PreparedQueryResult result);
     void _LoadBrewOfTheMonth(PreparedQueryResult result);
@@ -2940,6 +2947,7 @@ protected:
     void _SaveInstanceTimeRestrictions(CharacterDatabaseTransaction trans);
     void _SavePlayerSettings(CharacterDatabaseTransaction trans);
     void _SaveVoidStorage(CharacterDatabaseTransaction trans);
+    void _SaveCUFProfiles(CharacterDatabaseTransaction trans);
     void UpdateAdditionalSaves(uint32 p_time);
 
     /*********************************************************/
@@ -2982,6 +2990,7 @@ protected:
     QuestStatusMap m_QuestStatus;
     std::unordered_map<uint32, PlayerCurrency> _currencyStorage;
     std::array<std::unique_ptr<VoidStorageItem>, VOID_STORAGE_MAX_SLOT> _voidStorageItems;
+    std::array<std::unique_ptr<CUFProfile>, MAX_CUF_PROFILES> _CUFProfiles;
     QuestStatusSaveMap m_QuestStatusSave;
 
     RewardedQuestSet m_RewardedQuests;

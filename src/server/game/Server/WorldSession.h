@@ -1246,6 +1246,7 @@ public:                                                 // opcodes handlers
     // Arena Team
     void HandleInspectArenaTeamsOpcode(WorldPacket& recvData);
     void HandleArenaTeamQueryOpcode(WorldPacket& recvData);
+    void HandleSaveCUFProfiles(WorldPacket& recvData);
     void HandleArenaTeamCreateOpcode(WorldPacket& recvData);
     void HandleArenaTeamRosterOpcode(WorldPacket& recvData);
     void HandleArenaTeamInviteOpcode(WorldPacket& recvData);

@@ -5712,6 +5712,7 @@ bool Player::LoadFromDB(ObjectGuid playerGuid, CharacterDatabaseQueryHolder cons
     _archaeology->Initialize(holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_ARCHAEOLOGY_SITES),
         holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_ARCHAEOLOGY_COMPLETED),
         holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_ARCHAEOLOGY_PROJECTS));
+    _LoadCUFProfiles(holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_CUF_PROFILES));
     UpdateSkillsForLevel(); //update skills after load, to make sure they are correctly update at player load
 
     // apply original stats mods before spell loading or item equipment that call before equip _RemoveStatsMods()
@@ -7501,6 +7502,7 @@ void Player::SaveToDB(CharacterDatabaseTransaction trans, bool create, bool logo
     _SaveGlyphs(trans);
     _SaveInstanceTimeRestrictions(trans);
     _SavePlayerSettings(trans);
+    _SaveCUFProfiles(trans);
     CharacterDatabasePreparedStatement* currencyStmt =
         CharacterDatabase.GetPreparedStatement(CHAR_DEL_CHAR_CURRENCY);
     currencyStmt->SetData(0, GetGUID().GetCounter());
@@ -8385,4 +8387,64 @@ VoidStorageItem* Player::GetVoidStorageItem(uint64 id, uint8& slot) const
     }
 
     return nullptr;
+}
+
+void Player::_LoadCUFProfiles(PreparedQueryResult result)
+{
+    if (!result)
+        return;
+
+    do
+    {
+        // SELECT id, name, frameHeight, frameWidth, sortBy, healthText, boolOptions, unk146, unk147, unk148, unk150, unk152, unk154 FROM character_cuf_profiles WHERE guid = ?
+        Field* fields = result->Fetch();
+
+        uint8 id = fields[0].Get<uint8>();
+        if (id >= MAX_CUF_PROFILES)
+        {
+            LOG_ERROR("entities.player", "Player::_LoadCUFProfiles - Player ({}, name: {}) has a CUF profile with invalid id {}, max is {}.",
+                GetGUID().ToString(), GetName(), id, MAX_CUF_PROFILES - 1);
+            continue;
+        }
+
+        _CUFProfiles[id] = std::make_unique<CUFProfile>(fields[1].Get<std::string>(), fields[2].Get<uint16>(), fields[3].Get<uint16>(),
+            fields[4].Get<uint8>(), fields[5].Get<uint8>(), fields[6].Get<uint32>(), fields[7].Get<uint8>(), fields[8].Get<uint8>(),
+            fields[9].Get<uint8>(), fields[10].Get<uint16>(), fields[11].Get<uint16>(), fields[12].Get<uint16>());
+    } while (result->NextRow());
+}
+
+void Player::_SaveCUFProfiles(CharacterDatabaseTransaction trans)
+{
+    ObjectGuid::LowType lowGuid = GetGUID().GetCounter();
+
+    for (uint8 i = 0; i < MAX_CUF_PROFILES; ++i)
+    {
+        CharacterDatabasePreparedStatement* stmt = nullptr;
+        if (CUFProfile const* profile = _CUFProfiles[i].get())
+        {
+            stmt = CharacterDatabase.GetPreparedStatement(CHAR_REP_CHAR_CUF_PROFILES);
+            stmt->SetData(0, lowGuid);
+            stmt->SetData(1, i);
+            stmt->SetData(2, profile->ProfileName);
+            stmt->SetData(3, profile->FrameHeight);
+            stmt->SetData(4, profile->FrameWidth);
+            stmt->SetData(5, profile->SortBy);
+            stmt->SetData(6, profile->HealthText);
+            stmt->SetData(7, uint32(profile->BoolOptions.to_ulong())); // 27 of 32 bits used
+            stmt->SetData(8, profile->TopPoint);
+            stmt->SetData(9, profile->BottomPoint);
+            stmt->SetData(10, profile->LeftPoint);
+            stmt->SetData(11, profile->TopOffset);
+            stmt->SetData(12, profile->BottomOffset);
+            stmt->SetData(13, profile->LeftOffset);
+        }
+        else
+        {
+            stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_CHAR_CUF_PROFILES);
+            stmt->SetData(0, lowGuid);
+            stmt->SetData(1, i);
+        }
+
+        trans->Append(stmt);
+    }
 }

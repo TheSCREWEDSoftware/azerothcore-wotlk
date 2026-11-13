@@ -4258,6 +4258,10 @@ void Player::DeleteFromDB(ObjectGuid::LowType lowGuid, uint32 accountId, bool up
                 stmt->SetData(0, lowGuid);
                 trans->Append(stmt);
 
+                stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_CHAR_CUF_PROFILES_BY_GUID);
+                stmt->SetData(0, lowGuid);
+                trans->Append(stmt);
+
                 stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_CHAR_SPELL);
                 stmt->SetData(0, lowGuid);
                 trans->Append(stmt);
@@ -12222,12 +12226,14 @@ void Player::SendInitialPacketsAfterAddToMap()
     GetSession()->SendTimeSync();
 
     // Client-proven Cata login sequence (cata-js world-login-flow.md): the client
-    // never dismisses its loading screen without these two. LoadCufProfiles is an
-    // empty stub (no saved profiles yet); PhaseShiftChange mirrors TrinityCore's
+    // never dismisses its loading screen without these two. PhaseShiftChange mirrors TrinityCore's
     // PhasingHandler::OnMapChange, fired here since that hook does not exist in
     // this fork. UpdatePhasesForArea sends it itself when the login area grants a
     // non-default phase; otherwise send the still-required default/Unphased packet here.
     WorldPackets::Misc::LoadCufProfiles cufProfiles;
+    for (uint8 i = 0; i < MAX_CUF_PROFILES; ++i)
+        if (CUFProfile const* profile = GetCUFProfile(i))
+            cufProfiles.CUFProfiles.push_back(profile);
     SendDirectMessage(cufProfiles.Write());
 
     {
