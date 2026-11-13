@@ -14074,27 +14074,23 @@ uint32 Player::GetBarberShopCost(uint8 newhairstyle, uint8 newhaircolor, uint8 n
 
 void Player::InitGlyphsForLevel()
 {
-    for (uint32 i = 0; i < sGlyphSlotStore.GetNumRows(); ++i)
+    // 4.3.4 has three prime, three major and three minor slots, in GlyphSlot.dbc order
+    uint32 slot = 0;
+    for (uint32 i = 0; i < sGlyphSlotStore.GetNumRows() && slot < MAX_GLYPH_SLOT_INDEX; ++i)
         if (GlyphSlotEntry const* gs = sGlyphSlotStore.LookupEntry(i))
-            if (gs->Order)
-                SetGlyphSlot(gs->Order - 1, gs->Id);
+            SetGlyphSlot(slot++, gs->Id);
 
     uint8 level = GetLevel();
-    uint32 value = 0;
+    uint32 slotMask = 0;
 
-    // 0x3F = 0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 for 80 level
-    if (level >= 15)
-        value |= (0x01 | 0x02);
-    if (level >= 30)
-        value |= 0x08;
+    if (level >= 25)
+        slotMask |= 0x01 | 0x02 | 0x40;
     if (level >= 50)
-        value |= 0x04;
-    if (level >= 70)
-        value |= 0x10;
-    if (level >= 80)
-        value |= 0x20;
+        slotMask |= 0x04 | 0x08 | 0x80;
+    if (level >= 75)
+        slotMask |= 0x10 | 0x20 | 0x100;
 
-    SetUInt32Value(PLAYER_GLYPHS_ENABLED, value);
+    SetUInt32Value(PLAYER_GLYPHS_ENABLED, slotMask);
 }
 
 bool Player::isTotalImmune() const
@@ -15909,7 +15905,7 @@ void Player::_SaveCharacter(bool create, CharacterDatabaseTransaction trans)
 
 void Player::_LoadGlyphs(PreparedQueryResult result)
 {
-    // SELECT talentGroup, glyph1, glyph2, glyph3, glyph4, glyph5, glyph6 from character_glyphs WHERE guid = '%u'
+    // SELECT talentGroup, glyph1, glyph2, glyph3, glyph4, glyph5, glyph6, glyph7, glyph8, glyph9 from character_glyphs WHERE guid = '%u'
     if (!result)
         return;
 
@@ -15921,12 +15917,8 @@ void Player::_LoadGlyphs(PreparedQueryResult result)
         if (spec >= m_specsCount)
             continue;
 
-        m_Glyphs[spec][0] = fields[1].Get<uint16>();
-        m_Glyphs[spec][1] = fields[2].Get<uint16>();
-        m_Glyphs[spec][2] = fields[3].Get<uint16>();
-        m_Glyphs[spec][3] = fields[4].Get<uint16>();
-        m_Glyphs[spec][4] = fields[5].Get<uint16>();
-        m_Glyphs[spec][5] = fields[6].Get<uint16>();
+        for (uint8 i = 0; i < MAX_GLYPH_SLOT_INDEX; ++i)
+            m_Glyphs[spec][i] = fields[1 + i].Get<uint16>();
     } while (result->NextRow());
 }
 

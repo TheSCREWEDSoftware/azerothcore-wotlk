@@ -676,7 +676,7 @@ enum SpellAttr8 : uint32
 };
 
 #define MAX_TALENT_SPECS        2
-#define MAX_GLYPH_SLOT_INDEX    6
+#define MAX_GLYPH_SLOT_INDEX    9
 
 // Custom values
 enum SpellClickUserTypes

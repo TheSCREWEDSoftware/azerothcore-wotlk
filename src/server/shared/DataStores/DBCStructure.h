@@ -1100,9 +1100,9 @@ struct GlyphPropertiesEntry
 
 struct GlyphSlotEntry
 {
-    uint32  Id;
-    uint32  TypeFlags;
-    uint32  Order;
+    uint32  Id;                                             // 0
+    uint32  TypeFlags;                                      // 1 0 major, 1 minor, 2 prime
+    uint32  Tooltip;                                        // 2
 };
 
 // All Gt* DBC store data for 100 levels, some by 100 per class/race
