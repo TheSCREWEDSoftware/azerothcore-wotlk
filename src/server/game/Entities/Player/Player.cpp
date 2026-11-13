@@ -6454,6 +6454,11 @@ bool Player::RewardHonor(Unit* uVictim, uint32 groupsize, int32 honor, bool awar
     return true;
 }
 
+uint32 Player::GetHonorPoints() const
+{
+    return GetCurrency(CURRENCY_TYPE_HONOR_POINTS, true);
+}
+
 void Player::SetHonorPoints(uint32 value)
 {
     if (value > sWorld->getIntConfig(CONFIG_MAX_HONOR_POINTS))
@@ -6470,9 +6475,11 @@ void Player::SetHonorPoints(uint32 value)
 
         value = sWorld->getIntConfig(CONFIG_MAX_HONOR_POINTS);
     }
-    m_honorPoints = value;
-    if (value)
-        AddKnownCurrency(ITEM_HONOR_POINTS_ID);
+
+    // Honor is currency 392, stored with 1/100 precision
+    int64 const change = int64(value) * CURRENCY_PRECISION - int64(GetCurrency(CURRENCY_TYPE_HONOR_POINTS, false));
+    if (change)
+        ModifyCurrency(CURRENCY_TYPE_HONOR_POINTS, int32(change), true, true);
 }
 
 void Player::SetArenaPoints(uint32 value)
@@ -6486,16 +6493,26 @@ void Player::SetArenaPoints(uint32 value)
 
 void Player::ModifyHonorPoints(int32 value, CharacterDatabaseTransaction trans)
 {
-    int32 newValue = int32(GetHonorPoints()) + value;
-    if (newValue < 0)
-        newValue = 0;
-    SetHonorPoints(uint32(newValue));
+    int64 newValue = int64(GetHonorPoints()) + value;
+    if (newValue > int64(sWorld->getIntConfig(CONFIG_MAX_HONOR_POINTS)))
+        value = int32(int64(sWorld->getIntConfig(CONFIG_MAX_HONOR_POINTS)) - int64(GetHonorPoints()));
+
+    // Gains are earned honor (tracked, modifiers apply); spending and refunds bypass that
+    ModifyCurrency(CURRENCY_TYPE_HONOR_POINTS, value * int32(CURRENCY_PRECISION), false, value < 0);
 
     if (trans)
     {
-        CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_UDP_CHAR_HONOR_POINTS);
-        stmt->SetData(0, newValue);
-        stmt->SetData(1, GetGUID().GetRawValue());
+        auto itr = _currencyStorage.find(CURRENCY_TYPE_HONOR_POINTS);
+        if (itr == _currencyStorage.end())
+            return;
+
+        CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_INS_CHAR_CURRENCY);
+        stmt->SetData(0, GetGUID().GetCounter());
+        stmt->SetData(1, uint16(CURRENCY_TYPE_HONOR_POINTS));
+        stmt->SetData(2, itr->second.Quantity);
+        stmt->SetData(3, itr->second.WeeklyQuantity);
+        stmt->SetData(4, itr->second.TrackedQuantity);
+        stmt->SetData(5, itr->second.Flags);
         trans->Append(stmt);
     }
 }
@@ -10517,6 +10534,14 @@ void Player::ModifyCurrency(uint32 currencyId, int32 amount, bool suppressChatLo
         return;
     }
 
+    // The first fragments of a race unlock that archaeology branch
+    if (firstGain && currency->CategoryID == CURRENCY_CATEGORY_ARCHAEOLOGY && HasSkill(SKILL_ARCHAEOLOGY))
+        _archaeology->ActivateBranch(sArchaeologyMgr->Currency2BranchId(currency->ID));
+
+    // Changes while loading are sent with SMSG_SETUP_CURRENCY at login
+    if (!IsInWorld())
+        return;
+
     uint32 const precision = currency->UsesPrecision() ? CURRENCY_PRECISION : 1;
 
     WorldPackets::Misc::SetCurrency packet;
@@ -10528,10 +10553,6 @@ void Player::ModifyCurrency(uint32 currencyId, int32 amount, bool suppressChatLo
         packet.TrackedQuantity = int32(trackedQuantity);
     packet.SuppressChatLog = suppressChatLog;
     SendDirectMessage(packet.Write());
-
-    // The first fragments of a race unlock that archaeology branch
-    if (firstGain && currency->CategoryID == CURRENCY_CATEGORY_ARCHAEOLOGY && HasSkill(SKILL_ARCHAEOLOGY))
-        _archaeology->ActivateBranch(sArchaeologyMgr->Currency2BranchId(currency->ID));
 }
 
 void Player::SendBindPointUpdate() const

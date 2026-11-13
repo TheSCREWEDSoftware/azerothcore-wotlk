@@ -2286,7 +2286,7 @@ public:
     /*********************************************************/
     void UpdateHonorFields();
     bool RewardHonor(Unit* victim, uint32 groupsize, int32 honor = -1, bool awardXP = true);
-    [[nodiscard]] uint32 GetHonorPoints() const { return m_honorPoints; }
+    [[nodiscard]] uint32 GetHonorPoints() const;
     [[nodiscard]] uint32 GetArenaPoints() const { return m_arenaPoints; }
     [[nodiscard]] uint32 GetAmmoId() const { return m_ammoId; }
     void SetAmmoId(uint32 item) { m_ammoId = item; }
@@ -3003,7 +3003,6 @@ protected:
     // instead of update fields that no longer exist in the real protocol.
     uint32 m_freeTalentPoints = 0;
     uint32 m_freePrimaryProfessionPoints = 0;
-    uint32 m_honorPoints = 0;
     uint32 m_arenaPoints = 0;
 
     // Cata also dropped PLAYER_AMMO_ID (ranged weapons no longer consume ammo),

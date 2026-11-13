@@ -5377,7 +5377,8 @@ bool Player::LoadFromDB(ObjectGuid playerGuid, CharacterDatabaseQueryHolder cons
 
     SetArenaPoints(fields[44].Get<uint32>());
 
-    SetHonorPoints(fields[45].Get<uint32>());
+    // Honor lives in the currency storage; the characters column only seeds characters saved before that
+    uint32 const legacyHonorPoints = fields[45].Get<uint32>();
     SetTodayContribution(fields[46].Get<uint32>());
     SetYesterdayContribution(fields[47].Get<uint32>());
     SetUInt32Value(PLAYER_FIELD_LIFETIME_HONORABLE_KILLS, fields[48].Get<uint32>());
@@ -5797,6 +5798,9 @@ bool Player::LoadFromDB(ObjectGuid playerGuid, CharacterDatabaseQueryHolder cons
             playerCurrency.Flags = currencyFields[4].Get<uint8>();
         } while (currencyResult->NextRow());
     }
+
+    if (!_currencyStorage.contains(CURRENCY_TYPE_HONOR_POINTS) && legacyHonorPoints)
+        SetHonorPoints(legacyHonorPoints);
 
     if (IsVoidStorageUnlocked())
         _LoadVoidStorage(holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_VOID_STORAGE));
