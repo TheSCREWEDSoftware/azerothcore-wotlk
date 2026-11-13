@@ -415,6 +415,7 @@ namespace lfg
 
         // Helpers
         [[nodiscard]] uint32 Entry() const { return id + (type << 24); }
+        [[nodiscard]] bool IsRaid() const;
     };
 
     class LFGMgr

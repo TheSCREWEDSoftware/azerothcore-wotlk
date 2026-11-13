@@ -258,6 +258,7 @@ public:
     uint8 GetMemberGroup(ObjectGuid guid) const;
 
     void ConvertToLFG(bool restricted = true);
+    void ConvertToLFR();
     bool CheckLevelForRaid();
     void ConvertToRaid();
 

@@ -1759,7 +1759,10 @@ namespace lfg
             {
                 oldGroupGUID = group->GetGUID();
                 grp = group;
-                grp->ConvertToLFG(false);
+                if (dungeon->IsRaid())
+                    grp->ConvertToLFR();
+                else
+                    grp->ConvertToLFG(false);
                 SetState(grp->GetGUID(), LFG_STATE_PROPOSAL);
             }
 
@@ -1794,7 +1797,10 @@ namespace lfg
             if (!grp)
             {
                 grp = new Group();
-                grp->ConvertToLFG();
+                if (dungeon->IsRaid())
+                    grp->ConvertToLFR();
+                else
+                    grp->ConvertToLFG();
                 grp->Create(player);
                 ObjectGuid gguid = grp->GetGUID();
                 SetState(gguid, LFG_STATE_PROPOSAL);
@@ -1816,7 +1822,11 @@ namespace lfg
         if (!grp)
             return;
 
-        grp->SetDungeonDifficulty(Difficulty(dungeon->difficulty));
+        if (dungeon->IsRaid())
+            grp->SetRaidDifficulty(Difficulty(dungeon->difficulty));
+        else
+            grp->SetDungeonDifficulty(Difficulty(dungeon->difficulty));
+
         ObjectGuid gguid = grp->GetGUID();
         SetDungeon(gguid, dungeon->Entry());
         SetState(gguid, LFG_STATE_DUNGEON);
@@ -2989,4 +2999,13 @@ namespace lfg
 
         return GroupsStore[gguid].IsRandomQueuedPlayer(guid);
     }
+
+    bool LFGDungeonData::IsRaid() const
+    {
+        if (MapEntry const* mapEntry = sMapStore.LookupEntry(map))
+            return mapEntry->IsRaid();
+
+        return false;
+    }
+
 } // namespace lfg
