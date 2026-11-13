@@ -1060,8 +1060,24 @@ void WorldSession::HandleChatIgnoredOpcode(WorldPacket& recvData)
     ObjectGuid iguid;
     uint8 unk;
 
-    recvData >> iguid;
     recvData >> unk;                                       // probably related to spam reporting
+    iguid[5] = recvData.ReadBit();
+    iguid[2] = recvData.ReadBit();
+    iguid[6] = recvData.ReadBit();
+    iguid[4] = recvData.ReadBit();
+    iguid[7] = recvData.ReadBit();
+    iguid[0] = recvData.ReadBit();
+    iguid[1] = recvData.ReadBit();
+    iguid[3] = recvData.ReadBit();
+
+    recvData.ReadByteSeq(iguid[0]);
+    recvData.ReadByteSeq(iguid[6]);
+    recvData.ReadByteSeq(iguid[5]);
+    recvData.ReadByteSeq(iguid[1]);
+    recvData.ReadByteSeq(iguid[4]);
+    recvData.ReadByteSeq(iguid[3]);
+    recvData.ReadByteSeq(iguid[7]);
+    recvData.ReadByteSeq(iguid[2]);
 
     Player* player = ObjectAccessor::FindConnectedPlayer(iguid);
     if (!player)

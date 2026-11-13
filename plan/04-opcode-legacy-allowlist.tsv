@@ -15,27 +15,6 @@ c2s	CMSG_BUY_ITEM_IN_SLOT	#168	WotLK-only opcode with no 4.3.4 counterpart in th
 c2s	CMSG_BUY_LOTTERY_TICKET_OBSOLETE	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
 c2s	CMSG_CALENDAR_EVENT_INVITE_NOTES	#182	grouping and social packets are ported with phase 9
 c2s	CMSG_CHANGE_GDF_ARENA_RATING	#182	grouping and social packets are ported with phase 9
-c2s	CMSG_CHANNEL_ANNOUNCEMENTS	#182	grouping and social packets are ported with phase 9
-c2s	CMSG_CHANNEL_BAN	#182	grouping and social packets are ported with phase 9
-c2s	CMSG_CHANNEL_DISPLAY_LIST	#182	grouping and social packets are ported with phase 9
-c2s	CMSG_CHANNEL_INVITE	#182	grouping and social packets are ported with phase 9
-c2s	CMSG_CHANNEL_KICK	#182	grouping and social packets are ported with phase 9
-c2s	CMSG_CHANNEL_LIST	#182	grouping and social packets are ported with phase 9
-c2s	CMSG_CHANNEL_MODERATE	#182	grouping and social packets are ported with phase 9
-c2s	CMSG_CHANNEL_MODERATOR	#182	grouping and social packets are ported with phase 9
-c2s	CMSG_CHANNEL_MUTE	#182	grouping and social packets are ported with phase 9
-c2s	CMSG_CHANNEL_OWNER	#182	grouping and social packets are ported with phase 9
-c2s	CMSG_CHANNEL_PASSWORD	#182	grouping and social packets are ported with phase 9
-c2s	CMSG_CHANNEL_SET_OWNER	#182	grouping and social packets are ported with phase 9
-c2s	CMSG_CHANNEL_SILENCE_ALL	#182	grouping and social packets are ported with phase 9
-c2s	CMSG_CHANNEL_SILENCE_VOICE	#182	grouping and social packets are ported with phase 9
-c2s	CMSG_CHANNEL_UNBAN	#182	grouping and social packets are ported with phase 9
-c2s	CMSG_CHANNEL_UNMODERATOR	#182	grouping and social packets are ported with phase 9
-c2s	CMSG_CHANNEL_UNMUTE	#182	grouping and social packets are ported with phase 9
-c2s	CMSG_CHANNEL_UNSILENCE_ALL	#182	grouping and social packets are ported with phase 9
-c2s	CMSG_CHANNEL_UNSILENCE_VOICE	#182	grouping and social packets are ported with phase 9
-c2s	CMSG_CHANNEL_VOICE_OFF	#182	grouping and social packets are ported with phase 9
-c2s	CMSG_CHANNEL_VOICE_ON	#182	grouping and social packets are ported with phase 9
 c2s	CMSG_CHARACTER_POINT_CHEAT	#168	WotLK-only debug or cheat handler; no 4.3.4 opcode
 c2s	CMSG_CHEAT_DUMP_ITEMS_DEBUG_ONLY	#168	WotLK-only debug or cheat handler; no 4.3.4 opcode
 c2s	CMSG_CHEAT_PLAYER_LOGIN	#168	WotLK-only debug or cheat handler; no 4.3.4 opcode
@@ -80,7 +59,6 @@ c2s	CMSG_FORCEACTIONONOTHER	#168	WotLK-only opcode with no 4.3.4 counterpart in 
 c2s	CMSG_FORCEACTIONSHOW	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
 c2s	CMSG_FORCE_ANIM	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
 c2s	CMSG_FORCE_SAY_CHEAT	#168	WotLK-only debug or cheat handler; no 4.3.4 opcode
-c2s	CMSG_GET_CHANNEL_MEMBER_COUNT	#182	grouping and social packets are ported with phase 9
 c2s	CMSG_GMRESPONSE_CREATE_TICKET	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
 c2s	CMSG_GM_CHARACTER_RESTORE	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
 c2s	CMSG_GM_CHARACTER_SAVE	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin

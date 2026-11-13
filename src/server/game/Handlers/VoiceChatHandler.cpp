@@ -30,7 +30,7 @@ void WorldSession::HandleVoiceSessionEnableOpcode(WorldPacket& recvData)
 
 void WorldSession::HandleChannelVoiceOnOpcode(WorldPacket& /*recvData*/)
 {
-    LOG_DEBUG("network", "WORLD: CMSG_CHANNEL_VOICE_ON");
+    LOG_DEBUG("network", "WORLD: CMSG_CHAT_CHANNEL_VOICE_ON");
     // Enable Voice button in channel context menu
 }
 
