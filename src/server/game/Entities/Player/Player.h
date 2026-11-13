@@ -482,7 +482,7 @@ enum PlayerFlags : uint32
     PLAYER_FLAGS_UNK26             = 0x04000000,
     PLAYER_FLAGS_UNK27             = 0x08000000,
     PLAYER_FLAGS_UNK28             = 0x10000000,
-    PLAYER_FLAGS_UNK29             = 0x20000000,
+    PLAYER_FLAGS_VOID_UNLOCKED     = 0x20000000,                // void storage (Cata)
     PLAYER_FLAGS_UNK30             = 0x40000000,
     PLAYER_FLAGS_UNK31             = 0x80000000,
 };
@@ -887,6 +887,7 @@ enum PlayerLoginQueryIndex
     PLAYER_LOGIN_QUERY_LOAD_PET_SLOTS                    = 37,
     PLAYER_LOGIN_QUERY_LOAD_OFFLINE_ACHIEVEMENTS_UPDATES = 38,
     PLAYER_LOGIN_QUERY_LOAD_CURRENCY                     = 39,
+    PLAYER_LOGIN_QUERY_LOAD_VOID_STORAGE                 = 40,
     MAX_PLAYER_LOGIN_QUERY
 };
 
@@ -1054,6 +1055,20 @@ struct EntryPointData
 
     void ClearTaxiPath() { taxiPath.fill(0); }
     [[nodiscard]] bool HasTaxiPath() const { return taxiPath[0] && taxiPath[1]; }
+};
+
+struct VoidStorageItem
+{
+    VoidStorageItem() = default;
+    VoidStorageItem(uint64 id, uint32 entry, ObjectGuid const& creator, int32 randomPropertyId, uint32 suffixFactor)
+        : ItemId(id), ItemEntry(entry), CreatorGuid(creator), ItemRandomPropertyId(randomPropertyId),
+        ItemSuffixFactor(suffixFactor) { }
+
+    uint64 ItemId = 0;
+    uint32 ItemEntry = 0;
+    ObjectGuid CreatorGuid;
+    int32 ItemRandomPropertyId = 0;                         // < 0: ItemRandomSuffix.dbc, > 0: ItemRandomProperties.dbc
+    uint32 ItemSuffixFactor = 0;
 };
 
 struct TradeStatusInfo
@@ -1728,6 +1743,18 @@ public:
         return GetCurrency(currencyId, false) >= amount;
     }
     void ModifyCurrency(uint32 currencyId, int32 amount, bool suppressChatLog = false);
+
+    // Void Storage
+    [[nodiscard]] bool IsVoidStorageUnlocked() const { return HasPlayerFlag(PLAYER_FLAGS_VOID_UNLOCKED); }
+    void UnlockVoidStorage() { SetPlayerFlag(PLAYER_FLAGS_VOID_UNLOCKED); }
+    void LockVoidStorage() { RemovePlayerFlag(PLAYER_FLAGS_VOID_UNLOCKED); }
+    [[nodiscard]] uint8 GetNextVoidStorageFreeSlot() const;
+    [[nodiscard]] uint8 GetNumOfVoidStorageFreeSlots() const;
+    uint8 AddVoidStorageItem(VoidStorageItem const& item);
+    void DeleteVoidStorageItem(uint8 slot);
+    bool SwapVoidStorageItem(uint8 oldSlot, uint8 newSlot);
+    [[nodiscard]] VoidStorageItem* GetVoidStorageItem(uint8 slot) const;
+    [[nodiscard]] VoidStorageItem* GetVoidStorageItem(uint64 id, uint8& slot) const;
     void SendKnownSpells(bool firstLogin = false);
     void SendSpellModifiers() const;
     void SendLearnPacket(uint32 spellId, bool learn);
@@ -2838,6 +2865,7 @@ protected:
     void _LoadEquipmentSets(PreparedQueryResult result);
     void _LoadEntryPointData(PreparedQueryResult result);
     void _LoadGlyphs(PreparedQueryResult result);
+    void _LoadVoidStorage(PreparedQueryResult result);
     void _LoadTalents(PreparedQueryResult result);
     void _LoadInstanceTimeRestrictions(PreparedQueryResult result);
     void _LoadBrewOfTheMonth(PreparedQueryResult result);
@@ -2866,6 +2894,7 @@ protected:
     void _SaveCharacter(bool create, CharacterDatabaseTransaction trans);
     void _SaveInstanceTimeRestrictions(CharacterDatabaseTransaction trans);
     void _SavePlayerSettings(CharacterDatabaseTransaction trans);
+    void _SaveVoidStorage(CharacterDatabaseTransaction trans);
     void UpdateAdditionalSaves(uint32 p_time);
 
     /*********************************************************/
@@ -2907,6 +2936,7 @@ protected:
 
     QuestStatusMap m_QuestStatus;
     std::unordered_map<uint32, uint32> _currencyStorage; // currency id -> quantity (4.3.4, #312)
+    std::array<std::unique_ptr<VoidStorageItem>, VOID_STORAGE_MAX_SLOT> _voidStorageItems;
     QuestStatusSaveMap m_QuestStatusSave;
 
     RewardedQuestSet m_RewardedQuests;

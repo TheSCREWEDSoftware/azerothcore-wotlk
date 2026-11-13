@@ -5810,6 +5810,9 @@ bool Player::LoadFromDB(ObjectGuid playerGuid, CharacterDatabaseQueryHolder cons
         } while (currencyResult->NextRow());
     }
 
+    if (IsVoidStorageUnlocked())
+        _LoadVoidStorage(holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_VOID_STORAGE));
+
     // has to be called after last Relocate() in Player::LoadFromDB
     SetFallInformation(GameTime::GetGameTime().count(), GetPositionZ());
 
@@ -7513,6 +7516,7 @@ void Player::SaveToDB(CharacterDatabaseTransaction trans, bool create, bool logo
         currencyStmt->SetData(2, quantity);
         trans->Append(currencyStmt);
     }
+    _SaveVoidStorage(trans);
 
     // check if stats should only be saved on logout
     // save stats can be out of transaction
@@ -8215,4 +8219,170 @@ void Player::outDebugValues() const
     LOG_DEBUG("entities.player", "MIN_OFFHAND_DAMAGE is: \t{}\tMAX_OFFHAND_DAMAGE is: \t{}", GetFloatValue(UNIT_FIELD_MINOFFHANDDAMAGE), GetFloatValue(UNIT_FIELD_MAXOFFHANDDAMAGE));
     LOG_DEBUG("entities.player", "MIN_RANGED_DAMAGE is: \t{}\tMAX_RANGED_DAMAGE is: \t{}", GetFloatValue(UNIT_FIELD_MINRANGEDDAMAGE), GetFloatValue(UNIT_FIELD_MAXRANGEDDAMAGE));
     LOG_DEBUG("entities.player", "ATTACK_TIME is: \t{}\t\tRANGE_ATTACK_TIME is: \t{}", GetAttackTime(BASE_ATTACK), GetAttackTime(RANGED_ATTACK));
+}
+
+void Player::_LoadVoidStorage(PreparedQueryResult result)
+{
+    if (!result)
+        return;
+
+    do
+    {
+        // SELECT itemId, itemEntry, slot, creatorGuid, randomPropertyId, suffixFactor
+        // FROM character_void_storage WHERE playerGuid = ?
+        Field* fields = result->Fetch();
+
+        uint64 itemId = fields[0].Get<uint64>();
+        uint32 itemEntry = fields[1].Get<uint32>();
+        uint8 slot = fields[2].Get<uint8>();
+        ObjectGuid creatorGuid = ObjectGuid::Create<HighGuid::Player>(fields[3].Get<uint32>());
+        int32 randomPropertyId = fields[4].Get<int32>();
+        uint32 suffixFactor = fields[5].Get<uint32>();
+
+        if (!itemId)
+        {
+            LOG_ERROR("entities.player", "Player::_LoadVoidStorage - {} has an item with an invalid id (item id: {}, "
+                "entry: {}).",
+                GetGUID().ToString(), itemId, itemEntry);
+            continue;
+        }
+
+        if (!sObjectMgr->GetItemTemplate(itemEntry))
+        {
+            LOG_ERROR("entities.player", "Player::_LoadVoidStorage - {} has an item with an invalid entry (item id: "
+                "{}, entry: {}).",
+                GetGUID().ToString(), itemId, itemEntry);
+            continue;
+        }
+
+        if (slot >= VOID_STORAGE_MAX_SLOT)
+        {
+            LOG_ERROR("entities.player", "Player::_LoadVoidStorage - {} has an item with an invalid slot (item id: "
+                "{}, entry: {}, slot: {}).",
+                GetGUID().ToString(), itemId, itemEntry, slot);
+            continue;
+        }
+
+        std::string name;
+        if (creatorGuid && !sCharacterCache->GetCharacterNameByGuid(creatorGuid, name))
+        {
+            LOG_ERROR("entities.player", "Player::_LoadVoidStorage - {} has an item with an invalid creator, set to 0 "
+                "(item id: {}, entry: {}, creator: {}).",
+                GetGUID().ToString(), itemId, itemEntry, creatorGuid.ToString());
+            creatorGuid.Clear();
+        }
+
+        _voidStorageItems[slot] = std::make_unique<VoidStorageItem>(itemId, itemEntry, creatorGuid, randomPropertyId,
+            suffixFactor);
+    } while (result->NextRow());
+}
+
+void Player::_SaveVoidStorage(CharacterDatabaseTransaction trans)
+{
+    ObjectGuid::LowType const lowGuid = GetGUID().GetCounter();
+
+    for (uint8 i = 0; i < VOID_STORAGE_MAX_SLOT; ++i)
+    {
+        CharacterDatabasePreparedStatement* stmt = nullptr;
+        if (!_voidStorageItems[i]) // unused slot
+        {
+            // DELETE FROM character_void_storage WHERE slot = ? AND playerGuid = ?
+            stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_CHAR_VOID_STORAGE_ITEM_BY_SLOT);
+            stmt->SetData(0, i);
+            stmt->SetData(1, lowGuid);
+        }
+        else
+        {
+            // REPLACE INTO character_void_storage (itemId, playerGuid, itemEntry, slot, creatorGuid, randomPropertyId,
+            //     suffixFactor)
+            stmt = CharacterDatabase.GetPreparedStatement(CHAR_REP_CHAR_VOID_STORAGE_ITEM);
+            stmt->SetData(0, _voidStorageItems[i]->ItemId);
+            stmt->SetData(1, lowGuid);
+            stmt->SetData(2, _voidStorageItems[i]->ItemEntry);
+            stmt->SetData(3, i);
+            stmt->SetData(4, _voidStorageItems[i]->CreatorGuid.GetCounter());
+            stmt->SetData(5, _voidStorageItems[i]->ItemRandomPropertyId);
+            stmt->SetData(6, _voidStorageItems[i]->ItemSuffixFactor);
+        }
+
+        trans->Append(stmt);
+    }
+}
+
+uint8 Player::GetNextVoidStorageFreeSlot() const
+{
+    for (uint8 i = 0; i < VOID_STORAGE_MAX_SLOT; ++i)
+        if (!_voidStorageItems[i]) // unused slot
+            return i;
+
+    return VOID_STORAGE_MAX_SLOT;
+}
+
+uint8 Player::GetNumOfVoidStorageFreeSlots() const
+{
+    uint8 count = 0;
+
+    for (uint8 i = 0; i < VOID_STORAGE_MAX_SLOT; ++i)
+        if (!_voidStorageItems[i])
+            ++count;
+
+    return count;
+}
+
+uint8 Player::AddVoidStorageItem(VoidStorageItem const& item)
+{
+    uint8 slot = GetNextVoidStorageFreeSlot();
+    if (slot >= VOID_STORAGE_MAX_SLOT)
+    {
+        GetSession()->SendVoidStorageTransferResult(VOID_TRANSFER_ERROR_FULL);
+        return 255;
+    }
+
+    _voidStorageItems[slot] = std::make_unique<VoidStorageItem>(item);
+    return slot;
+}
+
+void Player::DeleteVoidStorageItem(uint8 slot)
+{
+    if (slot >= VOID_STORAGE_MAX_SLOT)
+    {
+        GetSession()->SendVoidStorageTransferResult(VOID_TRANSFER_ERROR_INTERNAL_ERROR_1);
+        return;
+    }
+
+    _voidStorageItems[slot] = nullptr;
+}
+
+bool Player::SwapVoidStorageItem(uint8 oldSlot, uint8 newSlot)
+{
+    if (oldSlot >= VOID_STORAGE_MAX_SLOT || newSlot >= VOID_STORAGE_MAX_SLOT || oldSlot == newSlot)
+        return false;
+
+    std::swap(_voidStorageItems[newSlot], _voidStorageItems[oldSlot]);
+    return true;
+}
+
+VoidStorageItem* Player::GetVoidStorageItem(uint8 slot) const
+{
+    if (slot >= VOID_STORAGE_MAX_SLOT)
+    {
+        GetSession()->SendVoidStorageTransferResult(VOID_TRANSFER_ERROR_INTERNAL_ERROR_1);
+        return nullptr;
+    }
+
+    return _voidStorageItems[slot].get();
+}
+
+VoidStorageItem* Player::GetVoidStorageItem(uint64 id, uint8& slot) const
+{
+    for (uint8 i = 0; i < VOID_STORAGE_MAX_SLOT; ++i)
+    {
+        if (_voidStorageItems[i] && _voidStorageItems[i]->ItemId == id)
+        {
+            slot = i;
+            return _voidStorageItems[i].get();
+        }
+    }
+
+    return nullptr;
 }

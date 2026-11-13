@@ -348,6 +348,7 @@ enum NPCFlags : uint32
     UNIT_NPC_FLAG_MAILBOX                   = 0x04000000,       // TITLE is mailbox
     UNIT_NPC_FLAG_REFORGER                  = 0x08000000,       // TITLE can reforge items (Cata)
     UNIT_NPC_FLAG_TRANSMOGRIFIER            = 0x10000000,       // TITLE can transmogrify items (Cata)
+    UNIT_NPC_FLAG_VAULTKEEPER               = 0x20000000,       // TITLE is void storage keeper (Cata)
 
     UNIT_NPC_FLAG_VENDOR_MASK = UNIT_NPC_FLAG_VENDOR | UNIT_NPC_FLAG_VENDOR_AMMO | UNIT_NPC_FLAG_VENDOR_POISON | UNIT_NPC_FLAG_VENDOR_REAGENT
 };

@@ -301,6 +301,7 @@ ObjectMgr::ObjectMgr():
     _auctionId(1),
     _equipmentSetGuid(1),
     _mailId(1),
+    _voidItemId(1),
     _hiPetNumber(1),
     _creatureSpawnId(1),
     _gameObjectSpawnId(1),
@@ -7761,6 +7762,10 @@ void ObjectMgr::SetHighestGuids()
     if (result)
         _mailId = (*result)[0].Get<uint32>() + 1;
 
+    result = CharacterDatabase.Query("SELECT MAX(itemId) FROM character_void_storage");
+    if (result)
+        _voidItemId = (*result)[0].Get<uint64>() + 1;
+
     result = CharacterDatabase.Query("SELECT MAX(arenateamid) FROM arena_team");
     if (result)
         sArenaTeamMgr->SetNextArenaTeamId((*result)[0].Get<uint32>() + 1);
@@ -7815,6 +7820,12 @@ uint32 ObjectMgr::GenerateMailID()
     }
     std::lock_guard<std::mutex> guard(_mailIdMutex);
     return _mailId++;
+}
+
+uint64 ObjectMgr::GenerateVoidStorageItemId()
+{
+    std::lock_guard<std::mutex> guard(_voidItemIdMutex);
+    return _voidItemId++;
 }
 
 uint32 ObjectMgr::GenerateCreatureSpawnId()

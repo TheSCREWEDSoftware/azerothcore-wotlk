@@ -973,6 +973,13 @@ public:                                                 // opcodes handlers
     // Cata Transmogrification
     void HandleTransmogrifyItems(WorldPackets::Item::TransmogrifyItems& packet);
 
+    // Cata Void Storage
+    void HandleVoidStorageUnlock(WorldPacket& recvData);
+    void HandleVoidStorageQuery(WorldPacket& recvData);
+    void HandleVoidStorageTransfer(WorldPacket& recvData);
+    void HandleVoidSwapItem(WorldPacket& recvData);
+    void SendVoidStorageTransferResult(VoidTransferError result);
+
     void HandleListInventoryOpcode(WorldPackets::Item::ListInventory& packet);
     void HandleAutoStoreBagItemOpcode(WorldPackets::Item::AutoStoreBagItem& packet);
     void HandleReadItem(WorldPackets::Item::ReadItem& packet);

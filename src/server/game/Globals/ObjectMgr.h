@@ -1173,6 +1173,7 @@ public:
     uint32 GenerateAuctionID();
     uint64 GenerateEquipmentSetGuid();
     uint32 GenerateMailID();
+    uint64 GenerateVoidStorageItemId();
     uint32 GeneratePetNumber();
     ObjectGuid::LowType GenerateCreatureSpawnId();
     ObjectGuid::LowType GenerateGameObjectSpawnId();
@@ -1562,6 +1563,8 @@ private:
     uint64 _equipmentSetGuid; // pussywizard: accessed by a single thread
     uint32 _mailId;
     std::mutex _mailIdMutex;
+    uint64 _voidItemId;
+    std::mutex _voidItemIdMutex;
     uint32 _hiPetNumber;
     std::mutex _hiPetNumberMutex;
 

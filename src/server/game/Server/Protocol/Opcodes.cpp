@@ -647,6 +647,10 @@ void OpcodeTable::Initialize()
     /*0x01A3*/ DEFINE_HANDLER(CMSG_BUY_ITEM_IN_SLOT,                                                 STATUS_LOGGEDIN,   PROCESS_INPLACE,        &WorldSession::HandleBuyItemInSlotOpcode                );
     /*0x331A*/ DEFINE_HANDLER(CMSG_REFORGE_ITEM,                                                     STATUS_LOGGEDIN,   PROCESS_INPLACE,        &WorldSession::HandleReforgeItemOpcode                  );
     /*0x3B0E*/ DEFINE_HANDLER(CMSG_TRANSMOGRIFY_ITEMS,                                               STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleTransmogrifyItems                  );
+    /*0x790A*/ DEFINE_HANDLER(CMSG_VOID_STORAGE_QUERY,                                               STATUS_LOGGEDIN,   PROCESS_INPLACE,        &WorldSession::HandleVoidStorageQuery                   );
+    /*0x380E*/ DEFINE_HANDLER(CMSG_VOID_STORAGE_TRANSFER,                                            STATUS_LOGGEDIN,   PROCESS_INPLACE,        &WorldSession::HandleVoidStorageTransfer                );
+    /*0x7B14*/ DEFINE_HANDLER(CMSG_VOID_STORAGE_UNLOCK,                                              STATUS_LOGGEDIN,   PROCESS_INPLACE,        &WorldSession::HandleVoidStorageUnlock                  );
+    /*0x3204*/ DEFINE_HANDLER(CMSG_VOID_SWAP_ITEM,                                                   STATUS_LOGGEDIN,   PROCESS_INPLACE,        &WorldSession::HandleVoidSwapItem                       );
     /*0x0F26*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_BUY_ITEM,                                           STATUS_NEVER);
     /*0x6435*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_BUY_FAILED,                                         STATUS_NEVER);
     /*0x0000*/ DEFINE_HANDLER(CMSG_TAXICLEARALLNODES,                                                STATUS_NEVER,      PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );
@@ -1498,6 +1502,11 @@ void OpcodeTable::Initialize()
     /*0x15A3*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_ITEM_REFUND_INFO_RESPONSE,                          STATUS_NEVER);
     /*0x58A4*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_REFORGE_RESULT,                                     STATUS_NEVER);
     /*0x70B7*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_FORGE_MASTER_SET,                                   STATUS_NEVER);
+    /*0x78A2*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_VOID_ITEM_SWAP_RESPONSE,                            STATUS_NEVER);
+    /*0x75B4*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_VOID_STORAGE_CONTENTS,                              STATUS_NEVER);
+    /*0x18A7*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_VOID_STORAGE_FAILED,                                STATUS_NEVER);
+    /*0x51A6*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_VOID_STORAGE_TRANSFER_CHANGES,                      STATUS_NEVER);
+    /*0x1DA6*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_VOID_TRANSFER_RESULT,                               STATUS_NEVER);
     /*0x2206*/ DEFINE_HANDLER(CMSG_ITEM_REFUND_INFO,                                                 STATUS_LOGGEDIN,   PROCESS_INPLACE,        &WorldSession::HandleItemRefundInfoRequest              );
     /*0x6134*/ DEFINE_HANDLER(CMSG_ITEM_REFUND,                                                      STATUS_LOGGEDIN,   PROCESS_INPLACE,        &WorldSession::HandleItemRefund                         );
     /*0x5DB1*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_ITEM_REFUND_RESULT,                                 STATUS_NEVER);
