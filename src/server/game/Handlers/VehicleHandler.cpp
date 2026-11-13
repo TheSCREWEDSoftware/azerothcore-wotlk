@@ -116,11 +116,12 @@ void WorldSession::HandleChangeSeatsOnControlledVehicle(WorldPacket& recvData)
             }
         case CMSG_REQUEST_VEHICLE_SWITCH_SEAT:
             {
-                ObjectGuid guid;        // current vehicle guid
-                recvData >> guid.ReadAsPacked();
-
+                // 5.4.8 18414, from Project SkyFire
                 int8 seatId;
+                ObjectGuid guid;        // current vehicle guid
                 recvData >> seatId;
+                recvData.ReadGuidMask(guid, { 7, 3, 0, 1, 6, 4, 5, 2 });
+                recvData.ReadGuidBytes(guid, { 5, 0, 2, 3, 7, 4, 6, 1 });
 
                 if (vehicle_base->GetGUID() == guid)
                     GetPlayer()->ChangeSeat(seatId);
@@ -137,9 +138,10 @@ void WorldSession::HandleChangeSeatsOnControlledVehicle(WorldPacket& recvData)
 
 void WorldSession::HandleEnterPlayerVehicle(WorldPacket& data)
 {
-    // Read guid
+    // 5.4.8 18414, from Project SkyFire
     ObjectGuid guid;
-    data >> guid;
+    data.ReadGuidMask(guid, { 5, 7, 3, 0, 2, 4, 6, 1 });
+    data.ReadGuidBytes(guid, { 5, 3, 1, 2, 7, 0, 6, 4 });
 
     if (Player* player = ObjectAccessor::GetPlayer(*_player, guid))
     {
@@ -168,8 +170,10 @@ void WorldSession::HandleEjectPassenger(WorldPacket& data)
         return;
     }
 
+    // 5.4.8 18414, from Project SkyFire
     ObjectGuid guid;
-    data >> guid;
+    data.ReadGuidMask(guid, { 4, 2, 1, 6, 5, 0, 7, 3 });
+    data.ReadGuidBytes(guid, { 2, 7, 0, 6, 4, 3, 5, 1 });
 
     if (guid.IsPlayer())
     {

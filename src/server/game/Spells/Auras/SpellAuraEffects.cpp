@@ -5995,14 +5995,11 @@ void AuraEffect::HandleAuraSetVehicle(AuraApplication const* aurApp, uint8 mode,
     else if (target->GetVehicleKit())
         target->RemoveVehicleKit();
 
-    WorldPacket data(SMSG_SET_VEHICLE_REC_ID, target->GetPackGUID().size() + 4);
-    data << target->GetPackGUID();
-    data << int32(apply ? vehicleId : 0);
-    target->SendMessageToSet(&data, true);
+    target->SendSetVehicleRecId(apply ? vehicleId : 0);
 
     if (apply)
     {
-        data.Initialize(SMSG_ON_CANCEL_EXPECTED_RIDE_VEHICLE_AURA, 0);
+        WorldPacket data(SMSG_ON_CANCEL_EXPECTED_RIDE_VEHICLE_AURA, 0);
         target->ToPlayer()->SendDirectMessage(&data);
     }
 }

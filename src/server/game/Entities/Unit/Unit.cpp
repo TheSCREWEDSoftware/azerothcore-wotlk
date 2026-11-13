@@ -10458,13 +10458,10 @@ void Unit::Mount(uint32 mount, uint32 VehicleId, uint32 creatureEntry)
             {
                 GetVehicleKit()->Reset();
 
-                // Send others that we now have a vehicle (4.3.4 vehicle record id)
-                WorldPacket data(SMSG_SET_VEHICLE_REC_ID, GetPackGUID().size() + 4);
-                data << GetPackGUID();
-                data << int32(VehicleId);
-                SendMessageToSet(&data, true);
+                // Send others that we now have a vehicle
+                SendSetVehicleRecId(VehicleId);
 
-                data.Initialize(SMSG_ON_CANCEL_EXPECTED_RIDE_VEHICLE_AURA, 0);
+                WorldPacket data(SMSG_ON_CANCEL_EXPECTED_RIDE_VEHICLE_AURA, 0);
                 player->SendDirectMessage(&data);
 
                 // mounts can also have accessories
@@ -10495,6 +10492,18 @@ void Unit::Mount(uint32 mount, uint32 VehicleId, uint32 creatureEntry)
     RemoveAurasWithInterruptFlags(AURA_INTERRUPT_FLAG_MOUNT);
 }
 
+// 5.4.8 18414, from Project SkyFire
+void Unit::SendSetVehicleRecId(uint32 vehicleId)
+{
+    ObjectGuid guid = GetGUID();
+    WorldPacket data(SMSG_SET_VEHICLE_REC_ID, 1 + 8 + 4);
+    data.WriteGuidMask(guid, { 5, 7, 2, 1, 4, 0, 3, 6 });
+    data.FlushBits();
+    data.WriteGuidBytes(guid, { 5, 7, 4, 6, 2, 1, 3, 0 });
+    data << uint32(vehicleId);
+    SendMessageToSet(&data, true);
+}
+
 void Unit::Dismount()
 {
     if (!IsMounted())
@@ -10516,10 +10525,7 @@ void Unit::Dismount()
     if (IsPlayer() && GetVehicleKit())
     {
         // Send other players that we are no longer a vehicle
-        data.Initialize(SMSG_SET_VEHICLE_REC_ID, 8 + 4);
-        data << GetPackGUID();
-        data << int32(0);
-        ToPlayer()->SendMessageToSet(&data, true);
+        SendSetVehicleRecId(0);
         // Remove vehicle from player
         RemoveVehicleKit();
     }

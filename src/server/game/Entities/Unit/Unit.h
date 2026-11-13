@@ -1908,6 +1908,7 @@ public:
     [[nodiscard]] uint32 GetMountID() const { return GetUInt32Value(UNIT_FIELD_MOUNTDISPLAYID); }
     void Mount(uint32 mount, uint32 vehicleId = 0, uint32 creatureEntry = 0);
     void Dismount();
+    void SendSetVehicleRecId(uint32 vehicleId);
     [[nodiscard]] bool IsInDisallowedMountForm() const;
 
     // Followers
