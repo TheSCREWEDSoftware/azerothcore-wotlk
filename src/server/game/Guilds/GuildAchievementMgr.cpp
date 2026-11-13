@@ -118,7 +118,7 @@ void GuildAchievementMgr::UpdateCriteria(AchievementCriteriaTypes type, uint64 m
                 SetCriteriaProgress(criteria, miscValue2, Progress::Accumulate, source);
                 break;
             case ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_GUILD_CHALLENGE_TYPE:
-                if (!miscValue1 || miscValue1 != criteria->raw.field3)
+                if (!miscValue1 || miscValue1 != criteria->complete_guild_challenge_type.flag)
                     continue;
                 SetCriteriaProgress(criteria, 1, Progress::Accumulate, source);
                 break;

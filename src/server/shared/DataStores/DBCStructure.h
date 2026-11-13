@@ -504,6 +504,108 @@ struct AchievementCriteriaEntry
             uint32  dungeonsComplete;
         } use_lfg;
 
+        // Cata guild achievement criteria, tracked by GuildAchievementMgr
+
+        // ACHIEVEMENT_CRITERIA_TYPE_SPENT_GOLD_GUILD_REPAIRS = 124
+        struct
+        {
+            uint32  unused;                                 // 3
+            uint32  goldInCopper;                           // 4
+        } spent_gold_guild_repairs;
+
+        // ACHIEVEMENT_CRITERIA_TYPE_REACH_GUILD_LEVEL      = 125
+        struct
+        {
+            uint32  unused;                                 // 3
+            uint32  level;                                  // 4
+        } reach_guild_level;
+
+        // ACHIEVEMENT_CRITERIA_TYPE_CRAFT_ITEMS_GUILD      = 126
+        struct
+        {
+            uint32  unused;                                 // 3
+            uint32  itemCount;                               // 4
+        } craft_items_guild;
+
+        // ACHIEVEMENT_CRITERIA_TYPE_CATCH_FROM_POOL        = 127 (fishing pools, not guild-specific)
+        struct
+        {
+            uint32  poolID;                                 // 3
+            uint32  lootCount;                               // 4
+        } catch_from_pool;
+
+        // ACHIEVEMENT_CRITERIA_TYPE_BUY_GUILD_BANK_SLOTS   = 128
+        struct
+        {
+            uint32  unused;                                 // 3
+            uint32  numberOfSlots;                           // 4
+        } buy_guild_bank_slots;
+
+        // ACHIEVEMENT_CRITERIA_TYPE_EARN_GUILD_ACHIEVEMENT_POINTS = 129
+        struct
+        {
+            uint32  unused;                                 // 3
+            uint32  pointCount;                              // 4
+        } earn_guild_achievement_points;
+
+        // ACHIEVEMENT_CRITERIA_TYPE_WIN_RATED_BATTLEGROUND = 130
+        struct
+        {
+            uint32  unused;                                 // 3
+            uint32  count;                                  // 4
+        } win_rated_battleground;
+
+        // ACHIEVEMENT_CRITERIA_TYPE_REACH_BG_RATING        = 132
+        struct
+        {
+            uint32  unused;                                 // 3
+            uint32  personalRating;                          // 4
+        } reach_bg_rating;
+
+        // ACHIEVEMENT_CRITERIA_TYPE_BUY_GUILD_TABARD       = 133
+        struct
+        {
+            uint32  unused;                                 // 3
+            uint32  unused2;                                 // 4
+        } buy_guild_tabard;
+
+        // ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_QUESTS_GUILD  = 134
+        struct
+        {
+            uint32  unused;                                 // 3
+            uint32  questCount;                              // 4
+        } complete_quests_guild;
+
+        // ACHIEVEMENT_CRITERIA_TYPE_HONORABLE_KILLS_GUILD  = 135
+        struct
+        {
+            uint32  unused;                                 // 3
+            uint32  killCount;                               // 4
+        } honorable_kills_guild;
+
+        // ACHIEVEMENT_CRITERIA_TYPE_KILL_CREATURE_TYPE_GUILD = 136
+        /// @todo: creature type (demon, undead etc.) is not stored in dbc, same limitation as
+        /// ACHIEVEMENT_CRITERIA_TYPE_KILL_CREATURE_TYPE = 78
+        struct
+        {
+            uint32  creatureType;                            // 3
+            uint32  killCount;                               // 4
+        } kill_creature_type_guild;
+
+        // ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_GUILD_CHALLENGE_TYPE = 138
+        struct
+        {
+            uint32  flag;                                    // 3 1: Guild Dungeon, 2: Guild Challenge, 3: Guild Battlefield
+            uint32  count;                                    // 4
+        } complete_guild_challenge_type;
+
+        // ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_GUILD_CHALLENGE = 139
+        struct
+        {
+            uint32  unused;                                  // 3
+            uint32  count;                                    // 4
+        } complete_guild_challenge;
+
         struct
         {
             uint32  field3;                                 // 3 main requirement
