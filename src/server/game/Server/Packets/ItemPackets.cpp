@@ -34,8 +34,26 @@ void WorldPackets::Item::SwapInventoryItem::Read()
 
 void WorldPackets::Item::AutoEquipItemSlot::Read()
 {
-    _worldPacket >> ItemGuid;
+    // 5.4.8 18414, from Project SkyFire: an inventory position list follows the guid mask
     _worldPacket >> DestinationSlot;
+    _worldPacket.ReadGuidMask(ItemGuid, { 6, 3, 0 });
+    uint32 count = _worldPacket.ReadBits(2);
+    _worldPacket.ReadGuidMask(ItemGuid, { 7 });
+    std::vector<std::pair<bool, bool>> positions(count);
+    for (std::pair<bool, bool>& position : positions)
+    {
+        position.second = _worldPacket.ReadBit();          // has slot
+        position.first = _worldPacket.ReadBit();           // has bag
+    }
+    _worldPacket.ReadGuidMask(ItemGuid, { 5, 2, 1, 4 });
+    _worldPacket.ReadGuidBytes(ItemGuid, { 6, 3, 1, 7, 2, 0, 4, 5 });
+    for (std::pair<bool, bool> const& position : positions)
+    {
+        if (position.second)
+            _worldPacket.read_skip<uint8>();
+        if (position.first)
+            _worldPacket.read_skip<uint8>();
+    }
 }
 
 void WorldPackets::Item::SwapItem::Read()
@@ -248,10 +266,14 @@ void WorldPackets::Item::CancelTempEnchantment::Read()
 
 void WorldPackets::Item::ItemRefundInfo::Read()
 {
-    _worldPacket >> ItemGuid;
+    // 5.4.8 18414, from Project SkyFire
+    _worldPacket.ReadGuidMask(ItemGuid, { 1, 0, 3, 2, 7, 4, 5, 6 });
+    _worldPacket.ReadGuidBytes(ItemGuid, { 3, 7, 5, 1, 0, 6, 4, 2 });
 }
 
 void WorldPackets::Item::ItemRefund::Read()
 {
-    _worldPacket >> ItemGuid;
+    // 5.4.8 18414, from Project SkyFire
+    _worldPacket.ReadGuidMask(ItemGuid, { 2, 4, 1, 6, 3, 0, 5, 7 });
+    _worldPacket.ReadGuidBytes(ItemGuid, { 3, 5, 6, 2, 7, 0, 1, 4 });
 }

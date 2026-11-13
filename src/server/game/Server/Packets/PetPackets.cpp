@@ -19,7 +19,9 @@
 
 void WorldPackets::Pet::DismissCritter::Read()
 {
-    _worldPacket >> CritterGUID;
+    // 5.4.8 18414, from Project SkyFire
+    _worldPacket.ReadGuidMask(CritterGUID, { 4, 6, 7, 5, 1, 0, 2, 3 });
+    _worldPacket.ReadGuidBytes(CritterGUID, { 2, 4, 5, 0, 1, 7, 3, 6 });
 }
 
 void WorldPackets::Pet::PetAbandon::Read()

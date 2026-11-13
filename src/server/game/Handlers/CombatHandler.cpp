@@ -27,8 +27,10 @@
 
 void WorldSession::HandleAttackSwingOpcode(WorldPacket& recvData)
 {
+    // 5.4.8 18414, from Project SkyFire
     ObjectGuid guid;
-    recvData >> guid;
+    recvData.ReadGuidMask(guid, { 6, 5, 7, 0, 3, 1, 4, 2 });
+    recvData.ReadGuidBytes(guid, { 6, 7, 1, 3, 2, 0, 4, 5 });
 
     LOG_DEBUG("network", "WORLD: Recvd CMSG_ATTACKSWING: {}", guid.ToString());
 

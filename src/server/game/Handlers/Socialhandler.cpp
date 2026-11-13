@@ -43,6 +43,9 @@ void WorldSession::HandleAddFriendOpcode(WorldPacket& recv_data)
     recv_data >> friendName;
     recv_data >> friendNote;
 
+    // 5.4.8 clients may send "Name-Realm"
+    friendName = friendName.substr(0, friendName.find('-'));
+
     if (!normalizePlayerName(friendName))
         return;
 

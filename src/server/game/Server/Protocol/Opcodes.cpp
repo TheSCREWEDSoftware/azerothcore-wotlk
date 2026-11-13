@@ -181,7 +181,7 @@ void OpcodeTable::Initialize()
     /*0x127A*/ DEFINE_HANDLER(CMSG_BLACKMARKET_REQUEST_ITEMS, STATUS_UNHANDLED, PROCESS_INPLACE, &WorldSession::Handle_NULL);
     /*0x15DB*/ DEFINE_HANDLER(CMSG_CHALLENGE_MODE_REQUEST_LEADERS, STATUS_UNHANDLED, PROCESS_INPLACE, &WorldSession::Handle_NULL);
     /*0x1C5A*/ DEFINE_HANDLER(CMSG_CHALLENGE_MODE_REQUEST_MAP_STATS, STATUS_UNHANDLED, PROCESS_INPLACE, &WorldSession::Handle_NULL);
-    /*0x0329*/ DEFINE_HANDLER(CMSG_CHAR_FACTION_OR_RACE_CHANGE, STATUS_UNHANDLED, PROCESS_INPLACE, &WorldSession::Handle_NULL);
+    /*0x0329*/ DEFINE_HANDLER(CMSG_CHAR_FACTION_OR_RACE_CHANGE,                                      STATUS_AUTHED, PROCESS_THREADUNSAFE,       &WorldSession::HandleCharFactionOrRaceChange            );
     /*0x0EAB*/ DEFINE_HANDLER(CMSG_CHAT_MESSAGE_AFK, STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleMessagechatOpcode);
     /*0x0275*/ DEFINE_HANDLER(CMSG_CONFIRM_RESPEC_WIPE, STATUS_UNHANDLED, PROCESS_INPLACE, &WorldSession::Handle_NULL);
     /*0x115B*/ DEFINE_HANDLER(CMSG_DISCARDED_TIME_SYNC_ACKS, STATUS_UNHANDLED, PROCESS_INPLACE, &WorldSession::Handle_NULL);
@@ -189,7 +189,7 @@ void OpcodeTable::Initialize()
     /*0x06E7*/ DEFINE_HANDLER(CMSG_EJECT_PASSENGER, STATUS_UNHANDLED, PROCESS_INPLACE, &WorldSession::Handle_NULL);
     /*0x12B3*/ DEFINE_HANDLER(CMSG_ENABLE_NAGLE, STATUS_UNHANDLED, PROCESS_INPLACE, &WorldSession::Handle_NULL);
     /*0x1452*/ DEFINE_HANDLER(CMSG_GET_CHALLENGE_MODE_REWARDS, STATUS_UNHANDLED, PROCESS_INPLACE, &WorldSession::Handle_NULL);
-    /*0x1258*/ DEFINE_HANDLER(CMSG_GET_ITEM_PURCHASE_DATA, STATUS_UNHANDLED, PROCESS_INPLACE, &WorldSession::Handle_NULL);
+    /*0x1258*/ DEFINE_HANDLER(CMSG_GET_ITEM_PURCHASE_DATA,                                           STATUS_LOGGEDIN, PROCESS_INPLACE,          &WorldSession::HandleItemRefundInfoRequest              );
     /*0x15A8*/ DEFINE_HANDLER(CMSG_GM_TICKET_CASE_STATUS, STATUS_UNHANDLED, PROCESS_INPLACE, &WorldSession::Handle_NULL);
     /*0x1882*/ DEFINE_HANDLER(CMSG_GROUP_INITIATE_ROLE_POLL, STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleRolePollBeginOpcode);
     /*0x04D9*/ DEFINE_HANDLER(CMSG_GUILD_BANK_NOTE, STATUS_UNHANDLED, PROCESS_INPLACE, &WorldSession::Handle_NULL);
@@ -1747,7 +1747,7 @@ void OpcodeTable::Initialize()
     /*0xF259*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_VOID_STORAGE_FAILED,                                STATUS_NEVER);
     /*0x14BA*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_VOID_STORAGE_TRANSFER_CHANGES,                      STATUS_NEVER);
     /*0x1C9E*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_VOID_TRANSFER_RESULT,                               STATUS_NEVER);
-    /*0xF15B*/ DEFINE_HANDLER(CMSG_ITEM_REFUND_INFO,                                                 STATUS_LOGGEDIN,   PROCESS_INPLACE,        &WorldSession::HandleItemRefundInfoRequest              );
+    /*0xF15B*/ DEFINE_HANDLER(CMSG_ITEM_REFUND_INFO,                                                 STATUS_UNHANDLED,   PROCESS_INPLACE,       &WorldSession::Handle_NULL                              );
     /*0x074B*/ DEFINE_HANDLER(CMSG_ITEM_REFUND,                                                      STATUS_LOGGEDIN,   PROCESS_INPLACE,        &WorldSession::HandleItemRefund                         );
     /*0x049E*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_ITEM_REFUND_RESULT,                                 STATUS_NEVER);
     /*0x0A16*/ DEFINE_HANDLER(CMSG_CORPSE_MAP_POSITION_QUERY,                                        STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleCorpseMapPositionQuery             );
@@ -1786,7 +1786,7 @@ void OpcodeTable::Initialize()
     /*0x0A2B*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_EQUIPMENT_SET_USE_RESULT,                           STATUS_NEVER);
     /*0xF168*/ DEFINE_HANDLER(CMSG_FORCE_ANIM,                                                       STATUS_NEVER,      PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );
     /*0xF262*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_FORCE_ANIM,                                         STATUS_NEVER);
-    /*0xF169*/ DEFINE_HANDLER(CMSG_CHAR_FACTION_CHANGE,                                              STATUS_AUTHED,     PROCESS_THREADUNSAFE,   &WorldSession::HandleCharFactionOrRaceChange            );
+    /*0xF169*/ DEFINE_HANDLER(CMSG_CHAR_FACTION_CHANGE,                                              STATUS_UNHANDLED,     PROCESS_INPLACE,     &WorldSession::Handle_NULL                              );
     /*0xF263*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_CHAR_FACTION_CHANGE,                                STATUS_NEVER);
     /*0xF16A*/ DEFINE_HANDLER(CMSG_PVP_QUEUE_STATS_REQUEST,                                          STATUS_NEVER,      PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );
     /*0xF264*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_PVP_QUEUE_STATS,                                    STATUS_NEVER);
@@ -1817,7 +1817,7 @@ void OpcodeTable::Initialize()
     /*0xF26C*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_SERVERINFO,                                         STATUS_NEVER);
     /*0x15AB*/ DEFINE_HANDLER(CMSG_WORLD_STATE_UI_TIMER_UPDATE,                                      STATUS_LOGGEDIN,   PROCESS_INPLACE,        &WorldSession::HandleWorldStateUITimerUpdate            );
     /*0xF26D*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_WORLD_STATE_UI_TIMER_UPDATE,                        STATUS_NEVER);
-    /*0xF172*/ DEFINE_HANDLER(CMSG_CHAR_RACE_CHANGE,                                                 STATUS_AUTHED,     PROCESS_THREADUNSAFE,   &WorldSession::HandleCharFactionOrRaceChange            );
+    /*0xF172*/ DEFINE_HANDLER(CMSG_CHAR_RACE_CHANGE,                                                 STATUS_UNHANDLED,     PROCESS_INPLACE,     &WorldSession::Handle_NULL                              );
     /*0xF173*/ DEFINE_HANDLER(MSG_VIEW_PHASE_SHIFT,                                                  STATUS_NEVER,      PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );
     DEFINE_BIDIRECTIONAL_OPCODE(MSG_VIEW_PHASE_SHIFT, MSG_VIEW_PHASE_SHIFT, MSG_VIEW_PHASE_SHIFT_SERVER);
     /*0xF26E*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_TALENTS_INVOLUNTARILY_RESET,                        STATUS_NEVER);

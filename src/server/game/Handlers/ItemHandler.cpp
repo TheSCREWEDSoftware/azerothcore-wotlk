@@ -1691,7 +1691,7 @@ void WorldSession::HandleCancelTempEnchantmentOpcode(WorldPackets::Item::CancelT
 
 void WorldSession::HandleItemRefundInfoRequest(WorldPackets::Item::ItemRefundInfo& packet)
 {
-    LOG_DEBUG("network", "WORLD: CMSG_ITEM_REFUND_INFO");
+    LOG_DEBUG("network", "WORLD: CMSG_GET_ITEM_PURCHASE_DATA");
 
     Item* item = _player->GetItemByGuid(packet.ItemGuid);
     if (!item)

@@ -1581,8 +1581,13 @@ void WorldSession::HandleCharRenameOpcode(WorldPacket& recvData)
 {
     std::shared_ptr<CharacterRenameInfo> renameInfo = std::make_shared<CharacterRenameInfo>();
 
-    recvData >> renameInfo->Guid
-             >> renameInfo->Name;
+    // 5.4.8 18414, from Project SkyFire
+    recvData.ReadGuidMask(renameInfo->Guid, { 6, 3, 0 });
+    uint32 nameLength = recvData.ReadBits(6);
+    recvData.ReadGuidMask(renameInfo->Guid, { 1, 5, 7, 2, 4 });
+    recvData.ReadGuidBytes(renameInfo->Guid, { 1, 6, 5 });
+    renameInfo->Name = recvData.ReadString(nameLength);
+    recvData.ReadGuidBytes(renameInfo->Guid, { 2, 4, 3, 7, 0 });
 
     // prevent character rename to invalid name
     if (!normalizePlayerName(renameInfo->Name))
@@ -1749,7 +1754,7 @@ void WorldSession::HandleAlterAppearance(WorldPacket& recvData)
     LOG_DEBUG("network", "CMSG_ALTER_APPEARANCE");
 
     uint32 Hair, Color, FacialHair, SkinColor;
-    recvData >> Hair >> Color >> FacialHair >> SkinColor;
+    recvData >> SkinColor >> Color >> Hair >> FacialHair;   // 5.4.8 18414 order, from Project SkyFire
 
     BarberShopStyleEntry const* bs_hair = sBarberShopStyleStore.LookupEntry(Hair);
 
@@ -1860,7 +1865,19 @@ void WorldSession::HandleCharCustomize(WorldPacket& recvData)
 {
     std::shared_ptr<CharacterCustomizeInfo> customizeInfo = std::make_shared<CharacterCustomizeInfo>();
 
-    recvData >> customizeInfo->Guid;
+    // 5.4.8 18414, from Project SkyFire
+    recvData >> customizeInfo->HairStyle
+             >> customizeInfo->Gender
+             >> customizeInfo->Skin
+             >> customizeInfo->Face
+             >> customizeInfo->HairColor
+             >> customizeInfo->FacialHair;
+    recvData.ReadGuidMask(customizeInfo->Guid, { 2, 6, 1, 0, 7, 5 });
+    uint32 nameLength = recvData.ReadBits(6);
+    recvData.ReadGuidMask(customizeInfo->Guid, { 4, 3 });
+    recvData.ReadGuidBytes(customizeInfo->Guid, { 4 });
+    customizeInfo->Name = recvData.ReadString(nameLength);
+    recvData.ReadGuidBytes(customizeInfo->Guid, { 0, 2, 6, 5, 3, 1, 7 });
 
     if (!IsLegitCharacterForAccount(customizeInfo->Guid))
     {
@@ -1880,14 +1897,6 @@ void WorldSession::HandleCharCustomize(WorldPacket& recvData)
         SendPacket(&data);
         return;
     }
-
-    recvData >> customizeInfo->Name
-             >> customizeInfo->Gender
-             >> customizeInfo->Skin
-             >> customizeInfo->HairColor
-             >> customizeInfo->HairStyle
-             >> customizeInfo->FacialHair
-             >> customizeInfo->Face;
 
     CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_CHAR_CUSTOMIZE_INFO);
     stmt->SetData(0, customizeInfo->Guid.GetCounter());
@@ -1994,25 +2003,41 @@ void WorldSession::HandleEquipmentSetSave(WorldPacket& recvData)
 {
     LOG_DEBUG("network", "CMSG_EQUIPMENT_SET_SAVE");
 
-    uint64 setGuid;
-    recvData.readPackGUID(setGuid);
-
+    // 5.4.8 18414, from Project SkyFire
     uint32 index;
     recvData >> index;
     if (index >= MAX_EQUIPMENT_SET_INDEX)                    // client set slots amount
+    {
+        recvData.rfinish();
         return;
+    }
 
-    std::string name;
-    recvData >> name;
+    std::array<ObjectGuid, EQUIPMENT_SLOT_END> itemGuids;
+    for (ObjectGuid& itemGuid : itemGuids)
+        recvData.ReadGuidMask(itemGuid, { 5, 0, 1, 4, 6, 3, 7, 2 });
+
+    ObjectGuid setObjectGuid;
+    recvData.ReadGuidMask(setObjectGuid, { 7, 1, 5, 2, 3, 0 });
+    uint32 nameLength = recvData.ReadBits(8);
+    recvData.ReadGuidMask(setObjectGuid, { 6 });
+    uint32 iconNameLength = recvData.ReadBits(8);
+    recvData.ReadGuidMask(setObjectGuid, { 4 });
+    if (recvData.ReadBit())
+        ++iconNameLength;
+    recvData.ReadGuidBytes(setObjectGuid, { 4, 0 });
+    for (ObjectGuid& itemGuid : itemGuids)
+        recvData.ReadGuidBytes(itemGuid, { 1, 0, 7, 3, 6, 2, 4, 5 });
+    std::string iconName = recvData.ReadString(iconNameLength);
+    recvData.ReadGuidBytes(setObjectGuid, { 7, 2 });
+    std::string name = recvData.ReadString(nameLength);
+    recvData.ReadGuidBytes(setObjectGuid, { 6, 1, 5, 3 });
+    uint64 setGuid = setObjectGuid.GetRawValue();
 
     if (name.length() > 16) // Client limitation
     {
         LOG_ERROR("entities.player.cheat", "Character GUID {} tried to create equipment set {} with too long a name!", _player->GetGUID().ToString(), setGuid);
         return;
     }
-
-    std::string iconName;
-    recvData >> iconName;
 
     if (iconName.length() > 100) // DB limitation
     {
@@ -2029,8 +2054,7 @@ void WorldSession::HandleEquipmentSetSave(WorldPacket& recvData)
 
     for (uint32 i = 0; i < EQUIPMENT_SLOT_END; ++i)
     {
-        ObjectGuid itemGuid;
-        recvData >> itemGuid.ReadAsPacked();
+        ObjectGuid itemGuid = itemGuids[i];
 
         // xinef: if client sends 0, it means empty slot
         if (!itemGuid)
@@ -2065,27 +2089,46 @@ void WorldSession::HandleEquipmentSetDelete(WorldPacket& recvData)
 {
     LOG_DEBUG("network", "CMSG_EQUIPMENT_SET_DELETE");
 
-    uint64 setGuid;
-    recvData.readPackGUID(setGuid);
+    // 5.4.8 18414, from Project SkyFire
+    ObjectGuid setGuid;
+    recvData.ReadGuidMask(setGuid, { 4, 2, 6, 0, 5, 1, 7, 3 });
+    recvData.ReadGuidBytes(setGuid, { 2, 0, 1, 6, 3, 4, 5, 7 });
 
-    _player->DeleteEquipmentSet(setGuid);
+    _player->DeleteEquipmentSet(setGuid.GetRawValue());
 }
 
 void WorldSession::HandleEquipmentSetUse(WorldPacket& recvData)
 {
     LOG_DEBUG("network", "CMSG_EQUIPMENT_SET_USE");
 
+    // 5.4.8 18414, from Project SkyFire
+    std::array<uint8, EQUIPMENT_SLOT_END> srcSlots;
+    std::array<uint8, EQUIPMENT_SLOT_END> srcBags;
+    for (uint32 i = 0; i < EQUIPMENT_SLOT_END; ++i)
+        recvData >> srcSlots[i] >> srcBags[i];
+
+    std::array<ObjectGuid, EQUIPMENT_SLOT_END> itemGuids;
+    for (ObjectGuid& itemGuid : itemGuids)
+        recvData.ReadGuidMask(itemGuid, { 3, 1, 7, 4, 5, 6, 0, 2 });
+
+    uint32 inventoryItemCount = recvData.ReadBits(2);
+    for (uint32 i = 0; i < inventoryItemCount; ++i)
+    {
+        recvData.ReadBit();                                 // has container slot
+        recvData.ReadBit();                                 // has slot
+    }
+
+    for (ObjectGuid& itemGuid : itemGuids)
+        recvData.ReadGuidBytes(itemGuid, { 4, 7, 0, 3, 2, 5, 1, 6 });
+    recvData.rfinish();                                     // container slot and slot, not used
+
     std::vector<std::unique_ptr<SavedItem>> savedItems;
     uint8 errorId = 0;
     for (uint32 i = 0; i < EQUIPMENT_SLOT_END; ++i)
     {
-        ObjectGuid itemGuid;
-        recvData >> itemGuid.ReadAsPacked();
+        ObjectGuid itemGuid = itemGuids[i];
 
-        uint8 srcbag, srcslot;
-        recvData >> srcbag >> srcslot;
-
-        LOG_DEBUG("entities.player.items", "Item {}: srcbag {}, srcslot {}", itemGuid.ToString(), srcbag, srcslot);
+        LOG_DEBUG("entities.player.items", "Item {}: srcbag {}, srcslot {}", itemGuid.ToString(), srcBags[i], srcSlots[i]);
 
         // check if item slot is set to "ignored" (raw value == 1), must not be unequipped then
         if (itemGuid.GetRawValue() == 1)
@@ -2168,7 +2211,38 @@ void WorldSession::HandleCharFactionOrRaceChange(WorldPacket& recvData)
 {
     std::shared_ptr<CharacterFactionChangeInfo> factionChangeInfo = std::make_shared<CharacterFactionChangeInfo>();
 
-    recvData >> factionChangeInfo->Guid;
+    // 5.4.8 18414, from Project SkyFire: one opcode for both, the appearance fields are optional
+    ObjectGuid& guid = factionChangeInfo->Guid;
+    recvData >> factionChangeInfo->Gender;
+    recvData >> factionChangeInfo->Race;
+    guid[3] = recvData.ReadBit();
+    guid[2] = recvData.ReadBit();
+    bool hasSkin = recvData.ReadBit();
+    bool hasFace = recvData.ReadBit();
+    guid[6] = recvData.ReadBit();
+    uint32 nameLength = recvData.ReadBits(6);
+    bool hasFacialHair = recvData.ReadBit();
+    bool hasHairStyle = recvData.ReadBit();
+    guid[4] = recvData.ReadBit();
+    guid[1] = recvData.ReadBit();
+    guid[0] = recvData.ReadBit();
+    guid[5] = recvData.ReadBit();
+    bool hasHairColor = recvData.ReadBit();
+    factionChangeInfo->FactionChange = recvData.ReadBit();
+    guid[7] = recvData.ReadBit();
+    recvData.ReadGuidBytes(guid, { 2, 1, 4, 5, 0 });
+    factionChangeInfo->Name = recvData.ReadString(nameLength);
+    recvData.ReadGuidBytes(guid, { 6, 3, 7 });
+    if (hasHairColor)
+        recvData >> factionChangeInfo->HairColor;
+    if (hasHairStyle)
+        recvData >> factionChangeInfo->HairStyle;
+    if (hasSkin)
+        recvData >> factionChangeInfo->Skin;
+    if (hasFace)
+        recvData >> factionChangeInfo->Face;
+    if (hasFacialHair)
+        recvData >> factionChangeInfo->FacialHair;
 
     if (!IsLegitCharacterForAccount(factionChangeInfo->Guid))
     {
@@ -2179,23 +2253,12 @@ void WorldSession::HandleCharFactionOrRaceChange(WorldPacket& recvData)
         return;
     }
 
-    recvData >> factionChangeInfo->Name
-             >> factionChangeInfo->Gender
-             >> factionChangeInfo->Skin
-             >> factionChangeInfo->HairColor
-             >> factionChangeInfo->HairStyle
-             >> factionChangeInfo->FacialHair
-             >> factionChangeInfo->Face
-             >> factionChangeInfo->Race;
-
     // pussywizard:
     if (ObjectAccessor::FindConnectedPlayer(factionChangeInfo->Guid) || sWorldSessionMgr->FindOfflineSessionForCharacterGUID(factionChangeInfo->Guid.GetCounter()))
     {
         SendCharFactionChange(CHAR_CREATE_ERROR, factionChangeInfo.get());
         return;
     }
-
-    factionChangeInfo->FactionChange = (recvData.GetOpcode() == CMSG_CHAR_FACTION_CHANGE);
 
     CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_CHAR_RACE_OR_FACTION_CHANGE_INFOS);
     stmt->SetData(0, factionChangeInfo->Guid.GetCounter());

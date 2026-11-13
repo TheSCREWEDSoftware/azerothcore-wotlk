@@ -1420,8 +1420,10 @@ TEST_F(MeleeRequestTest, UnknownAndSpoofedTargetsCannotStartAttack)
     for (ObjectGuid target : {ObjectGuid::Create<HighGuid::Unit>(12345, 99),
                              ObjectGuid::Create<HighGuid::GameObject>(2843, 99)})
     {
-        WorldPacket request(CMSG_ATTACKSWING, 8);
-        request << target;
+        WorldPacket request(CMSG_ATTACKSWING, 9);
+        request.WriteGuidMask(target, { 6, 5, 7, 0, 3, 1, 4, 2 });
+        request.FlushBits();
+        request.WriteGuidBytes(target, { 6, 7, 1, 3, 2, 0, 4, 5 });
         player->GetSession()->HandleAttackSwingOpcode(request);
         EXPECT_EQ(player->GetVictim(), nullptr);
         EXPECT_FALSE(player->HasUnitState(UNIT_STATE_MELEE_ATTACKING));
@@ -1447,8 +1449,11 @@ TEST_F(MeleeRequestTest, NonAttackableTargetCannotStartAttack)
     TestCreature* target = CreateTestCreature(10, 12345, TEST_FACTION_HOSTILE_TO_ALL);
     target->SetUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
     GetTestMap()->GetObjectsStore().Insert<Creature>(target->GetGUID(), target);
-    WorldPacket request(CMSG_ATTACKSWING, 8);
-    request << target->GetGUID();
+    ObjectGuid targetGuid = target->GetGUID();
+    WorldPacket request(CMSG_ATTACKSWING, 9);
+    request.WriteGuidMask(targetGuid, { 6, 5, 7, 0, 3, 1, 4, 2 });
+    request.FlushBits();
+    request.WriteGuidBytes(targetGuid, { 6, 7, 1, 3, 2, 0, 4, 5 });
     player->GetSession()->HandleAttackSwingOpcode(request);
     EXPECT_EQ(player->GetVictim(), nullptr);
     EXPECT_FALSE(player->HasUnitState(UNIT_STATE_MELEE_ATTACKING));
