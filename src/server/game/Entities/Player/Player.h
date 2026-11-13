@@ -719,6 +719,14 @@ enum KeyRingSlots                                           // 32 slots
     KEYRING_SLOT_END            = 118
 };
 
+struct PlayerCurrency
+{
+    uint32 Quantity = 0;
+    uint32 WeeklyQuantity = 0;
+    uint32 TrackedQuantity = 0;
+    uint8 Flags = 0;
+};
+
 enum CurrencyTokenSlots                                     // 32 slots
 {
     CURRENCYTOKEN_SLOT_START    = 118,
@@ -1745,11 +1753,18 @@ public:
     void SendProficiency(ItemClass itemClass, uint32 itemSubclassMask);
     void SendCurrencies() const;
     [[nodiscard]] uint32 GetCurrency(uint32 currencyId, bool usePrecision = true) const;
+    [[nodiscard]] uint32 GetCurrencyOnWeek(uint32 currencyId, bool usePrecision = true) const;
+    [[nodiscard]] uint32 GetCurrencyWeekCap(uint32 currencyId, bool usePrecision = true) const;
+    [[nodiscard]] uint32 GetCurrencyWeekCap(CurrencyTypesEntry const* currency) const;
     [[nodiscard]] bool HasCurrency(uint32 currencyId, uint32 amount) const
     {
         return GetCurrency(currencyId, false) >= amount;
     }
-    void ModifyCurrency(uint32 currencyId, int32 amount, bool suppressChatLog = false);
+    void ModifyCurrency(uint32 currencyId, int32 amount, bool suppressChatLog = false, bool ignoreModifiersAndTracking = false);
+    void ResetCurrencyWeekCap();
+    void UpdateConquestCurrencyCap(uint32 currencyId);
+    /// Rated battleground personal rating; rated battlegrounds are not implemented, as in TrinityCore
+    [[nodiscard]] uint32 GetRBGPersonalRating() const { return 0; }
 
     // Archaeology
     void SurveyDigSite();
@@ -2957,7 +2972,7 @@ protected:
     uint32 m_ExtraFlags;
 
     QuestStatusMap m_QuestStatus;
-    std::unordered_map<uint32, uint32> _currencyStorage; // currency id -> quantity (4.3.4, #312)
+    std::unordered_map<uint32, PlayerCurrency> _currencyStorage;
     std::array<std::unique_ptr<VoidStorageItem>, VOID_STORAGE_MAX_SLOT> _voidStorageItems;
     QuestStatusSaveMap m_QuestStatusSave;
 

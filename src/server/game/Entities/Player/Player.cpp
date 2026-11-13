@@ -10299,24 +10299,41 @@ void Player::SendProficiency(ItemClass itemClass, uint32 itemSubclassMask)
 void Player::SendCurrencies() const
 {
     WorldPackets::Misc::SetupCurrency packet;
-    for (auto const& currency : _currencyStorage)
+    for (auto const& [currencyId, playerCurrency] : _currencyStorage)
     {
-        if (!sCurrencyTypesStore.LookupEntry(currency.first))
+        CurrencyTypesEntry const* entry = sCurrencyTypesStore.LookupEntry(currencyId);
+        if (!entry)
             continue;
 
+        uint32 precision = entry->UsesPrecision() ? CURRENCY_PRECISION : 1;
+
         WorldPackets::Misc::SetupCurrency::Record record;
-        record.Type = int32(currency.first);
-        record.Quantity = int32(GetCurrency(currency.first));
+        record.Type = int32(currencyId);
+        record.Quantity = int32(playerCurrency.Quantity / precision);
+
+        if (playerCurrency.WeeklyQuantity / precision)
+            record.WeeklyQuantity = int32(playerCurrency.WeeklyQuantity / precision);
+
+        if (entry->HasFlag(CURRENCY_FLAG_COMPUTED_WEEKLY_MAXIMUM) || entry->MaxEarnablePerWeek)
+            record.MaxWeeklyQuantity = int32(GetCurrencyWeekCap(entry) / precision);
+
+        if (entry->HasFlag(CURRENCY_FLAG_TRACK_QUANTITY))
+            record.TrackedQuantity = int32(playerCurrency.TrackedQuantity / precision);
+
+        record.Flags = playerCurrency.Flags;
         packet.Data.push_back(record);
     }
+
     SendDirectMessage(packet.Write());
 }
 
 uint32 Player::GetCurrency(uint32 currencyId, bool usePrecision) const
 {
     auto itr = _currencyStorage.find(currencyId);
-    uint32 quantity = itr == _currencyStorage.end() ? 0 : itr->second;
+    if (itr == _currencyStorage.end())
+        return 0;
 
+    uint32 quantity = itr->second.Quantity;
     if (usePrecision)
         if (CurrencyTypesEntry const* entry = sCurrencyTypesStore.LookupEntry(currencyId))
             if (entry->UsesPrecision())
@@ -10325,7 +10342,84 @@ uint32 Player::GetCurrency(uint32 currencyId, bool usePrecision) const
     return quantity;
 }
 
-void Player::ModifyCurrency(uint32 currencyId, int32 amount, bool suppressChatLog)
+uint32 Player::GetCurrencyOnWeek(uint32 currencyId, bool usePrecision) const
+{
+    auto itr = _currencyStorage.find(currencyId);
+    if (itr == _currencyStorage.end())
+        return 0;
+
+    uint32 quantity = itr->second.WeeklyQuantity;
+    if (usePrecision)
+        if (CurrencyTypesEntry const* entry = sCurrencyTypesStore.LookupEntry(currencyId))
+            if (entry->UsesPrecision())
+                quantity /= CURRENCY_PRECISION;
+
+    return quantity;
+}
+
+uint32 Player::GetCurrencyWeekCap(uint32 currencyId, bool usePrecision) const
+{
+    CurrencyTypesEntry const* entry = sCurrencyTypesStore.LookupEntry(currencyId);
+    if (!entry)
+        return 0;
+
+    uint32 cap = GetCurrencyWeekCap(entry);
+    if (usePrecision && entry->UsesPrecision())
+        cap /= CURRENCY_PRECISION;
+
+    return cap;
+}
+
+uint32 Player::GetCurrencyWeekCap(CurrencyTypesEntry const* currency) const
+{
+    if (!currency->HasFlag(CURRENCY_FLAG_COMPUTED_WEEKLY_MAXIMUM))
+        return currency->MaxEarnablePerWeek;
+
+    switch (currency->ID)
+    {
+        // Conquest points show the higher of the arena and rated battleground caps
+        case CURRENCY_TYPE_CONQUEST_POINTS:
+            return std::max(GetCurrencyWeekCap(CURRENCY_TYPE_CONQUEST_META_ARENA, false), GetCurrencyWeekCap(CURRENCY_TYPE_CONQUEST_META_RBG, false));
+        case CURRENCY_TYPE_CONQUEST_META_ARENA:
+        {
+            uint32 rating = 0;
+            for (uint8 slot = 0; slot < MAX_ARENA_SLOT; ++slot)
+                rating = std::max(rating, GetArenaPersonalRating(slot));
+
+            return Acore::Currency::ConquestRatingCalculator(rating) * CURRENCY_PRECISION;
+        }
+        case CURRENCY_TYPE_CONQUEST_META_RBG:
+            return Acore::Currency::BgConquestRatingCalculator(GetRBGPersonalRating()) * CURRENCY_PRECISION;
+        default:
+            return 0;
+    }
+}
+
+void Player::ResetCurrencyWeekCap()
+{
+    for (auto& [currencyId, playerCurrency] : _currencyStorage)
+        playerCurrency.WeeklyQuantity = 0;
+
+    WorldPacket data(SMSG_WEEKLY_RESET_CURRENCY, 0);
+    SendDirectMessage(&data);
+}
+
+void Player::UpdateConquestCurrencyCap(uint32 currencyId)
+{
+    for (uint32 id : { currencyId, CURRENCY_TYPE_CONQUEST_POINTS })
+    {
+        CurrencyTypesEntry const* entry = sCurrencyTypesStore.LookupEntry(id);
+        if (!entry)
+            continue;
+
+        WorldPacket data(SMSG_UPDATE_CURRENCY_WEEK_LIMIT, 8);
+        data << uint32(GetCurrencyWeekCap(entry) / (entry->UsesPrecision() ? CURRENCY_PRECISION : 1));
+        data << uint32(id);
+        SendDirectMessage(&data);
+    }
+}
+
+void Player::ModifyCurrency(uint32 currencyId, int32 amount, bool suppressChatLog /*= false*/, bool ignoreModifiersAndTracking /*= false*/)
 {
     if (!amount)
         return;
@@ -10338,33 +10432,75 @@ void Player::ModifyCurrency(uint32 currencyId, int32 amount, bool suppressChatLo
         return;
     }
 
-    int64 current = GetCurrency(currencyId, false);
-    int64 updated = current + amount;
+    if (!ignoreModifiersAndTracking && amount > 0)
+        amount = int32(amount * GetTotalAuraMultiplierByMiscValue(SPELL_AURA_MOD_CURRENCY_GAIN, currencyId));
+
+    bool const firstGain = _currencyStorage.find(currencyId) == _currencyStorage.end();
+    PlayerCurrency& playerCurrency = _currencyStorage[currencyId];
+
+    int64 current = playerCurrency.Quantity;
+    int64 change = amount;
+
+    // Weekly cap; refunds and commands bypass it
+    uint32 const weeklyCap = GetCurrencyWeekCap(currency);
+    if (!ignoreModifiersAndTracking && weeklyCap && change > 0 && playerCurrency.WeeklyQuantity + change > weeklyCap)
+        change = int64(weeklyCap) - int64(playerCurrency.WeeklyQuantity);
 
     // Total cap. Patch 4.0.3a converts Justice Points above the hard cap to money at 47s50c per point.
-    if (currency->MaxQty > 0 && amount > 0 && updated > int64(currency->MaxQty))
+    if (currency->MaxQty > 0 && change > 0 && current + change > int64(currency->MaxQty))
     {
         if (currencyId == CURRENCY_TYPE_JUSTICE_POINTS)
         {
             constexpr int64 JUSTICE_POINTS_CONVERSION_MONEY = 4750;
-            int64 surplus = updated - int64(currency->MaxQty);
+            int64 surplus = current + change - int64(currency->MaxQty);
             ModifyMoney(int32(surplus * JUSTICE_POINTS_CONVERSION_MONEY / CURRENCY_PRECISION), false);
         }
-        updated = currency->MaxQty;
+
+        change = int64(currency->MaxQty) - current;
     }
 
-    if (updated < 0)
-        updated = 0;
+    // Underflow protection
+    if (current + change < 0)
+        change = -current;
 
-    if (updated == current)
+    if (!change)
+    {
+        if (firstGain)
+            _currencyStorage.erase(currencyId);
+
         return;
+    }
 
-    bool firstGain = _currencyStorage.find(currencyId) == _currencyStorage.end();
-    _currencyStorage[currencyId] = uint32(updated);
+    playerCurrency.Quantity = uint32(current + change);
+
+    if (!ignoreModifiersAndTracking)
+    {
+        if (weeklyCap && change > 0)
+            playerCurrency.WeeklyQuantity += uint32(change);
+
+        if (currency->HasFlag(CURRENCY_FLAG_TRACK_QUANTITY) && change > 0)
+            playerCurrency.TrackedQuantity += uint32(change);
+
+        if (change > 0)
+            UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_CURRENCY, currencyId, uint32(change));
+    }
+
+    // Arena and rated battleground conquest are tracked apart but shown as one currency
+    if (currency->CategoryID == CURRENCY_CATEGORY_META_CONQUEST)
+    {
+        ModifyCurrency(CURRENCY_TYPE_CONQUEST_POINTS, int32(change), suppressChatLog, ignoreModifiersAndTracking);
+        return;
+    }
+
+    uint32 const precision = currency->UsesPrecision() ? CURRENCY_PRECISION : 1;
 
     WorldPackets::Misc::SetCurrency packet;
     packet.Type = int32(currencyId);
-    packet.Quantity = int32(GetCurrency(currencyId));
+    packet.Quantity = int32(playerCurrency.Quantity / precision);
+    if (uint32 weeklyQuantity = playerCurrency.WeeklyQuantity / precision)
+        packet.WeeklyQuantity = int32(weeklyQuantity);
+    if (uint32 trackedQuantity = playerCurrency.TrackedQuantity / precision)
+        packet.TrackedQuantity = int32(trackedQuantity);
     packet.SuppressChatLog = suppressChatLog;
     SendDirectMessage(packet.Write());
 
@@ -16883,8 +17019,14 @@ uint32 Player::DoRandomRoll(uint32 minimum, uint32 maximum)
 
 void Player::SetArenaTeamInfoField(uint8 slot, ArenaTeamInfoType type, uint32 value)
 {
-    if (sScriptMgr->OnPlayerNotSetArenaTeamInfoField(this, slot, type, value))
-        SetUInt32Value(PLAYER_FIELD_ARENA_TEAM_INFO_1_1 + (slot * ARENA_TEAM_END) + type, value);
+    if (!sScriptMgr->OnPlayerNotSetArenaTeamInfoField(this, slot, type, value))
+        return;
+
+    SetUInt32Value(PLAYER_FIELD_ARENA_TEAM_INFO_1_1 + (slot * ARENA_TEAM_END) + type, value);
+
+    // The arena conquest cap follows personal rating
+    if (type == ARENA_TEAM_PERSONAL_RATING && IsInWorld())
+        UpdateConquestCurrencyCap(CURRENCY_TYPE_CONQUEST_META_ARENA);
 }
 
 uint32 Player::GetArenaPersonalRating(uint8 slot) const

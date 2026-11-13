@@ -809,6 +809,8 @@ enum OpcodeClient : uint16
 
 enum OpcodeServer : uint16
 {
+    SMSG_UPDATE_CURRENCY_WEEK_LIMIT                 = 0x70A7,
+    SMSG_WEEKLY_RESET_CURRENCY                      = 0x3CA1,
     SMSG_RESEARCH_COMPLETE                          = 0x35A6,
     SMSG_SETUP_RESEARCH_HISTORY                     = 0x10B6,
     SMSG_GUILD_NEWS                                 = 0x35A7,

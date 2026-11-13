@@ -128,6 +128,13 @@ struct AchievementCriteriaEntry
             uint32  numberOfDays;                           // 4
         } complete_daily_quest_daily;
 
+        // ACHIEVEMENT_CRITERIA_TYPE_CURRENCY               = 12
+        struct
+        {
+            uint32  currency;                               // 3
+            uint32  count;                                  // 4
+        } currency;
+
         // ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_QUESTS_IN_ZONE = 11
         struct
         {
@@ -877,15 +884,18 @@ struct CurrencyTypesEntry
     //char*     Name;                                       // 2
     uint32    BitIndex;                                     // 3        WotLK known-currency bit (4.3.4: string offset)
     uint32    MaxQty;                                       // 7        raw total cap, 0 = uncapped
+    uint32    MaxEarnablePerWeek;                           // 8        raw weekly cap, 0 = uncapped
     uint32    Flags;                                        // 9        CurrencyTypeFlags
 
-    [[nodiscard]] bool UsesPrecision() const
-    {
-        return (Flags & 0x008) != 0; // CurrencyTypeFlags::Uses1To100ScalarForDisplay
-    }
+    [[nodiscard]] bool HasFlag(CurrencyTypeFlags flag) const { return (Flags & flag) != 0; }
+    [[nodiscard]] bool UsesPrecision() const { return HasFlag(CURRENCY_FLAG_USES_1_TO_100_SCALAR); }
 };
 
 constexpr uint32 CURRENCY_PRECISION = 100;
+constexpr uint32 CURRENCY_TYPE_CONQUEST_POINTS = 390;
+constexpr uint32 CURRENCY_TYPE_CONQUEST_META_ARENA = 483;
+constexpr uint32 CURRENCY_TYPE_CONQUEST_META_RBG = 484;
+constexpr uint32 CURRENCY_CATEGORY_META_CONQUEST = 89;
 constexpr uint32 CURRENCY_TYPE_JUSTICE_POINTS = 395;
 constexpr uint32 CURRENCY_CATEGORY_ARCHAEOLOGY = 82;
 

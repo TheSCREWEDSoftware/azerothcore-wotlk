@@ -5781,7 +5781,14 @@ bool Player::LoadFromDB(ObjectGuid playerGuid, CharacterDatabaseQueryHolder cons
         do
         {
             Field* currencyFields = currencyResult->Fetch();
-            _currencyStorage[currencyFields[0].Get<uint16>()] = currencyFields[1].Get<uint32>();
+            if (!sCurrencyTypesStore.LookupEntry(currencyFields[0].Get<uint16>()))
+                continue;
+
+            PlayerCurrency& playerCurrency = _currencyStorage[currencyFields[0].Get<uint16>()];
+            playerCurrency.Quantity = currencyFields[1].Get<uint32>();
+            playerCurrency.WeeklyQuantity = currencyFields[2].Get<uint32>();
+            playerCurrency.TrackedQuantity = currencyFields[3].Get<uint32>();
+            playerCurrency.Flags = currencyFields[4].Get<uint8>();
         } while (currencyResult->NextRow());
     }
 
@@ -7483,12 +7490,15 @@ void Player::SaveToDB(CharacterDatabaseTransaction trans, bool create, bool logo
         CharacterDatabase.GetPreparedStatement(CHAR_DEL_CHAR_CURRENCY);
     currencyStmt->SetData(0, GetGUID().GetCounter());
     trans->Append(currencyStmt);
-    for (auto const& [currencyId, quantity] : _currencyStorage)
+    for (auto const& [currencyId, playerCurrency] : _currencyStorage)
     {
         currencyStmt = CharacterDatabase.GetPreparedStatement(CHAR_INS_CHAR_CURRENCY);
         currencyStmt->SetData(0, GetGUID().GetCounter());
-        currencyStmt->SetData(1, currencyId);
-        currencyStmt->SetData(2, quantity);
+        currencyStmt->SetData(1, uint16(currencyId));
+        currencyStmt->SetData(2, playerCurrency.Quantity);
+        currencyStmt->SetData(3, playerCurrency.WeeklyQuantity);
+        currencyStmt->SetData(4, playerCurrency.TrackedQuantity);
+        currencyStmt->SetData(5, playerCurrency.Flags);
         trans->Append(currencyStmt);
     }
     _SaveVoidStorage(trans);

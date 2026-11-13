@@ -19,6 +19,7 @@
 #define ACORE_FORMULAS_H
 
 #include "SharedDefines.h"
+#include <algorithm>
 #include <cmath>
 
 class Player;
@@ -148,6 +149,25 @@ namespace Acore::XP
 
         //sScriptMgr->OnGroupRateCalculation(rate, count, isRaid); // pussywizard: optimization
         return rate;
+    }
+}
+
+namespace Acore::Currency
+{
+    // Weekly conquest point cap from personal rating
+    inline uint32 ConquestRatingCalculator(uint32 rating)
+    {
+        if (rating <= 1500)
+            return 1350;
+
+        rating = std::min<uint32>(rating, 3000);
+        return uint32(1.4326 * ((1511.26 / (1 + 1639.28 / std::exp(0.00412 * rating))) + 850.15));
+    }
+
+    // Rated battleground ratings give a 22.2% higher cap
+    inline uint32 BgConquestRatingCalculator(uint32 rating)
+    {
+        return uint32((ConquestRatingCalculator(rating) * 1.222f) + 0.5f);
     }
 }
 

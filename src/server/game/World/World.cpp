@@ -1921,6 +1921,12 @@ void World::ResetWeeklyQuests()
 
     // Cata guild leveling: weekly member activity resets alongside weekly quests
     sGuildMgr->ResetTimes(true);
+
+    // Weekly currency caps
+    CharacterDatabase.Execute(CharacterDatabase.GetPreparedStatement(CHAR_UPD_CHAR_CURRENCY_RESET_WEEKLY));
+    for (auto const& [accountId, session] : sWorldSessionMgr->GetAllSessions())
+        if (Player* player = session->GetPlayer())
+            player->ResetCurrencyWeekCap();
 }
 
 void World::ResetMonthlyQuests()

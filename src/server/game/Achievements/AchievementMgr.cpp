@@ -1333,6 +1333,12 @@ void AchievementMgr::UpdateAchievementCriteria(AchievementCriteriaTypes type, ui
             case ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_ARCHAEOLOGY_PROJECTS:
                 SetCriteriaProgress(achievementCriteria, miscValue2, PROGRESS_ACCUMULATE);
                 break;
+            case ACHIEVEMENT_CRITERIA_TYPE_CURRENCY:
+                if (!miscValue1 || !miscValue2 || miscValue1 != achievementCriteria->currency.currency)
+                    continue;
+
+                SetCriteriaProgress(achievementCriteria, miscValue2, PROGRESS_ACCUMULATE);
+                break;
             case ACHIEVEMENT_CRITERIA_TYPE_WIN_RATED_ARENA:
                 if (!miscValue1)                            // no update at login
                     continue;
@@ -1938,6 +1944,8 @@ bool AchievementMgr::IsCompletedCriteria(AchievementCriteriaEntry const* achieve
             return progress->counter >= achievementCriteria->own_item.itemCount;
         case ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_ARCHAEOLOGY_PROJECTS:
             return progress->counter >= achievementCriteria->complete_archaeology_projects.itemCount;
+        case ACHIEVEMENT_CRITERIA_TYPE_CURRENCY:
+            return progress->counter >= achievementCriteria->currency.count;
         case ACHIEVEMENT_CRITERIA_TYPE_WIN_RATED_ARENA:
             return progress->counter >= achievementCriteria->win_rated_arena.count;
         case ACHIEVEMENT_CRITERIA_TYPE_HIGHEST_PERSONAL_RATING:
