@@ -2186,6 +2186,7 @@ struct SummonPropertiesEntry
 #define MAX_TALENT_RANK 5
 #define MAX_PET_TALENT_RANK 3                               // use in calculations, expected <= MAX_TALENT_RANK
 #define MAX_TALENT_TABS 3
+#define MAX_MASTERY_SPELLS 2
 
 struct TalentEntry
 {
@@ -2215,6 +2216,9 @@ struct TalentTabEntry
     uint32  petTalentMask;                                  // 21
     uint32  tabpage;                                        // 22
     //char const* internalname;                             // 23
+    //char const* description;                              //
+    //uint32  roleMask;                                     //
+    uint32  MasterySpellID[MAX_MASTERY_SPELLS];             //          passive mastery spells
 };
 
 // TalentTreePrimarySpells.dbc

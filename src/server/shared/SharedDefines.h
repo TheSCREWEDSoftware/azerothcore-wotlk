@@ -663,6 +663,11 @@ enum SpellAttr7 : uint32
     SPELL_ATTR7_ALWAYS_CAST_LOG                               = 0x80000000  // TITLE Client indicator (client only)
 };
 
+enum SpellAttr8 : uint32
+{
+    SPELL_ATTR8_MASTERY_AFFECTS_POINTS                        = 0x20000000  // TITLE Mastery Affects Points
+};
+
 #define MAX_TALENT_SPECS        2
 #define MAX_GLYPH_SLOT_INDEX    6
 

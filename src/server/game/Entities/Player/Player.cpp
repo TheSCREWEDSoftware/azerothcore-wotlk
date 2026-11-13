@@ -110,6 +110,23 @@
 
 static uint32 copseReclaimDelay[MAX_DEATH_COUNT] = { 30, 60, 120 };
 
+// Class spells that unlock mastery
+static std::array<uint32, MAX_CLASSES> const MasterySpells =
+{
+    0,
+    87500,  // Warrior
+    87494,  // Paladin
+    87493,  // Hunter
+    87496,  // Rogue
+    87495,  // Priest
+    87492,  // Death Knight
+    87497,  // Shaman
+    86467,  // Mage
+    87498,  // Warlock
+    0,
+    87491,  // Druid
+};
+
 // we can disable this warning for this since it only
 // causes undefined behavior when passed to the base class constructor
 #ifdef _MSC_VER
@@ -3370,6 +3387,10 @@ void Player::learnSpell(uint32 spellId, bool temporary /*= false*/, bool learnFr
         // pussywizard: a system message "you have learnt spell X (rank Y)"
         if (IsInWorld())
             SendLearnPacket(spellId, true);
+
+        // Learning Mastery unlocks the specialization's mastery spells
+        if (spellId == MasterySpells[getClass()])
+            LearnSpecializationSpells();
     }
 
     // pussywizard: rank stuff at the end!
@@ -16237,10 +16258,19 @@ bool Player::LearnPrimaryTalentSpecialization(uint8 talentTabIndex)
 
 void Player::LearnSpecializationSpells()
 {
-    if (std::vector<uint32> const* specSpells = GetTalentTreePrimarySpells(GetPrimaryTalentTree(GetActiveSpec())))
+    uint32 const primaryTree = GetPrimaryTalentTree(GetActiveSpec());
+    if (std::vector<uint32> const* specSpells = GetTalentTreePrimarySpells(primaryTree))
         for (uint32 spellId : *specSpells)
             if (!HasSpell(spellId))
                 learnSpell(spellId, true);
+
+    if (CanUseMastery())
+        if (TalentTabEntry const* talentTab = sTalentTabStore.LookupEntry(primaryTree))
+            for (uint32 masterySpell : talentTab->MasterySpellID)
+                if (masterySpell && sSpellMgr->GetSpellInfo(masterySpell) && !HasSpell(masterySpell))
+                    learnSpell(masterySpell, true);
+
+    UpdateMastery();
 }
 
 void Player::RemoveSpecializationSpells()
@@ -16250,9 +16280,21 @@ void Player::RemoveSpecializationSpells()
         return;
 
     for (uint8 i = 0; i < MAX_TALENT_TABS; ++i)
+    {
         if (std::vector<uint32> const* specSpells = GetTalentTreePrimarySpells(talentTabs[i]))
             for (uint32 spellId : *specSpells)
                 removeSpell(spellId, SPEC_MASK_ALL, true);
+
+        if (TalentTabEntry const* talentTab = sTalentTabStore.LookupEntry(talentTabs[i]))
+            for (uint32 masterySpell : talentTab->MasterySpellID)
+                if (masterySpell)
+                    removeSpell(masterySpell, SPEC_MASK_ALL, true);
+    }
+}
+
+bool Player::CanUseMastery() const
+{
+    return HasSpell(MasterySpells[getClass()]);
 }
 
 void Player::SetReputation(uint32 factionentry, float value)

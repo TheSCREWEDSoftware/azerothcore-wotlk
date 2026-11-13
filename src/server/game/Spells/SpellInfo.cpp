@@ -461,6 +461,11 @@ int32 SpellEffectInfo::CalcValue(WorldObject const* caster, int32 const* bp, Uni
             value += PointsPerComboPoint * comboPoints;
         }
 
+        // Mastery scales the points by the effect's bonus coefficient
+        if (_spellInfo->HasAttribute(SPELL_ATTR8_MASTERY_AFFECTS_POINTS))
+            if (Player const* player = casterUnit->ToPlayer())
+                value += player->GetFloatValue(PLAYER_MASTERY) * BonusMultiplier;
+
         value = casterUnit->ApplyEffectModifiers(_spellInfo, EffectIndex, value);
 
         // amount multiplication based on caster's level

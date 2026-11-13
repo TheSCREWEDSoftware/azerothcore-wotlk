@@ -701,7 +701,8 @@ void Player::UpdateRating(CombatRating cr)
         if (affectStats)
             UpdateArmorPenetration(amount);
         break;
-    case CR_MASTERY: // No mastery value yet (PLAYER_MASTERY)
+    case CR_MASTERY:
+        UpdateMastery();
         break;
     }
 }

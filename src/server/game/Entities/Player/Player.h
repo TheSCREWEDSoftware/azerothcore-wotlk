@@ -2119,6 +2119,8 @@ public:
     void UpdateAllSpellCritChances();
     void UpdateSpellCritChance(uint32 school);
     void UpdateArmorPenetration(int32 amount);
+    void UpdateMastery();
+    [[nodiscard]] bool CanUseMastery() const;
     void UpdateExpertise(WeaponAttackType attType);
     void ApplyManaRegenBonus(int32 amount, bool apply);
     void ApplyHealthRegenBonus(int32 amount, bool apply);

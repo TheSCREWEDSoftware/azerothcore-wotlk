@@ -865,6 +865,28 @@ void Player::UpdateSpellCritChance(uint32 school)
     SetFloatValue(PLAYER_SPELL_CRIT_PERCENTAGE1 + school, crit);
 }
 
+void Player::UpdateMastery()
+{
+    if (!CanUseMastery())
+    {
+        SetFloatValue(PLAYER_MASTERY, 0.0f);
+        return;
+    }
+
+    SetFloatValue(PLAYER_MASTERY, float(GetTotalAuraModifier(SPELL_AURA_MASTERY)) + GetRatingBonusValue(CR_MASTERY));
+
+    // Mastery passives scale with the value
+    TalentTabEntry const* talentTab = sTalentTabStore.LookupEntry(GetPrimaryTalentTree(GetActiveSpec()));
+    if (!talentTab)
+        return;
+
+    for (uint32 masterySpell : talentTab->MasterySpellID)
+        if (masterySpell)
+            if (Aura* aura = GetAura(masterySpell))
+                if (aura->GetSpellInfo()->HasAttribute(SPELL_ATTR8_MASTERY_AFFECTS_POINTS))
+                    aura->RecalculateAmountOfEffects();
+}
+
 void Player::UpdateArmorPenetration(int32 amount)
 {
     // Store Rating Value
