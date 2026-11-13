@@ -745,15 +745,20 @@ void BattlegroundMgr::ToggleArenaTesting()
     }
 }
 
-void BattlegroundMgr::SetHolidayWeekends(uint32 mask)
+void BattlegroundMgr::ResetHolidays()
 {
-    for (uint32 bgtype = 1; bgtype < MAX_BATTLEGROUND_TYPE_ID; ++bgtype)
-    {
-        if (bgtype == BATTLEGROUND_RB)
-            continue;
+    for (uint32 bgtype = BATTLEGROUND_AV; bgtype < MAX_BATTLEGROUND_TYPE_ID; ++bgtype)
         if (Battleground* bgt = GetBattlegroundTemplate(BattlegroundTypeId(bgtype)))
-            bgt->SetHoliday(mask & (1 << bgtype));
-    }
+            bgt->SetHoliday(false);
+}
+
+void BattlegroundMgr::SetHolidayActive(BattlegroundTypeId bgTypeId)
+{
+    if (bgTypeId == BATTLEGROUND_RB)
+        return;
+
+    if (Battleground* bgt = GetBattlegroundTemplate(bgTypeId))
+        bgt->SetHoliday(true);
 }
 
 void BattlegroundMgr::ScheduleQueueUpdate(uint32 arenaMatchmakerRating, uint8 arenaType, BattlegroundQueueTypeId bgQueueTypeId, BattlegroundTypeId bgTypeId, BattlegroundBracketId bracket_id)

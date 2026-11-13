@@ -1002,7 +1002,14 @@ void GameEventMgr::LoadEventBattlegroundData()
                 continue;
             }
 
-            _gameEventBattlegroundHolidays[eventId] = fields[1].Get<uint32>();
+            uint32 battlegroundId = fields[1].Get<uint32>();
+            if (battlegroundId >= MAX_BATTLEGROUND_TYPE_ID || !sBattlemasterListStore.LookupEntry(battlegroundId))
+            {
+                LOG_ERROR("sql.sql", "`game_event_battleground_holiday` has an invalid BattlegroundID ({}) for game event {}, skipped", battlegroundId, eventId);
+                continue;
+            }
+
+            _gameEventBattlegroundHolidays[eventId] = battlegroundId;
 
             ++count;
         } while (result->NextRow());
@@ -1429,10 +1436,11 @@ void GameEventMgr::UpdateEventNPCFlags(uint16 eventId)
 
 void GameEventMgr::UpdateBattlegroundSettings()
 {
-    uint32 mask = 0;
-    for (ActiveEvents::const_iterator itr = _activeEvents.begin(); itr != _activeEvents.end(); ++itr)
-        mask |= _gameEventBattlegroundHolidays[*itr];
-    sBattlegroundMgr->SetHolidayWeekends(mask);
+    sBattlegroundMgr->ResetHolidays();
+
+    for (uint16 eventId : _activeEvents)
+        if (uint32 battlegroundId = _gameEventBattlegroundHolidays[eventId])
+            sBattlegroundMgr->SetHolidayActive(BattlegroundTypeId(battlegroundId));
 }
 
 void GameEventMgr::UpdateEventNPCVendor(uint16 eventId, bool activate)

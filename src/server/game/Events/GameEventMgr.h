@@ -179,7 +179,7 @@ private:
     typedef std::pair<ObjectGuid::LowType /*guid*/, uint32 /*npcflag*/> GuidNPCFlagPair;
     typedef std::list<GuidNPCFlagPair> NPCFlagList;
     typedef std::vector<NPCFlagList> GameEventNPCFlagMap;
-    typedef std::vector<uint32> GameEventBitmask;
+    typedef std::vector<uint32> GameEventBattlegroundIds;
     typedef std::unordered_map<uint32, std::vector<uint32>> GameEventSeasonalQuestsMap;
     typedef std::unordered_map<uint32 /*holiday id*/, uint8 /*stage*/> HolidayMainStageMap;
     GameEventQuestMap _gameEventCreatureQuests;
@@ -188,7 +188,7 @@ private:
     GameEventModelEquipMap _gameEventModelEquip;
     GameEventIdMap    _gameEventPoolIds;
     GameEventDataMap  _gameEvent;
-    GameEventBitmask  _gameEventBattlegroundHolidays;
+    GameEventBattlegroundIds _gameEventBattlegroundHolidays;
     QuestIdToEventConditionMap _questToEventConditions;
     GameEventNPCFlagMap _gameEventNPCFlags;
     ActiveEvents _activeEvents;
