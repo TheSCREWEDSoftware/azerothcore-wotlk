@@ -14128,7 +14128,7 @@ bool Player::isTotalImmune() const
 
 bool Player::HasTitle(uint32 bitIndex) const
 {
-    if (bitIndex > MAX_TITLE_INDEX)
+    if (bitIndex >= MAX_TITLE_INDEX)                         // valid range is [0, MAX_TITLE_INDEX)
         return false;
 
     uint32 fieldIndexOffset = bitIndex / 32;
