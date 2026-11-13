@@ -46,6 +46,16 @@ struct GossipText
     GossipTextOption Options[MAX_GOSSIP_TEXT_OPTIONS];
 };
 
+// 5.4.8 clients read gossip text from BroadcastText.db2. npc_text rows without a broadcast
+// text id get a server side id that the hotfix handler answers from the npc_text row.
+constexpr uint32 GOSSIP_BROADCAST_TEXT_FLAG = 0x00800000;
+constexpr uint32 GOSSIP_BROADCAST_TEXT_MAX_TEXT_ID = (GOSSIP_BROADCAST_TEXT_FLAG >> 3) - 1;
+
+inline uint32 MakeGossipBroadcastTextId(uint32 textId, uint8 option)
+{
+    return textId <= GOSSIP_BROADCAST_TEXT_MAX_TEXT_ID ? (GOSSIP_BROADCAST_TEXT_FLAG | (textId << 3) | option) : 0;
+}
+
 struct PageTextLocale
 {
     std::vector<std::string> Text;

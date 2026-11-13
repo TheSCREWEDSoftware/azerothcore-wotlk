@@ -880,6 +880,7 @@ public:                                                 // opcodes handlers
 
     void HandleTimeQueryOpcode(WorldPackets::Query::TimeQuery& packet);
     void HandleRealmNameQueryOpcode(WorldPacket& recvData);
+    void HandleRequestHotfix(WorldPacket& recvData);
 
     void HandleCreatureQueryOpcode(WorldPacket& recvPacket);
 

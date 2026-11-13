@@ -329,7 +329,16 @@ void WorldSession::HandleNpcTextQueryOpcode(WorldPacket& recvData)
     for (uint8 i = 0; i < MAX_GOSSIP_TEXT_OPTIONS; ++i)
         buffer << float(gossip ? gossip->Options[i].Probability : (i == 0 ? 1.0f : 0.0f));
     for (uint8 i = 0; i < MAX_GOSSIP_TEXT_OPTIONS; ++i)
-        buffer << uint32(gossip ? gossip->Options[i].BroadcastTextID : 0);
+    {
+        uint32 broadcastTextId = 0;
+        if (gossip)
+        {
+            broadcastTextId = gossip->Options[i].BroadcastTextID;
+            if (!broadcastTextId && (!gossip->Options[i].Text_0.empty() || !gossip->Options[i].Text_1.empty()))
+                broadcastTextId = MakeGossipBroadcastTextId(textID, i);
+        }
+        buffer << uint32(broadcastTextId);
+    }
 
     WorldPacket data(SMSG_NPC_TEXT_UPDATE, 4 + 4 + buffer.size() + 1);
     data << uint32(textID);
@@ -499,4 +508,255 @@ void WorldSession::HandleQuestPOIQuery(WorldPacket& recvData)
     data.FlushBits();
     data.append(poiData);
     SendPacket(&data);
+}
+
+namespace
+{
+    // DB2 table hashes, from Project SkyFire (WorldSession.h)
+    constexpr uint32 DB2_REPLY_BROADCAST_TEXT = 35137211;
+    constexpr uint32 DB2_REPLY_ITEM = 1344507586;
+    constexpr uint32 DB2_REPLY_ITEM_SPARSE = 2442913102;
+
+    void WriteDB2String(ByteBuffer& buffer, std::string const& text)
+    {
+        buffer << uint16(text.size());
+        if (!text.empty())
+            buffer.WriteString(text);
+    }
+
+    // Item.db2 record: id, class, subclass, sound override subclass, material, display id, inventory type, sheath
+    void WriteItemRecord(ItemTemplate const* proto, ByteBuffer& buffer)
+    {
+        buffer << uint32(proto->ItemId);
+        buffer << uint32(proto->Class);
+        buffer << uint32(proto->SubClass);
+        buffer << int32(proto->SoundOverrideSubclass);
+        buffer << int32(proto->Material);
+        buffer << uint32(proto->DisplayInfoID);
+        buffer << uint32(proto->InventoryType);
+        buffer << uint32(proto->Sheath);
+    }
+
+    // Item-sparse.db2 record, field order from Project SkyFire (ItemSparseEntry)
+    void WriteItemSparseRecord(ItemTemplate const* proto, LocaleConstant locale, ByteBuffer& buffer)
+    {
+        std::string name = proto->Name1;
+        std::string description = proto->Description;
+        if (locale != DEFAULT_LOCALE)
+            if (ItemLocale const* itemLocale = sObjectMgr->GetItemLocale(proto->ItemId))
+            {
+                ObjectMgr::GetLocaleString(itemLocale->Name, locale, name);
+                ObjectMgr::GetLocaleString(itemLocale->Description, locale, description);
+            }
+
+        buffer << uint32(proto->ItemId);
+        buffer << uint32(proto->Quality);
+        buffer << uint32(proto->Flags);
+        buffer << uint32(proto->Flags2);
+        buffer << uint32(0);                                // Flags3
+        buffer << float(proto->PriceRandomValue);
+        buffer << float(proto->PriceVariance);
+        buffer << uint32(proto->BuyCount);
+        buffer << int32(proto->BuyPrice);
+        buffer << uint32(proto->SellPrice);
+        buffer << uint32(proto->InventoryType);
+        buffer << int32(proto->AllowableClass);
+        buffer << int32(proto->AllowableRace);
+        buffer << uint32(proto->ItemLevel);
+        buffer << int32(proto->RequiredLevel);
+        buffer << uint32(proto->RequiredSkill);
+        buffer << uint32(proto->RequiredSkillRank);
+        buffer << uint32(proto->RequiredSpell);
+        buffer << uint32(proto->RequiredHonorRank);
+        buffer << uint32(proto->RequiredCityRank);
+        buffer << uint32(proto->RequiredReputationFaction);
+        buffer << uint32(proto->RequiredReputationRank);
+        buffer << int32(proto->MaxCount);
+        buffer << int32(proto->Stackable);
+        buffer << uint32(proto->ContainerSlots);
+
+        for (_ItemStat const& stat : proto->ItemStat)
+            buffer << int32(stat.ItemStatType);
+        for (_ItemStat const& stat : proto->ItemStat)
+            buffer << int32(stat.ItemStatValue);
+        for (uint8 i = 0; i < MAX_ITEM_PROTO_STATS; ++i)
+            buffer << int32(0);                             // stat socket cost multiplier
+        for (uint8 i = 0; i < MAX_ITEM_PROTO_STATS; ++i)
+            buffer << int32(0);                             // stat percent of socket
+
+        buffer << uint32(proto->ScalingStatDistribution);
+        buffer << uint32(proto->Damage[0].DamageType);
+        buffer << uint32(proto->Delay);
+        buffer << float(proto->RangedModRange);
+
+        for (_Spell const& spell : proto->Spells)
+            buffer << int32(spell.SpellId);
+        for (_Spell const& spell : proto->Spells)
+            buffer << int32(spell.SpellTrigger);
+        for (_Spell const& spell : proto->Spells)
+            buffer << int32(spell.SpellCharges);
+        for (_Spell const& spell : proto->Spells)
+            buffer << int32(spell.SpellCooldown);
+        for (_Spell const& spell : proto->Spells)
+            buffer << int32(spell.SpellCategory);
+        for (_Spell const& spell : proto->Spells)
+            buffer << int32(spell.SpellCategoryCooldown);
+
+        buffer << uint32(proto->Bonding);
+        WriteDB2String(buffer, name);
+        for (uint8 i = 0; i < 3; ++i)
+            buffer << uint16(0);                            // Name2, Name3, Name4
+        WriteDB2String(buffer, description);
+        buffer << uint32(proto->PageText);
+        buffer << uint32(proto->LanguageID);
+        buffer << uint32(proto->PageMaterial);
+        buffer << uint32(proto->StartQuest);
+        buffer << uint32(proto->LockID);
+        buffer << int32(proto->Material);
+        buffer << uint32(proto->Sheath);
+        buffer << int32(proto->RandomProperty);
+        buffer << int32(proto->RandomSuffix);
+        buffer << uint32(proto->ItemSet);
+        buffer << uint32(proto->Area);
+        buffer << uint32(proto->Map);
+        buffer << uint32(proto->BagFamily);
+        buffer << uint32(proto->TotemCategory);
+
+        for (_Socket const& socket : proto->Socket)
+            buffer << uint32(socket.Color);
+        for (_Socket const& socket : proto->Socket)
+            buffer << uint32(socket.Content);
+
+        buffer << uint32(proto->socketBonus);
+        buffer << uint32(proto->GemProperties);
+        buffer << float(proto->ArmorDamageModifier);
+        buffer << uint32(proto->Duration);
+        buffer << uint32(proto->ItemLimitCategory);
+        buffer << uint32(proto->HolidayId);
+        buffer << float(0.0f);                              // StatScalingFactor
+        buffer << int32(0);                                 // CurrencySubstitutionId
+        buffer << int32(0);                                 // CurrencySubstitutionCount
+    }
+
+    // BroadcastText.db2 record: id, language, male text, female text, 3 emotes, 3 emote delays, sound, end emote, type
+    void WriteBroadcastTextRecord(uint32 id, uint32 language, std::string const& maleText, std::string const& femaleText,
+        BroadcastText const* broadcastText, ByteBuffer& buffer)
+    {
+        buffer << uint32(id);
+        buffer << uint32(language);
+        WriteDB2String(buffer, maleText);
+        WriteDB2String(buffer, femaleText);
+        buffer << uint32(broadcastText ? broadcastText->EmoteId1 : 0);
+        buffer << uint32(broadcastText ? broadcastText->EmoteId2 : 0);
+        buffer << uint32(broadcastText ? broadcastText->EmoteId3 : 0);
+        buffer << uint32(broadcastText ? broadcastText->EmoteDelay1 : 0);
+        buffer << uint32(broadcastText ? broadcastText->EmoteDelay2 : 0);
+        buffer << uint32(broadcastText ? broadcastText->EmoteDelay3 : 0);
+        buffer << uint32(broadcastText ? broadcastText->SoundEntriesId : 0);
+        buffer << uint32(broadcastText ? broadcastText->EmotesID : 0);
+        buffer << uint32(broadcastText ? broadcastText->Flags : 1);
+    }
+
+    bool WriteBroadcastText(uint32 entry, LocaleConstant locale, ByteBuffer& buffer)
+    {
+        if (BroadcastText const* broadcastText = sObjectMgr->GetBroadcastText(entry))
+        {
+            WriteBroadcastTextRecord(entry, broadcastText->LanguageID, broadcastText->GetText(locale, GENDER_MALE, true),
+                broadcastText->GetText(locale, GENDER_FEMALE, true), broadcastText, buffer);
+            return true;
+        }
+
+        if (!(entry & GOSSIP_BROADCAST_TEXT_FLAG))
+            return false;
+
+        uint32 textId = (entry & ~GOSSIP_BROADCAST_TEXT_FLAG) >> 3;
+        uint8 option = entry & 7;
+        GossipText const* gossip = sObjectMgr->GetGossipText(textId);
+        if (!gossip)
+            return false;
+
+        std::string maleText = gossip->Options[option].Text_0;
+        std::string femaleText = gossip->Options[option].Text_1;
+        if (locale != DEFAULT_LOCALE)
+            if (NpcTextLocale const* npcTextLocale = sObjectMgr->GetNpcTextLocale(textId))
+            {
+                ObjectMgr::GetLocaleString(npcTextLocale->Text_0[option], locale, maleText);
+                ObjectMgr::GetLocaleString(npcTextLocale->Text_1[option], locale, femaleText);
+            }
+
+        if (maleText.empty())
+            maleText = femaleText;
+        if (femaleText.empty())
+            femaleText = maleText;
+
+        WriteBroadcastTextRecord(entry, gossip->Options[option].Language, maleText, femaleText, nullptr, buffer);
+        return true;
+    }
+}
+
+// 5.4.8 18414, request from Project SkyFire (WorldSession::HandleRequestHotfix)
+void WorldSession::HandleRequestHotfix(WorldPacket& recvData)
+{
+    uint32 type;
+    recvData >> type;
+
+    uint32 count = recvData.ReadBits(21);
+    if (count > 2000)
+    {
+        recvData.rfinish();
+        return;
+    }
+
+    std::vector<ObjectGuid> guids(count);
+    for (ObjectGuid& guid : guids)
+        for (uint8 index : { 6, 3, 0, 1, 4, 5, 7, 2 })
+            guid[index] = recvData.ReadBit();
+
+    std::vector<uint32> entries(count);
+    for (uint32 i = 0; i < count; ++i)
+    {
+        recvData.ReadByteSeq(guids[i][1]);
+        recvData >> entries[i];
+        for (uint8 index : { 0, 5, 6, 4, 7, 2, 3 })
+            recvData.ReadByteSeq(guids[i][index]);
+    }
+
+    LocaleConstant const locale = GetSessionDbLocaleIndex();
+    for (uint32 entry : entries)
+    {
+        ByteBuffer record;
+        bool found = false;
+        switch (type)
+        {
+            case DB2_REPLY_ITEM:
+                if (ItemTemplate const* proto = sObjectMgr->GetItemTemplate(entry))
+                {
+                    WriteItemRecord(proto, record);
+                    found = true;
+                }
+                break;
+            case DB2_REPLY_ITEM_SPARSE:
+                if (ItemTemplate const* proto = sObjectMgr->GetItemTemplate(entry))
+                {
+                    WriteItemSparseRecord(proto, locale, record);
+                    found = true;
+                }
+                break;
+            case DB2_REPLY_BROADCAST_TEXT:
+                found = WriteBroadcastText(entry, locale, record);
+                break;
+            default:
+                LOG_DEBUG("network", "CMSG_REQUEST_HOTFIX: no server data for table {:#x}, entry {}", type, entry);
+                break;
+        }
+
+        // An empty record tells the client the row does not exist
+        WorldPacket data(SMSG_DB_REPLY, 4 * 4 + record.size());
+        data << uint32(entry);
+        data << uint32(found ? GameTime::GetGameTime().count() : 0);
+        data << uint32(type);
+        data << uint32(record.size());
+        data.append(record);
+        SendPacket(&data);
+    }
 }
