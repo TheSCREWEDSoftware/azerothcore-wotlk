@@ -60,8 +60,7 @@ inline bool isNasty(uint8 c)
 
 void WorldSession::HandleMessagechatOpcode(WorldPacket& recvData)
 {
-    // Cata build 15595 encodes the chat type in the opcode itself instead of the packet body
-    // (WotLK's single CMSG_MESSAGECHAT read it as the first field).
+    // The chat type is part of the opcode.
     uint32 type;
     switch (recvData.GetOpcode())
     {
@@ -71,12 +70,14 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recvData)
         case CMSG_MESSAGECHAT_WHISPER:        type = CHAT_MSG_WHISPER;        break;
         case CMSG_MESSAGECHAT_GUILD:          type = CHAT_MSG_GUILD;          break;
         case CMSG_MESSAGECHAT_OFFICER:        type = CHAT_MSG_OFFICER;        break;
-        case CMSG_MESSAGECHAT_AFK:            type = CHAT_MSG_AFK;            break;
+        case CMSG_MESSAGECHAT_AFK:
+        case CMSG_CHAT_MESSAGE_AFK:           type = CHAT_MSG_AFK;            break;
         case CMSG_MESSAGECHAT_DND:            type = CHAT_MSG_DND;            break;
         case CMSG_MESSAGECHAT_EMOTE:          type = CHAT_MSG_EMOTE;          break;
         case CMSG_MESSAGECHAT_PARTY:          type = CHAT_MSG_PARTY;          break;
         case CMSG_MESSAGECHAT_RAID:           type = CHAT_MSG_RAID;           break;
-        case CMSG_MESSAGECHAT_BATTLEGROUND:   type = CHAT_MSG_BATTLEGROUND;   break;
+        case CMSG_MESSAGECHAT_BATTLEGROUND:
+        case CMSG_MESSAGECHAT_INSTANCE:       type = CHAT_MSG_INSTANCE;       break;
         case CMSG_MESSAGECHAT_RAID_WARNING:   type = CHAT_MSG_RAID_WARNING;   break;
         default:
             LOG_ERROR("network.opcode", "HandleMessagechatOpcode: unknown chat opcode {}", recvData.GetOpcode());
@@ -275,15 +276,14 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recvData)
             sender->UpdateSpeakTime(lang == LANG_ADDON ? Player::ChatFloodThrottle::ADDON : Player::ChatFloodThrottle::REGULAR);
     }
 
-    // Cata build 15595 bit-packs the string length(s) ahead of the string payload(s) instead of
-    // WotLK's null-terminated CMSG_MESSAGECHAT strings (verified against the pinned TrinityCore-Cata
-    // reference; issue #89).
+    // The string lengths are bit-packed ahead of the strings.
     uint32 textLength = 0;
     uint32 receiverLength = 0;
     std::string to, channel, msg;
     bool ignoreChecks = false;
     switch (type)
     {
+        // 5.4.8 18414: messages are at most 255 bytes, from Project SkyFire (HandleMessagechatOpcode)
         case CHAT_MSG_SAY:
         case CHAT_MSG_EMOTE:
         case CHAT_MSG_YELL:
@@ -294,26 +294,26 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recvData)
         case CHAT_MSG_RAID:
         case CHAT_MSG_RAID_LEADER:
         case CHAT_MSG_RAID_WARNING:
-        case CHAT_MSG_BATTLEGROUND:
-        case CHAT_MSG_BATTLEGROUND_LEADER:
-            textLength = recvData.ReadBits(9);
+        case CHAT_MSG_INSTANCE:
+        case CHAT_MSG_INSTANCE_LEADER:
+            textLength = recvData.ReadBits(8);
             msg = recvData.ReadString(textLength);
             break;
         case CHAT_MSG_WHISPER:
-            receiverLength = recvData.ReadBits(10);
-            textLength = recvData.ReadBits(9);
-            to = recvData.ReadString(receiverLength);
+            textLength = recvData.ReadBits(8);
+            receiverLength = recvData.ReadBits(9);
             msg = recvData.ReadString(textLength);
+            to = recvData.ReadString(receiverLength);
             break;
         case CHAT_MSG_CHANNEL:
-            receiverLength = recvData.ReadBits(10);
-            textLength = recvData.ReadBits(9);
+            receiverLength = recvData.ReadBits(9);
+            textLength = recvData.ReadBits(8);
             msg = recvData.ReadString(textLength);
             channel = recvData.ReadString(receiverLength);
             break;
         case CHAT_MSG_AFK:
         case CHAT_MSG_DND:
-            textLength = recvData.ReadBits(9);
+            textLength = recvData.ReadBits(8);
             msg = recvData.ReadString(textLength);
             ignoreChecks = true;
             break;

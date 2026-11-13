@@ -2660,20 +2660,36 @@ AC_API_EXPORT EnumText EnumUtils<ChatMsg>::ToString(ChatMsg value)
         case CHAT_MSG_RAID_BOSS_EMOTE: return { "CHAT_MSG_RAID_BOSS_EMOTE", "CHAT_MSG_RAID_BOSS_EMOTE", "" };
         case CHAT_MSG_RAID_BOSS_WHISPER: return { "CHAT_MSG_RAID_BOSS_WHISPER", "CHAT_MSG_RAID_BOSS_WHISPER", "" };
         case CHAT_MSG_FILTERED: return { "CHAT_MSG_FILTERED", "CHAT_MSG_FILTERED", "" };
-        case CHAT_MSG_BATTLEGROUND: return { "CHAT_MSG_BATTLEGROUND", "CHAT_MSG_BATTLEGROUND", "" };
-        case CHAT_MSG_BATTLEGROUND_LEADER: return { "CHAT_MSG_BATTLEGROUND_LEADER", "CHAT_MSG_BATTLEGROUND_LEADER", "" };
         case CHAT_MSG_RESTRICTED: return { "CHAT_MSG_RESTRICTED", "CHAT_MSG_RESTRICTED", "" };
         case CHAT_MSG_BATTLENET: return { "CHAT_MSG_BATTLENET", "CHAT_MSG_BATTLENET", "" };
         case CHAT_MSG_ACHIEVEMENT: return { "CHAT_MSG_ACHIEVEMENT", "CHAT_MSG_ACHIEVEMENT", "" };
         case CHAT_MSG_GUILD_ACHIEVEMENT: return { "CHAT_MSG_GUILD_ACHIEVEMENT", "CHAT_MSG_GUILD_ACHIEVEMENT", "" };
         case CHAT_MSG_ARENA_POINTS: return { "CHAT_MSG_ARENA_POINTS", "CHAT_MSG_ARENA_POINTS", "" };
         case CHAT_MSG_PARTY_LEADER: return { "CHAT_MSG_PARTY_LEADER", "CHAT_MSG_PARTY_LEADER", "" };
+        case CHAT_MSG_TARGET_ICONS: return { "CHAT_MSG_TARGET_ICONS", "CHAT_MSG_TARGET_ICONS", "" };
+        case CHAT_MSG_BN_WHISPER: return { "CHAT_MSG_BN_WHISPER", "CHAT_MSG_BN_WHISPER", "" };
+        case CHAT_MSG_BN_WHISPER_INFORM: return { "CHAT_MSG_BN_WHISPER_INFORM", "CHAT_MSG_BN_WHISPER_INFORM", "" };
+        case CHAT_MSG_BN_CONVERSATION: return { "CHAT_MSG_BN_CONVERSATION", "CHAT_MSG_BN_CONVERSATION", "" };
+        case CHAT_MSG_BN_CONVERSATION_NOTICE: return { "CHAT_MSG_BN_CONVERSATION_NOTICE", "CHAT_MSG_BN_CONVERSATION_NOTICE", "" };
+        case CHAT_MSG_BN_CONVERSATION_LIST: return { "CHAT_MSG_BN_CONVERSATION_LIST", "CHAT_MSG_BN_CONVERSATION_LIST", "" };
+        case CHAT_MSG_BN_INLINE_TOAST_ALERT: return { "CHAT_MSG_BN_INLINE_TOAST_ALERT", "CHAT_MSG_BN_INLINE_TOAST_ALERT", "" };
+        case CHAT_MSG_BN_INLINE_TOAST_BROADCAST: return { "CHAT_MSG_BN_INLINE_TOAST_BROADCAST", "CHAT_MSG_BN_INLINE_TOAST_BROADCAST", "" };
+        case CHAT_MSG_BN_INLINE_TOAST_BROADCAST_INFORM: return { "CHAT_MSG_BN_INLINE_TOAST_BROADCAST_INFORM", "CHAT_MSG_BN_INLINE_TOAST_BROADCAST_INFORM", "" };
+        case CHAT_MSG_BN_INLINE_TOAST_CONVERSATION: return { "CHAT_MSG_BN_INLINE_TOAST_CONVERSATION", "CHAT_MSG_BN_INLINE_TOAST_CONVERSATION", "" };
+        case CHAT_MSG_BN_WHISPER_PLAYER_OFFLINE: return { "CHAT_MSG_BN_WHISPER_PLAYER_OFFLINE", "CHAT_MSG_BN_WHISPER_PLAYER_OFFLINE", "" };
+        case CHAT_MSG_COMBAT_GUILD_XP_GAIN: return { "CHAT_MSG_COMBAT_GUILD_XP_GAIN", "CHAT_MSG_COMBAT_GUILD_XP_GAIN", "" };
+        case CHAT_MSG_CURRENCY: return { "CHAT_MSG_CURRENCY", "CHAT_MSG_CURRENCY", "" };
+        case CHAT_MSG_QUEST_BOSS_EMOTE: return { "CHAT_MSG_QUEST_BOSS_EMOTE", "CHAT_MSG_QUEST_BOSS_EMOTE", "" };
+        case CHAT_MSG_PET_BATTLE_COMBAT_LOG: return { "CHAT_MSG_PET_BATTLE_COMBAT_LOG", "CHAT_MSG_PET_BATTLE_COMBAT_LOG", "" };
+        case CHAT_MSG_PET_BATTLE_INFO: return { "CHAT_MSG_PET_BATTLE_INFO", "CHAT_MSG_PET_BATTLE_INFO", "" };
+        case CHAT_MSG_INSTANCE: return { "CHAT_MSG_INSTANCE", "CHAT_MSG_INSTANCE", "" };
+        case CHAT_MSG_INSTANCE_LEADER: return { "CHAT_MSG_INSTANCE_LEADER", "CHAT_MSG_INSTANCE_LEADER", "" };
         default: throw std::out_of_range("value");
     }
 }
 
 template <>
-AC_API_EXPORT std::size_t EnumUtils<ChatMsg>::Count() { return 53; }
+AC_API_EXPORT std::size_t EnumUtils<ChatMsg>::Count() { return 69; }
 
 template <>
 AC_API_EXPORT ChatMsg EnumUtils<ChatMsg>::FromIndex(std::size_t index)
@@ -2725,14 +2741,30 @@ AC_API_EXPORT ChatMsg EnumUtils<ChatMsg>::FromIndex(std::size_t index)
         case 42: return CHAT_MSG_RAID_BOSS_EMOTE;
         case 43: return CHAT_MSG_RAID_BOSS_WHISPER;
         case 44: return CHAT_MSG_FILTERED;
-        case 45: return CHAT_MSG_BATTLEGROUND;
-        case 46: return CHAT_MSG_BATTLEGROUND_LEADER;
-        case 47: return CHAT_MSG_RESTRICTED;
-        case 48: return CHAT_MSG_BATTLENET;
-        case 49: return CHAT_MSG_ACHIEVEMENT;
-        case 50: return CHAT_MSG_GUILD_ACHIEVEMENT;
-        case 51: return CHAT_MSG_ARENA_POINTS;
-        case 52: return CHAT_MSG_PARTY_LEADER;
+        case 45: return CHAT_MSG_RESTRICTED;
+        case 46: return CHAT_MSG_BATTLENET;
+        case 47: return CHAT_MSG_ACHIEVEMENT;
+        case 48: return CHAT_MSG_GUILD_ACHIEVEMENT;
+        case 49: return CHAT_MSG_ARENA_POINTS;
+        case 50: return CHAT_MSG_PARTY_LEADER;
+        case 51: return CHAT_MSG_TARGET_ICONS;
+        case 52: return CHAT_MSG_BN_WHISPER;
+        case 53: return CHAT_MSG_BN_WHISPER_INFORM;
+        case 54: return CHAT_MSG_BN_CONVERSATION;
+        case 55: return CHAT_MSG_BN_CONVERSATION_NOTICE;
+        case 56: return CHAT_MSG_BN_CONVERSATION_LIST;
+        case 57: return CHAT_MSG_BN_INLINE_TOAST_ALERT;
+        case 58: return CHAT_MSG_BN_INLINE_TOAST_BROADCAST;
+        case 59: return CHAT_MSG_BN_INLINE_TOAST_BROADCAST_INFORM;
+        case 60: return CHAT_MSG_BN_INLINE_TOAST_CONVERSATION;
+        case 61: return CHAT_MSG_BN_WHISPER_PLAYER_OFFLINE;
+        case 62: return CHAT_MSG_COMBAT_GUILD_XP_GAIN;
+        case 63: return CHAT_MSG_CURRENCY;
+        case 64: return CHAT_MSG_QUEST_BOSS_EMOTE;
+        case 65: return CHAT_MSG_PET_BATTLE_COMBAT_LOG;
+        case 66: return CHAT_MSG_PET_BATTLE_INFO;
+        case 67: return CHAT_MSG_INSTANCE;
+        case 68: return CHAT_MSG_INSTANCE_LEADER;
         default: throw std::out_of_range("index");
     }
 }
@@ -2787,14 +2819,30 @@ AC_API_EXPORT std::size_t EnumUtils<ChatMsg>::ToIndex(ChatMsg value)
         case CHAT_MSG_RAID_BOSS_EMOTE: return 42;
         case CHAT_MSG_RAID_BOSS_WHISPER: return 43;
         case CHAT_MSG_FILTERED: return 44;
-        case CHAT_MSG_BATTLEGROUND: return 45;
-        case CHAT_MSG_BATTLEGROUND_LEADER: return 46;
-        case CHAT_MSG_RESTRICTED: return 47;
-        case CHAT_MSG_BATTLENET: return 48;
-        case CHAT_MSG_ACHIEVEMENT: return 49;
-        case CHAT_MSG_GUILD_ACHIEVEMENT: return 50;
-        case CHAT_MSG_ARENA_POINTS: return 51;
-        case CHAT_MSG_PARTY_LEADER: return 52;
+        case CHAT_MSG_RESTRICTED: return 45;
+        case CHAT_MSG_BATTLENET: return 46;
+        case CHAT_MSG_ACHIEVEMENT: return 47;
+        case CHAT_MSG_GUILD_ACHIEVEMENT: return 48;
+        case CHAT_MSG_ARENA_POINTS: return 49;
+        case CHAT_MSG_PARTY_LEADER: return 50;
+        case CHAT_MSG_TARGET_ICONS: return 51;
+        case CHAT_MSG_BN_WHISPER: return 52;
+        case CHAT_MSG_BN_WHISPER_INFORM: return 53;
+        case CHAT_MSG_BN_CONVERSATION: return 54;
+        case CHAT_MSG_BN_CONVERSATION_NOTICE: return 55;
+        case CHAT_MSG_BN_CONVERSATION_LIST: return 56;
+        case CHAT_MSG_BN_INLINE_TOAST_ALERT: return 57;
+        case CHAT_MSG_BN_INLINE_TOAST_BROADCAST: return 58;
+        case CHAT_MSG_BN_INLINE_TOAST_BROADCAST_INFORM: return 59;
+        case CHAT_MSG_BN_INLINE_TOAST_CONVERSATION: return 60;
+        case CHAT_MSG_BN_WHISPER_PLAYER_OFFLINE: return 61;
+        case CHAT_MSG_COMBAT_GUILD_XP_GAIN: return 62;
+        case CHAT_MSG_CURRENCY: return 63;
+        case CHAT_MSG_QUEST_BOSS_EMOTE: return 64;
+        case CHAT_MSG_PET_BATTLE_COMBAT_LOG: return 65;
+        case CHAT_MSG_PET_BATTLE_INFO: return 66;
+        case CHAT_MSG_INSTANCE: return 67;
+        case CHAT_MSG_INSTANCE_LEADER: return 68;
         default: throw std::out_of_range("value");
     }
 }
