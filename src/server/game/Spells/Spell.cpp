@@ -958,6 +958,8 @@ uint64 Spell::CalculateDelayMomentForDst() const
             if (speed > 0.0f)
                 return (uint64)std::floor(m_targets.GetDist2d() / speed * 1000.0f);
         }
+        else if (m_spellInfo->HasAttribute(SPELL_ATTR9_SPECIAL_DELAY_CALCULATION))
+            return uint64(std::floor(m_spellInfo->Speed * 1000.0f));    // speed is the travel time in seconds
         else if (m_spellInfo->Speed > 0.0f)
         {
             // We should not subtract caster size from dist calculation (fixes execution time desync with animation on client, eg. Malleable Goo cast by PP)
@@ -2513,7 +2515,10 @@ void Spell::AddUnitTarget(Unit* target, uint32 effectMask, bool checkIfValid /*=
 
         if (dist < 5.0f)
             dist = 5.0f;
-        targetInfo.timeDelay = (uint64) std::floor(dist / m_spellInfo->Speed * 1000.0f);
+        if (m_spellInfo->HasAttribute(SPELL_ATTR9_SPECIAL_DELAY_CALCULATION))
+            targetInfo.timeDelay = uint64(std::floor(m_spellInfo->Speed * 1000.0f)); // speed is the travel time in seconds
+        else
+            targetInfo.timeDelay = (uint64) std::floor(dist / m_spellInfo->Speed * 1000.0f);
 
         // Calculate minimum incoming time
         if (m_delayMoment == 0 || m_delayMoment > targetInfo.timeDelay)
@@ -2613,7 +2618,10 @@ void Spell::AddGOTarget(GameObject* go, uint32 effectMask)
         float dist = m_caster->GetDistance(go->GetPositionX(), go->GetPositionY(), go->GetPositionZ());
         if (dist < 5.0f)
             dist = 5.0f;
-        target.timeDelay = uint64(std::floor(dist / m_spellInfo->Speed * 1000.0f));
+        if (m_spellInfo->HasAttribute(SPELL_ATTR9_SPECIAL_DELAY_CALCULATION))
+            target.timeDelay = uint64(std::floor(m_spellInfo->Speed * 1000.0f)); // speed is the travel time in seconds
+        else
+            target.timeDelay = uint64(std::floor(dist / m_spellInfo->Speed * 1000.0f));
         if (m_delayMoment == 0 || m_delayMoment > target.timeDelay)
             m_delayMoment = target.timeDelay;
     }
@@ -6267,7 +6275,8 @@ SpellCastResult Spell::CheckCast(bool strict, uint32* /*param1*/, uint32* /*para
     // do not allow spells to be cast in arenas
     // - with greater than 10 min CD without SPELL_ATTR4_IGNORE_DEFAULT_ARENA_RESTRICTIONS flag
     // - with SPELL_ATTR4_NOT_IN_ARENA_OR_RATED_BATTLEGROUND flag
-    if (m_spellInfo->HasAttribute(SPELL_ATTR4_NOT_IN_ARENA_OR_RATED_BATTLEGROUND) ||
+    // - with SPELL_ATTR9_NOT_USABLE_IN_ARENA flag
+    if (m_spellInfo->HasAttribute(SPELL_ATTR4_NOT_IN_ARENA_OR_RATED_BATTLEGROUND) || m_spellInfo->HasAttribute(SPELL_ATTR9_NOT_USABLE_IN_ARENA) ||
             (m_spellInfo->GetRecoveryTime() >= 10 * MINUTE * IN_MILLISECONDS && !m_spellInfo->HasAttribute(SPELL_ATTR4_IGNORE_DEFAULT_ARENA_RESTRICTIONS)))
         if (MapEntry const* mapEntry = sMapStore.LookupEntry(m_caster->GetMapId()))
             if (mapEntry->IsBattleArena())
