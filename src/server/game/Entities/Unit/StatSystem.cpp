@@ -320,7 +320,17 @@ void Player::UpdateMaxHealth()
     value *= GetPctModifierValue(unitMod, TOTAL_PCT);
 
     sScriptMgr->OnPlayerAfterUpdateMaxHealth(this, value);
-    SetMaxHealth((uint32)value);
+
+    // since 4.0 a change of maximum health keeps the current health percentage
+    if (!GetMaxHealth() || !IsAlive())
+    {
+        SetMaxHealth(uint32(value));
+        return;
+    }
+
+    float healthPct = GetHealthPct();
+    SetMaxHealth(uint32(value));
+    SetHealth(std::max<uint32>(1, CalculatePct(GetMaxHealth(), healthPct)));
 }
 
 void Player::UpdateMaxPower(Powers power)
