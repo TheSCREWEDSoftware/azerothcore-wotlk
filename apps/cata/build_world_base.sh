@@ -10,6 +10,7 @@
 #   SOURCE_DB     schema the TDB dump is loaded into (default tdb_world)
 #   TARGET_DB     schema the AzerothCore world is built in (default acore_world_build)
 #   KEEP_UPDATES  set to 1 to leave data/sql/updates in place (no archive step)
+#   SKIP_EXPORT   set to 1 to stop after building TARGET_DB (apps/mop/build_world_base.sh adds the 5.4.8 data)
 #   ZONES_FILE    zone list for the quest import (default: every zone with TDB quests, list_quest_zones.sh)
 #
 # Steps:
@@ -115,27 +116,11 @@ zones_file=${ZONES_FILE:-$(mktemp)}
 CONTAINER="$CONTAINER" DB_USER="$DB_USER" DB_PASSWORD="$DB_PASSWORD" DBC_DIR="$DBC_DIR" SOURCE_DB="$SOURCE_DB" \
     ZONES_FILE="$zones_file" bash "$here/import_clean_zones.sh" "$TARGET_DB"
 
-echo "== 5. exporting data/sql/base/db_world"
-base="$root/data/sql/base/db_world"
-tables=$(mysql_run -N -B -e "SELECT TABLE_NAME FROM information_schema.tables WHERE TABLE_SCHEMA='$TARGET_DB' AND TABLE_TYPE='BASE TABLE' ORDER BY TABLE_NAME")
-archive="$root/data/sql/old/db_world/cata"
-if [[ ${KEEP_UPDATES:-0} != 1 ]]; then
-    # record every applied update as ARCHIVED before the `updates` table is dumped
-    mkdir -p "$archive"
-    for dir in updates/db_world updates/pending_db_world; do
-        while IFS= read -r -d '' update; do
-            name=$(basename "$update")
-            [[ $dir == updates/pending_db_world ]] && name="cata_$name"
-            hash=$(sha1sum "$update" | cut -c1-40 | tr a-f A-F)
-            mysql_run -e "REPLACE INTO \`$TARGET_DB\`.updates (name, hash, state, speed) VALUES ('$name', '$hash', 'ARCHIVED', 0)"
-            git -C "$root" mv "$update" "$archive/$name" 2>/dev/null || mv "$update" "$archive/$name"
-        done < <(find "$root/data/sql/$dir" -maxdepth 1 -name '*.sql' -print0 | sort -z)
-    done
+if [[ ${SKIP_EXPORT:-0} == 1 ]]; then
+    echo "== done: $TARGET_DB built (SKIP_EXPORT=1, data/sql untouched)"
+    exit 0
 fi
-find "$base" -maxdepth 1 -name '*.sql' -delete
-for table in $tables; do
-    mysqldump_run --skip-tz-utc --extended-insert "$TARGET_DB" "$table" |
-        sed -E 's/VALUES[[:space:]]*/VALUES\n/; :a; s/\),\(/\),\n\(/g; ta' > "$base/$table.sql"
-done
 
-echo "== done: $(echo "$tables" | wc -w) tables in data/sql/base/db_world"
+echo "== 5. exporting data/sql/base/db_world"
+CONTAINER="$CONTAINER" DB_USER="$DB_USER" DB_PASSWORD="$DB_PASSWORD" KEEP_UPDATES="${KEEP_UPDATES:-0}" \
+    bash "$here/export_world_base.sh" "$TARGET_DB"
