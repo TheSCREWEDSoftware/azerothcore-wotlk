@@ -29,6 +29,17 @@ namespace WorldPackets
 {
     namespace Guild
     {
+        class GuildNameChanged final : public ServerPacket
+        {
+        public:
+            GuildNameChanged() : ServerPacket(SMSG_GUILD_NAME_CHANGED, 1 + 8 + 24) { }
+
+            WorldPacket const* Write() override;
+
+            ObjectGuid GuildGUID;
+            std::string GuildName;
+        };
+
         class QueryGuildInfo final : public ClientPacket
         {
         public:

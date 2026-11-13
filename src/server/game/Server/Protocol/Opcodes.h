@@ -28,6 +28,7 @@
 /// Lists of opcodes by wire direction
 enum OpcodeClient : uint16
 {
+    CMSG_GUILD_CHANGE_NAME_REQUEST                  = 0x1232,
     CMSG_ADDON_REGISTERED_PREFIXES                  = 0x0954,
     CMSG_CLEAR_RAID_MARKER                          = 0x7300,
     CMSG_SET_PET_SLOT                               = 0x3A04,
@@ -810,6 +811,8 @@ enum OpcodeClient : uint16
 
 enum OpcodeServer : uint16
 {
+    SMSG_GUILD_NAME_CHANGED                         = 0x74A6,
+    SMSG_GUILD_CHANGE_NAME_RESULT                   = 0x3CB1,
     SMSG_RAID_MARKERS_CHANGED                       = 0x10A1,
     SMSG_GENERATE_RANDOM_CHARACTER_NAME_RESULT      = 0x38B1,
     SMSG_ROLE_POLL_BEGIN                            = 0x70B0,

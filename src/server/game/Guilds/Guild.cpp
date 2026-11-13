@@ -1350,6 +1350,11 @@ bool Guild::SetName(std::string_view const& name)
     stmt->SetData(0, m_name);
     stmt->SetData(1, GetId());
     CharacterDatabase.Execute(stmt);
+
+    WorldPackets::Guild::GuildNameChanged guildNameChanged;
+    guildNameChanged.GuildGUID = GetGUID();
+    guildNameChanged.GuildName = m_name;
+    BroadcastPacket(guildNameChanged.Write());
     return true;
 }
 

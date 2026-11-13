@@ -1288,3 +1288,29 @@ WorldPacket const* WorldPackets::Guild::GuildNews::Write()
 
     return &_worldPacket;
 }
+
+WorldPacket const* WorldPackets::Guild::GuildNameChanged::Write()
+{
+    _worldPacket.WriteBit(GuildGUID[5]);
+    _worldPacket.WriteBits(GuildName.length(), 8);
+    _worldPacket.WriteBit(GuildGUID[4]);
+    _worldPacket.WriteBit(GuildGUID[0]);
+    _worldPacket.WriteBit(GuildGUID[6]);
+    _worldPacket.WriteBit(GuildGUID[3]);
+    _worldPacket.WriteBit(GuildGUID[1]);
+    _worldPacket.WriteBit(GuildGUID[7]);
+    _worldPacket.WriteBit(GuildGUID[2]);
+    _worldPacket.FlushBits();
+
+    _worldPacket.WriteByteSeq(GuildGUID[3]);
+    _worldPacket.WriteByteSeq(GuildGUID[2]);
+    _worldPacket.WriteByteSeq(GuildGUID[7]);
+    _worldPacket.WriteByteSeq(GuildGUID[1]);
+    _worldPacket.WriteByteSeq(GuildGUID[0]);
+    _worldPacket.WriteByteSeq(GuildGUID[6]);
+    _worldPacket.WriteString(GuildName);
+    _worldPacket.WriteByteSeq(GuildGUID[4]);
+    _worldPacket.WriteByteSeq(GuildGUID[5]);
+
+    return &_worldPacket;
+}

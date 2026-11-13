@@ -565,3 +565,20 @@ void WorldSession::HandleGuildQueryMemberRecipe(WorldPackets::Guild::GuildQueryM
         if (guild->IsMember(GetPlayer()->GetGUID()) && guild->IsMember(packet.GuildMember))
             guild->SendRecipesOfMember(GetPlayer(), packet.SkillLineID, packet.GuildMember);
 }
+
+void WorldSession::HandleGuildRenameRequest(WorldPacket& recvData)
+{
+    uint32 length = recvData.ReadBits(8);
+    std::string newName = recvData.ReadString(length);
+
+    // TrinityCore lets any member rename the guild; keep it to the guild master
+    Guild* guild = GetPlayer()->GetGuild();
+    bool renamed = guild && guild->GetLeaderGUID() == GetPlayer()->GetGUID()
+        && !sGuildMgr->GetGuildByName(newName) && !sObjectMgr->IsReservedName(newName)
+        && guild->SetName(newName);
+
+    WorldPacket data(SMSG_GUILD_CHANGE_NAME_RESULT, 1);
+    data.WriteBit(renamed);
+    data.FlushBits();
+    SendPacket(&data);
+}
