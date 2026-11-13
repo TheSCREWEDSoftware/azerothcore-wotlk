@@ -84,6 +84,7 @@ void WorldSession::HandleGuildFinderBrowseOpcode(WorldPackets::GuildFinder::Brow
         entry.BackgroundColor = guild->GetEmblemInfo().GetBackgroundColor();
         entry.GuildLevel = guild->GetLevel();
         entry.MemberCount = guild->GetMemberCount();
+        entry.AchievementPoints = guild->GetAchievementMgr().GetAchievementPoints();
         entry.Interests = guildSettings.GetInterests();
         entry.Availability = guildSettings.GetAvailability();
         entry.ClassRoles = guildSettings.GetClassRoles();
