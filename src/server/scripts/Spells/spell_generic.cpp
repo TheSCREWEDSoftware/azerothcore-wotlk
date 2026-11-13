@@ -2792,8 +2792,12 @@ class spell_gen_spirit_healer_res : public SpellScript
         Player* originalCaster = GetOriginalCaster()->ToPlayer();
         if (Unit* target = GetHitUnit())
         {
-            WorldPacket data(SMSG_SPIRIT_HEALER_CONFIRM, 8);
-            data << target->GetGUID();
+            // 5.4.8 18414, from Project SkyFire
+            ObjectGuid healerGuid = target->GetGUID();
+            WorldPacket data(SMSG_SPIRIT_HEALER_CONFIRM, 1 + 8);
+            data.WriteGuidMask(healerGuid, { 6, 5, 7, 1, 4, 2, 3, 0 });
+            data.FlushBits();
+            data.WriteGuidBytes(healerGuid, { 0, 4, 2, 3, 7, 6, 5, 1 });
             originalCaster->SendDirectMessage(&data);
         }
     }

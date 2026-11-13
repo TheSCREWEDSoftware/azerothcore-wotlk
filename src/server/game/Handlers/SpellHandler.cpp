@@ -18,6 +18,7 @@
 #include "Archaeology.h"
 #include "DBCStores.h"
 #include "GameObjectAI.h"
+#include "Guild.h"
 #include "Log.h"
 #include "ObjectMgr.h"
 #include "MovementPackets.h"
@@ -780,76 +781,93 @@ void WorldSession::HandleMirrorImageDataRequest(WorldPacket& recvData)
     if (!creator)
         return;
 
-    WorldPacket data(SMSG_MIRRORIMAGE_DATA, 68);
-    data << guid;
+    // 5.4.8 18414, from Project SkyFire
+    Player* player = creator->ToPlayer();
+    if (!player)
+    {
+        WorldPacket data(SMSG_MIRROR_IMAGE_CREATURE_DATA, 1 + 8 + 4);
+        data.WriteGuidMask(guid, { 0, 1, 3, 5, 7, 6, 4, 2 });
+        data.FlushBits();
+        data.WriteGuidBytes(guid, { 0, 3, 6, 5, 7 });
+        data << uint32(creator->GetDisplayId());
+        data.WriteGuidBytes(guid, { 4, 2, 1 });
+        SendPacket(&data);
+        return;
+    }
+
+    static EquipmentSlots const itemSlots[] =
+    {
+        EQUIPMENT_SLOT_HEAD,
+        EQUIPMENT_SLOT_SHOULDERS,
+        EQUIPMENT_SLOT_BODY,
+        EQUIPMENT_SLOT_CHEST,
+        EQUIPMENT_SLOT_WAIST,
+        EQUIPMENT_SLOT_LEGS,
+        EQUIPMENT_SLOT_FEET,
+        EQUIPMENT_SLOT_WRISTS,
+        EQUIPMENT_SLOT_HANDS,
+        EQUIPMENT_SLOT_TABARD,
+        EQUIPMENT_SLOT_BACK
+    };
+
+    Guild* guild = player->GetGuild();
+    ObjectGuid guildGuid = guild ? guild->GetGUID() : ObjectGuid::Empty;
+
+    WorldPacket data(SMSG_MIRRORIMAGE_DATA, 3 + 8 + 8 + 4 + 7 + std::size(itemSlots) * 4);
+    data.WriteGuidMask(guid, { 4 });
+    data.WriteGuidMask(guildGuid, { 3, 6 });
+    data.WriteGuidMask(guid, { 0 });
+    data.WriteGuidMask(guildGuid, { 7 });
+    data.WriteGuidMask(guid, { 1, 5 });
+    data.WriteGuidMask(guildGuid, { 2, 1 });
+    data.WriteGuidMask(guid, { 7 });
+    data.WriteGuidMask(guildGuid, { 4, 0 });
+    data.WriteGuidMask(guid, { 2 });
+    data.WriteGuidMask(guildGuid, { 5 });
+    data.WriteGuidMask(guid, { 3 });
+    data.WriteBits(std::size(itemSlots), 22);
+    data.WriteGuidMask(guid, { 6 });
+    data.FlushBits();
+
+    data << uint8(player->GetByteValue(PLAYER_BYTES, 3));      // hair color
     data << uint32(creator->GetDisplayId());
+    data << uint8(player->GetByteValue(PLAYER_BYTES_2, 0));    // facial hair
+    data.WriteGuidBytes(guildGuid, { 6, 4 });
+    data.WriteGuidBytes(guid, { 7 });
+    data.WriteGuidBytes(guildGuid, { 1 });
+    data.WriteGuidBytes(guid, { 3 });
+    data << uint8(player->GetByteValue(PLAYER_BYTES, 2));      // hair
+    data.WriteGuidBytes(guid, { 2, 0 });
     data << uint8(creator->getRace());
-    data << uint8(creator->getGender());
-    data << uint8(creator->getClass());
+    data << uint8(player->GetByteValue(PLAYER_BYTES, 0));      // skin
+    data.WriteGuidBytes(guildGuid, { 7 });
 
-    if (creator->IsPlayer())
+    // Display items in visible slots
+    for (EquipmentSlots slot : itemSlots)
     {
-        Player* player = creator->ToPlayer();
-        data << uint8(player->GetByteValue(PLAYER_BYTES, 0));   // skin
-        data << uint8(player->GetByteValue(PLAYER_BYTES, 1));   // face
-        data << uint8(player->GetByteValue(PLAYER_BYTES, 2));   // hair
-        data << uint8(player->GetByteValue(PLAYER_BYTES, 3));   // haircolor
-        data << uint8(player->GetByteValue(PLAYER_BYTES_2, 0)); // facialhair
-        data << uint32(player->GetGuildId());                   // unk
-
-        static EquipmentSlots const itemSlots[] =
+        if (slot == EQUIPMENT_SLOT_HEAD && player->HasPlayerFlag(PLAYER_FLAGS_HIDE_HELM))
+            data << uint32(0);
+        else if (slot == EQUIPMENT_SLOT_BACK && player->HasPlayerFlag(PLAYER_FLAGS_HIDE_CLOAK))
+            data << uint32(0);
+        else if (Item const* item = player->GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
         {
-            EQUIPMENT_SLOT_HEAD,
-            EQUIPMENT_SLOT_SHOULDERS,
-            EQUIPMENT_SLOT_BODY,
-            EQUIPMENT_SLOT_CHEST,
-            EQUIPMENT_SLOT_WAIST,
-            EQUIPMENT_SLOT_LEGS,
-            EQUIPMENT_SLOT_FEET,
-            EQUIPMENT_SLOT_WRISTS,
-            EQUIPMENT_SLOT_HANDS,
-            EQUIPMENT_SLOT_BACK,
-            EQUIPMENT_SLOT_TABARD,
-            EQUIPMENT_SLOT_END
-        };
-
-        // Display items in visible slots
-        for (EquipmentSlots const* itr = &itemSlots[0]; *itr != EQUIPMENT_SLOT_END; ++itr)
-        {
-            if (*itr == EQUIPMENT_SLOT_HEAD && player->HasPlayerFlag(PLAYER_FLAGS_HIDE_HELM))
-                data << uint32(0);
-            else if (*itr == EQUIPMENT_SLOT_BACK && player->HasPlayerFlag(PLAYER_FLAGS_HIDE_CLOAK))
-                data << uint32(0);
-            else if (Item const* item = player->GetItemByPos(INVENTORY_SLOT_BAG_0, *itr))
-            {
-                uint32 displayInfoId = item->GetTemplate()->DisplayInfoID;
-
-                sScriptMgr->OnGlobalMirrorImageDisplayItem(item, displayInfoId);
-
-                data << uint32(displayInfoId);
-            }
-            else
-                data << uint32(0);
+            uint32 displayInfoId = item->GetTemplate()->DisplayInfoID;
+            sScriptMgr->OnGlobalMirrorImageDisplayItem(item, displayInfoId);
+            data << uint32(displayInfoId);
         }
+        else
+            data << uint32(0);
     }
-    else
-    {
-        // Skip player data for creatures
-        data << uint8(0);
-        data << uint32(0);
-        data << uint32(0);
-        data << uint32(0);
-        data << uint32(0);
-        data << uint32(0);
-        data << uint32(0);
-        data << uint32(0);
-        data << uint32(0);
-        data << uint32(0);
-        data << uint32(0);
-        data << uint32(0);
-        data << uint32(0);
-        data << uint32(0);
-    }
+
+    data.WriteGuidBytes(guid, { 4 });
+    data << uint8(creator->getClass());
+    data << uint8(creator->getGender());
+    data << uint8(player->GetByteValue(PLAYER_BYTES, 1));      // face
+    data.WriteGuidBytes(guid, { 5 });
+    data.WriteGuidBytes(guildGuid, { 3, 2 });
+    data.WriteGuidBytes(guid, { 1 });
+    data.WriteGuidBytes(guildGuid, { 0, 5 });
+    data.WriteGuidBytes(guid, { 6 });
 
     SendPacket(&data);
 }

@@ -728,31 +728,23 @@ void AchievementMgr::SendAchievementEarned(AchievementEntry const* achievement) 
     {
         // If guild exists - send its name to the server
         // If guild does not exist - send player's name to the server
-        if (achievement->flags & ACHIEVEMENT_FLAG_REALM_FIRST_KILL && guild)
-        {
-            WorldPacket data(SMSG_SERVER_FIRST_ACHIEVEMENT, guild->GetName().size() + 1 + 8 + 4 + 4);
-            data << guild->GetName();
-            data << GetPlayer()->GetGUID();
-            data << uint32(achievement->ID);
-            data << uint32(0);                                  // display name as plain string in chat (always 0 for guild)
-            sWorldSessionMgr->SendGlobalMessage(&data);
-        }
-        else
-        {
-            TeamId teamId = GetPlayer()->GetTeamId();
+        // 5.4.8 18414, from Project SkyFire: one layout for both, with a guild flag
+        bool guildAchievement = (achievement->flags & ACHIEVEMENT_FLAG_REALM_FIRST_KILL) && guild;
+        ObjectGuid guid = guildAchievement ? guild->GetGUID() : GetPlayer()->GetGUID();
+        std::string const& name = guildAchievement ? guild->GetName() : GetPlayer()->GetName();
 
-            // broadcast realm first reached
-            WorldPacket data(SMSG_SERVER_FIRST_ACHIEVEMENT, GetPlayer()->GetName().size() + 1 + 8 + 4 + 4);
-            data << GetPlayer()->GetName();
-            data << GetPlayer()->GetGUID();
-            data << uint32(achievement->ID);
-            std::size_t linkTypePos = data.wpos();
-            data << uint32(1);                                  // display name as clickable link in chat
-            sWorldSessionMgr->SendGlobalMessage(&data, nullptr, teamId);
-
-            data.put<uint32>(linkTypePos, 0);                   // display name as plain string in chat
-            sWorldSessionMgr->SendGlobalMessage(&data, nullptr, teamId == TEAM_ALLIANCE ? TEAM_HORDE : TEAM_ALLIANCE);
-        }
+        WorldPacket data(SMSG_SERVER_FIRST_ACHIEVEMENT, 2 + name.size() + 8 + 4);
+        data.WriteGuidMask(guid, { 5, 6, 3, 7, 0, 4 });
+        data.WriteBits(name.size(), 7);
+        data.WriteGuidMask(guid, { 2, 1 });
+        data.WriteBit(guildAchievement);
+        data.FlushBits();
+        data.WriteGuidBytes(guid, { 1 });
+        data.WriteString(name);
+        data.WriteGuidBytes(guid, { 0, 2 });
+        data << uint32(achievement->ID);
+        data.WriteGuidBytes(guid, { 6, 3, 4, 5, 7 });
+        sWorldSessionMgr->SendGlobalMessage(&data);
     }
     // if player is in world he can tell his friends about new achievement
     else if (GetPlayer()->IsInWorld())

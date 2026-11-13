@@ -14068,10 +14068,16 @@ void Unit::Kill(Unit* killer, Unit* victim, bool durabilityLoss, WeaponAttackTyp
 
             if (creature)
             {
-                WorldPacket data2(SMSG_LOOT_LIST, 8 + 1 + 1);
-                data2 << creature->GetGUID();
-                data2 << uint8(0); // unk1
-                data2 << uint8(0); // no group looter
+                // 5.4.8 18414, from Project SkyFire
+                ObjectGuid creatureGuid = creature->GetGUID();
+                WorldPacket data2(SMSG_LOOT_LIST, 2 + 8);
+                data2.WriteGuidMask(creatureGuid, { 5 });
+                data2.WriteBit(false);                      // has master looter
+                data2.WriteGuidMask(creatureGuid, { 1 });
+                data2.WriteBit(false);                      // has round robin winner
+                data2.WriteGuidMask(creatureGuid, { 4, 3, 2, 7, 0, 6 });
+                data2.FlushBits();
+                data2.WriteGuidBytes(creatureGuid, { 5, 1, 6, 2, 3, 0, 7, 4 });
                 player->SendMessageToSet(&data2, true);
             }
         }

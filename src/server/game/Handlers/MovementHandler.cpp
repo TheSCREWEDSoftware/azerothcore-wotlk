@@ -961,8 +961,12 @@ void WorldSession::HandleMoveNotActiveMover(WorldPacket& recvData)
 
 void WorldSession::HandleMountSpecialAnimOpcode(WorldPacket& /*recvData*/)
 {
-    WorldPacket data(SMSG_MOUNTSPECIAL_ANIM, 8);
-    data << GetPlayer()->GetGUID();
+    // 5.4.8 18414, from Project SkyFire
+    ObjectGuid guid = GetPlayer()->GetGUID();
+    WorldPacket data(SMSG_MOUNTSPECIAL_ANIM, 1 + 8);
+    data.WriteGuidMask(guid, { 5, 7, 0, 3, 2, 1, 4, 6 });
+    data.FlushBits();
+    data.WriteGuidBytes(guid, { 7, 2, 0, 4, 5, 6, 1, 3 });
 
     GetPlayer()->SendMessageToSet(&data, false);
 }

@@ -4489,9 +4489,27 @@ void Spell::EffectDuel(SpellEffIndex effIndex)
     //END
 
     // Send request
-    WorldPacket data(SMSG_DUEL_REQUESTED, 8 + 8);
-    data << pGameObj->GetGUID();
-    data << caster->GetGUID();
+    // 5.4.8 18414, from Project SkyFire
+    ObjectGuid arbiterGuid = pGameObj->GetGUID();
+    ObjectGuid casterGuid = caster->GetGUID();
+    WorldPacket data(SMSG_DUEL_REQUESTED, 2 + 8 + 8);
+    data.WriteGuidMask(arbiterGuid, { 5 });
+    data.WriteGuidMask(casterGuid, { 4, 2, 7 });
+    data.WriteGuidMask(arbiterGuid, { 0 });
+    data.WriteGuidMask(casterGuid, { 5 });
+    data.WriteGuidMask(arbiterGuid, { 4, 6 });
+    data.WriteGuidMask(casterGuid, { 1, 3, 6 });
+    data.WriteGuidMask(arbiterGuid, { 7, 3, 2, 1 });
+    data.WriteGuidMask(casterGuid, { 0 });
+    data.FlushBits();
+    data.WriteGuidBytes(arbiterGuid, { 5, 3 });
+    data.WriteGuidBytes(casterGuid, { 7, 4 });
+    data.WriteGuidBytes(arbiterGuid, { 7 });
+    data.WriteGuidBytes(casterGuid, { 3, 6, 0 });
+    data.WriteGuidBytes(arbiterGuid, { 4 });
+    data.WriteGuidBytes(casterGuid, { 2, 1 });
+    data.WriteGuidBytes(arbiterGuid, { 0, 2, 6, 1 });
+    data.WriteGuidBytes(casterGuid, { 5 });
     caster->SendDirectMessage(&data);
     target->SendDirectMessage(&data);
 
@@ -4579,11 +4597,7 @@ void Spell::EffectSummonPlayer(SpellEffIndex /*effIndex*/)
 
     player->SetSummonPoint(unitCaster->GetMapId(), x, y, z);
 
-    WorldPacket data(SMSG_SUMMON_REQUEST, 8 + 4 + 4);
-    data << unitCaster->GetGUID();                                // summoner guid
-    data << uint32(unitCaster->GetZoneId());                      // summoner zone
-    data << uint32(MAX_PLAYER_SUMMON_DELAY * IN_MILLISECONDS);  // auto decline after msecs
-    player->SendDirectMessage(&data);
+    player->SendSummonRequest(unitCaster->GetGUID(), unitCaster->GetZoneId(), MAX_PLAYER_SUMMON_DELAY * IN_MILLISECONDS);
 }
 
 void Spell::EffectActivateObject(SpellEffIndex effIndex)
@@ -5183,8 +5197,12 @@ void Spell::EffectForceDeselect(SpellEffIndex /*effIndex*/)
     // xinef: clear focus
     unitCaster->SendClearTarget();
 
-    WorldPacket data(SMSG_CLEAR_TARGET, 8);
-    data << unitCaster->GetGUID();
+    // 5.4.8 18414, from Project SkyFire
+    ObjectGuid casterGuid = unitCaster->GetGUID();
+    WorldPacket data(SMSG_CLEAR_TARGET, 1 + 8);
+    data.WriteGuidMask(casterGuid, { 6, 2, 0, 4, 7, 1, 3, 5 });
+    data.FlushBits();
+    data.WriteGuidBytes(casterGuid, { 4, 0, 3, 5, 2, 7, 6, 1 });
 
     float dist = unitCaster->GetVisibilityRange() + VISIBILITY_COMPENSATION;
     Acore::MessageDistDelivererToHostile notifier(unitCaster, &data, dist);
@@ -6853,8 +6871,12 @@ void Spell::EffectBind(SpellEffIndex effIndex)
     LOG_DEBUG("spells.aura", "EffectBind: New homebind X: {}, Y: {}, Z: {}, MapId: {}, AreaId: {}",
                    homeLoc.GetPositionX(), homeLoc.GetPositionY(), homeLoc.GetPositionZ(), homeLoc.GetMapId(), areaId);
     // zone update
-    data.Initialize(SMSG_PLAYERBOUND, 8 + 4);
-    data << unitCaster->GetGUID();
+    // 5.4.8 18414, from Project SkyFire (which wrote the mask a second time where the bytes go)
+    ObjectGuid binderGuid = unitCaster->GetGUID();
+    data.Initialize(SMSG_PLAYERBOUND, 1 + 8 + 4);
+    data.WriteGuidMask(binderGuid, { 2, 4, 0, 3, 6, 7, 5, 1 });
+    data.FlushBits();
+    data.WriteGuidBytes(binderGuid, { 6, 1, 2, 3, 4, 5, 7, 0 });
     data << uint32(areaId);
     player->SendDirectMessage(&data);
 }
@@ -6883,11 +6905,7 @@ void Spell::EffectSummonRaFFriend(SpellEffIndex  /*effIndex*/)
     float x, y, z;
     unitCaster->GetPosition(x, y, z);
     unitTarget->ToPlayer()->SetSummonPoint(unitCaster->GetMapId(), x, y, z);
-    WorldPacket data(SMSG_SUMMON_REQUEST, 8 + 4 + 4);
-    data << unitCaster->GetGUID();
-    data << uint32(unitCaster->GetZoneId());
-    data << uint32(MAX_PLAYER_SUMMON_DELAY * IN_MILLISECONDS); // auto decline after msecs
-    player->SendDirectMessage(&data);
+    player->SendSummonRequest(unitCaster->GetGUID(), unitCaster->GetZoneId(), MAX_PLAYER_SUMMON_DELAY * IN_MILLISECONDS);
 }
 
 void Spell::EffectDamageFromMaxHealthPCT(SpellEffIndex /*effIndex*/)

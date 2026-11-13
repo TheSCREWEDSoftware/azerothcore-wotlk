@@ -623,11 +623,7 @@ inline void Battleground::_ProcessJoin(uint32 diff)
 
                             p->SetSummonPoint(t->GetMapId(), t->GetPositionX(), t->GetPositionY(), t->GetPositionZ(), 15, true);
 
-                            WorldPacket data(SMSG_SUMMON_REQUEST, 8 + 4 + 4);
-                            data << t->GetGUID();
-                            data << uint32(t->GetZoneId());
-                            data << uint32(15 * IN_MILLISECONDS);
-                            p->SendDirectMessage(&data);
+                            p->SendSummonRequest(t->GetGUID(), t->GetZoneId(), 15 * IN_MILLISECONDS);
                         }
                 m_ToBeTeleported.clear();
             }

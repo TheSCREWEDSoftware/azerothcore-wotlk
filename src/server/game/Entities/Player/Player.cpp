@@ -6413,10 +6413,13 @@ bool Player::RewardHonor(Unit* uVictim, uint32 groupsize, int32 honor, bool awar
     // victim_rank [1..4]  HK: <dishonored rank>
     // victim_rank [5..19] HK: <alliance\horde rank>
     // victim_rank [0, 20+] HK: <>
-    WorldPacket data(SMSG_PVP_CREDIT, 4 + 8 + 4);
-    data << honor;
-    data << victim_guid;
-    data << victim_rank;
+    // 5.4.8 18414, from Project SkyFire
+    WorldPacket data(SMSG_PVP_CREDIT, 4 + 4 + 1 + 8);
+    data << uint32(honor);
+    data << uint32(victim_rank);
+    data.WriteGuidMask(victim_guid, { 4, 2, 5, 3, 0, 6, 1, 7 });
+    data.FlushBits();
+    data.WriteGuidBytes(victim_guid, { 6, 7, 5, 0, 1, 3, 4, 2 });
 
     // Xinef: non quest case, quest honor obtain is send in quest reward packet
     if (uVictim || groupsize > 0)
@@ -9567,9 +9570,7 @@ void Player::RemovePet(Pet* pet, PetSaveMode mode, bool returnreagent)
 
         if (pet->isControlled())
         {
-            WorldPacket data(SMSG_PET_SPELLS, 8);
-            data << uint64(0);
-            SendDirectMessage(&data);
+            SendRemoveControlBar();
 
             if (GetGroup())
                 SetGroupUpdateFlag(GROUP_UPDATE_PET);
@@ -9963,6 +9964,45 @@ bool Player::CanControlPet(uint32 spellId /*= 0*/) const
     return true;
 }
 
+// 5.4.8 18414, from Project SkyFire
+void Player::BuildPetSpellsMessage(WorldPacket& data, PetSpellsMessageData const& message)
+{
+    ObjectGuid const& guid = message.Guid;
+    data.Initialize(SMSG_PET_SPELLS, 3 + 8 + 2 + 2 + 4 + 4 + 4 * MAX_UNIT_ACTION_BAR_INDEX + 4 * message.Spells.size() + 14 * message.Cooldowns.size());
+    data.WriteGuidMask(guid, { 7, 4 });
+    data.WriteBits(0, 21);                                  // spell history count
+    data.WriteBits(message.Spells.size(), 22);
+    data.WriteGuidMask(guid, { 2 });
+    data.WriteBits(message.Cooldowns.size(), 20);
+    data.WriteGuidMask(guid, { 5, 3, 6, 0, 1 });
+    data.FlushBits();
+
+    for (uint32 action : message.ActionBar)
+        data << uint32(action);
+
+    for (PetSpellsMessageData::Cooldown const& cooldown : message.Cooldowns)
+    {
+        data << uint32(cooldown.CategoryCooldown);
+        data << uint32(cooldown.SpellId);
+        data << uint16(cooldown.Category);
+        data << uint32(cooldown.Cooldown);
+    }
+
+    data.WriteGuidBytes(guid, { 2 });
+    for (uint32 spell : message.Spells)
+        data << uint32(spell);
+
+    data.WriteGuidBytes(guid, { 7, 0, 3 });
+    data << uint16(message.Family);
+    data << uint16(message.Specialization);
+    data.WriteGuidBytes(guid, { 1, 4, 6 });
+    data << uint32(message.Duration);
+    data.WriteGuidBytes(guid, { 5 });
+    data << uint8(message.ReactState);
+    data << uint8(message.CommandState);
+    data << uint16(message.Flags);
+}
+
 void Player::PetSpellInitialize()
 {
     // Do not send the pet action bar when Hunters or Warlocks cannot control their pet
@@ -9978,64 +10018,43 @@ void Player::PetSpellInitialize()
 
     CharmInfo* charmInfo = pet->GetCharmInfo();
 
-    WorldPacket data(SMSG_PET_SPELLS, 8 + 2 + 4 + 4 + 4 * MAX_UNIT_ACTION_BAR_INDEX + 1 + 1);
-    data << pet->GetGUID();
-    data << uint16(pet->GetCreatureTemplate()->family);         // creature family (required for pet talents)
-    data << uint32(pet->GetDuration().count());
-    data << uint8(pet->GetReactState());
-    data << uint8(charmInfo->GetCommandState());
-    data << uint16(0); // Flags, mostly unknown
-
-    // action bar loop
-    charmInfo->BuildActionBar(&data);
-
-    std::size_t spellsCountPos = data.wpos();
-
-    // spells count
-    uint8 addlist = 0;
-    data << uint8(addlist);                                 // placeholder
+    PetSpellsMessageData message;
+    message.Guid = pet->GetGUID();
+    message.Family = pet->GetCreatureTemplate()->family;     // creature family (required for pet talents)
+    message.Duration = pet->GetDuration().count();
+    message.ReactState = pet->GetReactState();
+    message.CommandState = charmInfo->GetCommandState();
+    for (uint32 i = 0; i < MAX_UNIT_ACTION_BAR_INDEX; ++i)
+        message.ActionBar[i] = charmInfo->GetActionBarEntry(i)->packedData;
 
     if (pet->IsPermanentPetFor(this))
-    {
-        // spells loop
         for (PetSpellMap::iterator itr = pet->m_spells.begin(); itr != pet->m_spells.end(); ++itr)
-        {
-            if (itr->second.state == PETSPELL_REMOVED)
-                continue;
-
-            data << uint32(MAKE_UNIT_ACTION_BUTTON(itr->first, itr->second.active));
-            ++addlist;
-        }
-    }
-
-    data.put<uint8>(spellsCountPos, addlist);
-
-    uint8 cooldownsCount = pet->m_CreatureSpellCooldowns.size();
-    data << uint8(cooldownsCount);
+            if (itr->second.state != PETSPELL_REMOVED)
+                message.Spells.push_back(MAKE_UNIT_ACTION_BUTTON(itr->first, itr->second.active));
 
     uint32 curTime = GameTime::GetGameTimeMS().count();
     uint32 infTime = GameTime::GetGameTimeMS().count() + infinityCooldownDelayCheck;
-
     for (CreatureSpellCooldowns::const_iterator itr = pet->m_CreatureSpellCooldowns.begin(); itr != pet->m_CreatureSpellCooldowns.end(); ++itr)
     {
-        uint16 category = itr->second.category;
-        uint32 cooldown = (itr->second.end > curTime) ? itr->second.end - curTime : 0;
-
-        data << uint32(itr->first);                         // spellid
-        data << uint16(itr->second.category);               // spell category
+        PetSpellsMessageData::Cooldown& cooldown = message.Cooldowns.emplace_back();
+        cooldown.SpellId = itr->first;
+        cooldown.Category = itr->second.category;
 
         // send infinity cooldown in special format
         if (itr->second.end >= infTime)
         {
-            data << uint32(1);                              // cooldown
-            data << uint32(0x80000000);                     // category cooldown
+            cooldown.Cooldown = 1;
+            cooldown.CategoryCooldown = 0x80000000;
             continue;
         }
 
-        data << uint32(category ? 0 : cooldown);            // cooldown
-        data << uint32(category ? cooldown : 0);            // category cooldown
+        uint32 remaining = (itr->second.end > curTime) ? itr->second.end - curTime : 0;
+        cooldown.Cooldown = itr->second.category ? 0 : remaining;
+        cooldown.CategoryCooldown = itr->second.category ? remaining : 0;
     }
 
+    WorldPacket data;
+    BuildPetSpellsMessage(data, message);
     SendDirectMessage(&data);
 }
 
@@ -10053,17 +10072,13 @@ void Player::PossessSpellInitialize()
         return;
     }
 
-    WorldPacket data(SMSG_PET_SPELLS, 8 + 2 + 4 + 4 + 4 * MAX_UNIT_ACTION_BAR_INDEX + 1 + 1);
-    data << charm->GetGUID();
-    data << uint16(0);
-    data << uint32(0);
-    data << uint32(0);
+    PetSpellsMessageData message;
+    message.Guid = charm->GetGUID();
+    for (uint32 i = 0; i < MAX_UNIT_ACTION_BAR_INDEX; ++i)
+        message.ActionBar[i] = charmInfo->GetActionBarEntry(i)->packedData;
 
-    charmInfo->BuildActionBar(&data);
-
-    data << uint8(0);                                       // spells count
-    data << uint8(0);                                       // cooldowns count
-
+    WorldPacket data;
+    BuildPetSpellsMessage(data, message);
     SendDirectMessage(&data);
 }
 
@@ -10073,16 +10088,11 @@ void Player::VehicleSpellInitialize()
     if (!vehicle)
         return;
 
-    uint8 cooldownCount = vehicle->m_CreatureSpellCooldowns.size();
-
-    WorldPacket data(SMSG_PET_SPELLS, 8 + 2 + 4 + 4 + 4 * 10 + 1 + 1 + cooldownCount * (4 + 2 + 4 + 4));
-    data << vehicle->GetGUID();                             // Guid
-    data << uint16(0);                                      // Pet Family (0 for all vehicles)
-    data << uint32(vehicle->IsSummon() ? vehicle->ToTempSummon()->GetTimer() : 0); // Duration
-    // The following three segments are read by the client as one uint32
-    data << uint8(vehicle->GetReactState());                // React State
-    data << uint8(0);                                       // Command State
-    data << uint16(0x800);                                  // DisableActions (set for all vehicles)
+    PetSpellsMessageData message;
+    message.Guid = vehicle->GetGUID();
+    message.Duration = vehicle->IsSummon() ? vehicle->ToTempSummon()->GetTimer() : 0;
+    message.ReactState = vehicle->GetReactState();
+    message.Flags = 0x800;                                  // DisableActions (set for all vehicles)
 
     for (uint32 i = 0; i < MAX_CREATURE_SPELLS; ++i)
     {
@@ -10090,7 +10100,7 @@ void Player::VehicleSpellInitialize()
         SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(spellId);
         if (!spellInfo)
         {
-            data << uint16(0) << uint8(0) << uint8(i + 8);
+            message.ActionBar[i] = MAKE_UNIT_ACTION_BUTTON(0, i + 8);
             continue;
         }
 
@@ -10098,47 +10108,39 @@ void Player::VehicleSpellInitialize()
         if (!sConditionMgr->IsObjectMeetToConditions(this, vehicle, conditions))
         {
             LOG_DEBUG("condition", "VehicleSpellInitialize: conditions not met for Vehicle entry {} spell {}", vehicle->ToCreature()->GetEntry(), spellId);
-            data << uint16(0) << uint8(0) << uint8(i + 8);
+            message.ActionBar[i] = MAKE_UNIT_ACTION_BUTTON(0, i + 8);
             continue;
         }
 
         if (spellInfo->IsPassive())
             vehicle->CastSpell(vehicle, spellId, true);
 
-        data << uint32(MAKE_UNIT_ACTION_BUTTON(spellId, i + 8));
+        message.ActionBar[i] = MAKE_UNIT_ACTION_BUTTON(spellId, i + 8);
     }
-
-    for (uint32 i = MAX_CREATURE_SPELLS; i < MAX_SPELL_CONTROL_BAR; ++i)
-        data << uint32(0);
-
-    data << uint8(0); // Auras?
-
-    // Cooldowns
-    data << uint8(cooldownCount);
 
     uint32 curTime = GameTime::GetGameTimeMS().count();
     uint32 infTime = GameTime::GetGameTimeMS().count() + infinityCooldownDelayCheck;
-
     for (CreatureSpellCooldowns::const_iterator itr = vehicle->m_CreatureSpellCooldowns.begin(); itr != vehicle->m_CreatureSpellCooldowns.end(); ++itr)
     {
-        uint16 category = itr->second.category;
-        uint32 cooldown = (itr->second.end > curTime) ? itr->second.end - curTime : 0;
-
-        data << uint32(itr->first);              // spellid
-        data << uint16(itr->second.category);    // spell category
+        PetSpellsMessageData::Cooldown& cooldown = message.Cooldowns.emplace_back();
+        cooldown.SpellId = itr->first;
+        cooldown.Category = itr->second.category;
 
         // send infinity cooldown in special format
         if (itr->second.end >= infTime)
         {
-            data << uint32(1);                  // cooldown
-            data << uint32(0x80000000);         // category cooldown
+            cooldown.Cooldown = 1;
+            cooldown.CategoryCooldown = 0x80000000;
             continue;
         }
 
-        data << uint32(category ? 0 : cooldown); // cooldown
-        data << uint32(category ? cooldown : 0); // category cooldown
+        uint32 remaining = (itr->second.end > curTime) ? itr->second.end - curTime : 0;
+        cooldown.Cooldown = itr->second.category ? 0 : remaining;
+        cooldown.CategoryCooldown = itr->second.category ? remaining : 0;
     }
 
+    WorldPacket data;
+    BuildPetSpellsMessage(data, message);
     SendDirectMessage(&data);
 }
 
@@ -10155,51 +10157,33 @@ void Player::CharmSpellInitialize()
         return;
     }
 
-    uint8 addlist = 0;
+    PetSpellsMessageData message;
+    message.Guid = charm->GetGUID();
     if (!charm->IsPlayer())
     {
-        //CreatureInfo const* cinfo = charm->ToCreature()->GetCreatureTemplate();
-        //if (cinfo && cinfo->type == CREATURE_TYPE_DEMON && getClass() == CLASS_WARLOCK)
-        {
-            for (uint32 i = 0; i < MAX_SPELL_CHARM; ++i)
-                if (charmInfo->GetCharmSpell(i)->GetAction())
-                    ++addlist;
-        }
-    }
+        message.ReactState = charm->ToCreature()->GetReactState();
+        message.CommandState = charmInfo->GetCommandState();
 
-    WorldPacket data(SMSG_PET_SPELLS, 8 + 2 + 4 + 4 + 4 * MAX_UNIT_ACTION_BAR_INDEX + 1 + 4 * addlist + 1);
-    data << charm->GetGUID();
-    data << uint16(0);
-    data << uint32(0);
-
-    if (!charm->IsPlayer())
-        data << uint8(charm->ToCreature()->GetReactState()) << uint8(charmInfo->GetCommandState()) << uint16(0);
-    else
-        data << uint32(0);
-
-    charmInfo->BuildActionBar(&data);
-
-    data << uint8(addlist);
-
-    if (addlist)
-    {
         for (uint32 i = 0; i < MAX_SPELL_CHARM; ++i)
         {
             CharmSpellInfo* cspell = charmInfo->GetCharmSpell(i);
             if (cspell->GetAction())
-                data << uint32(cspell->packedData);
+                message.Spells.push_back(cspell->packedData);
         }
     }
 
-    data << uint8(0);                                       // cooldowns count
+    for (uint32 i = 0; i < MAX_UNIT_ACTION_BAR_INDEX; ++i)
+        message.ActionBar[i] = charmInfo->GetActionBarEntry(i)->packedData;
 
+    WorldPacket data;
+    BuildPetSpellsMessage(data, message);
     SendDirectMessage(&data);
 }
 
 void Player::SendRemoveControlBar()
 {
-    WorldPacket data(SMSG_PET_SPELLS, 8);
-    data << uint64(0);
+    WorldPacket data;
+    BuildPetSpellsMessage(data, PetSpellsMessageData());
     SendDirectMessage(&data);
 }
 
@@ -11318,11 +11302,17 @@ inline bool Player::_StoreOrEquipNewItem(uint32 vendorslot, uint32 item, uint32 
     {
         uint32 new_count = pVendor->UpdateVendorItemCurrentCount(crItem, count);
 
-        WorldPacket data(SMSG_BUY_ITEM, (8 + 4 + 4 + 4));
-        data << pVendor->GetGUID();
-        data << uint32(vendorslot + 1);                   // numbered from 1 at client
-        data << int32(crItem->maxcount > 0 ? new_count : 0xFFFFFFFF);
+        // 5.4.8 18414, from Project SkyFire
+        ObjectGuid vendorGuid = pVendor->GetGUID();
+        WorldPacket data(SMSG_BUY_ITEM, 1 + 8 + 4 + 4 + 4);
+        data.WriteGuidMask(vendorGuid, { 3, 4, 7, 6, 0, 2, 1, 5 });
+        data.FlushBits();
+        data.WriteGuidBytes(vendorGuid, { 6, 7 });
         data << uint32(count);
+        data.WriteGuidBytes(vendorGuid, { 1, 3, 5, 2 });
+        data << int32(crItem->maxcount > 0 ? new_count : 0xFFFFFFFF);
+        data.WriteGuidBytes(vendorGuid, { 0, 4 });
+        data << uint32(vendorslot + 1);                   // numbered from 1 at client
         SendDirectMessage(&data);
         SendNewItem(it, count, true, false, false);
 
@@ -15539,6 +15529,20 @@ void Player::BuildEnchantmentsInfoData(WorldPacket* data)
     }
 
     data->put<uint32>(slotUsedMaskPos, slotUsedMask);
+}
+
+// 5.4.8 18414, from Project SkyFire
+void Player::SendSummonRequest(ObjectGuid summonerGuid, uint32 zoneId, uint32 timeoutMs) const
+{
+    WorldPacket data(SMSG_SUMMON_REQUEST, 1 + 8 + 4 + 4);
+    data.WriteGuidMask(summonerGuid, { 0, 6, 3, 2, 1, 4, 7, 5 });
+    data.FlushBits();
+    data.WriteGuidBytes(summonerGuid, { 4 });
+    data << uint32(zoneId);                                 // summoner zone
+    data.WriteGuidBytes(summonerGuid, { 7, 3, 1 });
+    data << uint32(timeoutMs);                              // auto decline after msecs
+    data.WriteGuidBytes(summonerGuid, { 2, 6, 5, 0 });
+    SendDirectMessage(&data);
 }
 
 void Player::SendEquipmentSetList()

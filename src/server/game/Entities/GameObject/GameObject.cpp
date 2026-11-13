@@ -1781,8 +1781,12 @@ void GameObject::Use(Unit* user)
 
                     if (info->goober.pageId)                    // show page...
                     {
-                        WorldPacket data(SMSG_GAMEOBJECT_PAGETEXT, 8);
-                        data << GetGUID();
+                        // 5.4.8 18414, from Project SkyFire
+                        ObjectGuid guid = GetGUID();
+                        WorldPacket data(SMSG_GAMEOBJECT_PAGETEXT, 1 + 8);
+                        data.WriteGuidMask(guid, { 0, 3, 2, 6, 5, 1, 7, 4 });
+                        data.FlushBits();
+                        data.WriteGuidBytes(guid, { 6, 2, 7, 0, 5, 3, 1, 4 });
                         player->SendDirectMessage(&data);
                     }
                     else if (info->goober.gossipID)
@@ -2259,9 +2263,15 @@ void GameObject::PlayAnimKit(int32 animKit)
 
 void GameObject::SendCustomAnim(uint32 anim)
 {
-    WorldPacket data(SMSG_GAMEOBJECT_CUSTOM_ANIM, 8 + 4);
-    data << GetGUID();
+    // 5.4.8 18414, from Project SkyFire
+    ObjectGuid guid = GetGUID();
+    WorldPacket data(SMSG_GAMEOBJECT_CUSTOM_ANIM, 2 + 8 + 4);
+    data.WriteGuidMask(guid, { 4, 7, 1, 0, 5, 3, 2 });
+    data.WriteBit(false);                                   // play as despawn
+    data.WriteGuidMask(guid, { 6 });
+    data.FlushBits();
     data << uint32(anim);
+    data.WriteGuidBytes(guid, { 5, 6, 7, 3, 4, 0, 2, 1 });
     SendMessageToSet(&data, true);
 }
 

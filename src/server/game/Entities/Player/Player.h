@@ -1107,6 +1107,29 @@ struct PendingSpellCastRequest
         : spellId(spellId), category(category), requestPacket(std::move(packet)), isItem(item) , cancelInProgress(cancel) {}
 };
 
+// SMSG_PET_SPELLS contents (the action bar sent for pets, vehicles, charms and possessed units)
+struct PetSpellsMessageData
+{
+    ObjectGuid Guid;
+    uint16 Family = 0;
+    uint16 Specialization = 0;
+    uint32 Duration = 0;
+    uint8 ReactState = 0;
+    uint8 CommandState = 0;
+    uint16 Flags = 0;
+    std::array<uint32, MAX_UNIT_ACTION_BAR_INDEX> ActionBar = { };
+    std::vector<uint32> Spells;
+
+    struct Cooldown
+    {
+        uint32 SpellId = 0;
+        uint16 Category = 0;
+        uint32 Cooldown = 0;
+        uint32 CategoryCooldown = 0;
+    };
+    std::vector<Cooldown> Cooldowns;
+};
+
 class Player : public Unit, public GridObject<Player>
 {
     friend class WorldSession;
@@ -1137,6 +1160,7 @@ public:
     }
     bool TeleportToEntryPoint();
 
+    void SendSummonRequest(ObjectGuid summonerGuid, uint32 zoneId, uint32 timeoutMs) const;
     void SetSummonPoint(uint32 mapid, float x, float y, float z, uint32 delay = 0, bool asSpectator = false);
     [[nodiscard]] bool IsSummonAsSpectator() const;
     void SetSummonAsSpectator(bool on) { m_summon_asSpectator = on; }
@@ -1742,6 +1766,7 @@ public:
     }
 
     [[nodiscard]] bool CanControlPet(uint32 spellId = 0) const;
+    static void BuildPetSpellsMessage(WorldPacket& data, PetSpellsMessageData const& message);
     void PetSpellInitialize();
     void CharmSpellInitialize();
     void PossessSpellInitialize();

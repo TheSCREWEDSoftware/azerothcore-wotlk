@@ -294,11 +294,16 @@ void Object::DestroyForPlayer(Player* target, bool onDeath) const
         }
     }
 
-    WorldPacket data(SMSG_DESTROY_OBJECT, 8 + 1);
-    data << GetGUID();
+    // 5.4.8 18414, from Project SkyFire
+    ObjectGuid guid = GetGUID();
+    WorldPacket data(SMSG_DESTROY_OBJECT, 1 + 8);
+    data.WriteGuidMask(guid, { 3, 2, 4, 1 });
     //! If the following bool is true, the client will call "void CGUnit_C::OnDeath()" for this object.
     //! OnDeath() does for eg trigger death animation and interrupts certain spells/missiles/auras/sounds...
-    data << uint8(onDeath ? 1 : 0);
+    data.WriteBit(onDeath);
+    data.WriteGuidMask(guid, { 7, 0, 6, 5 });
+    data.FlushBits();
+    data.WriteGuidBytes(guid, { 0, 4, 7, 2, 6, 3, 1, 5 });
     target->SendDirectMessage(&data);
 }
 
@@ -2703,8 +2708,11 @@ void WorldObject::SendMessageToSet(WorldPacket const* data, Player const* skippe
 
 void WorldObject::SendObjectDeSpawnAnim(ObjectGuid guid)
 {
-    WorldPacket data(SMSG_GAMEOBJECT_DESPAWN_ANIM, 8);
-    data << guid;
+    // 5.4.8 18414, from Project SkyFire
+    WorldPacket data(SMSG_GAMEOBJECT_DESPAWN_ANIM, 1 + 8);
+    data.WriteGuidMask(guid, { 0, 2, 4, 1, 7, 3, 6, 5 });
+    data.FlushBits();
+    data.WriteGuidBytes(guid, { 0, 2, 4, 5, 7, 3, 1, 6 });
     SendMessageToSet(&data, true);
 }
 

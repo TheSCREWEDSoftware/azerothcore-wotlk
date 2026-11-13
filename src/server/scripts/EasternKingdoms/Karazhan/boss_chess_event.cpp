@@ -1529,33 +1529,24 @@ struct npc_chesspiece : public ScriptedAI
             // Build new action bar
             if (Player* playerCharmer = charmer->ToPlayer())
             {
-                WorldPacket data(SMSG_PET_SPELLS, 1 + 8 + 2 + 4 + 1 + 1 + 2 + MAX_SPELL_CONTROL_BAR * 4 + 1 + 1);
-                data << me->GetGUID();
-                data << uint16(0);
-                data << uint32(0);
-                data << uint8(me->GetReactState());
-                data << uint8(0);
-                data << uint16(0);
+                PetSpellsMessageData message;
+                message.Guid = me->GetGUID();
+                message.ReactState = me->GetReactState();
 
                 for (uint32 i = 0; i < MAX_CREATURE_SPELLS; ++i)
                 {
                     uint32 spellId = me->m_spells[i];
-                    SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(spellId);
-                    if (!spellInfo)
+                    if (!sSpellMgr->GetSpellInfo(spellId))
                     {
-                        data << uint16(0) << uint8(0) << uint8(i + 8);
+                        message.ActionBar[i] = MAKE_UNIT_ACTION_BUTTON(0, i + 8);
                         continue;
                     }
 
-                    data << uint32(MAKE_UNIT_ACTION_BUTTON(spellId, ACT_ENABLED));
+                    message.ActionBar[i] = MAKE_UNIT_ACTION_BUTTON(spellId, ACT_ENABLED);
                 }
 
-                for (uint32 i = MAX_CREATURE_SPELLS; i < MAX_SPELL_CONTROL_BAR; ++i)
-                    data << uint32(0);
-
-                data << uint8(0);
-                data << uint8(0);
-
+                WorldPacket data;
+                Player::BuildPetSpellsMessage(data, message);
                 playerCharmer->SendDirectMessage(&data);
             }
         }
