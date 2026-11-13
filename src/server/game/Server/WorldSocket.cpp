@@ -233,10 +233,12 @@ void WorldSocket::CheckIpCallback(PreparedQueryResult result)
     AsyncReadWithCallback(&WorldSocket::InitializeHandler);
 
     MessageBuffer initializer;
-    ServerPktHeader header(ServerConnectionInitialize.size(), 0);
-    LOG_INFO("network", "WorldSocket::CheckIpCallback: Sending initializer data to client. Size: {}, Header size: {}", ServerConnectionInitialize.size(), header.getHeaderLength());
-    initializer.Write(header.header, header.getHeaderLength() - 2);
-    initializer.Write(ServerConnectionInitialize.c_str(), ServerConnectionInitialize.length());
+    // 5.4.8: little endian uint16 size, then the string with its terminator; its first two
+    // characters stand where the opcode would be
+    uint16 const initializerSize = uint16(ServerConnectionInitialize.length() + 1);
+    uint8 const sizeBytes[2] = { uint8(initializerSize), uint8(initializerSize >> 8) };
+    initializer.Write(sizeBytes, sizeof(sizeBytes));
+    initializer.Write(ServerConnectionInitialize.c_str(), ServerConnectionInitialize.length() + 1);
 
     QueuePacket(std::move(initializer));
 }
@@ -330,7 +332,7 @@ void WorldSocket::InitializeHandler(boost::system::error_code error, std::size_t
         }
         _compressionStream = compressionStream.release();
 
-        _headerBuffer.Resize(sizeof(ClientPktHeader));
+        _headerBuffer.Resize(GetClientHeaderSize());
         _headerBuffer.Reset();
         _packetBuffer.Reset();
         LOG_INFO("network", "WorldSocket::InitializeHandler: Initialization successful, sending auth session.");
@@ -353,7 +355,7 @@ bool WorldSocket::Update()
         do
         {
             queued->CompressIfNeeded(_compressionStream);
-            ServerPktHeader header(queued->size() + 2, queued->GetOpcode());
+            ServerPktHeader header(queued->size(), queued->GetOpcode(), queued->NeedsEncryption());
             if (queued->NeedsEncryption())
             {
                 _authCrypt.EncryptSend(header.header, header.getHeaderLength());
@@ -467,6 +469,8 @@ SocketReadCallbackResult WorldSocket::ReadHandler()
 
         // just received fresh new payload
         ReadDataHandlerResult result = ReadDataHandler();
+        // the header shrinks to 4 bytes once the session is encrypted
+        _headerBuffer.Resize(GetClientHeaderSize());
         _headerBuffer.Reset();
 
         if (result != ReadDataHandlerResult::Ok)
@@ -483,34 +487,61 @@ SocketReadCallbackResult WorldSocket::ReadHandler()
     return SocketReadCallbackResult::KeepReading;
 }
 
+std::size_t WorldSocket::GetClientHeaderSize() const
+{
+    // 5.4.8: 4 encrypted bytes, or uint16 size + uint32 opcode before encryption
+    return _authCrypt.IsInitialized() ? 4 : sizeof(ClientPktHeader);
+}
+
 bool WorldSocket::ReadHeaderHandler(bool initialized)
 {
-    ASSERT(_headerBuffer.GetActiveSize() == (initialized ? sizeof(ClientPktHeader) : 2));
-
-    if (_authCrypt.IsInitialized())
+    if (!initialized)
     {
-        _authCrypt.DecryptRecv(_headerBuffer.GetReadPointer(), sizeof(ClientPktHeader));
+        // connection string: little endian uint16 size only
+        ASSERT(_headerBuffer.GetActiveSize() == 2);
+        uint8 const* sizeBytes = _headerBuffer.GetReadPointer();
+        uint16 initializerSize = uint16(sizeBytes[0] | (sizeBytes[1] << 8));
+        if (initializerSize < 4 || initializerSize >= 10240)
+        {
+            LOG_ERROR("network", "WorldSocket::ReadHeaderHandler(): client {} sent malformed initializer (size: {})",
+                GetRemoteIpAddress().to_string(), initializerSize);
+            return false;
+        }
+
+        _packetBuffer.Resize(initializerSize);
+        return true;
     }
 
-    ClientPktHeader* header = reinterpret_cast<ClientPktHeader*>(_headerBuffer.GetReadPointer());
-    EndianConvertReverse(header->size);
+    uint32 size = 0;
+    uint8* data = _headerBuffer.GetReadPointer();
+    if (_authCrypt.IsInitialized())
+    {
+        ASSERT(_headerBuffer.GetActiveSize() == 4);
+        _authCrypt.DecryptRecv(data, 4);
+        uint32 value = uint32(data[0]) | (uint32(data[1]) << 8) | (uint32(data[2]) << 16) | (uint32(data[3]) << 24);
+        _recvOpcode = value & 0x1FFF;
+        size = value >> 13;
+    }
+    else
+    {
+        ASSERT(_headerBuffer.GetActiveSize() == sizeof(ClientPktHeader));
+        ClientPktHeader const* header = reinterpret_cast<ClientPktHeader const*>(data);
+        size = header->size;
+        _recvOpcode = header->cmd;
+        if (size < 4)
+            size = 0;
+        else
+            size -= 4;
+    }
 
-    if (initialized)
-        EndianConvert(header->cmd);
-
-    if (!header->IsValidSize() || (initialized && !header->IsValidOpcode()))
+    if (size >= 10240 || _recvOpcode >= NUM_OPCODE_HANDLERS)
     {
         LOG_ERROR("network", "WorldSocket::ReadHeaderHandler(): client {} sent malformed packet (size: {}, cmd: {})",
-            GetRemoteIpAddress().to_string(), header->size, header->cmd);
-
+            GetRemoteIpAddress().to_string(), size, _recvOpcode);
         return false;
     }
 
-    if (initialized)
-    header->size -= sizeof(header->cmd);
-
-    _packetBuffer.Resize(header->size);
-
+    _packetBuffer.Resize(size);
     return true;
 }
 
@@ -567,8 +598,7 @@ struct AccountInfo
 
 WorldSocket::ReadDataHandlerResult WorldSocket::ReadDataHandler()
 {
-    ClientPktHeader* header = reinterpret_cast<ClientPktHeader*>(_headerBuffer.GetReadPointer());
-    OpcodeClient opcode = static_cast<OpcodeClient>(header->cmd);
+    OpcodeClient opcode = static_cast<OpcodeClient>(_recvOpcode);
     LOG_INFO("network", "WorldSocket::ReadDataHandler: Received opcode {}", uint32(opcode));
 
     WorldPacket packet(opcode, std::move(_packetBuffer));

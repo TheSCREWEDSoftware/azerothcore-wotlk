@@ -68,6 +68,8 @@ namespace WorldPackets
             uint8 AccountExpansionLevel = 0;
             uint32 TimeRested = 0;
             uint8 TimeOptions = 0;
+            uint32 VirtualRealmID = 0;                      // 5.4.8: the home realm sent with its name
+            std::string RealmName;
         };
 
         struct AuthWaitInfo

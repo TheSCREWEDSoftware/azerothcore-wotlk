@@ -145,6 +145,8 @@ private:
     bool _authed;
 
     MessageBuffer _headerBuffer;
+    uint32 _recvOpcode = 0;                                 // opcode of the packet being read
+    [[nodiscard]] std::size_t GetClientHeaderSize() const;
     MessageBuffer _packetBuffer;
 
     z_stream_s* _compressionStream;

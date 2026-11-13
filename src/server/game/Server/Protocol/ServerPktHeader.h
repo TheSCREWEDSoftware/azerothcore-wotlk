@@ -22,39 +22,37 @@
 
 #pragma pack(push, 1)
 
+// 5.4.8 server packet header (SkyFire_548 WorldSocket)
+// - encrypted: one uint32, (payload size << 13) | (opcode & 0x1FFF), encrypted as 4 bytes
+// - before encryption: uint16 size (payload + opcode) then uint16 opcode, little endian
 struct ServerPktHeader
 {
-    /**
-     * size is the length of the payload _plus_ the length of the opcode
-     */
-    ServerPktHeader(uint32 size, uint16 cmd) : size(size)
+    static constexpr uint32 OPCODE_MASK = 0x1FFF;
+
+    ServerPktHeader(uint32 payloadSize, uint16 cmd, bool encrypted) : size(payloadSize)
     {
-        uint8 headerIndex=0;
-        if (isLargePacket())
+        if (encrypted)
         {
-            LOG_DEBUG("network", "initializing large server to client packet. Size: {}, cmd: {}", size, cmd);
-            header[headerIndex++] = 0x80 | (0xFF & (size >> 16));
+            uint32 data = (payloadSize << 13) | (cmd & OPCODE_MASK);
+            header[0] = uint8(data);
+            header[1] = uint8(data >> 8);
+            header[2] = uint8(data >> 16);
+            header[3] = uint8(data >> 24);
         }
-        header[headerIndex++] = 0xFF &(size >> 8);
-        header[headerIndex++] = 0xFF & size;
-
-        header[headerIndex++] = 0xFF & cmd;
-        header[headerIndex++] = 0xFF & (cmd >> 8);
+        else
+        {
+            uint32 const sizeWithOpcode = payloadSize + 2;
+            header[0] = uint8(sizeWithOpcode);
+            header[1] = uint8(sizeWithOpcode >> 8);
+            header[2] = uint8(cmd);
+            header[3] = uint8(cmd >> 8);
+        }
     }
 
-    uint8 getHeaderLength()
-    {
-        // cmd = 2 bytes, size= 2||3bytes
-        return 2 + (isLargePacket() ? 3 : 2);
-    }
-
-    bool isLargePacket() const
-    {
-        return size > 0x7FFF;
-    }
+    uint8 getHeaderLength() const { return 4; }
 
     const uint32 size;
-    uint8 header[5];
+    uint8 header[4];
 };
 
 #pragma pack(pop)

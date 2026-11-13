@@ -16,6 +16,7 @@
  */
 
 #include "AuthenticationPackets.h"
+#include "Realm.h"
 #include "World.h"
 #include "WorldSession.h"
 
@@ -28,6 +29,8 @@ void WorldSession::SendAuthResponse(uint8 code, bool shortForm, uint32 queuePos)
         WorldPackets::Auth::AuthSuccessInfo& successInfo = packet.SuccessInfo.emplace();
         successInfo.ActiveExpansionLevel = uint8(sWorld->getIntConfig(CONFIG_EXPANSION));
         successInfo.AccountExpansionLevel = Expansion();
+        successInfo.VirtualRealmID = realm.Id.Realm;
+        successInfo.RealmName = realm.Name;
     }
 
     if (!shortForm)
