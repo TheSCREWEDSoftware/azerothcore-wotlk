@@ -561,7 +561,7 @@ public:
     uint32 GetMaxTicks() const;
 
     uint32 CalcCastTime(WorldObject* caster = nullptr, Spell* spell = nullptr) const;
-    float GetSpellScalingMultiplier(int32 level) const;
+    float GetSpellScalingMultiplier(int32 level, bool isPowerCostRelated = false) const;
     float GetSpellScalingValue(int32 level) const;
     uint32 GetRecoveryTime() const;
 

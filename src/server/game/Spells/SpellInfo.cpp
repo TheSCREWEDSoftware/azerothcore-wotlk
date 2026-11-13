@@ -2965,7 +2965,7 @@ uint32 SpellInfo::CalcCastTime(WorldObject* caster, Spell* spell) const
     return (castTime > 0) ? uint32(castTime) : 0;
 }
 
-float SpellInfo::GetSpellScalingMultiplier(int32 level) const
+float SpellInfo::GetSpellScalingMultiplier(int32 level, bool isPowerCostRelated /*= false*/) const
 {
     if (level <= 0 || !ScalingEntry || !ScalingEntry->Class)
         return 1.0f;
@@ -2980,7 +2980,7 @@ float SpellInfo::GetSpellScalingMultiplier(int32 level) const
         scalingMultiplier = multiplier;
     }
 
-    if (level < ScalingEntry->NerfMaxLevel)
+    if (!isPowerCostRelated && level < ScalingEntry->NerfMaxLevel)
         scalingMultiplier = ((((1.0f - ScalingEntry->NerfFactor) * (level - 1)) / (ScalingEntry->NerfMaxLevel - 1)) + ScalingEntry->NerfFactor) * multiplier;
 
     return scalingMultiplier;
@@ -3054,24 +3054,27 @@ int32 SpellInfo::CalcPowerCost(WorldObject const* caster, SpellSchoolMask school
     }
 
     // Base powerCost
-    int32 powerCost = ManaCost;
+    int32 powerCost = int32(ManaCost);
+    // 4.3.4 SpellPower.dbc carries a float percentage that replaces the integer one when set
+    float powerCostPct = ManaCostPercentage2 != 0.0f ? ManaCostPercentage2 : float(ManaCostPercentage);
     // PCT cost from total amount
-    if (ManaCostPercentage)
+    if (powerCostPct != 0.0f)
     {
+        uint32 resource = 0;
         switch (PowerType)
         {
             // health as power used
             case POWER_HEALTH:
-                powerCost += int32(CalculatePct(unitCaster->GetCreateHealth(), ManaCostPercentage));
+                resource = unitCaster->GetCreateHealth();
                 break;
             case POWER_MANA:
-                powerCost += int32(CalculatePct(unitCaster->GetCreateMana(), ManaCostPercentage));
+                resource = unitCaster->GetCreateMana();
                 break;
             case POWER_RAGE:
             case POWER_FOCUS:
             case POWER_ENERGY:
             case POWER_HAPPINESS:
-                powerCost += int32(CalculatePct(unitCaster->GetMaxPower(Powers(PowerType)), ManaCostPercentage));
+                resource = unitCaster->GetMaxPower(Powers(PowerType));
                 break;
             case POWER_RUNE:
             case POWER_RUNIC_POWER:
@@ -3081,7 +3084,13 @@ int32 SpellInfo::CalcPowerCost(WorldObject const* caster, SpellSchoolMask school
                 LOG_ERROR("spells", "CalculateManaCost: Unknown power type '{}' in spell {}", PowerType, Id);
                 return 0;
         }
+
+        powerCost += int32(resource * powerCostPct / 100.0f);
     }
+
+    // spells with a SpellScaling entry scale their cost with the cast time multiplier only
+    if (ScalingEntry && ScalingEntry->Class)
+        powerCost = int32(std::ceil(GetSpellScalingMultiplier(int32(unitCaster->GetLevel()), true) * float(powerCost)));
     SpellSchools school = GetFirstSchoolInMask(schoolMask);
     // Flat mod from caster auras by spell school
     powerCost += unitCaster->GetInt32Value(static_cast<uint16>(UNIT_FIELD_POWER_COST_MODIFIER) + school);
