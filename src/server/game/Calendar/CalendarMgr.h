@@ -333,8 +333,9 @@ public:
     void SendCalendarEventInviteRemoveAlert(ObjectGuid guid, CalendarEvent const& calendarEvent, CalendarInviteStatus status);
     void SendCalendarEventUpdateAlert(CalendarEvent const& calendarEvent, time_t oldEventTime);
     void SendCalendarEventStatus(CalendarEvent const& calendarEvent, CalendarInvite const& invite);
+    void SendCalendarEventStatusAlert(CalendarEvent const& calendarEvent, CalendarInvite const& invite);
     void SendCalendarEventRemovedAlert(CalendarEvent const& calendarEvent);
-    void SendCalendarEventModeratorStatusAlert(CalendarEvent const& calendarEvent, CalendarInvite const& invite);
+    void SendCalendarEventModeratorStatus(CalendarEvent const& calendarEvent, CalendarInvite const& invite);
     void SendCalendarClearPendingAction(ObjectGuid guid);
     void SendCalendarCommandResult(ObjectGuid guid, CalendarError err, char const* param = nullptr);
 

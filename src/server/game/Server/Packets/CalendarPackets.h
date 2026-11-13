@@ -64,6 +64,7 @@ namespace WorldPackets
 
             void Read() override;
 
+            uint64 InviteId = 0;
             uint64 EventId = 0;
             ObjectGuid ComplainGuid;
         };

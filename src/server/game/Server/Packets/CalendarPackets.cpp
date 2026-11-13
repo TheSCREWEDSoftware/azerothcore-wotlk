@@ -35,8 +35,11 @@ void WorldPackets::Calendar::ArenaTeam::Read()
     _worldPacket >> ArenaTeamId;
 }
 
+// 5.4.8 18414, from Project SkyFire
 void WorldPackets::Calendar::CalendarComplain::Read()
 {
+    _worldPacket >> InviteId;
     _worldPacket >> EventId;
-    _worldPacket >> ComplainGuid;
+    _worldPacket.ReadGuidMask(ComplainGuid, { 4, 6, 2, 7, 1, 5, 3, 0 });
+    _worldPacket.ReadGuidBytes(ComplainGuid, { 6, 7, 1, 0, 4, 2, 3, 5 });
 }

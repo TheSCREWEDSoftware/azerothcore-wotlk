@@ -2698,12 +2698,14 @@ void Guild::BroadcastPacket(WorldPacket const* packet) const
             player->SendDirectMessage(packet);
 }
 
+// 5.4.8 18414, from Project SkyFire
 void Guild::MassInviteToEvent(WorldSession* session, uint32 minLevel, uint32 maxLevel, uint32 minRank)
 {
     uint32 count = 0;
 
-    WorldPacket data(SMSG_CALENDAR_FILTER_GUILD);
-    data << uint32(count); // count placeholder
+    ByteBuffer inviteeData;
+    WorldPacket data(SMSG_CALENDAR_EVENT_INITIAL_INVITE);
+    data.WriteBits(0, 23); // count placeholder
 
     for (auto const& [guid, member] : m_members)
     {
@@ -2719,13 +2721,18 @@ void Guild::MassInviteToEvent(WorldSession* session, uint32 minLevel, uint32 max
 
         if (member.GetGUID() != session->GetPlayer()->GetGUID() && level >= minLevel && level <= maxLevel && member.IsRankNotLower(minRank))
         {
-            data.appendPackGUID(member.GetGUID().GetRawValue());
-            data << uint8(0); // unk
+            ObjectGuid memberGuid = member.GetGUID();
+            data.WriteGuidMask(memberGuid, { 1, 7, 5, 0, 4, 3, 6, 2 });
+
+            inviteeData << uint8(level);
+            inviteeData.WriteGuidBytes(memberGuid, { 3, 5, 4, 6, 7, 0, 2, 1 });
             ++count;
         }
     }
 
-    data.put<uint32>(0, count);
+    data.FlushBits();
+    data.PutBits(0, count, 23);
+    data.append(inviteeData);
 
     session->SendPacket(&data);
 }
