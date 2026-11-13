@@ -1984,7 +1984,11 @@ void Spell::EffectPersistentAA(SpellEffIndex effIndex)
     if (!m_spellAura)
     {
         Unit* caster = unitCaster->GetEntry() == WORLD_TRIGGER ? m_originalCaster : unitCaster;
-        float radius = m_spellInfo->Effects[effIndex].CalcRadius(caster);
+        // the dynamic object covers the largest radius of the spell's persistent area aura effects
+        float radius = 0.0f;
+        for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
+            if (m_spellInfo->Effects[i].Effect == SPELL_EFFECT_PERSISTENT_AREA_AURA)
+                radius = std::max(radius, m_spellInfo->Effects[i].CalcRadius(caster));
 
         // Caster not in world, might be spell triggered from aura removal
         if (!caster->IsInWorld() || !caster->FindMap() || !ObjectAccessor::GetUnit(*caster, caster->GetGUID())) // pussywizard: temporary crash fix (FindMap and GetUnit are mine)
