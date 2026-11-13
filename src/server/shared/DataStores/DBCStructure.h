@@ -55,6 +55,7 @@ struct AchievementEntry
     //uint32 titleReward_flags;                             // 59
     uint32 count;                                           // 60 - need this count of completed criterias (own or referenced achievement criterias)
     uint32 refAchievement;                                  // 61 - referenced achievement (counting of all completed criterias)
+    uint32 criteriaTreeID;                                  // 14 (5.4.8) root of the achievement's CriteriaTree.dbc tree
 };
 
 struct AchievementCategoryEntry
@@ -64,6 +65,68 @@ struct AchievementCategoryEntry
     //char *name[16];                                       // 2-17
     //uint32 name_flags;                                    // 18
     //uint32    sortOrder;                                  // 19
+};
+
+// 5.4.8 Criteria.dbc
+struct CriteriaEntry
+{
+    uint32 ID;                                              // 0
+    uint32 Type;                                            // 1
+    uint32 Asset;                                           // 2
+    uint32 StartEvent;                                      // 3
+    uint32 StartAsset;                                      // 4
+    uint32 StartTimer;                                      // 5
+    uint32 FailEvent;                                       // 6
+    uint32 FailAsset;                                       // 7
+    uint32 ModifierTreeID;                                  // 8
+    uint32 Flags;                                           // 9
+    uint32 EligibilityWorldStateID;                         // 10
+    uint32 EligibilityWorldStateValue;                      // 11
+};
+
+enum CriteriaFlags
+{
+    CRITERIA_FLAG_FAIL_ACHIEVEMENT = 0x01,
+    CRITERIA_FLAG_RESET_ON_START   = 0x02,
+};
+
+// 5.4.8 CriteriaTree.dbc
+struct CriteriaTreeEntry
+{
+    uint32 ID;                                              // 0
+    uint32 CriteriaID;                                      // 1
+    uint32 Amount;                                          // 2 low half of a 64 bit amount
+    // 3 high half
+    uint32 Operator;                                        // 4
+    uint32 Parent;                                          // 5
+    uint32 Flags;                                           // 6
+    // 7 description
+};
+
+enum CriteriaTreeOperator
+{
+    CRITERIA_TREE_OPERATOR_SINGLE           = 0,
+    CRITERIA_TREE_OPERATOR_ALL              = 4,
+    CRITERIA_TREE_OPERATOR_ANY              = 8,
+};
+
+enum CriteriaTreeFlags
+{
+    CRITERIA_TREE_FLAG_PROGRESS_BAR         = 0x0001,
+    CRITERIA_TREE_FLAG_PROGRESS_IS_DATE     = 0x0004,
+    CRITERIA_TREE_FLAG_SHOW_CURRENCY_ICON   = 0x0008,
+};
+
+// 5.4.8 ModifierTree.dbc (the 4.3.4 additional criteria conditions)
+struct ModifierTreeEntry
+{
+    uint32 ID;                                              // 0
+    uint32 Type;                                            // 1
+    uint32 Asset;                                           // 2
+    uint32 SecondaryAsset;                                  // 3
+    uint32 Operator;                                        // 4
+    uint32 Amount;                                          // 5
+    uint32 Parent;                                          // 6
 };
 
 struct AchievementCriteriaEntry
@@ -625,6 +688,10 @@ struct AchievementCriteriaEntry
     uint32  timeLimit;                                      // 13 time limit in seconds, real column is TimerTime
     uint32  additionalRequirement_type[MAX_CRITERIA_REQUIREMENTS];  // 17-19, real column is AdditionalConditionType
     uint32  additionalRequirement_value[MAX_CRITERIA_REQUIREMENTS]; // 20-22, real column is AdditionalConditionValue
+    // 5.4.8: not a DBC row any more. One entry is built per achievement leaf of CriteriaTree.dbc;
+    // ID is the Criteria.dbc id (a new id above every Criteria id when a criteria is shared by
+    // more than one achievement) and CriteriaID is the id the client knows.
+    uint32  CriteriaID;
 };
 
 struct AnimKitEntry
@@ -722,15 +789,20 @@ struct BarberShopStyleEntry
 struct BattlemasterListEntry
 {
     uint32  id;                                             // 0
-    int32   mapid[8];                                       // 1-8 mapid
-    uint32  type;                                           // 9 (3 - BG, 4 - arena)
-    //uint32 canJoinAsGroup;                                // 10 (0 or 1)
-    char const*   name[16];                                 // 11-26
-    //uint32 nameFlags                                      // 27 string flag, unused
-    uint32 maxGroupSize;                                    // 28 maxGroupSize, used for checking if queue as group
-    uint32 HolidayWorldStateId;                             // 29 new 3.1
-    //uint32 MinLevel;                                      // 30
-    //uint32 SomeLevel;                                     // 31, may be max level
+    int32   mapid[16];                                      // 1-16 mapid
+    uint32  type;                                           // 17 (3 - BG, 4 - arena)
+    //char const* gameType;                                 // 18
+    char const*   name[16];                                 // 19
+    uint32 maxGroupSize;                                    // 20 maxGroupSize, used for checking if queue as group
+    uint32 HolidayWorldStateId;                             // 21 new 3.1
+    //uint32 MinLevel;                                      // 22
+    //uint32 MaxLevel;                                      // 23
+    //uint32 RatedPlayers;                                  // 24
+    //uint32 MinPlayers;                                    // 25
+    //uint32 MaxPlayers;                                    // 26
+    //uint32 Flags;                                         // 27
+    //uint32 IconFileDataID;                                // 28
+    //char const* ShortDescription;                         // 29
 };
 
 #define MAX_OUTFIT_ITEMS 24
@@ -819,8 +891,10 @@ struct ChrClassesEntry
     // 55, unused
     uint32  spellfamily;                                    // 56
     // 57, unused
-    uint32  CinematicSequence;                              // 58 id from CinematicSequences.dbc
-    uint32  expansion;                                      // 59 (0 - original race, 1 - tbc addon, ...)
+    uint32  CinematicSequence;                              // 9 id from CinematicSequences.dbc
+    // 10-12 attack power per strength/agility, ranged attack power per agility
+    // 13 default specialization, 14-17 file data ids
+    // 5.4.8 ChrClasses.dbc has no expansion column; see GetClassExpansion()
 };
 
 enum ChrRacesFlags
@@ -849,8 +923,7 @@ struct ChrRacesEntry
     // 47 string flags, unused
     //char const*       nameNeutralGender[16];              // 48-63, if different from base (male) case
     // 64 string flags, unused
-    // 65-67 unused
-    uint32      expansion;                                  // 68 (0 - original race, 1 - tbc addon, ...)
+    // 5.4.8 ChrRaces.dbc has no expansion column; see GetRaceExpansion()
 
     inline bool HasFlag(ChrRacesFlags flag) const { return (Flags & flag) != 0; }
 };
@@ -1536,6 +1609,8 @@ struct LFGDungeonEntry
     uint32 CountTank;                                       // 34
     uint32 CountHealer;                                     // 35
     uint32 CountDamage;                                     // 36
+    // 21-23 minimum role counts, 24 scenario id
+    uint32 SubType;                                         // 25 (5.4.8) LFG category sent in the status packets
 
     // Helpers
     [[nodiscard]] uint32 Entry() const { return ID + (TypeID << 24); }
@@ -1614,16 +1689,17 @@ struct MapEntry
     float   entrance_y;                                     // 14 entrance y coordinate (if exist single entry)
     //uint32 TimeOfDayOverride;                             // 15 -1, 0 and 720
     uint32  expansionID;                                    // 16 (0: Vanilla, 1:TBC, 2:WotLK, 3:Cata)
-    //uint32  raidOffset;                                   // 17
-    uint32  maxPlayers;                                     // 18 max players, fallback if not present in MapDifficulty.dbc
-    //int32   parentMapId;                                  // 19
+    //uint32  raidOffset;                                   // 16
+    uint32  maxPlayers;                                     // 17 max players, fallback if not present in MapDifficulty.dbc
+    //int32   parentMapId;                                  // 18
 
     // Helpers
     [[nodiscard]] uint32 Expansion() const { return expansionID; }
 
-    [[nodiscard]] bool IsDungeon() const { return map_type == MAP_INSTANCE || map_type == MAP_RAID; }
-    [[nodiscard]] bool IsNonRaidDungeon() const { return map_type == MAP_INSTANCE; }
-    [[nodiscard]] bool Instanceable() const { return map_type == MAP_INSTANCE || map_type == MAP_RAID || map_type == MAP_BATTLEGROUND || map_type == MAP_ARENA; }
+    [[nodiscard]] bool IsDungeon() const { return map_type == MAP_INSTANCE || map_type == MAP_RAID || map_type == MAP_SCENARIO; }
+    [[nodiscard]] bool IsNonRaidDungeon() const { return map_type == MAP_INSTANCE || map_type == MAP_SCENARIO; }
+    [[nodiscard]] bool Instanceable() const { return map_type == MAP_INSTANCE || map_type == MAP_RAID || map_type == MAP_BATTLEGROUND || map_type == MAP_ARENA || map_type == MAP_SCENARIO; }
+    [[nodiscard]] bool IsScenario() const { return map_type == MAP_SCENARIO; }
     [[nodiscard]] bool IsRaid() const { return map_type == MAP_RAID; }
     [[nodiscard]] bool IsBattleground() const { return map_type == MAP_BATTLEGROUND; }
     [[nodiscard]] bool IsBattleArena() const { return map_type == MAP_ARENA; }
@@ -1642,7 +1718,7 @@ struct MapEntry
 
     [[nodiscard]] bool IsContinent() const
     {
-        return MapID == MAP_EASTERN_KINGDOMS || MapID == MAP_KALIMDOR || MapID == MAP_OUTLAND || MapID == MAP_NORTHREND;
+        return MapID == MAP_EASTERN_KINGDOMS || MapID == MAP_KALIMDOR || MapID == MAP_OUTLAND || MapID == MAP_NORTHREND || MapID == 860 || MapID == 870; // 860 Wandering Isle, 870 Pandaria
     }
 
     [[nodiscard]] bool IsDynamicDifficultyMap() const { return Flags & MAP_FLAG_DYNAMIC_DIFFICULTY; }
@@ -1934,6 +2010,53 @@ struct SoundEntriesEntry
 #define MAX_EFFECT_MASK 7
 #define MAX_SPELL_REAGENTS 8
 
+// 5.4.8 Spell.dbc. The attributes, cast/duration/range indexes, visuals and school moved to
+// SpellMisc.dbc and the power type to SpellPower.dbc; LoadDBCStores() joins them into SpellEntry.
+struct SpellDbcEntry
+{
+    uint32 Id;                                              // 0
+    std::array<char const*, 16> Name;                       // 1
+    std::array<char const*, 16> NameSubtext;                // 2
+    // 3 description, 4 aura description
+    uint32 RuneCostID;                                      // 5
+    // 6 missile, 7 description variables
+    float BonusCoefficient;                                 // 8
+    uint32 ScalingID;                                       // 9
+    uint32 AuraOptionsID;                                   // 10
+    uint32 AuraRestrictionsID;                              // 11
+    uint32 CastingRequirementsID;                           // 12
+    uint32 CategoriesID;                                    // 13
+    uint32 ClassOptionsID;                                  // 14
+    uint32 CooldownsID;                                     // 15
+    uint32 EquippedItemsID;                                 // 16
+    uint32 InterruptsID;                                    // 17
+    uint32 LevelsID;                                        // 18
+    uint32 ReagentsID;                                      // 19
+    uint32 ShapeshiftID;                                    // 20
+    uint32 TargetRestrictionsID;                            // 21
+    uint32 TotemsID;                                        // 22
+    uint32 RequiredProjectID;                               // 23
+    uint32 MiscID;                                          // 24
+};
+
+// 5.4.8 SpellMisc.dbc
+struct SpellMiscEntry
+{
+    uint32 ID;                                              // 0
+    uint32 SpellID;                                         // 1
+    // 2 difficulty
+    std::array<uint32, 11> Attributes;                      // 3-13 Attributes .. AttributesEx10
+    // 14-16 AttributesEx11-13
+    uint32 CastingTimeIndex;                                // 17
+    uint32 DurationIndex;                                   // 18
+    uint32 RangeIndex;                                      // 19
+    float Speed;                                            // 20
+    std::array<uint32, 2> SpellVisualID;                    // 21-22
+    uint32 SpellIconID;                                     // 23
+    uint32 ActiveIconID;                                    // 24
+    uint32 SchoolMask;                                      // 25
+};
+
 struct SpellEntry
 {
     uint32 Id;
@@ -1978,6 +2101,37 @@ struct SpellEntry
     uint32 TargetRestrictionsID;
     uint32 TotemsID;
     uint32 RequiredProjectID;
+};
+
+// 5.4.8 SpellEffect.dbc: SpellEffectEntry with the difficulty column; LoadDBCStores() keeps the
+// difficulty 0 rows. The fourth class mask word and column 24 are not loaded.
+struct SpellEffectDbcEntry
+{
+    uint32 ID;                                              // 0
+    uint32 Difficulty;                                      // 1
+    uint32 Effect;                                          // 2
+    float EffectAmplitude;                                  // 3
+    uint32 EffectAura;                                      // 4
+    uint32 EffectAuraPeriod;                                // 5
+    int32 EffectBasePoints;                                 // 6
+    float EffectBonusCoefficient;                           // 7
+    float EffectChainAmplitude;                             // 8
+    uint32 EffectChainTargets;                              // 9
+    int32 EffectDieSides;                                   // 10
+    uint32 EffectItemType;                                  // 11
+    uint32 EffectMechanic;                                  // 12
+    int32 EffectMiscValue;                                  // 13
+    int32 EffectMiscValueB;                                 // 14
+    float EffectPointsPerResource;                          // 15
+    uint32 EffectRadiusIndex;                               // 16
+    uint32 EffectRadiusMaxIndex;                            // 17
+    float EffectRealPointsPerLevel;                         // 18
+    flag96 EffectSpellClassMask;                            // 19-21
+    uint32 EffectTriggerSpell;                              // 23
+    uint32 EffectImplicitTargetA;                           // 25
+    uint32 EffectImplicitTargetB;                           // 26
+    uint32 SpellID;                                         // 27
+    uint32 EffectIndex;                                     // 28
 };
 
 struct SpellEffectEntry
@@ -2084,13 +2238,21 @@ struct SpellLevelsEntry
     uint32 SpellLevel;
 };
 
+// 5.4.8 SpellPower.dbc: rows are keyed by spell (and raid difficulty), Spell.dbc has no power id
 struct SpellPowerEntry
 {
-    uint32 ManaCost;
-    uint32 ManaCostPerLevel;
-    uint32 PowerCostPct;
-    uint32 ManaPerSecond;
-    float PowerCostPct2;
+    uint32 ID;                                              // 0
+    uint32 SpellID;                                         // 1
+    uint32 RaidDifficulty;                                  // 2
+    uint32 PowerType;                                       // 3
+    uint32 ManaCost;                                        // 4
+    uint32 ManaCostPerLevel;                                // 5
+    uint32 ManaPerSecond;                                   // 6
+    uint32 ManaPerSecondPerLevel;                           // 7
+    // 8 power display id
+    float PowerCostPct;                                     // 9
+    float ChannelCostPct;                                   // 10
+    // 11 required shapeshift spell, 12 health cost percentage
 };
 
 struct SpellReagentsEntry
@@ -2099,17 +2261,28 @@ struct SpellReagentsEntry
     std::array<uint32, MAX_SPELL_REAGENTS> ReagentCount;
 };
 
+// 5.4.8 SpellScaling.dbc: the per effect coefficients moved to SpellEffectScaling.dbc
 struct SpellScalingEntry
 {
-    int32 CastTimeMin;
-    int32 CastTimeMax;
-    int32 CastTimeMaxLevel;
-    int32 Class;
-    std::array<float, 3> Coefficient;
-    std::array<float, 3> Variance;
-    std::array<float, 3> ComboPointsCoefficient;
-    float NerfFactor;
-    int32 NerfMaxLevel;
+    int32 CastTimeMin;                                      // 1
+    int32 CastTimeMax;                                      // 2
+    int32 CastTimeMaxLevel;                                 // 3
+    int32 Class;                                            // 4
+    float NerfFactor;                                       // 5
+    int32 NerfMaxLevel;                                     // 6
+    uint32 MaxScalingLevel;                                 // 7 cap for the gtSpellScaling lookup
+    uint32 ScalesFromItemLevel;                             // 8
+};
+
+// 5.4.8 SpellEffectScaling.dbc
+struct SpellEffectScalingEntry
+{
+    uint32 ID;                                              // 0
+    float Coefficient;                                      // 1
+    float Variance;                                         // 2
+    float ResourceCoefficient;                              // 3
+    // 4
+    uint32 SpellEffectID;                                   // 5
 };
 
 struct SpellShapeshiftEntry
@@ -2151,8 +2324,11 @@ struct SpellCastTimesEntry
 
 struct SpellCategoryEntry
 {
-    uint32 Id;
-    uint32 Flags;
+    uint32 Id;                                              // 0
+    uint32 Flags;                                           // 1
+    // 2 usesPerWeek, 3 name
+    uint32 MaxCharges;                                      // 4 (5.4.8)
+    uint32 ChargeRecoveryTime;                              // 5 (5.4.8)
 };
 
 struct SpellDifficultyEntry

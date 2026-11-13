@@ -50,6 +50,13 @@
 #include "WorldPacket.h"
 #include "WorldSessionMgr.h"
 
+// 5.4.8: criteria rows are built from CriteriaTree.dbc; the client knows them by their Criteria.dbc id
+uint32 GetClientCriteriaId(uint32 criteriaId)
+{
+    AchievementCriteriaEntry const* criteria = sAchievementCriteriaStore.LookupEntry(criteriaId);
+    return criteria ? criteria->CriteriaID : criteriaId;
+}
+
 bool AchievementCriteriaData::IsValid(AchievementCriteriaEntry const* criteria)
 {
     if (dataType >= MAX_ACHIEVEMENT_CRITERIA_DATA_TYPE)
@@ -801,7 +808,7 @@ void AchievementMgr::SendCriteriaUpdate(AchievementCriteriaEntry const* entry, C
     data.WriteGuidMask(guid, { 4, 6, 2, 3, 7, 1, 5, 0 });
     data.FlushBits();
     data.WriteGuidBytes(guid, { 3, 6, 2 });
-    data << uint32(entry->ID);
+    data << uint32(entry->CriteriaID);
     if (!entry->timeLimit)
         data << uint32(0);
     else
@@ -2250,7 +2257,7 @@ void AchievementMgr::RemoveCriteriaProgress(AchievementCriteriaEntry const* entr
         return;
 
     WorldPacket data(SMSG_CRITERIA_DELETED, 4);
-    data << uint32(entry->ID);
+    data << uint32(entry->CriteriaID);
     _player->SendDirectMessage(&data);
 
     _criteriaProgress.erase(criteriaProgress);
@@ -2511,7 +2518,7 @@ void AchievementMgr::SendAllAchievementData() const
         criteriaData.WriteByteSeq(counter[2]);
         criteriaData << uint32(0);                          // timer 2
         criteriaData.WriteByteSeq(guid[2]);
-        criteriaData << uint32(criteriaId);
+        criteriaData << uint32(GetClientCriteriaId(criteriaId));
         criteriaData.WriteByteSeq(guid[5]);
         criteriaData.WriteByteSeq(counter[0]);
         criteriaData.WriteByteSeq(counter[3]);
@@ -2595,7 +2602,7 @@ void AchievementMgr::SendRespondInspectAchievements(Player* player) const
         criteriaData.WriteByteSeq(guid[6]);
         criteriaData.WriteByteSeq(guid[7]);
         criteriaData.WriteByteSeq(counter[6]);
-        criteriaData << uint32(criteriaId);
+        criteriaData << uint32(GetClientCriteriaId(criteriaId));
         criteriaData << uint32(0);                          // timer 2
         criteriaData.WriteByteSeq(counter[1]);
         criteriaData.WriteByteSeq(counter[5]);

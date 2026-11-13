@@ -92,8 +92,20 @@ std::vector<SkillLineAbilityEntry const*> const& GetSkillLineAbilitiesBySkillLin
 // random name for the character creation screen, empty when NameGen.dbc has none for the race and gender
 std::string GetRandomCharacterName(uint8 race, uint8 gender);
 
+// 5.4.8: expansion that unlocks a race or class (ChrRaces/ChrClasses.dbc have no such column)
+uint8 GetRaceExpansion(uint8 race);
+uint8 GetClassExpansion(uint8 classId);
+
+// 5.4.8 SpellPower.dbc row of a spell (raid difficulty 0), nullptr when the spell costs nothing
+SpellPowerEntry const* GetSpellPowerEntryBySpell(uint32 spellId);
+// 5.4.8 SpellEffectScaling.dbc row of a SpellEffect.dbc row
+SpellEffectScalingEntry const* GetSpellEffectScaling(uint32 spellEffectId);
+
 extern DBCStorage <AchievementEntry>             sAchievementStore;
 extern DBCStorage <AchievementCriteriaEntry>     sAchievementCriteriaStore;
+extern DBCStorage <CriteriaEntry>                sCriteriaStore;
+extern DBCStorage <CriteriaTreeEntry>            sCriteriaTreeStore;
+extern DBCStorage <ModifierTreeEntry>            sModifierTreeStore;
 extern DBCStorage <AchievementCategoryEntry>     sAchievementCategoryStore;
 extern DBCStorage <AreaTableEntry>               sAreaTableStore;
 extern DBCStorage <AreaGroupEntry>               sAreaGroupStore;

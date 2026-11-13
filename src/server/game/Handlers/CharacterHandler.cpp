@@ -480,18 +480,18 @@ void WorldSession::HandleCharCreateOpcode(WorldPacket& recvData)
     }
 
     // prevent character creating Expansion race without Expansion account
-    if (raceEntry->expansion > Expansion())
+    if (GetRaceExpansion(createInfo->Race) > Expansion())
     {
         SendCharCreate(CHAR_CREATE_EXPANSION);
-        LOG_ERROR("network.opcode", "Expansion {} account:[{}] tried to Create character with expansion {} race ({})", Expansion(), GetAccountId(), raceEntry->expansion, createInfo->Race);
+        LOG_ERROR("network.opcode", "Expansion {} account:[{}] tried to Create character with expansion {} race ({})", Expansion(), GetAccountId(), GetRaceExpansion(createInfo->Race), createInfo->Race);
         return;
     }
 
     // prevent character creating Expansion class without Expansion account
-    if (classEntry->expansion > Expansion())
+    if (GetClassExpansion(createInfo->Class) > Expansion())
     {
         SendCharCreate(CHAR_CREATE_EXPANSION_CLASS);
-        LOG_ERROR("network.opcode", "Expansion {} account:[{}] tried to Create character with expansion {} class ({})", Expansion(), GetAccountId(), classEntry->expansion, createInfo->Class);
+        LOG_ERROR("network.opcode", "Expansion {} account:[{}] tried to Create character with expansion {} class ({})", Expansion(), GetAccountId(), GetClassExpansion(createInfo->Class), createInfo->Class);
         return;
     }
 

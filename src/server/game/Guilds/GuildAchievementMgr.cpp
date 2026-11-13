@@ -373,7 +373,7 @@ void GuildAchievementMgr::SendCriteriaData(Player* receiver, uint32 achievementI
         data.WriteByteSeq(counter[1]);
         data.WriteByteSeq(guid[6]);
         data << uint32(progress->Date);                     // last update time, not packed
-        data << uint32(criteriaId);
+        data << uint32(GetClientCriteriaId(criteriaId));
         data.WriteByteSeq(counter[5]);
         data << uint32(0);
         data.WriteByteSeq(guid[7]);

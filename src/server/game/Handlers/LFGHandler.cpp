@@ -331,7 +331,13 @@ void WorldSession::SendLfgUpdateStatus(lfg::LfgUpdateData const& updateData, boo
     lfgUpdateStatus.Ticket = MakeLfgTicket(GetPlayer());
     lfgUpdateStatus.Reason = updateData.updateType;
     for (uint32 dungeonId : updateData.dungeons)
+    {
         lfgUpdateStatus.Slots.push_back(sLFGMgr->GetLFGDungeonEntry(dungeonId));
+        // 5.4.8 LfgDungeons.dbc category (dungeon finder, raid finder, scenario, flex)
+        if (!lfgUpdateStatus.SubType)
+            if (LFGDungeonEntry const* dungeon = sLFGDungeonStore.LookupEntry(dungeonId))
+                lfgUpdateStatus.SubType = uint8(dungeon->SubType);
+    }
     lfgUpdateStatus.RequestedRoles = sLFGMgr->GetRoles(GetPlayer()->GetGUID());
     lfgUpdateStatus.IsParty = party;
     lfgUpdateStatus.Joined = join;

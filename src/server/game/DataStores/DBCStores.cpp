@@ -28,6 +28,7 @@
 #include "TransportMgr.h"
 #include "World.h"
 #include <map>
+#include <unordered_set>
 
 typedef std::tuple<int16, int8, int32> WMOAreaTableKey;
 typedef std::map<WMOAreaTableKey, WMOAreaTableEntry const*> WMOAreaInfoByTripple;
@@ -42,6 +43,9 @@ static std::unordered_map<uint32 /*phaseOrGroupId*/, std::vector<uint32> /*membe
 DBCStorage <AchievementEntry> sAchievementStore(Achievementfmt);
 DBCStorage <AchievementCategoryEntry> sAchievementCategoryStore(AchievementCategoryfmt);
 DBCStorage <AchievementCriteriaEntry> sAchievementCriteriaStore(AchievementCriteriafmt);
+DBCStorage <CriteriaEntry> sCriteriaStore(Criteriafmt);
+DBCStorage <CriteriaTreeEntry> sCriteriaTreeStore(CriteriaTreefmt);
+DBCStorage <ModifierTreeEntry> sModifierTreeStore(ModifierTreefmt);
 DBCStorage <AuctionHouseEntry> sAuctionHouseStore(AuctionHouseEntryfmt);
 DBCStorage <BankBagSlotPricesEntry> sBankBagSlotPricesStore(BankBagSlotPricesEntryfmt);
 DBCStorage <BattlemasterListEntry> sBattlemasterListStore(BattlemasterListEntryfmt);
@@ -195,6 +199,9 @@ DBCStorage<SpellScalingEntry> sSpellScalingStore(SpellScalingEntryfmt);
 DBCStorage<SpellShapeshiftEntry> sSpellShapeshiftStore(SpellShapeshiftEntryfmt);
 DBCStorage<SpellTargetRestrictionsEntry> sSpellTargetRestrictionsStore(SpellTargetRestrictionsEntryfmt);
 DBCStorage<SpellTotemsEntry> sSpellTotemsStore(SpellTotemsEntryfmt);
+static DBCStorage<SpellEffectScalingEntry> sSpellEffectScalingStore(SpellEffectScalingEntryfmt);
+static std::unordered_map<uint32 /*spellId*/, SpellPowerEntry const*> sSpellPowerBySpell;
+static std::unordered_map<uint32 /*spellEffectId*/, SpellEffectScalingEntry const*> sSpellEffectScalingByEffect;
 SpellCategoryStore sSpellsByCategoryStore;
 PetFamilySpellsStore sPetFamilySpellsStore;
 
@@ -308,6 +315,263 @@ inline void LoadDBC(uint32& availableDbcLocales, StoreProblemList& errors, DBCSt
     }
 }
 
+namespace
+{
+    // 5.4.8 playable races and classes with the expansion that unlocks them (SkyFire_548 AuthHandler)
+    constexpr uint8 RaceExpansions[][2] =
+    {
+        { 1, 0 }, { 2, 0 }, { 3, 0 }, { 4, 0 }, { 5, 0 }, { 6, 0 }, { 7, 0 }, { 8, 0 }, { 9, 3 },
+        { 10, 1 }, { 11, 1 }, { 22, 3 }, { 24, 4 }, { 25, 4 }, { 26, 4 }
+    };
+
+    constexpr uint8 ClassExpansions[][2] =
+    {
+        { 1, 0 }, { 2, 0 }, { 3, 0 }, { 4, 0 }, { 5, 0 }, { 6, 2 }, { 7, 0 }, { 8, 0 }, { 9, 0 }, { 10, 4 }, { 11, 0 }
+    };
+
+    // Joins 5.4.8 Spell.dbc + SpellMisc.dbc (+ the power type from SpellPower.dbc) into the SpellEntry
+    // rows the rest of the core reads, and keeps the difficulty 0 rows of SpellEffect.dbc.
+    void BuildSpellEntries(DBCStorage<SpellDbcEntry>& spells, DBCStorage<SpellMiscEntry>& miscs, DBCStorage<SpellEffectDbcEntry>& effects)
+    {
+        // highest id first, so SetEntry sizes the index table once
+        for (uint32 id = spells.GetNumRows(); id-- > 0;)
+        {
+            SpellDbcEntry const* raw = spells.LookupEntry(id);
+            if (!raw)
+                continue;
+
+            SpellEntry* entry = new SpellEntry();
+            memset(entry, 0, sizeof(SpellEntry));
+            entry->Id = raw->Id;
+            entry->Name = raw->Name;
+            entry->NameSubtext = raw->NameSubtext;
+            entry->RuneCostID = raw->RuneCostID;
+            entry->BonusCoefficient = raw->BonusCoefficient;
+            entry->ScalingID = raw->ScalingID;
+            entry->AuraOptionsID = raw->AuraOptionsID;
+            entry->AuraRestrictionsID = raw->AuraRestrictionsID;
+            entry->CastingRequirementsID = raw->CastingRequirementsID;
+            entry->CategoriesID = raw->CategoriesID;
+            entry->ClassOptionsID = raw->ClassOptionsID;
+            entry->CooldownsID = raw->CooldownsID;
+            entry->EquippedItemsID = raw->EquippedItemsID;
+            entry->InterruptsID = raw->InterruptsID;
+            entry->LevelsID = raw->LevelsID;
+            entry->ReagentsID = raw->ReagentsID;
+            entry->ShapeshiftID = raw->ShapeshiftID;
+            entry->TargetRestrictionsID = raw->TargetRestrictionsID;
+            entry->TotemsID = raw->TotemsID;
+            entry->RequiredProjectID = raw->RequiredProjectID;
+
+            if (SpellMiscEntry const* misc = miscs.LookupEntry(raw->MiscID))
+            {
+                entry->Attributes = misc->Attributes[0];
+                entry->AttributesEx = misc->Attributes[1];
+                entry->AttributesEx2 = misc->Attributes[2];
+                entry->AttributesEx3 = misc->Attributes[3];
+                entry->AttributesEx4 = misc->Attributes[4];
+                entry->AttributesEx5 = misc->Attributes[5];
+                entry->AttributesEx6 = misc->Attributes[6];
+                entry->AttributesEx7 = misc->Attributes[7];
+                entry->AttributesEx8 = misc->Attributes[8];
+                entry->AttributesEx9 = misc->Attributes[9];
+                entry->AttributesEx10 = misc->Attributes[10];
+                entry->CastingTimeIndex = misc->CastingTimeIndex;
+                entry->DurationIndex = misc->DurationIndex;
+                entry->RangeIndex = misc->RangeIndex;
+                entry->Speed = misc->Speed;
+                entry->SpellVisualID = misc->SpellVisualID;
+                entry->SpellIconID = misc->SpellIconID;
+                entry->ActiveIconID = misc->ActiveIconID;
+                entry->SchoolMask = misc->SchoolMask;
+            }
+
+            if (SpellPowerEntry const* power = GetSpellPowerEntryBySpell(raw->Id))
+            {
+                entry->PowerType = power->PowerType;
+                entry->PowerDisplayID = power->ID;
+            }
+
+            sSpellStore.SetEntry(raw->Id, entry);
+        }
+
+        for (uint32 id = effects.GetNumRows(); id-- > 0;)
+        {
+            SpellEffectDbcEntry const* raw = effects.LookupEntry(id);
+            if (!raw || raw->Difficulty)
+                continue;
+
+            // 5.4.8 spells can have up to 32 effects; the core handles MAX_SPELL_EFFECTS
+            if (raw->EffectIndex >= MAX_SPELL_EFFECTS)
+                continue;
+
+            SpellEffectEntry* effect = new SpellEffectEntry();
+            effect->ID = raw->ID;
+            effect->Effect = raw->Effect;
+            effect->EffectAmplitude = raw->EffectAmplitude;
+            effect->EffectAura = raw->EffectAura;
+            effect->EffectAuraPeriod = raw->EffectAuraPeriod;
+            effect->EffectBasePoints = raw->EffectBasePoints;
+            effect->EffectBonusCoefficient = raw->EffectBonusCoefficient;
+            effect->EffectChainAmplitude = raw->EffectChainAmplitude;
+            effect->EffectChainTargets = raw->EffectChainTargets;
+            effect->EffectDieSides = raw->EffectDieSides;
+            effect->EffectItemType = raw->EffectItemType;
+            effect->EffectMechanic = raw->EffectMechanic;
+            effect->EffectMiscValue = raw->EffectMiscValue;
+            effect->EffectMiscValueB = raw->EffectMiscValueB;
+            effect->EffectPointsPerResource = raw->EffectPointsPerResource;
+            effect->EffectRadiusIndex = raw->EffectRadiusIndex;
+            effect->EffectRadiusMaxIndex = raw->EffectRadiusMaxIndex;
+            effect->EffectRealPointsPerLevel = raw->EffectRealPointsPerLevel;
+            effect->EffectSpellClassMask = raw->EffectSpellClassMask;
+            effect->EffectTriggerSpell = raw->EffectTriggerSpell;
+            effect->EffectImplicitTargetA = raw->EffectImplicitTargetA;
+            effect->EffectImplicitTargetB = raw->EffectImplicitTargetB;
+            effect->SpellID = raw->SpellID;
+            effect->EffectIndex = raw->EffectIndex;
+            sSpellEffectStore.SetEntry(raw->ID, effect);
+        }
+    }
+
+    void CollectCriteriaLeaves(std::unordered_multimap<uint32, CriteriaTreeEntry const*> const& children, uint32 parent, std::vector<CriteriaTreeEntry const*>& leaves)
+    {
+        auto bounds = children.equal_range(parent);
+        for (auto itr = bounds.first; itr != bounds.second; ++itr)
+        {
+            if (itr->second->CriteriaID)
+                leaves.push_back(itr->second);
+            else
+                CollectCriteriaLeaves(children, itr->second->ID, leaves);
+        }
+    }
+
+    // Builds the 4.3.4 style AchievementCriteriaEntry rows from the 5.4.8 Criteria, CriteriaTree and
+    // ModifierTree files: one row per criteria under each achievement's tree. The row keeps the
+    // Criteria.dbc id, so world database data and scripts that name criteria ids keep working.
+    void BuildAchievementCriteria()
+    {
+        std::unordered_multimap<uint32, CriteriaTreeEntry const*> treeChildren;
+        for (CriteriaTreeEntry const* tree : sCriteriaTreeStore)
+            if (tree->Parent)
+                treeChildren.emplace(tree->Parent, tree);
+
+        std::unordered_multimap<uint32, ModifierTreeEntry const*> modifierChildren;
+        for (ModifierTreeEntry const* modifier : sModifierTreeStore)
+            if (modifier->Parent)
+                modifierChildren.emplace(modifier->Parent, modifier);
+
+        uint32 nextSharedId = sCriteriaStore.GetNumRows();
+        std::vector<std::pair<uint32, AchievementCriteriaEntry*>> rows;
+        std::unordered_set<uint32> usedIds;
+
+        for (AchievementEntry const* achievement : sAchievementStore)
+        {
+            CriteriaTreeEntry const* root = sCriteriaTreeStore.LookupEntry(achievement->criteriaTreeID);
+            if (!root)
+                continue;
+
+            // an "any of" tree completes with one criteria
+            if (root->Operator == CRITERIA_TREE_OPERATOR_ANY && !achievement->count)
+            {
+                AchievementEntry* copy = new AchievementEntry(*achievement);
+                copy->count = 1;
+                sAchievementStore.SetEntry(achievement->ID, copy);
+                achievement = copy;
+            }
+
+            std::vector<CriteriaTreeEntry const*> leaves;
+            if (root->CriteriaID)
+                leaves.push_back(root);
+            else
+                CollectCriteriaLeaves(treeChildren, root->ID, leaves);
+
+            for (CriteriaTreeEntry const* leaf : leaves)
+            {
+                CriteriaEntry const* criteria = sCriteriaStore.LookupEntry(leaf->CriteriaID);
+                if (!criteria)
+                    continue;
+
+                AchievementCriteriaEntry* row = new AchievementCriteriaEntry();
+                memset(row, 0, sizeof(AchievementCriteriaEntry));
+                row->ID = usedIds.insert(criteria->ID).second ? criteria->ID : nextSharedId++;
+                row->CriteriaID = criteria->ID;
+                row->referredAchievement = achievement->ID;
+                row->requiredType = criteria->Type;
+                row->raw.field3 = criteria->Asset;
+                row->raw.count = leaf->Amount;
+                row->timedType = criteria->StartEvent;
+                row->timerStartEvent = criteria->StartAsset;
+                row->timeLimit = criteria->StartTimer;
+
+                if (leaf->Flags & CRITERIA_TREE_FLAG_PROGRESS_BAR)
+                    row->flags |= ACHIEVEMENT_CRITERIA_FLAG_SHOW_PROGRESS_BAR;
+                if (leaf->Flags & CRITERIA_TREE_FLAG_PROGRESS_IS_DATE)
+                    row->flags |= ACHIEVEMENT_CRITERIA_FLAG_IS_DATE;
+                if (leaf->Flags & CRITERIA_TREE_FLAG_SHOW_CURRENCY_ICON)
+                    row->flags |= ACHIEVEMENT_CRITERIA_FLAG_MONEY_COUNTER;
+                if (criteria->Flags & CRITERIA_FLAG_FAIL_ACHIEVEMENT)
+                    row->flags |= ACHIEVEMENT_CRITERIA_FLAG_FAIL_ACHIEVEMENT;
+                if (criteria->Flags & CRITERIA_FLAG_RESET_ON_START)
+                    row->flags |= ACHIEVEMENT_CRITERIA_FLAG_RESET_ON_START;
+
+                if (ModifierTreeEntry const* modifier = sModifierTreeStore.LookupEntry(criteria->ModifierTreeID))
+                {
+                    std::vector<ModifierTreeEntry const*> conditions;
+                    if (modifier->Type)
+                        conditions.push_back(modifier);
+                    auto bounds = modifierChildren.equal_range(modifier->ID);
+                    for (auto itr = bounds.first; itr != bounds.second; ++itr)
+                        if (itr->second->Type)
+                            conditions.push_back(itr->second);
+
+                    for (std::size_t i = 0; i < conditions.size() && i < MAX_CRITERIA_REQUIREMENTS; ++i)
+                    {
+                        row->additionalRequirement_type[i] = conditions[i]->Type;
+                        row->additionalRequirement_value[i] = conditions[i]->Asset;
+                    }
+                }
+
+                rows.emplace_back(row->ID, row);
+            }
+        }
+
+        std::sort(rows.begin(), rows.end(), [](auto const& left, auto const& right) { return left.first > right.first; });
+        for (auto const& [id, row] : rows)
+            sAchievementCriteriaStore.SetEntry(id, row);
+
+        LOG_INFO("server.loading", ">> Built {} achievement criteria from CriteriaTree.dbc", rows.size());
+    }
+}
+
+uint8 GetRaceExpansion(uint8 race)
+{
+    for (auto const& [raceId, expansion] : RaceExpansions)
+        if (raceId == race)
+            return expansion;
+    return 0;
+}
+
+uint8 GetClassExpansion(uint8 classId)
+{
+    for (auto const& [id, expansion] : ClassExpansions)
+        if (id == classId)
+            return expansion;
+    return 0;
+}
+
+SpellPowerEntry const* GetSpellPowerEntryBySpell(uint32 spellId)
+{
+    auto itr = sSpellPowerBySpell.find(spellId);
+    return itr != sSpellPowerBySpell.end() ? itr->second : nullptr;
+}
+
+SpellEffectScalingEntry const* GetSpellEffectScaling(uint32 spellEffectId)
+{
+    auto itr = sSpellEffectScalingByEffect.find(spellEffectId);
+    return itr != sSpellEffectScalingByEffect.end() ? itr->second : nullptr;
+}
+
 void LoadDBCStores(std::string const& dataPath)
 {
     uint32 oldMSTime = getMSTime();
@@ -324,7 +588,10 @@ void LoadDBCStores(std::string const& dataPath)
     LOAD_DBC(sAreaTableStore,                       "AreaTable.dbc",                        "areatable_dbc");
     LOAD_DBC(sAchievementStore,                     "Achievement.dbc",                      "achievement_dbc");
     LOAD_DBC(sAchievementCategoryStore,             "Achievement_Category.dbc",             "achievement_category_dbc");
-    LOAD_DBC(sAchievementCriteriaStore,             "Achievement_Criteria.dbc",             "achievement_criteria_dbc");
+    // 5.4.8: Achievement_Criteria.dbc was split into Criteria, CriteriaTree and ModifierTree
+    LOAD_DBC(sCriteriaStore,                        "Criteria.dbc",                         nullptr);
+    LOAD_DBC(sCriteriaTreeStore,                    "CriteriaTree.dbc",                     nullptr);
+    LOAD_DBC(sModifierTreeStore,                    "ModifierTree.dbc",                     nullptr);
     LOAD_DBC(sAreaGroupStore,                       "AreaGroup.dbc",                        "areagroup_dbc");
     LOAD_DBC(sAreaPOIStore,                         "AreaPOI.dbc",                          "areapoi_dbc");
     LOAD_DBC(sAuctionHouseStore,                    "AuctionHouse.dbc",                     "auctionhouse_dbc");
@@ -435,8 +702,14 @@ void LoadDBCStores(std::string const& dataPath)
     LOAD_DBC(sSkillRaceClassInfoStore,              "SkillRaceClassInfo.dbc",               nullptr);
     LOAD_DBC(sSkillTiersStore,                      "SkillTiers.dbc",                       nullptr);
     LOAD_DBC(sSoundEntriesStore,                    "SoundEntries.dbc",                     "soundentries_dbc");
-    LOAD_DBC(sSpellStore,                           "Spell.dbc",                            nullptr);
-    LOAD_DBC(sSpellEffectStore, "SpellEffect.dbc", nullptr);
+    // 5.4.8: Spell.dbc, SpellMisc.dbc and SpellEffect.dbc are joined into sSpellStore/sSpellEffectStore below
+    DBCStorage<SpellDbcEntry> spellDbcStore(SpellDbcEntryfmt);
+    DBCStorage<SpellMiscEntry> spellMiscStore(SpellMiscEntryfmt);
+    DBCStorage<SpellEffectDbcEntry> spellEffectDbcStore(SpellEffectDbcEntryfmt);
+    LOAD_DBC(spellDbcStore,                         "Spell.dbc",                            nullptr);
+    LOAD_DBC(spellMiscStore,                        "SpellMisc.dbc",                        nullptr);
+    LOAD_DBC(spellEffectDbcStore,                   "SpellEffect.dbc",                      nullptr);
+    LOAD_DBC(sSpellEffectScalingStore,              "SpellEffectScaling.dbc",               nullptr);
     LOAD_DBC(sSpellAuraOptionsStore, "SpellAuraOptions.dbc", nullptr);
     LOAD_DBC(sSpellAuraRestrictionsStore, "SpellAuraRestrictions.dbc", nullptr);
     LOAD_DBC(sSpellCastingRequirementsStore, "SpellCastingRequirements.dbc", nullptr);
@@ -447,7 +720,7 @@ void LoadDBCStores(std::string const& dataPath)
     LOAD_DBC(sSpellInterruptsStore, "SpellInterrupts.dbc", nullptr);
     LOAD_DBC(sSpellLevelsStore, "SpellLevels.dbc", nullptr);
     LOAD_DBC(sSpellPowerStore, "SpellPower.dbc", nullptr);
-    LOAD_DBC(sSpellReagentsStore, "SpellReagents.dbc", nullptr);
+    LOAD_DBC(sSpellReagentsStore, "SpellReagents.db2", nullptr); // 5.4.8: DB2
     LOAD_DBC(sSpellScalingStore, "SpellScaling.dbc", nullptr);
     LOAD_DBC(sSpellShapeshiftStore, "SpellShapeshift.dbc", nullptr);
     LOAD_DBC(sSpellTargetRestrictionsStore, "SpellTargetRestrictions.dbc", nullptr);
@@ -485,8 +758,19 @@ void LoadDBCStores(std::string const& dataPath)
 #undef LOAD_DBC
 #undef LOAD_GT_DBC
 
+    for (SpellPowerEntry const* power : sSpellPowerStore)
+        if (!power->RaidDifficulty)
+            sSpellPowerBySpell.emplace(power->SpellID, power);
+
+    for (SpellEffectScalingEntry const* scaling : sSpellEffectScalingStore)
+        sSpellEffectScalingByEffect[scaling->SpellEffectID] = scaling;
+
+    BuildSpellEntries(spellDbcStore, spellMiscStore, spellEffectDbcStore);
+
     sSpellStore.LoadFromDB("spell_cata_dbc", SpellEntryfmt);
     sSpellEffectStore.LoadFromDB("spelleffect_dbc", SpellEffectEntryfmt);
+
+    BuildAchievementCriteria();
 
     for (CharStartOutfitEntry const* outfit : sCharStartOutfitStore)
         sCharStartOutfitMap[outfit->Race | (outfit->Class << 8) | (outfit->Gender << 16)] = outfit;

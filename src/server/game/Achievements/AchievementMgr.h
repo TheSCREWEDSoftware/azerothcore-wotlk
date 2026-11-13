@@ -449,4 +449,6 @@ private:
 
 #define sAchievementMgr AchievementGlobalMgr::instance()
 
+uint32 GetClientCriteriaId(uint32 criteriaId);
+
 #endif

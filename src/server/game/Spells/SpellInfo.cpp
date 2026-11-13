@@ -372,13 +372,14 @@ SpellEffectInfo::SpellEffectInfo(SpellEffectEntry const* effect, SpellInfo const
     SpellClassMask = effect->EffectSpellClassMask;
     RadiusEntry = effect->EffectRadiusIndex ? sSpellRadiusStore.LookupEntry(effect->EffectRadiusIndex) : nullptr;
 
-    if (SpellScalingEntry const* scaling = spellInfo->ScalingEntry)
+    // 5.4.8: the coefficients are per SpellEffect.dbc row in SpellEffectScaling.dbc
+    if (spellInfo->ScalingEntry)
     {
-        if (effIndex < scaling->Coefficient.size())
+        if (SpellEffectScalingEntry const* scaling = GetSpellEffectScaling(effect->ID))
         {
-            ScalingCoefficient = scaling->Coefficient[effIndex];
-            ScalingVariance = scaling->Variance[effIndex];
-            ScalingComboPointsCoefficient = scaling->ComboPointsCoefficient[effIndex];
+            ScalingCoefficient = scaling->Coefficient;
+            ScalingVariance = scaling->Variance;
+            ScalingComboPointsCoefficient = scaling->ResourceCoefficient;
         }
     }
 }
@@ -1007,11 +1008,14 @@ SpellInfo::SpellInfo(SpellEntry const* spellEntry, std::array<SpellEffectEntry c
     BaseLevel = levels ? levels->BaseLevel : 0;
     SpellLevel = levels ? levels->SpellLevel : 0;
 
-    SpellPowerEntry const* power = sSpellPowerStore.LookupEntry(spellEntry->PowerDisplayID);
+    // 5.4.8: SpellPower.dbc is keyed by spell; server-side rows still name a row id in PowerDisplayID
+    SpellPowerEntry const* power = spellEntry->PowerDisplayID ? sSpellPowerStore.LookupEntry(spellEntry->PowerDisplayID) : nullptr;
+    if (!power)
+        power = GetSpellPowerEntryBySpell(Id);
     ManaCost = power ? power->ManaCost : 0;
     ManaCostPerlevel = power ? power->ManaCostPerLevel : 0;
-    ManaCostPercentage = power ? power->PowerCostPct : 0;
-    ManaCostPercentage2 = power ? power->PowerCostPct2 : 0;
+    ManaCostPercentage = 0;
+    ManaCostPercentage2 = power ? power->PowerCostPct : 0;
     ManaPerSecond = power ? power->ManaPerSecond : 0;
 
     SpellTargetRestrictionsEntry const* targetRestrictions = sSpellTargetRestrictionsStore.LookupEntry(spellEntry->TargetRestrictionsID);
@@ -3027,6 +3031,10 @@ float SpellInfo::GetSpellScalingValue(int32 level) const
     // negative classes index the generic rows that follow the player classes
     int32 scalingClass = ScalingEntry->Class > 0 ? ScalingEntry->Class : (MAX_CLASSES - 1) - ScalingEntry->Class;
 
+    // 5.4.8: SpellScaling.dbc caps the level used for the lookup
+    if (ScalingEntry->MaxScalingLevel && level > int32(ScalingEntry->MaxScalingLevel))
+        level = ScalingEntry->MaxScalingLevel;
+
     GtSpellScalingEntry const* gt = sGtSpellScalingStore.LookupEntry((scalingClass - 1) * GT_MAX_LEVEL + level - 1);
     return gt ? gt->value : 0.0f;
 }
@@ -3088,7 +3096,7 @@ int32 SpellInfo::CalcPowerCost(WorldObject const* caster, SpellSchoolMask school
 
     // Base powerCost
     int32 powerCost = int32(ManaCost);
-    // 4.3.4 SpellPower.dbc carries a float percentage that replaces the integer one when set
+    // SpellPower.dbc carries a float percentage (4.3.4 also had an integer one)
     float powerCostPct = ManaCostPercentage2 != 0.0f ? ManaCostPercentage2 : float(ManaCostPercentage);
     // PCT cost from total amount
     if (powerCostPct != 0.0f)
