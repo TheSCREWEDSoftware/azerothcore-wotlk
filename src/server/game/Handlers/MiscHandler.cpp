@@ -1536,81 +1536,38 @@ void WorldSession::HandleMoveFlagChangeOpcode(WorldPacket& recv_data)
 
     OpcodeClient opcode = static_cast<OpcodeClient>(recv_data.GetOpcode());
 
-    if (opcode == CMSG_MOVE_WATER_WALK_ACK)
+    WorldPackets::Movement::MovementStatusElements const* sequence = WorldPackets::Movement::GetMovementFlagSequence(opcode);
+    if (!sequence)
     {
-        uint32 counter;
-        MovementInfo movementInfo;
-        WorldPackets::Movement::ReadGroundMovement(recv_data, movementInfo,
-            WorldPackets::Movement::GetMovementFlagSequence(opcode), &counter);
-        SanitizeMovementFlags(&movementInfo);
-        Unit* mover = _player->m_mover;
-        if (movementInfo.guid != mover->GetGUID() || counter <= _player->GetMapChangeOrderCounter())
-            return;
-        sScriptMgr->AnticheatSetCanFlybyServer(_player, movementInfo.HasMovementFlag(MOVEMENTFLAG_CAN_FLY));
-        if (!ProcessMovementInfo(movementInfo, mover, mover->ToPlayer(), recv_data))
-            return;
-        WorldPacket data(SMSG_MOVE_UPDATE);
-        WorldPackets::Movement::WriteMovementUpdate(data, movementInfo);
-        mover->SendMessageToSet(&data, _player);
+        recv_data.rfinish();
         return;
     }
 
-    ObjectGuid guid;
-    uint32 counter;
-    uint32 isApplied;
-    recv_data >> guid.ReadAsPacked();
-
-    if (!_player)
-    {
-        recv_data.rfinish(); // prevent warnings spam
-        return;
-    }
-
-    recv_data >> counter;
-
+    uint32 counter = 0;
     MovementInfo movementInfo;
-    movementInfo.guid = guid;
-    ReadMovementInfo(recv_data, &movementInfo);
-
-    if (opcode != CMSG_MOVE_GRAVITY_DISABLE_ACK && opcode != CMSG_MOVE_GRAVITY_ENABLE_ACK)
-        recv_data >> isApplied;
-
-    sScriptMgr->AnticheatSetCanFlybyServer(_player, movementInfo.HasMovementFlag(MOVEMENTFLAG_CAN_FLY));
+    WorldPackets::Movement::ReadGroundMovement(recv_data, movementInfo, sequence, &counter);
+    SanitizeMovementFlags(&movementInfo);
 
     Unit* mover = _player->m_mover;
-    Player* plrMover = mover->ToPlayer();
-
-    mover->m_movementInfo.flags = movementInfo.GetMovementFlags();
+    if (movementInfo.guid != mover->GetGUID())
+        return;
 
     // old map - async processing, ignore
     if (counter <= _player->GetMapChangeOrderCounter())
         return;
 
-    if (!ProcessMovementInfo(movementInfo, mover, plrMover, recv_data))
-    {
-        recv_data.rfinish();                     // prevent warnings spam
-        return;
-    }
+    sScriptMgr->AnticheatSetCanFlybyServer(_player, movementInfo.HasMovementFlag(MOVEMENTFLAG_CAN_FLY));
 
-    if (_player->GetPendingFlightChange() == counter && opcode == CMSG_MOVE_SET_CAN_FLY_ACK)
+    if (!ProcessMovementInfo(movementInfo, mover, mover->ToPlayer(), recv_data))
+        return;
+
+    if (opcode == CMSG_MOVE_SET_CAN_FLY_ACK && _player->GetPendingFlightChange() == counter)
         _player->SetPendingFlightChange(false);
 
-    OpcodeServer response;
-
-    switch (recv_data.GetOpcode())
-    {
-        case CMSG_MOVE_HOVER_ACK: response = MSG_MOVE_HOVER; break;
-        case CMSG_MOVE_FEATHER_FALL_ACK: response = MSG_MOVE_FEATHER_FALL_SERVER; break;
-        case CMSG_MOVE_WATER_WALK_ACK: response = MSG_MOVE_WATER_WALK_SERVER; break;
-        case CMSG_MOVE_SET_CAN_FLY_ACK: response = MSG_MOVE_UPDATE_CAN_FLY_SERVER; break;
-        case CMSG_MOVE_GRAVITY_DISABLE_ACK: response = MSG_MOVE_GRAVITY_CHNG; break;
-        case CMSG_MOVE_GRAVITY_ENABLE_ACK: response = MSG_MOVE_GRAVITY_CHNG; break;
-        default: return;
-    }
-
-    WorldPacket data(response, 8);
-    WriteMovementInfo(&data, &movementInfo);
-    _player->m_mover->SendMessageToSet(&data, _player);
+    // 5.4.8 relays the new movement state as SMSG_PLAYER_MOVE
+    WorldPacket data(SMSG_PLAYER_MOVE);
+    WorldPackets::Movement::WriteMovementUpdate(data, movementInfo);
+    mover->SendMessageToSet(&data, _player);
 }
 
 void WorldSession::HandleRequestPetInfo(WorldPackets::Pet::RequestPetInfo& /*packet*/)

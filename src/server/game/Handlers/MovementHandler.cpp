@@ -436,7 +436,8 @@ void WorldSession::HandleMovementOpcodes(WorldPacket& recvData)
         return;
 
     /* process position-change */
-    WorldPacket data(opcode == MSG_MOVE_HEARTBEAT ? uint16(SMSG_MOVE_UPDATE) : opcode, recvData.size());
+    // 5.4.8 relays every client movement opcode as SMSG_PLAYER_MOVE
+    WorldPacket data(SMSG_PLAYER_MOVE, recvData.size());
     WriteMovementInfo(&data, &movementInfo);
     mover->SendMessageToSet(&data, _player);
     if (opcode == MSG_MOVE_HEARTBEAT)
@@ -1176,7 +1177,7 @@ void WorldSession::HandleMoveRootAck(WorldPacket& recvData)
     if (_player->IsExpectingChangeTransport())
         return;
 
-    WorldPacket data(SMSG_MOVE_UPDATE);
+    WorldPacket data(SMSG_PLAYER_MOVE);
     WorldPackets::Movement::WriteMovementUpdate(data, movementInfo);
     mover->SendMessageToSet(&data, _player);
 }

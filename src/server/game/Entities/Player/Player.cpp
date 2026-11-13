@@ -12313,20 +12313,16 @@ void Player::SendInitialPacketsAfterAddToMap()
     GetZoneAndAreaId(newzone, newarea);
     UpdateZone(newzone, newarea);                            // also call SendInitWorldStates();
 
-    WorldPacket setCompoundState(SMSG_MULTIPLE_MOVES, 100);
-    setCompoundState << uint32(0); // size placeholder
-
     // manual send package (have code in HandleEffect(this, AURA_EFFECT_HANDLE_SEND_FOR_CLIENT, true); that must not be re-applied.
     if (IsImmobilizedState())
         SendMoveRoot(true);
 
+    // 5.4.8 has no SMSG_MULTIPLE_MOVES, the movement flags are sent one by one
     if (HasAuraType(SPELL_AURA_FEATHER_FALL))
     {
-        uint32 const counter = GetSession()->GetOrderCounter();
-        setCompoundState << uint8(2 + GetPackGUID().size() + 4);
-        setCompoundState << uint16(SMSG_MOVE_FEATHER_FALL);
-        setCompoundState << GetPackGUID();
-        setCompoundState << uint32(counter);
+        WorldPacket data(SMSG_MOVE_FEATHER_FALL, 16);
+        WorldPackets::Movement::WriteMovementFlagChange(data, GetGUID(), GetSession()->GetOrderCounter());
+        SendDirectMessage(&data);
         GetSession()->IncrementOrderCounter();
     }
 
@@ -12335,21 +12331,13 @@ void Player::SendInitialPacketsAfterAddToMap()
 
     if (HasAuraType(SPELL_AURA_HOVER))
     {
-        uint32 const counter = GetSession()->GetOrderCounter();
-        setCompoundState << uint8(2 + GetPackGUID().size() + 4);
-        setCompoundState << uint16(SMSG_MOVE_SET_HOVER);
-        setCompoundState << GetPackGUID();
-        setCompoundState << uint32(counter);
+        WorldPacket data(SMSG_MOVE_SET_HOVER, 16);
+        WorldPackets::Movement::WriteMovementFlagChange(data, GetGUID(), GetSession()->GetOrderCounter());
+        SendDirectMessage(&data);
         GetSession()->IncrementOrderCounter();
     }
 
     // TODO: Pending mount protocol
-
-    if (setCompoundState.size() > 4)
-    {
-        setCompoundState.put<uint32>(0, setCompoundState.size() - 4);
-        SendDirectMessage(&setCompoundState);
-    }
 
     SendEnchantmentDurations();                             // must be after add to map
     SendItemDurations();                                    // must be after add to map

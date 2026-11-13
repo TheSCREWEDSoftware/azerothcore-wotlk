@@ -83,6 +83,17 @@ namespace WorldPackets
             MSEOneBit,
             MSEFlushBits,
             MSEHasHeightChangeFailed,
+            // 5.4.8
+            MSEForcesCount,                 // 22 bit count of the forces that follow
+            MSEForces,                      // the force ids
+            MSEHasCounter,                  // !has optional counter
+            MSEOptionalCounter,
+            MSEHasMountDisplayId,
+            MSEMountDisplayIdWithCheck,
+            MSEMountDisplayIdWithoutCheck,
+            MSEOrientationWithoutCheck,
+            MSEExtraFloat2,
+            MSEExtraInt32,
             MSEEnd,
         };
 
@@ -101,7 +112,9 @@ namespace WorldPackets
             {
                 ObjectGuid guid;
                 float floatData = 0.0f;
+                float floatData2 = 0.0f;
                 int8 byteData = 0;
+                int32 extraInt32Data = 0;
             } Data;
 
         private:
@@ -139,6 +152,8 @@ namespace WorldPackets
         MovementStatusElements const* GetKnockBackSequence(uint16 opcode);
         MovementStatusElements const* GetSpellCastMovementSequence();
         MovementStatusElements const* GetMovementFlagSequence(uint16 opcode);
+        // SMSG_MOVE_* / SMSG_SPLINE_MOVE_* flag change for one unit, counter only used by the SMSG_MOVE_* ones
+        void WriteMovementFlagChange(WorldPacket& packet, ObjectGuid const& guid, uint32 counter = 0);
         void WriteTeleport(WorldPacket& packet, ObjectGuid guid, uint32 counter, Position const& pos,
             ObjectGuid transport = ObjectGuid::Empty);
         void ReadTeleportAck(WorldPacket& packet, ObjectGuid& guid, uint32& counter, uint32& time);

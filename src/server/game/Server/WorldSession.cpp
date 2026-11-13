@@ -21,6 +21,7 @@
 
 #include "TC9Sidecar.h"
 #include "WorldSession.h"
+#include "ServerPktHeader.h"
 #include "AccountMgr.h"
 #include "BattlegroundMgr.h"
 #include "BanMgr.h"
@@ -319,6 +320,15 @@ void WorldSession::SendPacket(WorldPacket const* packet)
 
     if (!m_Socket)
         return;
+
+    // Opcodes with no 5.4.8 value are parked above the 13 bit opcode range. The header keeps
+    // only the low 13 bits, so sending one would reach the client as some other opcode.
+    if (packet->GetOpcode() > ServerPktHeader::OPCODE_MASK)
+    {
+        LOG_DEBUG("network.opcode", "Not sending {} to {}: the opcode has no 5.4.8 value",
+            GetOpcodeNameForLogging(static_cast<OpcodeServer>(packet->GetOpcode())), GetPlayerInfo());
+        return;
+    }
 
 #if defined(ACORE_DEBUG)
     // Code for network use statistic
@@ -1227,7 +1237,7 @@ void WorldSession::SanitizeMovementFlags(MovementInfo* mi)
 
 void WorldSession::WriteMovementInfo(WorldPacket* data, MovementInfo* mi)
 {
-    if (data->GetOpcode() == SMSG_MOVE_UPDATE)
+    if (data->GetOpcode() == SMSG_PLAYER_MOVE)
     {
         WorldPackets::Movement::WriteMovementUpdate(*data, *mi);
         return;

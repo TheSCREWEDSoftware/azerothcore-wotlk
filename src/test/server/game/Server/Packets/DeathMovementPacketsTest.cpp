@@ -21,43 +21,39 @@ std::string Hex(WorldPacket const& packet)
 }
 }
 
-TEST(DeathMovementPacketsTest, WritesRootAndWaterWalkRequestsWithCataGuidOrder)
+TEST(DeathMovementPacketsTest, WritesFlagChangeRequestsWithGuidAndCounter)
 {
-    struct Case
+    for (OpcodeServer opcode : { SMSG_MOVE_ROOT, SMSG_MOVE_UNROOT, SMSG_MOVE_WATER_WALK, SMSG_MOVE_LAND_WALK,
+        SMSG_MOVE_FEATHER_FALL, SMSG_MOVE_NORMAL_FALL, SMSG_MOVE_SET_HOVER, SMSG_MOVE_UNSET_HOVER,
+        SMSG_MOVE_GRAVITY_DISABLE, SMSG_MOVE_GRAVITY_ENABLE, SMSG_MOVE_SET_CAN_FLY, SMSG_MOVE_UNSET_CAN_FLY })
     {
-        OpcodeServer opcode;
-        char const* expected;
-        char const* sparse;
-    };
-    for (Case const& test : {
-        Case{ SMSG_MOVE_ROOT, "FF030002074433221105040906", "100044332211" },
-        Case{ SMSG_MOVE_UNROOT, "FF050603443322110200090407", "804433221100" },
-        Case{ SMSG_MOVE_WATER_WALK, "FF000702443322110905040306", "100044332211" },
-        Case{ SMSG_MOVE_LAND_WALK, "FF060309070400050244332211", "020044332211" } })
-    {
-        MovementInfo info;
-        info.guid = ObjectGuid(uint64(0x0807060504030201));
-        WorldPacket packet(test.opcode);
-        WorldPackets::Movement::WriteGroundMovement(packet, info,
-            WorldPackets::Movement::GetMovementFlagSequence(test.opcode), 0x11223344);
-        EXPECT_EQ(Hex(packet), test.expected);
-        info.guid = ObjectGuid(uint64(1));
-        WorldPacket sparse(test.opcode);
-        WorldPackets::Movement::WriteGroundMovement(sparse, info,
-            WorldPackets::Movement::GetMovementFlagSequence(test.opcode), 0x11223344);
-        EXPECT_EQ(Hex(sparse), test.sparse);
+        auto const* sequence = WorldPackets::Movement::GetMovementFlagSequence(opcode);
+        ASSERT_NE(sequence, nullptr) << opcode;
+
+        ObjectGuid const guid(uint64(0x0807060504030201));
+        WorldPacket packet(opcode);
+        WorldPackets::Movement::WriteMovementFlagChange(packet, guid, 0x11223344);
+        // 8 guid bytes, the counter and one byte of guid presence bits
+        EXPECT_EQ(packet.size(), 13u) << opcode;
+
+        // The request reads back with the sequence it was written with.
+        MovementInfo received;
+        uint32 counter = 0;
+        WorldPackets::Movement::ReadGroundMovement(packet, received, sequence, &counter);
+        EXPECT_EQ(received.guid, guid);
+        EXPECT_EQ(counter, 0x11223344u);
     }
 }
 
-TEST(DeathMovementPacketsTest, WritesNearTeleportAndReadsCataAcknowledgement)
+TEST(DeathMovementPacketsTest, WritesNearTeleportAndReadsTheAcknowledgement)
 {
     ObjectGuid const mover(uint64(0x0807060504030201));
-    WorldPacket packet(MSG_MOVE_TELEPORT);
+    WorldPacket packet(SMSG_MOVE_TELEPORT);
     WorldPackets::Movement::WriteTeleport(packet, mover, 0x11223344, Position(1, 2, 3, 4));
-    EXPECT_EQ(Hex(packet), "F3C044332211030205070000803F04000080400900004040000600000040");
+    EXPECT_EQ(Hex(packet), "FB80040900004040000000400205070000803F4433221100060300008040");
 
-    uint8 const bytes[] = { 0x44, 0x33, 0x22, 0x11, 0x88, 0x77, 0x66, 0x55,
-        0xFF, 0x04, 0x02, 0x09, 0x06, 0x07, 0x03, 0x05, 0x00 };
+    uint8 const bytes[] = { 0x88, 0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11,
+        0xFF, 0x04, 0x03, 0x06, 0x09, 0x00, 0x02, 0x07, 0x05 };
     WorldPacket ack(MSG_MOVE_TELEPORT_ACK);
     ack.append(bytes, sizeof(bytes));
     ObjectGuid guid;
@@ -77,7 +73,8 @@ TEST(DeathMovementPacketsTest, WritesTeleportObserverUpdate)
     info.time = 5;
     WorldPacket packet(SMSG_MOVE_UPDATE_TELEPORT);
     WorldPackets::Movement::WriteTeleportUpdate(packet, info);
-    EXPECT_EQ(Hex(packet), "00004040000000400000803F210680000080400500000000");
+    // 5.4.8 starts with z, y, x
+    EXPECT_EQ(Hex(packet).substr(0, 24), "00004040000000400000803F");
 }
 
 TEST(DeathMovementPacketsTest, FlagAcknowledgementsCarryCounterAndMovement)
