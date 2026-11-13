@@ -58,10 +58,27 @@ void WorldPackets::Item::AutoEquipItemSlot::Read()
 
 void WorldPackets::Item::SwapItem::Read()
 {
-    _worldPacket >> DestinationBag;
-    _worldPacket >> DestinationSlot;
-    _worldPacket >> SourceBag;
-    _worldPacket >> SourceSlot;
+    // 5.4.8 18414, from Project SkyFire: the positions may be repeated in an optional list
+    uint8 srcSlotAlt, srcBagAlt, dstBagAlt, dstSlotAlt;
+    _worldPacket >> srcSlotAlt >> srcBagAlt >> dstBagAlt >> dstSlotAlt;
+    uint32 count = _worldPacket.ReadBits(2);
+    std::array<bool, 2> hasSlot = { };
+    std::array<bool, 2> hasBag = { };
+    for (uint32 i = 0; i < count; ++i)
+    {
+        bool slot = !_worldPacket.ReadBit();
+        bool bag = !_worldPacket.ReadBit();
+        if (i < 2)
+        {
+            hasSlot[i] = slot;
+            hasBag[i] = bag;
+        }
+    }
+
+    DestinationBag = hasBag[0] ? _worldPacket.read<uint8>() : dstBagAlt;
+    DestinationSlot = hasSlot[0] ? _worldPacket.read<uint8>() : dstSlotAlt;
+    SourceBag = hasBag[1] ? _worldPacket.read<uint8>() : srcBagAlt;
+    SourceSlot = hasSlot[1] ? _worldPacket.read<uint8>() : srcSlotAlt;
 }
 
 void WorldPackets::Item::AutoEquipItem::Read()
@@ -254,9 +271,16 @@ void WorldPackets::Item::WrapItem::Read()
 
 void WorldPackets::Item::SocketGems::Read()
 {
-    _worldPacket >> ItemGuid;
-    for (int i = 0; i < MAX_GEM_SOCKETS; ++i)
-        _worldPacket >> GemGuids[i];
+    // 5.4.8 18414, from Project SkyFire
+    for (uint8 index : { 4, 0, 6, 2, 1, 7, 3, 5 })
+        for (ObjectGuid& gemGuid : GemGuids)
+            gemGuid[index] = _worldPacket.ReadBit();
+    _worldPacket.ReadGuidMask(ItemGuid, { 5, 0, 6, 2, 3, 4, 7, 1 });
+    _worldPacket.ReadGuidBytes(ItemGuid, { 7, 2, 6 });
+    for (uint8 index : { 6, 4, 3, 2, 0, 1, 7, 5 })
+        for (ObjectGuid& gemGuid : GemGuids)
+            _worldPacket.ReadByteSeq(gemGuid[index]);
+    _worldPacket.ReadGuidBytes(ItemGuid, { 4, 3, 1, 5, 0 });
 }
 
 void WorldPackets::Item::CancelTempEnchantment::Read()

@@ -16,10 +16,14 @@
  */
 
 #include "CombatPackets.h"
+#include "UnitDefines.h"
 
 void WorldPackets::Combat::SetSheathed::Read()
 {
+    // 5.4.8 18414, from Project SkyFire
     _worldPacket >> CurrentSheathState;
+    if (!_worldPacket.ReadBit())                            // has data
+        CurrentSheathState = MAX_SHEATH_STATE;
 }
 
 WorldPacket const* WorldPackets::Combat::SAttackStop::Write()

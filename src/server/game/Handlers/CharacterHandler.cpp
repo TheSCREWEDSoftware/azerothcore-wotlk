@@ -1501,13 +1501,17 @@ void WorldSession::HandlePlayerLoginToCharOutOfWorld(Player* /*pCurrChar*/)
 
 void WorldSession::HandleSetFactionAtWar(WorldPacket& recvData)
 {
-    uint32 repListID;
-    uint8  flag;
-
+    // 5.4.8 18414, from Project SkyFire: separate opcodes for at war and not at war
+    uint8 repListID;
     recvData >> repListID;
-    recvData >> flag;
+    GetPlayer()->GetReputationMgr().SetAtWar(repListID, true);
+}
 
-    GetPlayer()->GetReputationMgr().SetAtWar(repListID, flag);
+void WorldSession::HandleSetFactionNotAtWar(WorldPacket& recvData)
+{
+    uint8 repListID;
+    recvData >> repListID;
+    GetPlayer()->GetReputationMgr().SetAtWar(repListID, false);
 }
 
 //I think this function is never used :/ I dunno, but i guess this opcode not exists
@@ -1676,8 +1680,17 @@ void WorldSession::HandleSetPlayerDeclinedNames(WorldPacket& recvData)
     if (!sWorld->getBoolConfig(CONFIG_DECLINED_NAMES_USED))
         return;
 
+    // 5.4.8 18414, from Project SkyFire
     ObjectGuid guid;
-    recvData >> guid;
+    DeclinedName declinedname;
+    std::array<uint32, MAX_DECLINED_NAME_CASES> declinedNameLengths;
+    recvData.ReadGuidMask(guid, { 0, 2, 1, 7, 5, 6, 4, 3 });
+    for (uint32& length : declinedNameLengths)
+        length = recvData.ReadBits(7);
+    recvData.FlushBits();
+    for (uint8 i = 0; i < MAX_DECLINED_NAME_CASES; ++i)
+        declinedname.name[i] = recvData.ReadString(declinedNameLengths[i]);
+    recvData.ReadGuidBytes(guid, { 0, 7, 3, 6, 4, 2, 1, 5 });
 
     // not accept declined names for unsupported languages
     std::string name;
@@ -1700,20 +1713,8 @@ void WorldSession::HandleSetPlayerDeclinedNames(WorldPacket& recvData)
         return;
     }
 
-    std::string name2;
-    DeclinedName declinedname;
-
-    recvData >> name2;
-
-    if (name2 != name)                                       // character have different name
-    {
-        SendSetPlayerDeclinedNamesResult(DECLINED_NAMES_RESULT_ERROR, guid);
-        return;
-    }
-
     for (int i = 0; i < MAX_DECLINED_NAME_CASES; ++i)
     {
-        recvData >> declinedname.name[i];
         if (!normalizePlayerName(declinedname.name[i]))
         {
             SendSetPlayerDeclinedNamesResult(DECLINED_NAMES_RESULT_ERROR, guid);
@@ -2961,9 +2962,13 @@ void WorldSession::SendCharCustomize(ResponseCodes result, CharacterCustomizeInf
 
 void WorldSession::SendSetPlayerDeclinedNamesResult(DeclinedNameResult result, ObjectGuid guid)
 {
-    WorldPacket data(SMSG_SET_PLAYER_DECLINED_NAMES_RESULT, 4 + 8);
+    // 5.4.8 18414, from Project SkyFire
+    WorldPacket data(SMSG_SET_PLAYER_DECLINED_NAMES_RESULT, 1 + 8 + 4);
+    data.WriteBit(result != DECLINED_NAMES_RESULT_SUCCESS);
+    data.WriteGuidMask(guid, { 2, 0, 3, 1, 4, 6, 5, 7 });
+    data.FlushBits();
+    data.WriteGuidBytes(guid, { 2, 7, 1, 0, 4, 3, 6, 5 });
     data << uint32(result);
-    data << guid;
     SendPacket(&data);
 }
 
@@ -3016,7 +3021,7 @@ void WorldSession::HandleRandomizeCharNameOpcode(WorldPacket& recvData)
 {
     uint8 race;
     uint8 gender;
-    recvData >> race >> gender;
+    recvData >> gender >> race;                             // 5.4.8 18414 order, from Project SkyFire
 
     if (!sChrRacesStore.LookupEntry(race))
     {

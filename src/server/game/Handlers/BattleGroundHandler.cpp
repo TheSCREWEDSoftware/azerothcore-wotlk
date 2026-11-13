@@ -932,8 +932,10 @@ void WorldSession::HandleBattlemasterJoinArena(WorldPacket& recvData)
 
 void WorldSession::HandleReportPvPAFK(WorldPacket& recvData)
 {
+    // 5.4.8 18414, from Project SkyFire
     ObjectGuid playerGuid;
-    recvData >> playerGuid;
+    recvData.ReadGuidMask(playerGuid, { 3, 6, 1, 4, 5, 0, 7, 2 });
+    recvData.ReadGuidBytes(playerGuid, { 3, 0, 4, 1, 7, 6, 2, 5 });
     Player* reportedPlayer = ObjectAccessor::FindPlayer(playerGuid);
 
     if (!reportedPlayer)

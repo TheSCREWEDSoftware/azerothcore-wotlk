@@ -24,21 +24,25 @@ void WorldPackets::Pet::DismissCritter::Read()
     _worldPacket.ReadGuidBytes(CritterGUID, { 2, 4, 5, 0, 1, 7, 3, 6 });
 }
 
+// 5.4.8 18414, from Project SkyFire
 void WorldPackets::Pet::PetAbandon::Read()
 {
-    _worldPacket >> PetGUID;
+    _worldPacket.ReadGuidMask(PetGUID, { 7, 3, 4, 2, 5, 6, 1, 0 });
+    _worldPacket.ReadGuidBytes(PetGUID, { 0, 2, 5, 6, 7, 1, 4, 3 });
 }
 
 void WorldPackets::Pet::PetStopAttack::Read()
 {
-    _worldPacket >> PetGUID;
+    _worldPacket.ReadGuidMask(PetGUID, { 7, 5, 1, 6, 0, 2, 4, 3 });
+    _worldPacket.ReadGuidBytes(PetGUID, { 2, 5, 0, 4, 1, 7, 6, 3 });
 }
 
 void WorldPackets::Pet::PetSpellAutocast::Read()
 {
-    _worldPacket >> PetGUID;
     _worldPacket >> SpellID;
-    _worldPacket >> AutocastEnabled;
+    _worldPacket.ReadGuidMask(PetGUID, { 0, 4, 2, 6, 1, 5, 3, 7 });
+    AutocastEnabled = _worldPacket.ReadBit();
+    _worldPacket.ReadGuidBytes(PetGUID, { 5, 0, 4, 1, 7, 2, 3, 6 });
 }
 
 WorldPacket const* WorldPackets::Pet::PetLearnedSpell::Write()

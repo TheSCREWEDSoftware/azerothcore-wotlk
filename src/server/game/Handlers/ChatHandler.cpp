@@ -1002,8 +1002,10 @@ void WorldSession::HandleTextEmoteOpcode(WorldPacket& recvData)
     uint32 emoteNum;
     ObjectGuid guid;
 
+    // 5.4.8 18414, from Project SkyFire
     recvData >> emoteNum;
-    recvData >> guid;
+    recvData.ReadGuidMask(guid, { 6, 7, 3, 2, 0, 5, 1, 4 });
+    recvData.ReadGuidBytes(guid, { 0, 5, 1, 4, 2, 3, 7, 6 });
 
     sScriptMgr->OnPlayerTextEmote(GetPlayer(), text_emote, emoteNum, guid);
 

@@ -1009,10 +1009,18 @@ void WorldSession::HandleSummonResponseOpcode(WorldPacket& recvData)
     if (!_player->IsAlive() || _player->IsInCombat())
         return;
 
+    // 5.4.8 18414, from Project SkyFire
     ObjectGuid summoner_guid;
-    bool agree;
-    recvData >> summoner_guid;
-    recvData >> agree;
+    summoner_guid[1] = recvData.ReadBit();
+    summoner_guid[3] = recvData.ReadBit();
+    summoner_guid[5] = recvData.ReadBit();
+    summoner_guid[2] = recvData.ReadBit();
+    bool agree = recvData.ReadBit();
+    summoner_guid[7] = recvData.ReadBit();
+    summoner_guid[0] = recvData.ReadBit();
+    summoner_guid[4] = recvData.ReadBit();
+    summoner_guid[6] = recvData.ReadBit();
+    recvData.ReadGuidBytes(summoner_guid, { 0, 1, 6, 3, 5, 4, 2, 7 });
 
     if (agree && _player->IsSummonAsSpectator())
     {

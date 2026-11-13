@@ -732,10 +732,14 @@ void WorldSession::HandlePetSetAction(WorldPacket& recvData)
 {
     LOG_DEBUG("network.opcode", "HandlePetSetAction. CMSG_PET_SET_ACTION");
 
+    // 5.4.8 18414, from Project SkyFire: one button per packet, a move arrives as two packets
+    uint32 position[2];
+    uint32 data[2];
+    recvData >> position[0];
+    recvData >> data[0];
     ObjectGuid petguid;
-    uint8  count;
-
-    recvData >> petguid;
+    recvData.ReadGuidMask(petguid, { 1, 0, 5, 3, 2, 7, 6, 4 });
+    recvData.ReadGuidBytes(petguid, { 5, 6, 7, 3, 2, 1, 4, 0 });
 
     Unit* checkPet = ObjectAccessor::GetUnit(*_player, petguid);
     if (!checkPet || checkPet != _player->GetFirstControlled())
@@ -744,34 +748,12 @@ void WorldSession::HandlePetSetAction(WorldPacket& recvData)
         return;
     }
 
-    count = (recvData.size() == 24) ? 2 : 1;
+    uint8 const count = 1;
+    bool const move_command = false;
 
-    uint32 position[2];
-    uint32 data[2];
-    bool move_command = false;
-
-    for (uint8 i = 0; i < count; ++i)
-    {
-        recvData >> position[i];
-        recvData >> data[i];
-
-        uint8 act_state = UNIT_ACTION_BUTTON_TYPE(data[i]);
-
-        //ignore invalid position
-        if (position[i] >= MAX_UNIT_ACTION_BAR_INDEX)
-            return;
-
-        // in the normal case, command and reaction buttons can only be moved, not removed
-        // at moving count == 2, at removing count == 1
-        // ignore attempt to remove command|reaction buttons (not possible at normal case)
-        if (act_state == ACT_COMMAND || act_state == ACT_REACTION)
-        {
-            if (count == 1)
-                return;
-
-            move_command = true;
-        }
-    }
+    //ignore invalid position
+    if (position[0] >= MAX_UNIT_ACTION_BAR_INDEX)
+        return;
 
     Unit::ControlSet petsSet;
     if (checkPet->GetEntry() != petguid.GetEntry())
@@ -876,19 +858,29 @@ void WorldSession::HandlePetRename(WorldPacket& recvData)
 {
     LOG_DEBUG("network.opcode", "HandlePetRename. CMSG_PET_RENAME");
 
-    ObjectGuid petguid;
-    uint8 isdeclined;
-
+    // 5.4.8 18414, from Project SkyFire: the pet is named by its number
+    uint32 petNumber;
     std::string name;
     DeclinedName declinedname;
+    std::array<uint32, MAX_DECLINED_NAME_CASES> declinedNameLengths = { };
 
-    recvData >> petguid;
-    recvData >> name;
-    recvData >> isdeclined;
+    recvData >> petNumber;
+    bool hasName = !recvData.ReadBit();
+    bool isdeclined = recvData.ReadBit();
+    if (isdeclined)
+        for (uint32& length : declinedNameLengths)
+            length = recvData.ReadBits(7);
+    if (hasName)
+        name = recvData.ReadString(recvData.ReadBits(8));
+    if (isdeclined)
+        for (uint8 i = 0; i < MAX_DECLINED_NAME_CASES; ++i)
+            declinedname.name[i] = recvData.ReadString(declinedNameLengths[i]);
 
     PetStable* petStable = _player->GetPetStable();
 
-    Pet* pet = ObjectAccessor::GetPet(*_player, petguid);
+    Pet* pet = _player->GetPet();
+    if (pet && (!pet->GetCharmInfo() || pet->GetCharmInfo()->GetPetNumber() != petNumber))
+        pet = nullptr;
 
     // check it!
     if (!pet || !pet->IsPet() || ((Pet*)pet)->getPetType() != HUNTER_PET ||
@@ -919,11 +911,6 @@ void WorldSession::HandlePetRename(WorldPacket& recvData)
 
     if (isdeclined)
     {
-        for (uint8 i = 0; i < MAX_DECLINED_NAME_CASES; ++i)
-        {
-            recvData >> declinedname.name[i];
-        }
-
         std::wstring wname;
         Utf8toWStr(name, wname);
         if (!ObjectMgr::CheckDeclinedNames(wname, declinedname))
