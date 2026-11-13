@@ -7975,50 +7975,52 @@ bool Player::CheckAmmoCompatibility(ItemTemplate const* ammo_proto) const
     return true;
 }
 
+// 5.4.8 18414, from Project SkyFire (WorldSession::SendQuestgiverStatusMultiple)
 void Player::SendQuestGiverStatusMultiple()
 {
     if (GetObjectVisibilityContainer().GetVisibleWorldObjectsMap()->empty())
         return;
 
-     uint32 count = 0;
+    uint32 count = 0;
+    ByteBuffer byteData;
+    WorldPacket data(SMSG_QUESTGIVER_STATUS_MULTIPLE, 3);
+    std::size_t const countPos = data.bitwpos();
+    data.WriteBits(0, 21);
 
-    WorldPacket data(SMSG_QUESTGIVER_STATUS_MULTIPLE, 4);
-    data << uint32(count); // placeholder
-
-    DoForAllVisibleWorldObjects([this, &data, &count](WorldObject* worldObject)
+    DoForAllVisibleWorldObjects([this, &data, &byteData, &count](WorldObject* worldObject)
     {
-        uint32 questStatus = DIALOG_STATUS_NONE;
-
-        if (worldObject->IsCreature())
+        if (Creature* questgiver = worldObject->ToCreature())
         {
             // need also pet quests case support
-            Creature* questgiver = worldObject->ToCreature();
-            if (!questgiver || questgiver->IsHostileTo(this))
+            if (questgiver->IsHostileTo(this) || !questgiver->HasNpcFlag(UNIT_NPC_FLAG_QUESTGIVER))
                 return;
-            if (!questgiver->HasNpcFlag(UNIT_NPC_FLAG_QUESTGIVER))
-                return;
-
-            questStatus = GetQuestDialogStatus(questgiver);
-
-            data << questgiver->GetGUID();
-            data << uint32(questStatus);
-            ++count;
         }
-        else if (worldObject->IsGameObject())
+        else if (GameObject* questgiver = worldObject->ToGameObject())
         {
-            GameObject* questgiver = worldObject->ToGameObject();
-            if (!questgiver || questgiver->GetGoType() != GAMEOBJECT_TYPE_QUESTGIVER)
+            if (questgiver->GetGoType() != GAMEOBJECT_TYPE_QUESTGIVER)
                 return;
-
-            questStatus = GetQuestDialogStatus(questgiver);
-
-            data << questgiver->GetGUID();
-            data << uint32(questStatus);
-            ++count;
         }
+        else
+            return;
+
+        uint32 const questStatus = GetQuestDialogStatus(worldObject);
+        ObjectGuid const guid = worldObject->GetGUID();
+
+        for (uint8 index : { 4, 0, 3, 6, 5, 7, 1, 2 })
+            data.WriteBit(guid[index]);
+
+        for (uint8 index : { 6, 2, 7, 5, 4 })
+            byteData.WriteByteSeq(guid[index]);
+        byteData << uint32(questStatus);
+        for (uint8 index : { 1, 3, 0 })
+            byteData.WriteByteSeq(guid[index]);
+
+        ++count;
     });
 
-    data.put<uint32>(0, count); // write real count
+    data.FlushBits();
+    data.PutBits(countPos, count, 21);
+    data.append(byteData);
     SendDirectMessage(&data);
 }
 

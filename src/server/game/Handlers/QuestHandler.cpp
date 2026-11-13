@@ -36,7 +36,11 @@
 void WorldSession::HandleQuestgiverStatusQueryOpcode(WorldPacket& recvData)
 {
     ObjectGuid guid;
-    recvData >> guid;
+    // 5.4.8 18414, from Project SkyFire
+    for (uint8 index : { 4, 3, 2, 1, 0, 5, 7, 6 })
+        guid[index] = recvData.ReadBit();
+    for (uint8 index : { 5, 7, 4, 0, 2, 1, 6, 3 })
+        recvData.ReadByteSeq(guid[index]);
     uint32 questStatus = DIALOG_STATUS_NONE;
 
     Object* questGiver = ObjectAccessor::GetObjectByTypeMask(*_player, guid, TYPEMASK_UNIT | TYPEMASK_GAMEOBJECT);
@@ -79,7 +83,11 @@ void WorldSession::HandleQuestgiverStatusQueryOpcode(WorldPacket& recvData)
 void WorldSession::HandleQuestgiverHelloOpcode(WorldPacket& recvData)
 {
     ObjectGuid guid;
-    recvData >> guid;
+    // 5.4.8 18414, from Project SkyFire
+    for (uint8 index : { 5, 6, 7, 3, 4, 2, 1, 0 })
+        guid[index] = recvData.ReadBit();
+    for (uint8 index : { 4, 1, 7, 3, 6, 0, 5, 2 })
+        recvData.ReadByteSeq(guid[index]);
 
     LOG_DEBUG("network", "WORLD: Received CMSG_QUESTGIVER_HELLO npc {}", guid.ToString());
 
@@ -114,8 +122,15 @@ void WorldSession::HandleQuestgiverAcceptQuestOpcode(WorldPacket& recvData)
 {
     ObjectGuid guid;
     uint32 questId;
-    uint32 unk1;
-    recvData >> guid >> questId >> unk1;
+    // 5.4.8 18414, from Project SkyFire
+    recvData >> questId;
+    guid[6] = recvData.ReadBit();
+    guid[0] = recvData.ReadBit();
+    bool unk1 = recvData.ReadBit();
+    for (uint8 index : { 2, 7, 5, 4, 3, 1 })
+        guid[index] = recvData.ReadBit();
+    for (uint8 index : { 5, 4, 0, 1, 6, 2, 3, 7 })
+        recvData.ReadByteSeq(guid[index]);
 
     LOG_DEBUG("network", "WORLD: Received CMSG_QUESTGIVER_ACCEPT_QUEST npc {}, quest = {}, unk1 = {}", guid.ToString(), questId, unk1);
 
@@ -204,8 +219,13 @@ void WorldSession::HandleQuestgiverQueryQuestOpcode(WorldPacket& recvData)
 {
     ObjectGuid guid;
     uint32 questId;
-    uint8 unk1;
-    recvData >> guid >> questId >> unk1;
+    // 5.4.8 18414, from Project SkyFire
+    recvData >> questId;
+    for (uint8 index : { 2, 6, 5, 0, 4, 3, 1, 7 })
+        guid[index] = recvData.ReadBit();
+    bool unk1 = recvData.ReadBit();
+    for (uint8 index : { 2, 0, 4, 7, 5, 1, 3, 6 })
+        recvData.ReadByteSeq(guid[index]);
     LOG_DEBUG("network", "WORLD: Received CMSG_QUESTGIVER_QUERY_QUEST npc {}, quest = {}, unk1 = {}", guid.ToString(), questId, unk1);
 
     // Verify that the guid is valid and is a questgiver or involved in the requested quest
@@ -240,7 +260,12 @@ void WorldSession::HandleQuestQueryOpcode(WorldPacket& recvData)
         return;
 
     uint32 questId;
+    ObjectGuid guid;
     recvData >> questId;
+    for (uint8 index : { 0, 5, 2, 7, 6, 4, 1, 3 })
+        guid[index] = recvData.ReadBit();
+    for (uint8 index : { 4, 1, 7, 5, 2, 3, 6, 0 })
+        recvData.ReadByteSeq(guid[index]);
     LOG_DEBUG("network", "WORLD: Received CMSG_QUEST_QUERY quest = {}", questId);
 
     if (Quest const* quest = sObjectMgr->GetQuestTemplate(questId))
@@ -249,9 +274,23 @@ void WorldSession::HandleQuestQueryOpcode(WorldPacket& recvData)
 
 void WorldSession::HandleQuestgiverChooseRewardOpcode(WorldPacket& recvData)
 {
-    uint32 questId, reward;
+    // 5.4.8 18414, from Project SkyFire: the client sends the chosen item id, not its slot
+    uint32 questId, rewardItemId;
     ObjectGuid guid;
-    recvData >> guid >> questId >> reward;
+    recvData >> rewardItemId >> questId;
+    for (uint8 index : { 2, 6, 0, 5, 1, 3, 7, 4 })
+        guid[index] = recvData.ReadBit();
+    for (uint8 index : { 1, 2, 5, 7, 0, 3, 6, 4 })
+        recvData.ReadByteSeq(guid[index]);
+
+    uint32 reward = 0;
+    if (Quest const* rewardQuest = sObjectMgr->GetQuestTemplate(questId); rewardQuest && rewardItemId)
+    {
+        reward = QUEST_REWARD_CHOICES_COUNT;
+        for (uint32 i = 0; i < QUEST_REWARD_CHOICES_COUNT; ++i)
+            if (rewardQuest->RewardChoiceItemId[i] == rewardItemId)
+                reward = i;
+    }
 
     if (reward >= QUEST_REWARD_CHOICES_COUNT)
     {
@@ -356,7 +395,12 @@ void WorldSession::HandleQuestgiverRequestRewardOpcode(WorldPacket& recvData)
 {
     uint32 questId;
     ObjectGuid guid;
-    recvData >> guid >> questId;
+    // 5.4.8 18414, from Project SkyFire
+    recvData >> questId;
+    for (uint8 index : { 6, 3, 1, 2, 4, 0, 5, 7 })
+        guid[index] = recvData.ReadBit();
+    for (uint8 index : { 3, 0, 7, 6, 2, 1, 5, 4 })
+        recvData.ReadByteSeq(guid[index]);
 
     LOG_DEBUG("network", "WORLD: Received CMSG_QUESTGIVER_REQUEST_REWARD npc {}, quest = {}", guid.ToString(), questId);
 
@@ -483,20 +527,37 @@ void WorldSession::HandleQuestgiverCompleteQuest(WorldPacket& recvData)
     ObjectGuid guid;
     bool fromScript;
 
-    recvData >> guid >> questId >> fromScript;
+    // 5.4.8 18414, from Project SkyFire
+    recvData >> questId;
+    for (uint8 index : { 4, 2, 1, 5, 6, 7, 3 })
+        guid[index] = recvData.ReadBit();
+    fromScript = recvData.ReadBit();
+    guid[0] = recvData.ReadBit();
+    for (uint8 index : { 0, 2, 1, 4, 3, 6, 7, 5 })
+        recvData.ReadByteSeq(guid[index]);
 
     LOG_DEBUG("network", "WORLD: Received CMSG_QUESTGIVER_COMPLETE_QUEST npc {}, quest = {}, fromScript = {}",
         guid.ToString(), questId, fromScript);
 
-    Object* object = ObjectAccessor::GetObjectByTypeMask(*_player, guid, TYPEMASK_UNIT | TYPEMASK_GAMEOBJECT);
-    if (!object || !object->hasInvolvedQuest(questId))
-        return;
+    Quest const* autoCompleteQuest = sObjectMgr->GetQuestTemplate(questId);
+    if (fromScript && autoCompleteQuest && autoCompleteQuest->IsAutoComplete())
+    {
+        // 5.4.8 completes auto-complete quests from the quest log toast with the player's own GUID
+        if (guid != _player->GetGUID())
+            return;
+    }
+    else
+    {
+        Object* object = ObjectAccessor::GetObjectByTypeMask(*_player, guid, TYPEMASK_UNIT | TYPEMASK_GAMEOBJECT);
+        if (!object || !object->hasInvolvedQuest(questId))
+            return;
 
-    // some kind of WPE protection
-    if (!_player->CanInteractWithQuestGiver(object))
-        return;
+        // some kind of WPE protection
+        if (!_player->CanInteractWithQuestGiver(object))
+            return;
+    }
 
-    if (Quest const* quest = sObjectMgr->GetQuestTemplate(questId))
+    if (Quest const* quest = autoCompleteQuest)
     {
         if (!_player->CanSeeStartQuest(quest) && _player->GetQuestStatus(questId) == QUEST_STATUS_NONE)
         {

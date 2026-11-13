@@ -152,6 +152,26 @@ public:
         _curbitval = 0;
     }
 
+    // Bit position of the next bit to write, for PutBits
+    [[nodiscard]] std::size_t bitwpos() const { return _wpos * 8 + 8 - _bitpos; }
+
+    // Overwrites bits that were already flushed, e.g. a count written before its elements
+    void PutBits(std::size_t pos, std::size_t value, uint32 bitCount)
+    {
+        if (pos + bitCount > size() * 8)
+            throw ByteBufferPositionException(false, (pos + bitCount) / 8, size(), 0);
+
+        for (uint32 i = 0; i < bitCount; ++i)
+        {
+            std::size_t wp = (pos + i) / 8;
+            std::size_t bit = (pos + i) % 8;
+            if ((value >> (bitCount - i - 1)) & 1)
+                _storage[wp] |= 1 << (7 - bit);
+            else
+                _storage[wp] &= ~(1 << (7 - bit));
+        }
+    }
+
     void FlushBits()
     {
         if (_bitpos == 8)

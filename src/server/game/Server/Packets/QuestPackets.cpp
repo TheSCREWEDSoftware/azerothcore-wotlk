@@ -103,8 +103,15 @@ WorldPacket const* WorldPackets::Quest::QuestConfirmAccept::Write()
 
 WorldPacket const* WorldPackets::Quest::QuestPushResult::Write()
 {
-    _worldPacket << PlayerGuid;
-    _worldPacket << QuestShareMessage;
+    // 5.4.8 18414, from Project SkyFire (Player::SendPushToPartyResponse)
+    for (uint8 index : { 3, 0, 1, 4, 7, 5, 6, 2 })
+        _worldPacket.WriteBit(PlayerGuid[index]);
+    _worldPacket.FlushBits();
+
+    _worldPacket.WriteByteSeq(PlayerGuid[4]);
+    _worldPacket << uint8(QuestShareMessage);
+    for (uint8 index : { 1, 5, 3, 7, 6, 2, 0 })
+        _worldPacket.WriteByteSeq(PlayerGuid[index]);
 
     return &_worldPacket;
 }
@@ -131,10 +138,14 @@ WorldPacket const* WorldPackets::Quest::QuestUpdateAddPvPKill::Write()
 
 void WorldPackets::Quest::QuestPushResultClient::Read()
 {
-    _worldPacket >> PlayerGuid;
+    // 5.4.8 18414, from Project SkyFire (WorldSession::HandleQuestPushResult)
     _worldPacket >> QuestId;
     uint8 Message;
     _worldPacket >> Message;
+    for (uint8 index : { 5, 3, 0, 6, 1, 2, 7, 4 })
+        PlayerGuid[index] = _worldPacket.ReadBit();
+    for (uint8 index : { 1, 2, 0, 5, 6, 4, 7, 3 })
+        _worldPacket.ReadByteSeq(PlayerGuid[index]);
     QuestShareMessage = static_cast<QuestShareMessages>(Message);
 }
 

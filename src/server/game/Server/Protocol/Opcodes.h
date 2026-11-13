@@ -1729,8 +1729,7 @@ inline constexpr OpcodeServer MSG_MOVE_TELEPORT_SERVER =
     static_cast<OpcodeServer>(MSG_MOVE_TELEPORT);
 inline constexpr OpcodeServer MSG_MOVE_TELEPORT_CHEAT_SERVER =
     static_cast<OpcodeServer>(MSG_MOVE_TELEPORT_CHEAT);
-inline constexpr OpcodeServer MSG_MOVE_TELEPORT_ACK_SERVER =
-    static_cast<OpcodeServer>(MSG_MOVE_TELEPORT_ACK);
+inline constexpr OpcodeServer MSG_MOVE_TELEPORT_ACK_SERVER = static_cast<OpcodeServer>(0xFFF0 + 2); // not sent in 5.4.8
 inline constexpr OpcodeServer MSG_MOVE_TOGGLE_FALL_LOGGING_SERVER =
     static_cast<OpcodeServer>(MSG_MOVE_TOGGLE_FALL_LOGGING);
 inline constexpr OpcodeServer MSG_MOVE_FALL_LAND_SERVER =
@@ -1773,10 +1772,8 @@ inline constexpr OpcodeServer MSG_CHANNEL_START_SERVER =
     static_cast<OpcodeServer>(MSG_CHANNEL_START);
 inline constexpr OpcodeServer MSG_CHANNEL_UPDATE_SERVER =
     static_cast<OpcodeServer>(MSG_CHANNEL_UPDATE);
-inline constexpr OpcodeServer MSG_PETITION_DECLINE_SERVER =
-    static_cast<OpcodeServer>(MSG_PETITION_DECLINE);
-inline constexpr OpcodeServer MSG_MINIMAP_PING_SERVER =
-    static_cast<OpcodeServer>(MSG_MINIMAP_PING);
+inline constexpr OpcodeServer MSG_PETITION_DECLINE_SERVER = static_cast<OpcodeServer>(0xFFF0 + 0); // not sent in 5.4.8
+inline constexpr OpcodeServer MSG_MINIMAP_PING_SERVER = SMSG_MINIMAP_PING; // 5.4.8 answers with its own server opcode
 inline constexpr OpcodeServer MSG_GM_BIND_OTHER_SERVER =
     static_cast<OpcodeServer>(MSG_GM_BIND_OTHER);
 inline constexpr OpcodeServer MSG_GM_SUMMON_SERVER =
@@ -1787,20 +1784,16 @@ inline constexpr OpcodeServer MSG_SAVE_GUILD_EMBLEM_SERVER =
     static_cast<OpcodeServer>(MSG_SAVE_GUILD_EMBLEM);
 inline constexpr OpcodeServer MSG_TABARDVENDOR_ACTIVATE_SERVER =
     static_cast<OpcodeServer>(MSG_TABARDVENDOR_ACTIVATE);
-inline constexpr OpcodeServer MSG_RANDOM_ROLL_SERVER =
-    static_cast<OpcodeServer>(MSG_RANDOM_ROLL);
+inline constexpr OpcodeServer MSG_RANDOM_ROLL_SERVER = SMSG_RANDOM_ROLL; // 5.4.8 answers with its own server opcode
 inline constexpr OpcodeServer MSG_CORPSE_QUERY_SERVER =
     static_cast<OpcodeServer>(MSG_CORPSE_QUERY);
 inline constexpr OpcodeServer MSG_AUCTION_HELLO_SERVER =
     static_cast<OpcodeServer>(MSG_AUCTION_HELLO);
 inline constexpr OpcodeServer MSG_GM_ACCOUNT_ONLINE_SERVER =
     static_cast<OpcodeServer>(MSG_GM_ACCOUNT_ONLINE);
-inline constexpr OpcodeServer MSG_LIST_STABLED_PETS_SERVER =
-    static_cast<OpcodeServer>(MSG_LIST_STABLED_PETS);
-inline constexpr OpcodeServer MSG_QUEST_PUSH_RESULT_SERVER =
-    static_cast<OpcodeServer>(MSG_QUEST_PUSH_RESULT);
-inline constexpr OpcodeServer MSG_QUERY_NEXT_MAIL_TIME_SERVER =
-    static_cast<OpcodeServer>(MSG_QUERY_NEXT_MAIL_TIME);
+inline constexpr OpcodeServer MSG_LIST_STABLED_PETS_SERVER = SMSG_PET_STABLE_LIST; // 5.4.8 answers with its own server opcode
+inline constexpr OpcodeServer MSG_QUEST_PUSH_RESULT_SERVER = SMSG_QUEST_PUSH_RESULT; // 5.4.8 answers with its own server opcode
+inline constexpr OpcodeServer MSG_QUERY_NEXT_MAIL_TIME_SERVER = SMSG_MAIL_QUERY_NEXT_TIME_RESULT; // 5.4.8 answers with its own server opcode
 inline constexpr OpcodeServer MSG_TALENT_WIPE_CONFIRM_SERVER =
     static_cast<OpcodeServer>(MSG_TALENT_WIPE_CONFIRM);
 inline constexpr OpcodeServer MSG_DEV_SHOWLABEL_SERVER =
@@ -1809,22 +1802,17 @@ inline constexpr OpcodeServer MSG_MOVE_FEATHER_FALL_SERVER =
     static_cast<OpcodeServer>(MSG_MOVE_FEATHER_FALL);
 inline constexpr OpcodeServer MSG_MOVE_WATER_WALK_SERVER =
     static_cast<OpcodeServer>(MSG_MOVE_WATER_WALK);
-inline constexpr OpcodeServer MSG_PETITION_RENAME_SERVER =
-    static_cast<OpcodeServer>(MSG_PETITION_RENAME);
-inline constexpr OpcodeServer MSG_PVP_LOG_DATA_SERVER =
-    static_cast<OpcodeServer>(MSG_PVP_LOG_DATA);
+inline constexpr OpcodeServer MSG_PETITION_RENAME_SERVER = SMSG_PETITION_RENAME_RESULT; // 5.4.8 answers with its own server opcode
+inline constexpr OpcodeServer MSG_PVP_LOG_DATA_SERVER = SMSG_PVP_LOG_DATA; // 5.4.8 answers with its own server opcode
 inline constexpr OpcodeServer MSG_BATTLEGROUND_PLAYER_POSITIONS_SERVER =
     static_cast<OpcodeServer>(MSG_BATTLEGROUND_PLAYER_POSITIONS);
 inline constexpr OpcodeServer MSG_GM_DESTROY_CORPSE_SERVER =
     static_cast<OpcodeServer>(MSG_GM_DESTROY_CORPSE);
 inline constexpr OpcodeServer MSG_MOVE_TIME_SKIPPED_SERVER =
     static_cast<OpcodeServer>(MSG_MOVE_TIME_SKIPPED);
-inline constexpr OpcodeServer MSG_RAID_TARGET_UPDATE_SERVER =
-    static_cast<OpcodeServer>(MSG_RAID_TARGET_UPDATE);
-inline constexpr OpcodeServer MSG_RAID_READY_CHECK_SERVER =
-    static_cast<OpcodeServer>(MSG_RAID_READY_CHECK);
-inline constexpr OpcodeServer MSG_SET_DUNGEON_DIFFICULTY_SERVER =
-    static_cast<OpcodeServer>(MSG_SET_DUNGEON_DIFFICULTY);
+inline constexpr OpcodeServer MSG_RAID_TARGET_UPDATE_SERVER = SMSG_RAID_TARGET_UPDATE_SINGLE; // 5.4.8 answers with its own server opcode
+inline constexpr OpcodeServer MSG_RAID_READY_CHECK_SERVER = SMSG_RAID_READY_CHECK; // 5.4.8 answers with its own server opcode
+inline constexpr OpcodeServer MSG_SET_DUNGEON_DIFFICULTY_SERVER = SMSG_SET_DUNGEON_DIFFICULTY; // 5.4.8 answers with its own server opcode
 inline constexpr OpcodeServer MSG_DELAY_GHOST_TELEPORT_SERVER =
     static_cast<OpcodeServer>(MSG_DELAY_GHOST_TELEPORT);
 inline constexpr OpcodeServer MSG_GM_RESETINSTANCELIMIT_SERVER =
@@ -1845,14 +1833,12 @@ inline constexpr OpcodeServer MSG_MOVE_SET_FLIGHT_SPEED_CHEAT_SERVER =
     static_cast<OpcodeServer>(MSG_MOVE_SET_FLIGHT_SPEED_CHEAT);
 inline constexpr OpcodeServer MSG_MOVE_SET_FLIGHT_BACK_SPEED_CHEAT_SERVER =
     static_cast<OpcodeServer>(MSG_MOVE_SET_FLIGHT_BACK_SPEED_CHEAT);
-inline constexpr OpcodeServer MSG_PARTY_ASSIGNMENT_SERVER =
-    static_cast<OpcodeServer>(MSG_PARTY_ASSIGNMENT);
+inline constexpr OpcodeServer MSG_PARTY_ASSIGNMENT_SERVER = static_cast<OpcodeServer>(0xFFF0 + 1); // not sent in 5.4.8
 inline constexpr OpcodeServer MSG_MOVE_START_DESCEND_SERVER =
     static_cast<OpcodeServer>(MSG_MOVE_START_DESCEND);
 inline constexpr OpcodeServer MSG_MOVE_UPDATE_CAN_FLY_SERVER =
     static_cast<OpcodeServer>(MSG_MOVE_UPDATE_CAN_FLY);
-inline constexpr OpcodeServer MSG_RAID_READY_CHECK_CONFIRM_SERVER =
-    static_cast<OpcodeServer>(MSG_RAID_READY_CHECK_CONFIRM);
+inline constexpr OpcodeServer MSG_RAID_READY_CHECK_CONFIRM_SERVER = SMSG_RAID_READY_CHECK_CONFIRM; // 5.4.8 answers with its own server opcode
 inline constexpr OpcodeServer MSG_GM_GEARRATING_SERVER =
     static_cast<OpcodeServer>(MSG_GM_GEARRATING);
 inline constexpr OpcodeServer MSG_RAID_READY_CHECK_FINISHED_SERVER =
@@ -1865,8 +1851,7 @@ inline constexpr OpcodeServer MSG_MOVE_SET_PITCH_RATE_CHEAT_SERVER =
     static_cast<OpcodeServer>(MSG_MOVE_SET_PITCH_RATE_CHEAT);
 inline constexpr OpcodeClient MSG_MOVE_GRAVITY_CHNG_CLIENT =
     static_cast<OpcodeClient>(MSG_MOVE_GRAVITY_CHNG);
-inline constexpr OpcodeServer MSG_SET_RAID_DIFFICULTY_SERVER =
-    static_cast<OpcodeServer>(MSG_SET_RAID_DIFFICULTY);
+inline constexpr OpcodeServer MSG_SET_RAID_DIFFICULTY_SERVER = SMSG_SET_RAID_DIFFICULTY; // 5.4.8 answers with its own server opcode
 inline constexpr OpcodeServer MSG_VIEW_PHASE_SHIFT_SERVER =
     static_cast<OpcodeServer>(MSG_VIEW_PHASE_SHIFT);
 
