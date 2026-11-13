@@ -79,7 +79,10 @@ bool Player::CanSpeak() const
 
 void Player::SendAttackSwingNotInRange()
 {
-    WorldPacket data(SMSG_ATTACKSWING_NOTINRANGE, 0);
+    // 5.4.8 18414 SMSG_ATTACKSWING_ERROR, from Project SkyFire
+    WorldPacket data(SMSG_ATTACKSWING_NOTINRANGE, 1);
+    data.WriteBits(0, 2);                                   // not in range
+    data.FlushBits();
     SendDirectMessage(&data);
 }
 
@@ -129,13 +132,19 @@ void Player::Customize(CharacterCustomizeInfo const* customizeInfo, CharacterDat
 
 void Player::SendAttackSwingDeadTarget()
 {
-    WorldPacket data(SMSG_ATTACKSWING_DEADTARGET, 0);
+    // 5.4.8 18414 SMSG_ATTACKSWING_ERROR, from Project SkyFire
+    WorldPacket data(SMSG_ATTACKSWING_NOTINRANGE, 1);
+    data.WriteBits(2, 2);                                   // dead target
+    data.FlushBits();
     SendDirectMessage(&data);
 }
 
 void Player::SendAttackSwingCantAttack()
 {
-    WorldPacket data(SMSG_ATTACKSWING_CANT_ATTACK, 0);
+    // 5.4.8 18414 SMSG_ATTACKSWING_ERROR, from Project SkyFire
+    WorldPacket data(SMSG_ATTACKSWING_NOTINRANGE, 1);
+    data.WriteBits(3, 2);                                   // can not attack
+    data.FlushBits();
     SendDirectMessage(&data);
 }
 
@@ -147,14 +156,21 @@ void Player::SendAttackSwingCancelAttack()
 
 void Player::SendAttackSwingBadFacingAttack()
 {
-    WorldPacket data(SMSG_ATTACKSWING_BADFACING, 0);
+    // 5.4.8 18414 SMSG_ATTACKSWING_ERROR, from Project SkyFire
+    WorldPacket data(SMSG_ATTACKSWING_NOTINRANGE, 1);
+    data.WriteBits(1, 2);                                   // bad facing
+    data.FlushBits();
     SendDirectMessage(&data);
 }
 
 void Player::SendAutoRepeatCancel(Unit* target)
 {
-    WorldPacket data(SMSG_CANCEL_AUTO_REPEAT, target->GetPackGUID().size());
-    data << target->GetPackGUID();                  // may be it's target guid
+    // 5.4.8 18414, from Project SkyFire
+    ObjectGuid guid = target->GetGUID();
+    WorldPacket data(SMSG_CANCEL_AUTO_REPEAT, 9);
+    data.WriteGuidMask(guid, { 1, 3, 0, 4, 6, 7, 5, 2 });
+    data.FlushBits();
+    data.WriteGuidBytes(guid, { 7, 6, 2, 5, 0, 4, 1, 3 });
     SendMessageToSet(&data, true);
 }
 

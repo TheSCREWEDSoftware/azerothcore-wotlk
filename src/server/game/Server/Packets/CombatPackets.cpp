@@ -24,11 +24,23 @@ void WorldPackets::Combat::SetSheathed::Read()
 
 WorldPacket const* WorldPackets::Combat::SAttackStop::Write()
 {
-    // Packed in place because ObjectGuid::WriteAsPacked() returns a PackedGuid by value, and each one
-    // heap-allocates its buffer. Use it again once TC's non-owning PackedGuidWriter is ported.
-    _worldPacket.appendPackGUID(Attacker.GetRawValue());
-    _worldPacket.appendPackGUID(Victim.GetRawValue());
-    _worldPacket << uint32(NowDead);
+    // 5.4.8 18414, from Project SkyFire
+    _worldPacket.WriteGuidMask(Victim, { 5, 6 });
+    _worldPacket.WriteGuidMask(Attacker, { 3, 6, 7, 2, 5 });
+    _worldPacket.WriteGuidMask(Victim, { 4 });
+    _worldPacket.WriteBit(NowDead);
+    _worldPacket.WriteGuidMask(Victim, { 3, 0, 2, 7 });
+    _worldPacket.WriteGuidMask(Attacker, { 4, 1, 0 });
+    _worldPacket.WriteGuidMask(Victim, { 1 });
+    _worldPacket.FlushBits();
+
+    _worldPacket.WriteGuidBytes(Victim, { 0, 3, 5, 2 });
+    _worldPacket.WriteGuidBytes(Attacker, { 0, 6, 3 });
+    _worldPacket.WriteGuidBytes(Victim, { 4 });
+    _worldPacket.WriteGuidBytes(Attacker, { 1, 4 });
+    _worldPacket.WriteGuidBytes(Victim, { 6 });
+    _worldPacket.WriteGuidBytes(Attacker, { 5, 7, 2 });
+    _worldPacket.WriteGuidBytes(Victim, { 1, 7 });
 
     return &_worldPacket;
 }

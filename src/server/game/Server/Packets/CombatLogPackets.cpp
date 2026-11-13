@@ -19,11 +19,19 @@
 
 WorldPacket const* WorldPackets::CombatLog::EnvironmentalDamageLog::Write()
 {
-    _worldPacket << Victim;
-    _worldPacket << uint8(Type);
-    _worldPacket << uint32(Amount);
-    _worldPacket << uint32(Resisted);
+    // 5.4.8 18414, from Project SkyFire
+    _worldPacket.WriteGuidMask(Victim, { 5, 7, 1, 4, 2, 0 });
+    _worldPacket.WriteBit(false);                           // power data
+    _worldPacket.WriteGuidMask(Victim, { 6, 3 });
+    _worldPacket.FlushBits();
+
     _worldPacket << uint32(Absorbed);
+    _worldPacket.WriteGuidBytes(Victim, { 0, 7 });
+    _worldPacket << uint8(Type);
+    _worldPacket.WriteGuidBytes(Victim, { 6, 3, 5 });
+    _worldPacket << uint32(Resisted);
+    _worldPacket.WriteGuidBytes(Victim, { 1, 2, 4 });
+    _worldPacket << uint32(Amount);
 
     return &_worldPacket;
 }

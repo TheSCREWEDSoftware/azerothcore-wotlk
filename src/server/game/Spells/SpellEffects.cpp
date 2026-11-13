@@ -311,10 +311,30 @@ void Spell::EffectInstaKill(SpellEffIndex /*effIndex*/)
     if (m_caster == unitTarget)                              // prevent interrupt message
         finish();
 
-    WorldPacket data(SMSG_SPELLINSTAKILLLOG, 8 + 8 + 4);
-    data << m_caster->GetGUID();
-    data << unitTarget->GetGUID();
-    data << uint32(m_spellInfo->Id);
+    // 5.4.8 18414, from Project SkyFire
+    ObjectGuid targetGuid = unitTarget->GetGUID();
+    ObjectGuid casterGuid = m_caster->GetGUID();
+    WorldPacket data(SMSG_SPELLINSTAKILLLOG, 2 + 8 + 8 + 4);
+    data.WriteGuidMask(casterGuid, { 6 });
+    data.WriteGuidMask(targetGuid, { 0 });
+    data.WriteGuidMask(casterGuid, { 7 });
+    data.WriteGuidMask(targetGuid, { 2 });
+    data.WriteGuidMask(casterGuid, { 3, 1, 2, 0, 4 });
+    data.WriteGuidMask(targetGuid, { 4, 7, 1, 6, 5 });
+    data.WriteGuidMask(casterGuid, { 5 });
+    data.WriteGuidMask(targetGuid, { 3 });
+    data.FlushBits();
+    data.WriteGuidBytes(casterGuid, { 0 });
+    data.WriteGuidBytes(targetGuid, { 1 });
+    data.WriteGuidBytes(casterGuid, { 3, 4, 5, 7 });
+    data.WriteGuidBytes(targetGuid, { 0 });
+    data.WriteGuidBytes(casterGuid, { 6 });
+    data.WriteGuidBytes(targetGuid, { 2, 4 });
+    data.WriteGuidBytes(casterGuid, { 1 });
+    data << int32(m_spellInfo->Id);
+    data.WriteGuidBytes(targetGuid, { 3 });
+    data.WriteGuidBytes(casterGuid, { 2 });
+    data.WriteGuidBytes(targetGuid, { 7, 6, 5 });
     m_caster->SendMessageToSet(&data, true);
 
     Unit::DealDamage(GetUnitCasterForEffectHandlers(), unitTarget, unitTarget->GetHealth(), nullptr, NODAMAGE, SPELL_SCHOOL_MASK_NORMAL, nullptr, false);
@@ -2766,6 +2786,46 @@ void Spell::EffectLearnSpell(SpellEffIndex effIndex)
 }
 
 typedef std::list<std::pair<uint32, ObjectGuid>> DispelList;
+// 5.4.8 18414 SMSG_SPELLDISPELLOG, from Project SkyFire
+static WorldPacket BuildSpellDispelLog(ObjectGuid casterGuid, ObjectGuid targetGuid, uint32 spellId, std::vector<uint32> const& dispelledSpells, bool steal)
+{
+    WorldPacket data(SMSG_SPELLDISPELLOG, 2 + 8 + 8 + 4 + 3 + dispelledSpells.size() * 4);
+    data.WriteGuidMask(casterGuid, { 2 });
+    data.WriteGuidMask(targetGuid, { 4 });
+    data.WriteGuidMask(casterGuid, { 6 });
+    data.WriteGuidMask(targetGuid, { 5 });
+    data.WriteBit(steal);
+    data.WriteBit(false);                                   // break
+    data.WriteGuidMask(casterGuid, { 5, 7, 4, 0, 1 });
+    data.WriteBits(dispelledSpells.size(), 22);
+    data.WriteGuidMask(targetGuid, { 0 });
+    for (std::size_t i = 0; i < dispelledSpells.size(); ++i)
+    {
+        data.WriteBit(false);                               // has needed
+        data.WriteBit(false);                               // has rolled
+        data.WriteBit(false);                               // harmful
+    }
+    data.WriteGuidMask(targetGuid, { 3, 2 });
+    data.WriteGuidMask(casterGuid, { 3 });
+    data.WriteGuidMask(targetGuid, { 1, 7, 6 });
+    data.FlushBits();
+
+    for (uint32 dispelledSpell : dispelledSpells)
+        data << uint32(dispelledSpell);
+
+    data.WriteGuidBytes(targetGuid, { 4 });
+    data.WriteGuidBytes(casterGuid, { 3 });
+    data.WriteGuidBytes(targetGuid, { 6, 0 });
+    data.WriteGuidBytes(casterGuid, { 5, 1 });
+    data.WriteGuidBytes(targetGuid, { 3, 2, 1, 5 });
+    data.WriteGuidBytes(casterGuid, { 0 });
+    data << uint32(spellId);
+    data.WriteGuidBytes(casterGuid, { 7, 6, 2 });
+    data.WriteGuidBytes(targetGuid, { 7 });
+    data.WriteGuidBytes(casterGuid, { 4 });
+    return data;
+}
+
 void Spell::EffectDispel(SpellEffIndex effIndex)
 {
     Unit* unitCaster = m_caster->ToUnit();
@@ -2851,20 +2911,15 @@ void Spell::EffectDispel(SpellEffIndex effIndex)
     if (success_list.empty())
         return;
 
-    WorldPacket dataSuccess(SMSG_SPELLDISPELLOG, 8 + 8 + 4 + 1 + 4 + success_list.size() * 5);
-    // Send packet header
-    dataSuccess << unitTarget->GetPackGUID();               // Victim GUID
-    dataSuccess << unitCaster->GetPackGUID();                 // Caster GUID
-    dataSuccess << uint32(m_spellInfo->Id);                // dispel spell id
-    dataSuccess << uint8(0);                               // not used
-    dataSuccess << uint32(success_list.size());            // count
+    std::vector<uint32> dispelledSpells;
+    dispelledSpells.reserve(success_list.size());
     for (DispelChargesList::iterator itr = success_list.begin(); itr != success_list.end(); ++itr)
     {
-        // Send dispelled spell info
-        dataSuccess << uint32(itr->first->GetId());              // Spell Id
-        dataSuccess << uint8(0);                        // 0 - dispelled !=0 cleansed
+        dispelledSpells.push_back(itr->first->GetId());
         unitTarget->RemoveAurasDueToSpellByDispel(itr->first->GetId(), m_spellInfo->Id, itr->first->GetCasterGUID(), unitCaster, itr->second);
     }
+
+    WorldPacket dataSuccess = BuildSpellDispelLog(unitCaster->GetGUID(), unitTarget->GetGUID(), m_spellInfo->Id, dispelledSpells, false);
     unitCaster->SendMessageToSet(&dataSuccess, true);
 
     // On success dispel
@@ -6098,18 +6153,16 @@ void Spell::EffectStealBeneficialBuff(SpellEffIndex effIndex)
     if (success_list.empty())
         return;
 
-    WorldPacket dataSuccess(SMSG_SPELLSTEALLOG, 8 + 8 + 4 + 1 + 4 + damage * 5);
-    dataSuccess << unitTarget->GetPackGUID();       // Victim GUID
-    dataSuccess << unitCaster->GetPackGUID();         // Caster GUID
-    dataSuccess << uint32(m_spellInfo->Id);         // dispel spell id
-    dataSuccess << uint8(0);                        // not used
-    dataSuccess << uint32(success_list.size());     // count
+    // 5.4.8 has no separate steal log: SMSG_SPELLDISPELLOG with the steal bit set
+    std::vector<uint32> stolenSpells;
+    stolenSpells.reserve(success_list.size());
     for (DispelList::iterator itr = success_list.begin(); itr != success_list.end(); ++itr)
     {
-        dataSuccess << uint32(itr->first);          // Spell Id
-        dataSuccess << uint8(0);                    // 0 - steals !=0 transfers
+        stolenSpells.push_back(itr->first);
         unitTarget->RemoveAurasDueToSpellBySteal(itr->first, itr->second, unitCaster);
     }
+
+    WorldPacket dataSuccess = BuildSpellDispelLog(unitCaster->GetGUID(), unitTarget->GetGUID(), m_spellInfo->Id, stolenSpells, true);
     unitCaster->SendMessageToSet(&dataSuccess, true);
 }
 

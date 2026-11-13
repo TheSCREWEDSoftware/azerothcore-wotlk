@@ -4328,15 +4328,20 @@ SpellMissInfo WorldObject::SpellHitResult(Unit* victim, Spell const* spell, bool
 
 void WorldObject::SendSpellMiss(Unit* target, uint32 spellID, SpellMissInfo missInfo)
 {
-    WorldPacket data(SMSG_SPELLLOGMISS, (4 + 8 + 1 + 4 + 8 + 1));
-    data << uint32(spellID);
-    data << GetGUID();
-    data << uint8(0);                                       // can be 0 or 1
-    data << uint32(1);                                      // target count
-    // for (i = 0; i < target count; ++i)
-    data << target->GetGUID();                              // target GUID
+    // 5.4.8 18414, from Project SkyFire
+    ObjectGuid guid = GetGUID();
+    ObjectGuid targetGuid = target->GetGUID();
+    WorldPacket data(SMSG_SPELLLOGMISS, (1 + 8 + 4 + 3 + 8 + 1));
+    data.WriteGuidMask(guid, { 5, 1, 4, 0, 7, 3, 2, 6 });
+    data.WriteBits(1, 23);                                  // target count
+    data.WriteGuidMask(targetGuid, { 0, 1, 6, 2, 5, 3, 4, 7 });
+    data.WriteBit(false);                                   // debug info
+    data.FlushBits();
     data << uint8(missInfo);
-    // end loop
+    data.WriteGuidBytes(targetGuid, { 7, 5, 0, 6, 3, 2, 1, 4 });
+    data.WriteGuidBytes(guid, { 6, 4, 2, 0, 1 });
+    data << uint32(spellID);
+    data.WriteGuidBytes(guid, { 3, 7, 5 });
     SendMessageToSet(&data, true);
 }
 
@@ -4349,21 +4354,8 @@ void WorldObject::SendSpellNonMeleeDamageLog(Unit* target, SpellInfo const* spel
         damage = 0;
     }
 
-    WorldPacket data(SMSG_SPELLNONMELEEDAMAGELOG, (16 + 4 + 4 + 4 + 1 + 4 + 4 + 1 + 1 + 4 + 4 + 1));
-    data << target->GetPackGUID();
-    data << GetPackGUID();
-    data << uint32(spellInfo->Id);
-    data << uint32(damage);
     int32 overkill = int32(damage) - int32(target->GetHealth());
-    data << uint32(overkill > 0 ? overkill : 0);
-    data << uint8(schoolMask);
-    data << uint32(absorb);
-    data << uint32(resist);
-    data << uint8(0);  // physicalLog - 0: target suffers x school damage from caster's spell
-    data << uint8(0);  // unused
-    data << uint32(0); // blocked
-    data << uint32(0); // HitInfo
-    data << uint8(0);  // debug flags
+    WorldPacket data = Unit::BuildSpellNonMeleeDamageLog(target->GetGUID(), GetGUID(), spellInfo->Id, damage, overkill, uint8(schoolMask), absorb, resist, 0, 0);
     SendMessageToSet(&data, true);
 }
 

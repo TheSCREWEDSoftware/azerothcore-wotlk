@@ -223,6 +223,30 @@ private:
     ObjectGuid m_objectTargetGUIDChannel;
 };
 
+// 5.4.8 18414 SMSG_SPELL_EXECUTE_LOG payload, from Project SkyFire
+struct SpellLogEnergizeHelper
+{
+    ObjectGuid Guid;
+    uint32 Value = 0;
+    uint32 PowerType = 0;
+    float Multiplier = 0.0f;
+};
+
+struct SpellLogExtraAttacksHelper
+{
+    ObjectGuid Guid;
+    uint32 Count = 0;
+};
+
+struct SpellLogHelper
+{
+    std::vector<ObjectGuid> Targets;
+    std::vector<SpellLogEnergizeHelper> Energizes;
+    std::vector<SpellLogExtraAttacksHelper> ExtraAttacks;
+    std::vector<uint32> PetFeed;
+    std::vector<uint32> CreatedItems;
+};
+
 struct SpellValue
 {
     explicit  SpellValue(SpellInfo const* proto);
@@ -764,7 +788,6 @@ public:
     void FinishTargetProcessing();
 
     // spell execution log
-    void InitEffectExecuteData(uint8 effIndex);
     void CheckEffectExecuteData();
 
     // Scripting system
@@ -824,7 +847,7 @@ public:
     // xinef:
     bool _spellTargetsSelected;
 
-    ByteBuffer* m_effectExecuteData[MAX_SPELL_EFFECTS];
+    std::map<uint8, SpellLogHelper> m_effectExecuteData;
 };
 
 namespace Acore

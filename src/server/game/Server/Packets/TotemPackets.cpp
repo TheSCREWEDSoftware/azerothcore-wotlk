@@ -28,10 +28,14 @@ void WorldPackets::Totem::TotemDestroyed::Read()
 
 WorldPacket const* WorldPackets::Totem::TotemCreated::Write()
 {
-    _worldPacket << Slot;
-    _worldPacket << Totem;
-    _worldPacket << Duration;
-    _worldPacket << SpellID;
+    // 5.4.8 18414, from Project SkyFire
+    _worldPacket.WriteGuidMask(Totem, { 6, 1, 2, 5, 3, 4, 7, 0 });
+    _worldPacket.FlushBits();
+    _worldPacket << uint32(Duration);
+    _worldPacket << uint32(SpellID);
+    _worldPacket.WriteGuidBytes(Totem, { 3, 4, 5, 6, 0, 2 });
+    _worldPacket << uint8(Slot);
+    _worldPacket.WriteGuidBytes(Totem, { 1, 7 });
 
     return &_worldPacket;
 }

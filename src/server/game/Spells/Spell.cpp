@@ -747,7 +747,6 @@ Spell::Spell(WorldObject* caster, SpellInfo const* info, TriggerCastFlags trigge
                    && !m_spellInfo->IsPassive() && (!m_spellInfo->IsPositive() || m_spellInfo->HasEffect(SPELL_EFFECT_DISPEL));
 
     CleanupTargetList();
-    memset(m_effectExecuteData, 0, MAX_SPELL_EFFECTS * sizeof(ByteBuffer*));
 
     for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
         m_destTargets[i] = SpellDestination(*m_caster);
@@ -5540,103 +5539,172 @@ void Spell::WriteSpellGoTargets(WorldPacket* data)
 
 void Spell::SendLogExecute()
 {
-    WorldPacket data(SMSG_SPELLLOGEXECUTE, (8 + 4 + 4 + 4 + 4 + 8));
-
-    data << m_caster->GetPackGUID();
-
-    data << uint32(m_spellInfo->Id);
-
-    uint8 effCount = 0;
-    for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
-    {
-        if (m_effectExecuteData[i])
-            ++effCount;
-    }
-
-    if (!effCount)
+    if (m_effectExecuteData.empty())
         return;
 
-    data << uint32(effCount);
-    for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
+    // 5.4.8 18414, from Project SkyFire
+    ObjectGuid casterGuid = m_caster->GetGUID();
+    WorldPacket data(SMSG_SPELLLOGEXECUTE, 64);
+    data.WriteGuidMask(casterGuid, { 0, 6, 5, 7, 2 });
+    data.WriteBits(m_effectExecuteData.size(), 19);
+    data.WriteGuidMask(casterGuid, { 4 });
+
+    for (auto const& [effIndex, helper] : m_effectExecuteData)
     {
-        if (!m_effectExecuteData[i])
-            continue;
+        data.WriteBits(helper.ExtraAttacks.size(), 21);
+        for (SpellLogExtraAttacksHelper const& extraAttack : helper.ExtraAttacks)
+            data.WriteGuidMask(extraAttack.Guid, { 5, 4, 2, 3, 1, 0, 6, 7 });
 
-        data << uint32(m_spellInfo->Effects[i].Effect);             // spell effect
+        data.WriteBits(helper.Energizes.size(), 20);
+        for (SpellLogEnergizeHelper const& energize : helper.Energizes)
+            data.WriteGuidMask(energize.Guid, { 0, 3, 1, 5, 6, 4, 7, 2 });
 
-        data.append(*m_effectExecuteData[i]);
+        data.WriteBits(0, 21);                              // durability damage, not sent
+        data.WriteBits(helper.PetFeed.size(), 22);
+        data.WriteBits(helper.CreatedItems.size(), 22);
 
-        delete m_effectExecuteData[i];
-        m_effectExecuteData[i] = nullptr;
+        data.WriteBits(helper.Targets.size(), 24);
+        for (ObjectGuid const& target : helper.Targets)
+            data.WriteGuidMask(target, { 6, 5, 1, 0, 3, 4, 7, 2 });
     }
+
+    data.WriteGuidMask(casterGuid, { 1, 3 });
+    data.WriteBit(false);                                   // spell cast log data
+    data.FlushBits();
+
+    for (auto const& [effIndex, helper] : m_effectExecuteData)
+    {
+        for (ObjectGuid const& target : helper.Targets)
+            data.WriteGuidBytes(target, { 7, 5, 1, 2, 6, 4, 0, 3 });
+
+        for (SpellLogEnergizeHelper const& energize : helper.Energizes)
+        {
+            data.WriteGuidBytes(energize.Guid, { 3, 7, 5, 2, 0 });
+            data << uint32(energize.PowerType);
+            data << uint32(energize.Value);
+            data.WriteGuidBytes(energize.Guid, { 4, 1 });
+            data << float(energize.Multiplier);
+            data.WriteGuidBytes(energize.Guid, { 6 });
+        }
+
+        for (SpellLogExtraAttacksHelper const& extraAttack : helper.ExtraAttacks)
+        {
+            data.WriteGuidBytes(extraAttack.Guid, { 0, 6, 4, 7, 2, 5, 3 });
+            data << uint32(extraAttack.Count);
+            data.WriteGuidBytes(extraAttack.Guid, { 1 });
+        }
+
+        for (uint32 entry : helper.PetFeed)
+            data << uint32(entry);
+
+        data << uint32(m_spellInfo->Effects[effIndex].Effect);
+
+        for (uint32 entry : helper.CreatedItems)
+            data << uint32(entry);
+    }
+
+    data << uint32(m_spellInfo->Id);
+    data.WriteGuidBytes(casterGuid, { 5, 7, 1, 6, 2, 0, 4, 3 });
+
     m_caster->SendMessageToSet(&data, true);
+
+    m_effectExecuteData.clear();
 }
 
 void Spell::ExecuteLogEffectTakeTargetPower(uint8 effIndex, Unit* target, uint32 PowerType, uint32 powerTaken, float gainMultiplier)
 {
-    InitEffectExecuteData(effIndex);
-    *m_effectExecuteData[effIndex] << target->GetPackGUID();
-    *m_effectExecuteData[effIndex] << uint32(powerTaken);
-    *m_effectExecuteData[effIndex] << uint32(PowerType);
-    *m_effectExecuteData[effIndex] << float(gainMultiplier);
+    ASSERT(effIndex < MAX_SPELL_EFFECTS);
+    SpellLogEnergizeHelper energize;
+    energize.Guid = target->GetGUID();
+    energize.Value = powerTaken;
+    energize.PowerType = PowerType;
+    energize.Multiplier = gainMultiplier;
+    m_effectExecuteData[effIndex].Energizes.push_back(energize);
 }
 
 void Spell::ExecuteLogEffectExtraAttacks(uint8 effIndex, Unit* victim, uint32 attCount)
 {
-    InitEffectExecuteData(effIndex);
-    *m_effectExecuteData[effIndex] << victim->GetPackGUID();
-    *m_effectExecuteData[effIndex] << uint32(attCount);
+    ASSERT(effIndex < MAX_SPELL_EFFECTS);
+    SpellLogExtraAttacksHelper extraAttacks;
+    extraAttacks.Guid = victim->GetGUID();
+    extraAttacks.Count = attCount;
+    m_effectExecuteData[effIndex].ExtraAttacks.push_back(extraAttacks);
 }
 
-void Spell::ExecuteLogEffectInterruptCast(uint8 effIndex, Unit* victim, uint32 spellId)
+void Spell::ExecuteLogEffectInterruptCast(uint8 /*effIndex*/, Unit* victim, uint32 spellId)
 {
-    InitEffectExecuteData(effIndex);
-    *m_effectExecuteData[effIndex] << victim->GetPackGUID();
-    *m_effectExecuteData[effIndex] << uint32(spellId);
+    // 5.4.8 18414, from Project SkyFire: sent as its own SMSG_SPELLINTERRUPTLOG
+    ObjectGuid casterGuid = m_caster->GetGUID();
+    ObjectGuid targetGuid = victim->GetGUID();
+
+    WorldPacket data(SMSG_SPELLINTERRUPTLOG, 2 + 8 + 8 + 4 + 4);
+    data.WriteGuidMask(targetGuid, { 7, 2, 4, 6 });
+    data.WriteGuidMask(casterGuid, { 0, 2, 5, 1, 4 });
+    data.WriteGuidMask(targetGuid, { 0, 3 });
+    data.WriteGuidMask(casterGuid, { 7, 6 });
+    data.WriteGuidMask(targetGuid, { 1 });
+    data.WriteGuidMask(casterGuid, { 3 });
+    data.WriteGuidMask(targetGuid, { 5 });
+    data.FlushBits();
+
+    data.WriteGuidBytes(targetGuid, { 0 });
+    data.WriteGuidBytes(casterGuid, { 2 });
+    data << uint32(spellId);
+    data.WriteGuidBytes(casterGuid, { 1 });
+    data.WriteGuidBytes(targetGuid, { 2 });
+    data.WriteGuidBytes(casterGuid, { 3 });
+    data << uint32(m_spellInfo->Id);
+    data.WriteGuidBytes(targetGuid, { 4 });
+    data.WriteGuidBytes(casterGuid, { 4 });
+    data.WriteGuidBytes(targetGuid, { 3, 1 });
+    data.WriteGuidBytes(casterGuid, { 5, 6, 7 });
+    data.WriteGuidBytes(targetGuid, { 5, 6 });
+    data.WriteGuidBytes(casterGuid, { 0 });
+    data.WriteGuidBytes(targetGuid, { 7 });
+
+    m_caster->SendMessageToSet(&data, true);
 }
 
-void Spell::ExecuteLogEffectDurabilityDamage(uint8 effIndex, Unit* victim, int32 itemId, int32 slot)
+void Spell::ExecuteLogEffectDurabilityDamage(uint8 effIndex, Unit* /*victim*/, int32 /*itemId*/, int32 /*slot*/)
 {
-    InitEffectExecuteData(effIndex);
-    *m_effectExecuteData[effIndex] << victim->GetPackGUID();
-    *m_effectExecuteData[effIndex] << int32(itemId);
-    *m_effectExecuteData[effIndex] << int32(slot);
+    ASSERT(effIndex < MAX_SPELL_EFFECTS);
+    // The 5.4.8 execute log carries durability damage in a block that is not sent.
 }
 
 void Spell::ExecuteLogEffectOpenLock(uint8 effIndex, Object* obj)
 {
-    InitEffectExecuteData(effIndex);
-    *m_effectExecuteData[effIndex] << obj->GetPackGUID();
+    ASSERT(effIndex < MAX_SPELL_EFFECTS);
+    m_effectExecuteData[effIndex].Targets.push_back(obj->GetGUID());
 }
 
 void Spell::ExecuteLogEffectCreateItem(uint8 effIndex, uint32 entry)
 {
-    InitEffectExecuteData(effIndex);
-    *m_effectExecuteData[effIndex] << uint32(entry);
+    ASSERT(effIndex < MAX_SPELL_EFFECTS);
+    m_effectExecuteData[effIndex].CreatedItems.push_back(entry);
 }
 
 void Spell::ExecuteLogEffectDestroyItem(uint8 effIndex, uint32 entry)
 {
-    InitEffectExecuteData(effIndex);
-    *m_effectExecuteData[effIndex] << uint32(entry);
+    ASSERT(effIndex < MAX_SPELL_EFFECTS);
+    m_effectExecuteData[effIndex].PetFeed.push_back(entry);
 }
 
 void Spell::ExecuteLogEffectSummonObject(uint8 effIndex, WorldObject* obj)
 {
-    InitEffectExecuteData(effIndex);
-    *m_effectExecuteData[effIndex] << obj->GetPackGUID();
+    ASSERT(effIndex < MAX_SPELL_EFFECTS);
+    m_effectExecuteData[effIndex].Targets.push_back(obj->GetGUID());
 }
 
 void Spell::ExecuteLogEffectUnsummonObject(uint8 effIndex, WorldObject* obj)
 {
-    InitEffectExecuteData(effIndex);
-    *m_effectExecuteData[effIndex] << obj->GetPackGUID();
+    ASSERT(effIndex < MAX_SPELL_EFFECTS);
+    m_effectExecuteData[effIndex].Targets.push_back(obj->GetGUID());
 }
 
 void Spell::ExecuteLogEffectResurrect(uint8 effIndex, Unit* target)
 {
-    InitEffectExecuteData(effIndex);
-    *m_effectExecuteData[effIndex] << target->GetPackGUID();
+    ASSERT(effIndex < MAX_SPELL_EFFECTS);
+    m_effectExecuteData[effIndex].Targets.push_back(target->GetGUID());
 }
 
 void Spell::SendInterrupted(uint8 result)
@@ -5751,7 +5819,7 @@ void Spell::SendResurrectRequest(Player* target)
     WorldPackets::Spells::ResurrectRequest request;
     request.ResurrectOffererGUID = unitCaster->GetGUID();
     request.Name = sentName;
-    request.Sickness = unitCaster->IsSpiritHealer();
+    request.Sickness = !unitCaster->IsPlayer();             // 5.4.8: set when the resurrector is not a player
     request.UseTimer = !m_spellInfo->HasAttribute(SPELL_ATTR3_NO_RES_TIMER);
     request.SpellID = m_spellInfo->Id;
     target->SendDirectMessage(request.Write());
@@ -8521,9 +8589,14 @@ void Spell::Delayed() // only called in DealDamage()
 
     LOG_DEBUG("spells", "Spell {} partially interrupted for ({}) ms at damage", m_spellInfo->Id, delaytime);
 
-    WorldPacket data(SMSG_SPELL_DELAYED, 8 + 4);
-    data << m_caster->GetPackGUID();
+    // 5.4.8 18414, from Project SkyFire
+    ObjectGuid guid = m_caster->GetGUID();
+    WorldPacket data(SMSG_SPELL_DELAYED, 1 + 8 + 4);
+    data.WriteGuidMask(guid, { 6, 7, 2, 0, 4, 3, 1, 5 });
+    data.FlushBits();
+    data.WriteGuidBytes(guid, { 2, 6, 1, 7, 0, 5, 3 });
     data << uint32(delaytime);
+    data.WriteGuidBytes(guid, { 4 });
 
     m_caster->SendMessageToSet(&data, true);
 }
@@ -9251,27 +9324,9 @@ void Spell::FinishTargetProcessing()
     SendLogExecute();
 }
 
-void Spell::InitEffectExecuteData(uint8 effIndex)
-{
-    ASSERT(effIndex < MAX_SPELL_EFFECTS);
-    if (!m_effectExecuteData[effIndex])
-    {
-        m_effectExecuteData[effIndex] = new ByteBuffer(0x20);
-        // first dword - target counter
-        *m_effectExecuteData[effIndex] << uint32(1);
-    }
-    else
-    {
-        // increase target counter by one
-        uint32 count = (*m_effectExecuteData[effIndex]).read<uint32>(0);
-        (*m_effectExecuteData[effIndex]).put<uint32>(0, ++count);
-    }
-}
-
 void Spell::CheckEffectExecuteData()
 {
-    for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
-        ASSERT(!m_effectExecuteData[i]);
+    ASSERT(m_effectExecuteData.empty());
 }
 
 void Spell::LoadScripts()

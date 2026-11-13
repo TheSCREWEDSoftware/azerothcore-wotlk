@@ -9,12 +9,19 @@
 
 WorldPacket const* WorldPackets::Spells::ResurrectRequest::Write()
 {
-    _worldPacket << ResurrectOffererGUID;
+    // 5.4.8 18414, from Project SkyFire
     _worldPacket << uint32(Name.size() + 1);
-    _worldPacket << Name;
-    _worldPacket << uint8(Sickness);
-    _worldPacket << uint8(UseTimer);
-    _worldPacket << SpellID;
+    _worldPacket << uint32(SpellID);
+    _worldPacket << uint32(0);                              // pet number
+    _worldPacket.WriteGuidMask(ResurrectOffererGUID, { 3 });
+    _worldPacket.WriteBit(Sickness);                        // set for non-player resurrectors
+    _worldPacket.WriteBit(false);
+    _worldPacket.WriteGuidMask(ResurrectOffererGUID, { 1, 5, 2, 6, 0, 4, 7 });
+    _worldPacket.WriteBits(Name.size(), 6);
+    _worldPacket.FlushBits();
+    _worldPacket.WriteGuidBytes(ResurrectOffererGUID, { 7, 3, 5 });
+    _worldPacket.WriteString(Name);
+    _worldPacket.WriteGuidBytes(ResurrectOffererGUID, { 2, 4, 1, 6, 0 });
     return &_worldPacket;
 }
 

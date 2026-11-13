@@ -1342,6 +1342,9 @@ public:
     void BuildCooldownPacket(WorldPacket& data, uint8 flags, PacketCooldowns const& cooldowns);
     // 5.4.8 SMSG_CLEAR_COOLDOWN, SMSG_COOLDOWN_EVENT and SMSG_MODIFY_COOLDOWN
     static WorldPacket BuildClearCooldownPacket(ObjectGuid guid, uint32 spellId);
+    static WorldPacket BuildSpellNonMeleeDamageLog(ObjectGuid targetGuid, ObjectGuid attackerGuid, uint32 spellId, uint32 damage, int32 overkill,
+        uint8 schoolMask, uint32 absorb, uint32 resist, uint32 blocked, uint32 hitInfo);
+    static WorldPacket BuildAIReactionPacket(ObjectGuid guid, uint32 reaction);
     static WorldPacket BuildCooldownEventPacket(ObjectGuid guid, uint32 spellId);
     static WorldPacket BuildModifyCooldownPacket(ObjectGuid guid, uint32 spellId, int32 delta);
 
