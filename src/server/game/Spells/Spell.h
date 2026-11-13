@@ -457,6 +457,7 @@ public:
     void EffectPlayMusic(SpellEffIndex effIndex);
     void EffectSpecCount(SpellEffIndex effIndex);
     void EffectActivateSpec(SpellEffIndex effIndex);
+    void EffectRemoveTalent(SpellEffIndex effIndex);
     void EffectPlaySound(SpellEffIndex effIndex);
     void EffectRemoveAura(SpellEffIndex effIndex);
     void EffectSurvey(SpellEffIndex effIndex);

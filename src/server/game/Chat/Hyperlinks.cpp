@@ -314,7 +314,7 @@ struct LinkValidator<LinkTags::talent>
     {
         SpellInfo const* info = data.Spell;
         if (!info)
-            info = sSpellMgr->GetSpellInfo(data.Talent->RankID[0]);
+            info = sSpellMgr->GetSpellInfo(data.Talent->SpellId);
 
         if (!info)
             return false;

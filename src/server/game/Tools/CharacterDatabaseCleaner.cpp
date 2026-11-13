@@ -136,13 +136,10 @@ void CharacterDatabaseCleaner::CleanCharacterSpell()
     CheckUnique("spell", "character_spell", &SpellCheck);
 }
 
-bool CharacterDatabaseCleaner::TalentCheck(uint32 talent_id)
+bool CharacterDatabaseCleaner::TalentCheck(uint32 spellId)
 {
-    TalentEntry const* talentInfo = sTalentStore.LookupEntry(talent_id);
-    if (!talentInfo)
-        return false;
-
-    return sTalentTabStore.LookupEntry(talentInfo->TalentTab);
+    // character_talent stores the talent spell; 4.3.4 talent spells are not 5.4.8 talents
+    return GetTalentSpellPos(spellId) != nullptr;
 }
 
 void CharacterDatabaseCleaner::CleanCharacterTalent()

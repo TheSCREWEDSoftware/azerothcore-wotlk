@@ -1160,29 +1160,134 @@ void WorldSession::HandleInspectOpcode(WorldPacket& recv_data)
         return;
     }
 
-    uint32 talent_points = 41;
-    WorldPacket data(SMSG_INSPECT_TALENT, 8 + 4 + 1 + 1 + talent_points + 8 + 4 + 8 + 4);
-    data << player->GetGUID();
+    // 5.4.8 18414, from Project SkyFire (SMSG_INSPECT_RESULTS). SkyFire sends the inspector's
+    // talent group; the inspected player's active group is used here.
+    bool const showTalents = sWorld->getBoolConfig(CONFIG_TALENTS_INSPECTING) || _player->CanBeGameMaster();
+    uint8 const activeSpec = player->GetActiveSpec();
+    Guild* guild = sGuildMgr->GetGuildById(player->GetGuildId());
+    ObjectGuid const guildGuid = guild ? guild->GetGUID() : ObjectGuid::Empty;
 
-    if (sWorld->getBoolConfig(CONFIG_TALENTS_INSPECTING) || _player->CanBeGameMaster())
+    ByteBuffer itemData;
+    WorldPacket data(SMSG_INSPECT_RESULTS, 256);
+    data.WriteBit(guild != nullptr);
+    data.WriteBit(guid[2]);
+    if (guild)
+        data.WriteGuidMask(guildGuid, { 7, 0, 5, 3, 2, 4, 6, 1 });
+    data.WriteBit(guid[4]);
+    data.WriteBit(guid[3]);
+    data.WriteBit(guid[5]);
+    data.WriteBit(guid[7]);
+    std::size_t const slotCountPos = data.bitwpos();
+    data.WriteBits(0, 20);                                  // [PH] item count
+    data.WriteBit(guid[0]);
+
+    uint32 slotCount = 0;
+    for (uint8 slot = 0; slot < EQUIPMENT_SLOT_END; ++slot)
     {
-        player->BuildPlayerTalentsInfoData(&data);
+        Item* item = player->GetItemByPos(INVENTORY_SLOT_BAG_0, slot);
+        if (!item)
+            continue;
+
+        ++slotCount;
+
+        ObjectGuid const creatorGuid = item->GetGuidValue(ITEM_FIELD_CREATOR);
+        int32 const randomProperty = item->GetItemRandomPropertyId();
+        uint32 const suffixFactor = item->GetItemSuffixFactor();
+
+        data.WriteBit(creatorGuid[1]);
+        data.WriteBit(suffixFactor != 0);
+        data.WriteBit(true);                                // item modifiers present
+        data.WriteBit(creatorGuid[3]);
+        std::size_t const enchantCountPos = data.bitwpos();
+        data.WriteBits(0, 21);                              // [PH] enchant count
+        data.WriteBit(creatorGuid[2]);
+        data.WriteBit(creatorGuid[6]);
+        data.WriteBit(creatorGuid[4]);
+        data.WriteBit(randomProperty != 0);
+        data.WriteBit(creatorGuid[0]);
+        data.WriteBit(creatorGuid[5]);
+        data.WriteBit(creatorGuid[7]);
+
+        if (randomProperty)
+            itemData << int16(randomProperty);
+        itemData.WriteByteSeq(creatorGuid[3]);
+
+        // item modifiers block: byte size, then the modifier mask (no modifier values are kept on items yet)
+        itemData << uint32(4);
+        itemData << uint32(0);
+
+        uint32 enchantCount = 0;
+        for (uint8 enchantSlot = 0; enchantSlot < MAX_ENCHANTMENT_SLOT; ++enchantSlot)
+        {
+            uint32 const enchantId = item->GetEnchantmentId(EnchantmentSlot(enchantSlot));
+            if (!enchantId)
+                continue;
+
+            ++enchantCount;
+            itemData << uint32(enchantId);
+            itemData << uint8(enchantSlot);
+        }
+        data.PutBits(enchantCountPos, enchantCount, 21);
+
+        itemData << uint32(item->GetEntry());
+        itemData.WriteByteSeq(creatorGuid[6]);
+        itemData.WriteByteSeq(creatorGuid[4]);
+        itemData.WriteByteSeq(creatorGuid[7]);
+        itemData.WriteByteSeq(creatorGuid[2]);
+        if (suffixFactor)
+            itemData << uint32(suffixFactor);
+        itemData.WriteByteSeq(creatorGuid[5]);
+        itemData << uint8(slot);
+        itemData.WriteByteSeq(creatorGuid[0]);
+        itemData.WriteByteSeq(creatorGuid[1]);
     }
-    else
+    data.PutBits(slotCountPos, slotCount, 20);
+
+    std::vector<uint16> glyphs;
+    std::vector<uint16> talents;
+    if (showTalents)
     {
-        data << uint32(0);                                  // unspentTalentPoints
-        data << uint8(0);                                   // talentGroupCount
-        data << uint8(0);                                   // talentGroupIndex
+        for (uint8 i = 0; i < MAX_GLYPH_SLOT_INDEX; ++i)
+            if (uint32 glyphId = player->GetGlyph(i))
+                glyphs.push_back(uint16(glyphId));
+
+        for (auto const& [spellId, talent] : player->GetTalentMap())
+            if (talent->State != PLAYERSPELL_REMOVED && talent->IsInSpec(activeSpec))
+                talents.push_back(uint16(talent->talentID));
     }
 
-    player->BuildEnchantmentsInfoData(&data);
-    if (Guild* guild = sGuildMgr->GetGuildById(player->GetGuildId()))
+    data.WriteBits(glyphs.size(), 23);
+    data.WriteBits(talents.size(), 23);
+    data.WriteBit(guid[6]);
+    data.WriteBit(guid[1]);
+    data.FlushBits();
+
+    data.WriteByteSeq(guid[1]);
+    data.WriteByteSeq(guid[4]);
+    data.WriteByteSeq(guid[2]);
+    data.append(itemData);
+
+    if (guild)
     {
-        data << guild->GetGUID();
-        data << uint32(guild->GetLevel());
-        data << uint64(guild->GetExperience());
+        data.WriteGuidBytes(guildGuid, { 6, 2, 5, 0 });
         data << uint32(guild->GetMemberCount());
+        data.WriteGuidBytes(guildGuid, { 4, 7 });
+        data << uint64(guild->GetExperience());
+        data.WriteByteSeq(guildGuid[1]);
+        data << uint32(guild->GetLevel());
+        data.WriteByteSeq(guildGuid[3]);
     }
+
+    data.WriteByteSeq(guid[5]);
+    for (uint16 glyphId : glyphs)
+        data << uint16(glyphId);                            // GlyphProperties.dbc
+    data.WriteByteSeq(guid[0]);
+    data << uint32(showTalents ? player->GetSpecializationId(activeSpec) : 0);
+    for (uint16 talentId : talents)
+        data << uint16(talentId);                           // Talent.dbc
+    data.WriteByteSeq(guid[7]);
+    data.WriteByteSeq(guid[3]);
+    data.WriteByteSeq(guid[6]);
     SendPacket(&data);
 }
 

@@ -55,9 +55,11 @@ MapDifficulty const* GetDownscaledMapDifficultyData(uint32 mapId, Difficulty& di
 
 bool IsSharedDifficultyMap(uint32 mapid);
 
-uint32 const* /*[MAX_TALENT_TABS]*/ GetTalentTabPages(uint8 cls);
+// ChrSpecialization.dbc ids of a class by tab page (0 when the class has fewer specializations)
+uint32 const* /*[MAX_TALENT_TABS]*/ GetClassSpecializations(uint8 cls);
 /// Spells a talent specialization grants
-std::vector<uint32> const* GetTalentTreePrimarySpells(uint32 talentTabId);
+// SpecializationSpells.dbc spells of a specialization
+std::vector<uint32> const* GetSpecializationSpells(uint32 specializationId);
 
 uint32 GetLiquidFlags(uint32 liquidType);
 
@@ -185,7 +187,6 @@ extern MapDifficultyMap                          sMapDifficultyMap;
 extern DBCStorage <MovieEntry>                   sMovieStore;
 extern DBCStorage <NamesReservedEntry>           sNamesReservedStore;
 extern DBCStorage <NamesProfanityEntry>          sNamesProfanityStore;
-extern DBCStorage <NumTalentsAtLevelEntry>       sNumTalentsAtLevelStore;
 extern DBCStorage <OverrideSpellDataEntry>       sOverrideSpellDataStore;
 extern DBCStorage <PhaseEntry>                   sPhaseStore;
 extern DBCStorage <PhaseGroupEntry>              sPhaseGroupStore;
@@ -244,7 +245,7 @@ extern DBCStorage <SpellVisualEntry>             sSpellVisualStore;
 extern DBCStorage <StableSlotPricesEntry>        sStableSlotPricesStore;
 extern DBCStorage <SummonPropertiesEntry>        sSummonPropertiesStore;
 extern DBCStorage <TalentEntry>                  sTalentStore;
-extern DBCStorage <TalentTabEntry>               sTalentTabStore;
+extern DBCStorage <ChrSpecializationEntry>       sChrSpecializationStore;
 extern DBCStorage <TaxiNodesEntry>               sTaxiNodesStore;
 extern DBCStorage <TaxiPathEntry>                sTaxiPathStore;
 extern TaxiMask                                  sTaxiNodesMask;

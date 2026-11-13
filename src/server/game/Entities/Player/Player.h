@@ -150,41 +150,42 @@ struct PlayerTalent
     bool IsInSpec(uint8 spec) { return (specMask & (1 << spec)); }
 };
 
-/// Points in the primary talent tree before the other trees open
-constexpr uint32 REQ_PRIMARY_TREE_TALENTS = 31;
-
-enum TalentTree // talent tabs
+enum TalentTree // 5.4.8 specializations (ChrSpecialization.dbc)
 {
-    TALENT_TREE_WARRIOR_ARMS = 161,
-    TALENT_TREE_WARRIOR_FURY = 164,
-    TALENT_TREE_WARRIOR_PROTECTION = 163,
-    TALENT_TREE_PALADIN_HOLY = 382,
-    TALENT_TREE_PALADIN_PROTECTION = 383,
-    TALENT_TREE_PALADIN_RETRIBUTION = 381,
-    TALENT_TREE_HUNTER_BEAST_MASTERY = 361,
-    TALENT_TREE_HUNTER_MARKSMANSHIP = 363,
-    TALENT_TREE_HUNTER_SURVIVAL = 362,
-    TALENT_TREE_ROGUE_ASSASSINATION = 182,
-    TALENT_TREE_ROGUE_COMBAT = 181,
-    TALENT_TREE_ROGUE_SUBTLETY = 183,
-    TALENT_TREE_PRIEST_DISCIPLINE = 201,
-    TALENT_TREE_PRIEST_HOLY = 202,
-    TALENT_TREE_PRIEST_SHADOW = 203,
-    TALENT_TREE_DEATH_KNIGHT_BLOOD = 398,
-    TALENT_TREE_DEATH_KNIGHT_FROST = 399,
-    TALENT_TREE_DEATH_KNIGHT_UNHOLY = 400,
-    TALENT_TREE_SHAMAN_ELEMENTAL = 261,
+    TALENT_TREE_WARRIOR_ARMS = 71,
+    TALENT_TREE_WARRIOR_FURY = 72,
+    TALENT_TREE_WARRIOR_PROTECTION = 73,
+    TALENT_TREE_PALADIN_HOLY = 65,
+    TALENT_TREE_PALADIN_PROTECTION = 66,
+    TALENT_TREE_PALADIN_RETRIBUTION = 70,
+    TALENT_TREE_HUNTER_BEAST_MASTERY = 253,
+    TALENT_TREE_HUNTER_MARKSMANSHIP = 254,
+    TALENT_TREE_HUNTER_SURVIVAL = 255,
+    TALENT_TREE_ROGUE_ASSASSINATION = 259,
+    TALENT_TREE_ROGUE_COMBAT = 260,
+    TALENT_TREE_ROGUE_SUBTLETY = 261,
+    TALENT_TREE_PRIEST_DISCIPLINE = 256,
+    TALENT_TREE_PRIEST_HOLY = 257,
+    TALENT_TREE_PRIEST_SHADOW = 258,
+    TALENT_TREE_DEATH_KNIGHT_BLOOD = 250,
+    TALENT_TREE_DEATH_KNIGHT_FROST = 251,
+    TALENT_TREE_DEATH_KNIGHT_UNHOLY = 252,
+    TALENT_TREE_SHAMAN_ELEMENTAL = 262,
     TALENT_TREE_SHAMAN_ENHANCEMENT = 263,
-    TALENT_TREE_SHAMAN_RESTORATION = 262,
-    TALENT_TREE_MAGE_ARCANE = 81,
-    TALENT_TREE_MAGE_FIRE = 41,
-    TALENT_TREE_MAGE_FROST = 61,
-    TALENT_TREE_WARLOCK_AFFLICTION = 302,
-    TALENT_TREE_WARLOCK_DEMONOLOGY = 303,
-    TALENT_TREE_WARLOCK_DESTRUCTION = 301,
-    TALENT_TREE_DRUID_BALANCE = 283,
-    TALENT_TREE_DRUID_FERAL_COMBAT = 281,
-    TALENT_TREE_DRUID_RESTORATION = 282
+    TALENT_TREE_SHAMAN_RESTORATION = 264,
+    TALENT_TREE_MAGE_ARCANE = 62,
+    TALENT_TREE_MAGE_FIRE = 63,
+    TALENT_TREE_MAGE_FROST = 64,
+    TALENT_TREE_WARLOCK_AFFLICTION = 265,
+    TALENT_TREE_WARLOCK_DEMONOLOGY = 266,
+    TALENT_TREE_WARLOCK_DESTRUCTION = 267,
+    TALENT_TREE_MONK_BREWMASTER = 268,
+    TALENT_TREE_MONK_WINDWALKER = 269,
+    TALENT_TREE_MONK_MISTWEAVER = 270,
+    TALENT_TREE_DRUID_BALANCE = 102,
+    TALENT_TREE_DRUID_FERAL_COMBAT = 103,
+    TALENT_TREE_DRUID_GUARDIAN = 104,
+    TALENT_TREE_DRUID_RESTORATION = 105
 };
 
 #define SPEC_MASK_ALL 255
@@ -1845,10 +1846,11 @@ public:
     void BuildPlayerTalentsInfoData(WorldPacket* data);
     void BuildPetTalentsInfoData(WorldPacket* data);
     void SendTalentsInfoData(bool pet);
-    void LearnTalent(uint32 talentId, uint32 talentRank, bool command = false);
+    bool LearnTalent(uint32 talentId, bool command = false);
     void LearnPetTalent(ObjectGuid petGuid, uint32 talentId, uint32 talentRank);
 
-    bool addTalent(uint32 spellId, uint8 addSpecMask, uint8 oldTalentRank);
+    bool addTalent(uint32 spellId, uint8 addSpecMask);
+    bool RemoveTalent(uint32 talentId);                     // 5.4.8: unlearn one talent of the active talent group
     void _removeTalent(PlayerTalentMap::iterator& itr, uint8 specMask);
     void _removeTalent(uint32 spellId, uint8 specMask);
     void _removeTalentAurasAndSpells(uint32 spellId);
@@ -1870,10 +1872,10 @@ public:
     void SetSpecsCount(uint8 count) { m_specsCount = count; }
     void ActivateSpec(uint8 spec);
     void LoadActions(PreparedQueryResult result);
-    void GetTalentTreePoints(uint8 (&specPoints)[3]) const;
+    [[nodiscard]] uint32 GetSpecializationRole() const;     // ChrSpecializationRole of the active specialization
     [[nodiscard]] uint8 GetMostPointsTalentTree() const;
-    [[nodiscard]] uint32 GetPrimaryTalentTree(uint8 spec) const;
-    void SetPrimaryTalentTree(uint8 spec, uint32 talentTabId);
+    [[nodiscard]] uint32 GetSpecializationId(uint8 spec) const; // ChrSpecialization.dbc id of a talent group
+    void SetSpecializationId(uint8 spec, uint32 specializationId);
     bool LearnPrimaryTalentSpecialization(uint8 talentTabIndex);
     void LearnSpecializationSpells();
     void RemoveSpecializationSpells();
@@ -3069,7 +3071,7 @@ private:
     uint8 m_specsCount;
 
     uint32 m_Glyphs[MAX_TALENT_SPECS][MAX_GLYPH_SLOT_INDEX];
-    std::array<uint32, MAX_TALENT_SPECS> _talentTree = { }; // primary talent tree (TalentTab.dbc) per spec
+    std::array<uint32, MAX_TALENT_SPECS> _talentTree = { }; // specialization (ChrSpecialization.dbc) per talent group
 
     ActionButtonList m_actionButtons;
 

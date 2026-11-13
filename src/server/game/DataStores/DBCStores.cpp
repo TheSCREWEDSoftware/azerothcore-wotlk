@@ -148,7 +148,6 @@ DBCStorage <NamesReservedEntry> sNamesReservedStore(NamesReservedfmt);
 
 static std::unordered_map<uint8 /*race*/, std::array<std::vector<std::string>, 2 /*gender*/>> sNameGenMap;
 DBCStorage <NamesProfanityEntry> sNamesProfanityStore(NamesProfanityfmt);
-DBCStorage <NumTalentsAtLevelEntry> sNumTalentsAtLevelStore(NumTalentsAtLevelfmt);
 
 DBCStorage <OverrideSpellDataEntry> sOverrideSpellDataStore(OverrideSpellDatafmt);
 
@@ -200,6 +199,7 @@ DBCStorage<SpellShapeshiftEntry> sSpellShapeshiftStore(SpellShapeshiftEntryfmt);
 DBCStorage<SpellTargetRestrictionsEntry> sSpellTargetRestrictionsStore(SpellTargetRestrictionsEntryfmt);
 DBCStorage<SpellTotemsEntry> sSpellTotemsStore(SpellTotemsEntryfmt);
 static DBCStorage<SpellEffectScalingEntry> sSpellEffectScalingStore(SpellEffectScalingEntryfmt);
+static DBCStorage<SpellDbcEntry> sSpellDbcStore(SpellDbcEntryfmt);
 static std::unordered_map<uint32 /*spellId*/, SpellPowerEntry const*> sSpellPowerBySpell;
 static std::unordered_map<uint32 /*spellEffectId*/, SpellEffectScalingEntry const*> sSpellEffectScalingByEffect;
 SpellCategoryStore sSpellsByCategoryStore;
@@ -220,12 +220,12 @@ DBCStorage <SummonPropertiesEntry> sSummonPropertiesStore(SummonPropertiesfmt);
 DBCStorage <TalentEntry> sTalentStore(TalentEntryfmt);
 TalentSpellPosMap sTalentSpellPosMap;
 std::unordered_set<uint32> sPetTalentSpells;
-DBCStorage <TalentTabEntry> sTalentTabStore(TalentTabEntryfmt);
-static DBCStorage <TalentTreePrimarySpellsEntry> sTalentTreePrimarySpellsStore(TalentTreePrimarySpellsfmt);
-static std::unordered_map<uint32, std::vector<uint32>> sTalentTreePrimarySpellsMap;
+DBCStorage <ChrSpecializationEntry> sChrSpecializationStore(ChrSpecializationfmt);
+static DBCStorage <SpecializationSpellsEntry> sSpecializationSpellsStore(SpecializationSpellsfmt);
+static std::unordered_map<uint32, std::vector<uint32>> sSpecializationSpellsMap;
 
 // store absolute bit position for first rank for talent inspect
-static uint32 sTalentTabPages[MAX_CLASSES][3];
+static uint32 sClassSpecializations[MAX_CLASSES][MAX_TALENT_TABS];
 
 DBCStorage <TaxiNodesEntry> sTaxiNodesStore(TaxiNodesEntryfmt);
 TaxiMask sTaxiNodesMask;
@@ -331,7 +331,7 @@ namespace
 
     // Joins 5.4.8 Spell.dbc + SpellMisc.dbc (+ the power type from SpellPower.dbc) into the SpellEntry
     // rows the rest of the core reads, and keeps the difficulty 0 rows of SpellEffect.dbc.
-    void BuildSpellEntries(DBCStorage<SpellDbcEntry>& spells, DBCStorage<SpellMiscEntry>& miscs, DBCStorage<SpellEffectDbcEntry>& effects)
+    void BuildSpellEntries(DBCStorage<SpellDbcEntry> const& spells, DBCStorage<SpellMiscEntry>& miscs, DBCStorage<SpellEffectDbcEntry>& effects)
     {
         // highest id first, so SetEntry sizes the index table once
         for (uint32 id = spells.GetNumRows(); id-- > 0;)
@@ -678,7 +678,6 @@ void LoadDBCStores(std::string const& dataPath)
                 sNameGenMap[uint8(entry->RaceID)][entry->Sex].emplace_back(entry->Name);
     }
     LOAD_DBC(sNamesProfanityStore,                  "NamesProfanity.dbc",                   "namesprofanity_dbc");
-    LOAD_DBC(sNumTalentsAtLevelStore,               "NumTalentsAtLevel.dbc",                 nullptr);
     LOAD_DBC(sOverrideSpellDataStore,               "OverrideSpellData.dbc",                "overridespelldata_dbc");
     LOAD_DBC(sPhaseStore,                           "Phase.dbc",                             nullptr);
     LOAD_DBC(sPhaseGroupStore,                      "PhaseXPhaseGroup.dbc",                  nullptr);
@@ -703,10 +702,10 @@ void LoadDBCStores(std::string const& dataPath)
     LOAD_DBC(sSkillTiersStore,                      "SkillTiers.dbc",                       nullptr);
     LOAD_DBC(sSoundEntriesStore,                    "SoundEntries.dbc",                     "soundentries_dbc");
     // 5.4.8: Spell.dbc, SpellMisc.dbc and SpellEffect.dbc are joined into sSpellStore/sSpellEffectStore below
-    DBCStorage<SpellDbcEntry> spellDbcStore(SpellDbcEntryfmt);
+    // sSpellDbcStore stays loaded: the joined SpellEntry rows point into its name strings
     DBCStorage<SpellMiscEntry> spellMiscStore(SpellMiscEntryfmt);
     DBCStorage<SpellEffectDbcEntry> spellEffectDbcStore(SpellEffectDbcEntryfmt);
-    LOAD_DBC(spellDbcStore,                         "Spell.dbc",                            nullptr);
+    LOAD_DBC(sSpellDbcStore,                         "Spell.dbc",                            nullptr);
     LOAD_DBC(spellMiscStore,                        "SpellMisc.dbc",                        nullptr);
     LOAD_DBC(spellEffectDbcStore,                   "SpellEffect.dbc",                      nullptr);
     LOAD_DBC(sSpellEffectScalingStore,              "SpellEffectScaling.dbc",               nullptr);
@@ -727,7 +726,8 @@ void LoadDBCStores(std::string const& dataPath)
     LOAD_DBC(sSpellTotemsStore, "SpellTotems.dbc", nullptr);
     LOAD_DBC(sSpellCastTimesStore,                  "SpellCastTimes.dbc",                   nullptr);
     LOAD_DBC(sSpellCategoryStore,                   "SpellCategory.dbc",                    nullptr);
-    LOAD_DBC(sSpellDifficultyStore,                 "SpellDifficulty.dbc",                  "spelldifficulty_dbc");
+    // 5.4.8 has no SpellDifficulty.dbc; the heroic spell ids come from the spelldifficulty_dbc table only
+    sSpellDifficultyStore.LoadFromDB("spelldifficulty_dbc", SpellDifficultyfmt);
     LOAD_DBC(sSpellDurationStore,                   "SpellDuration.dbc",                    nullptr);
     LOAD_DBC(sSpellFocusObjectStore,                "SpellFocusObject.dbc",                 nullptr);
     LOAD_DBC(sSpellItemEnchantmentStore,            "SpellItemEnchantment.dbc",             "spellitemenchantment_dbc");
@@ -740,8 +740,9 @@ void LoadDBCStores(std::string const& dataPath)
     //LOAD_DBC(sStableSlotPricesStore,              "StableSlotPrices.dbc",                 "stableslotprices_dbc"); -- removed in real Cata client (matches upstream TC, which also drops this load and its only consumer, buying additional stable slots); HandleBuyStableSlot is disabled below to match
     LOAD_DBC(sSummonPropertiesStore,                "SummonProperties.dbc",                 "summonproperties_dbc");
     LOAD_DBC(sTalentStore,                          "Talent.dbc",                           "talent_dbc");
-    LOAD_DBC(sTalentTabStore,                       "TalentTab.dbc",                        "talenttab_dbc");
-    LOAD_DBC(sTalentTreePrimarySpellsStore,         "TalentTreePrimarySpells.dbc",           nullptr);
+    // 5.4.8: TalentTab.dbc and TalentTreePrimarySpells.dbc became ChrSpecialization.dbc and SpecializationSpells.dbc
+    LOAD_DBC(sChrSpecializationStore,               "ChrSpecialization.dbc",                nullptr);
+    LOAD_DBC(sSpecializationSpellsStore,            "SpecializationSpells.dbc",             nullptr);
     LOAD_DBC(sTaxiNodesStore,                       "TaxiNodes.dbc",                        "taxinodes_dbc");
     LOAD_DBC(sTaxiPathStore,                        "TaxiPath.dbc",                         "taxipath_dbc");
     LOAD_DBC(sTaxiPathNodeStore,                    "TaxiPathNode.dbc",                     "taxipathnode_dbc");
@@ -765,7 +766,7 @@ void LoadDBCStores(std::string const& dataPath)
     for (SpellEffectScalingEntry const* scaling : sSpellEffectScalingStore)
         sSpellEffectScalingByEffect[scaling->SpellEffectID] = scaling;
 
-    BuildSpellEntries(spellDbcStore, spellMiscStore, spellEffectDbcStore);
+    BuildSpellEntries(sSpellDbcStore, spellMiscStore, spellEffectDbcStore);
 
     sSpellStore.LoadFromDB("spell_cata_dbc", SpellEntryfmt);
     sSpellEffectStore.LoadFromDB("spelleffect_dbc", SpellEffectEntryfmt);
@@ -882,47 +883,22 @@ void LoadDBCStores(std::string const& dataPath)
                 sSpellMgr->SetSpellDifficultyId(uint32(newEntry.SpellID[x]), spellDiff->ID);
     }
 
-    // create talent spells set
+    // create talent spells set (5.4.8: one spell per talent, pet talents are gone)
     for (TalentEntry const* talentInfo : sTalentStore)
+        if (talentInfo->SpellId)
+            sTalentSpellPosMap[talentInfo->SpellId] = TalentSpellPos(talentInfo->TalentID, 0);
+
+    for (ChrSpecializationEntry const* specialization : sChrSpecializationStore)
     {
-        TalentTabEntry const* talentTab = sTalentTabStore.LookupEntry(talentInfo->TalentTab);
+        // pet specializations have no class
+        if (!specialization->ClassID || specialization->ClassID >= MAX_CLASSES || specialization->OrderIndex >= MAX_TALENT_TABS)
+            continue;
 
-        for (uint8 j = 0; j < MAX_TALENT_RANK; ++j)
-        {
-            if (talentInfo->RankID[j])
-            {
-                sTalentSpellPosMap[talentInfo->RankID[j]] = TalentSpellPos(talentInfo->TalentID, j);
-
-                if (talentTab && talentTab->petTalentMask)
-                {
-                    sPetTalentSpells.insert(talentInfo->RankID[j]);
-                }
-            }
-        }
+        sClassSpecializations[specialization->ClassID][specialization->OrderIndex] = specialization->ID;
     }
 
-    // prepare fast data access to bit pos of talent ranks for use at inspecting
-    {
-        // now have all max ranks (and then bit amount used for store talent ranks in inspect)
-        for (uint32 talentTabId = 1; talentTabId < sTalentTabStore.GetNumRows(); ++talentTabId)
-        {
-            TalentTabEntry const* talentTabInfo = sTalentTabStore.LookupEntry(talentTabId);
-            if (!talentTabInfo)
-                continue;
-
-            // prevent memory corruption; otherwise cls will become 12 below
-            if ((talentTabInfo->ClassMask & CLASSMASK_ALL_PLAYABLE) == 0)
-                continue;
-
-            // store class talent tab pages
-            for (uint32 cls = 1; cls < MAX_CLASSES; ++cls)
-                if (talentTabInfo->ClassMask & (1 << (cls - 1)))
-                    sTalentTabPages[cls][talentTabInfo->tabpage] = talentTabId;
-        }
-    }
-
-    for (TalentTreePrimarySpellsEntry const* talentSpell : sTalentTreePrimarySpellsStore)
-        sTalentTreePrimarySpellsMap[talentSpell->TalentTabID].push_back(talentSpell->SpellID);
+    for (SpecializationSpellsEntry const* specializationSpell : sSpecializationSpellsStore)
+        sSpecializationSpellsMap[specializationSpell->SpecID].push_back(specializationSpell->SpellID);
 
     for (uint32 i = 1; i < sTaxiPathStore.GetNumRows(); ++i)
         if (TaxiPathEntry const* entry = sTaxiPathStore.LookupEntry(i))
@@ -1379,15 +1355,15 @@ PvPDifficultyEntry const* GetBattlegroundBracketById(uint32 mapid, BattlegroundB
     return nullptr;
 }
 
-uint32 const* GetTalentTabPages(uint8 cls)
+uint32 const* GetClassSpecializations(uint8 cls)
 {
-    return sTalentTabPages[cls];
+    return cls < MAX_CLASSES ? sClassSpecializations[cls] : nullptr;
 }
 
-std::vector<uint32> const* GetTalentTreePrimarySpells(uint32 talentTabId)
+std::vector<uint32> const* GetSpecializationSpells(uint32 specializationId)
 {
-    auto itr = sTalentTreePrimarySpellsMap.find(talentTabId);
-    return itr != sTalentTreePrimarySpellsMap.end() ? &itr->second : nullptr;
+    auto itr = sSpecializationSpellsMap.find(specializationId);
+    return itr != sSpecializationSpellsMap.end() ? &itr->second : nullptr;
 }
 
 bool IsSharedDifficultyMap(uint32 mapid)

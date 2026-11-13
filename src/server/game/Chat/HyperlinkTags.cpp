@@ -218,7 +218,7 @@ bool Acore::Hyperlinks::LinkTags::talent::StoreTo(TalentLinkData& val, std::stri
     if (!(t.TryConsumeTo(talentId) && t.TryConsumeTo(rank) && t.IsEmpty()))
         return false;
 
-    if (rank < -1 || rank >= MAX_TALENT_RANK)
+    if (rank < -1 || rank >= 1) // 5.4.8 talents have a single rank
         return false;
 
     val.Talent = sTalentStore.LookupEntry(talentId);
@@ -229,7 +229,7 @@ bool Acore::Hyperlinks::LinkTags::talent::StoreTo(TalentLinkData& val, std::stri
 
     if (val.Rank > 0)
     {
-        uint32 const spellId = val.Talent->RankID[val.Rank - 1];
+        uint32 const spellId = val.Rank == 1 ? val.Talent->SpellId : 0; // 5.4.8 talents have a single rank
         if (!spellId)
             return false;
 

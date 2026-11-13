@@ -887,11 +887,11 @@ void Player::UpdateMastery()
     SetFloatValue(PLAYER_MASTERY, float(GetTotalAuraModifier(SPELL_AURA_MASTERY)) + GetRatingBonusValue(CR_MASTERY));
 
     // Mastery passives scale with the value
-    TalentTabEntry const* talentTab = sTalentTabStore.LookupEntry(GetPrimaryTalentTree(GetActiveSpec()));
-    if (!talentTab)
+    ChrSpecializationEntry const* specialization = sChrSpecializationStore.LookupEntry(GetSpecializationId(GetActiveSpec()));
+    if (!specialization)
         return;
 
-    for (uint32 masterySpell : talentTab->MasterySpellID)
+    for (uint32 masterySpell : specialization->MasterySpellID)
         if (masterySpell)
             if (Aura* aura = GetAura(masterySpell))
                 if (aura->GetSpellInfo()->HasAttribute(SPELL_ATTR8_MASTERY_AFFECTS_POINTS))

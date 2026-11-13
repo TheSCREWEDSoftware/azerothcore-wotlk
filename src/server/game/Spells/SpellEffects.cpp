@@ -252,7 +252,7 @@ pEffect SpellEffects[TOTAL_SPELL_EFFECTS] =
     &Spell::EffectUnused,                                   //178 SPELL_EFFECT_178 unused
     &Spell::EffectNULL,                                     //179 SPELL_EFFECT_CREATE_AREATRIGGER
     &Spell::EffectUnused,                                   //180 SPELL_EFFECT_UPDATE_AREATRIGGER
-    &Spell::EffectUnused,                                   //181 SPELL_EFFECT_REMOVE_TALENT
+    &Spell::EffectRemoveTalent,                             //181 SPELL_EFFECT_REMOVE_TALENT
     &Spell::EffectNULL,                                     //182 SPELL_EFFECT_182
 };
 
@@ -6680,6 +6680,17 @@ void Spell::EffectActivateSpec(SpellEffIndex /*effIndex*/)
     {
         player->ActivateSpec(damage - 1); // damage is 1 or 2, spec is 0 or 1
     }
+}
+
+void Spell::EffectRemoveTalent(SpellEffIndex /*effIndex*/)
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT)
+        return;
+
+    // 5.4.8: the client sends the Talent.dbc id in the glyph index of the cast request
+    if (Player* player = m_caster->ToPlayer())
+        if (!player->RemoveTalent(m_glyphIndex))
+            player->SendTalentsInfoData(false);
 }
 
 void Spell::EffectPlaySound(SpellEffIndex effIndex)

@@ -1232,60 +1232,7 @@ void SpellMgr::LoadSpellTalentRanks()
     // cleanup core data before reload - remove reference to ChainNode from SpellInfo
     UnloadSpellInfoChains();
 
-    for (uint32 i = 0; i < sTalentStore.GetNumRows(); ++i)
-    {
-        TalentEntry const* talentInfo = sTalentStore.LookupEntry(i);
-        if (!talentInfo)
-            continue;
-
-        SpellInfo const* lastSpell = nullptr;
-        for (uint8 rank = MAX_TALENT_RANK - 1; rank > 0; --rank)
-        {
-            if (talentInfo->RankID[rank])
-            {
-                lastSpell = GetSpellInfo(talentInfo->RankID[rank]);
-                break;
-            }
-        }
-
-        if (!lastSpell)
-            continue;
-
-        SpellInfo const* firstSpell = GetSpellInfo(talentInfo->RankID[0]);
-        if (!firstSpell)
-        {
-            LOG_ERROR("sql.sql", "SpellMgr::LoadSpellTalentRanks: First Rank Spell {} for TalentEntry {} does not exist.", talentInfo->RankID[0], i);
-            continue;
-        }
-
-        SpellInfo const* prevSpell = nullptr;
-        for (uint8 rank = 0; rank < MAX_TALENT_RANK; ++rank)
-        {
-            uint32 spellId = talentInfo->RankID[rank];
-            if (!spellId)
-                break;
-
-            SpellInfo const* currentSpell = GetSpellInfo(spellId);
-            if (!currentSpell)
-            {
-                LOG_ERROR("sql.sql", "SpellMgr::LoadSpellTalentRanks: Spell {} (Rank: {}) for TalentEntry {} does not exist.", spellId, rank + 1, i);
-                break;
-            }
-
-            SpellChainNode node;
-            node.first = firstSpell;
-            node.last  = lastSpell;
-            node.rank  = rank + 1;
-
-            node.prev = prevSpell;
-            node.next = node.rank < MAX_TALENT_RANK ? GetSpellInfo(talentInfo->RankID[node.rank]) : nullptr;
-
-            mSpellChains[spellId] = node;
-            mSpellInfoMap[spellId]->ChainEntry = &mSpellChains[spellId];
-
-            prevSpell = currentSpell;
-        }
-    }
+    // 5.4.8 talents have a single rank; ranked spells come from the spell_ranks table
 }
 
 void SpellMgr::LoadSpellRanks()
@@ -3343,14 +3290,12 @@ void SpellMgr::LoadSpellInfoCustomAttributes()
         if (!talentInfo)
             continue;
 
-        for (uint8 j = 0; j < MAX_TALENT_RANK; j++)
-            if (uint32 spellId = talentInfo->RankID[j])
-                if (SpellInfo const* spellInfo = GetSpellInfo(spellId))
-                    for (uint8 k = 0; k < MAX_SPELL_EFFECTS; ++k)
-                        if (spellInfo->Effects[k].Effect == SPELL_EFFECT_LEARN_SPELL)
-                            if (SpellInfo const* learnSpell = GetSpellInfo(spellInfo->Effects[k].TriggerSpell))
-                                if (learnSpell->IsRanked() && !learnSpell->HasAttribute(SpellAttr0(SPELL_ATTR0_PASSIVE | SPELL_ATTR0_DO_NOT_DISPLAY)))
-                                    mTalentSpellAdditionalSet.insert(learnSpell->Id);
+        if (SpellInfo const* spellInfo = GetSpellInfo(talentInfo->SpellId))
+            for (uint8 k = 0; k < MAX_SPELL_EFFECTS; ++k)
+                if (spellInfo->Effects[k].Effect == SPELL_EFFECT_LEARN_SPELL)
+                    if (SpellInfo const* learnSpell = GetSpellInfo(spellInfo->Effects[k].TriggerSpell))
+                        if (learnSpell->IsRanked() && !learnSpell->HasAttribute(SpellAttr0(SPELL_ATTR0_PASSIVE | SPELL_ATTR0_DO_NOT_DISPLAY)))
+                            mTalentSpellAdditionalSet.insert(learnSpell->Id);
     }
 
     SpellInfo* spellInfo = nullptr;

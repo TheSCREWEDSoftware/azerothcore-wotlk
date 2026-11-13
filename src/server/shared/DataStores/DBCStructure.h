@@ -1767,13 +1767,6 @@ struct NamesProfanityEntry
 
 #define MAX_OVERRIDE_SPELL 10
 
-// NumTalentsAtLevel.dbc
-struct NumTalentsAtLevelEntry
-{
-    //uint32 Level;                                         // 0        index
-    float   NumberOfTalents;                                // 1
-};
-
 struct OverrideSpellDataEntry
 {
     uint32      id;                                         // 0
@@ -2481,51 +2474,57 @@ struct SummonPropertiesEntry
     uint32  Flags;                                          // 5
 };
 
-#define MAX_TALENT_RANK 5
-#define MAX_PET_TALENT_RANK 3                               // use in calculations, expected <= MAX_TALENT_RANK
-#define MAX_TALENT_TABS 3
+#define MAX_TALENT_TIERS 6                                  // 5.4.8: one talent per tier, tiers open every 15 levels
+#define MAX_TALENT_COLUMNS 3
+#define MAX_TALENT_TABS 4                                   // 5.4.8: specializations per class (druids have four)
 #define MAX_MASTERY_SPELLS 2
 
+// 5.4.8 Talent.dbc
 struct TalentEntry
 {
     uint32    TalentID;                                     // 0
-    uint32    TalentTab;                                    // 1 index in TalentTab.dbc (TalentTabEntry)
-    uint32    Row;                                          // 2
-    uint32    Col;                                          // 3
-    std::array<uint32, MAX_TALENT_RANK> RankID;             // 4-8
-    // uint32 spellRank [4]                                 // 9-12 not used, always 0, maybe not used high ranks
-    uint32    DependsOn;                                    // 13 preReqTalent1 index in Talent.dbc (TalentEntry)
-    // uint32 preReqTalent[2]                               // 14-15 not used
-    uint32    DependsOnRank;                                // 16 preReqRank1
-    // uint32 preReqRank[2]                                 // 17-18 not used
-    uint32    addToSpellBook;                               // 19  also need disable higest ranks on reset talent tree
-    //uint32  requiredSpellID;                              // 20, all 0
-    //uint64  categoryMask[2];                              // 21-22 its a 64 bit mask for pet 1<<m_categoryEnumID in CreatureFamily.dbc
+    // 1 pet talent spec id
+    uint32    Row;                                          // 2 tier (0-5)
+    uint32    Col;                                          // 3 column (0-2)
+    uint32    SpellId;                                      // 4
+    // 5-7 unused
+    uint32    ClassID;                                      // 8
+    uint32    OverrideSpellID;                              // 9 spell this talent replaces
+    // 10 description
 };
 
-struct TalentTabEntry
+// 5.4.8 ChrSpecialization.dbc (replaces TalentTab.dbc)
+struct ChrSpecializationEntry
 {
-    uint32  TalentTabID;                                    // 0
-    //char const* name[16];                                 // 1-16, unused
-    //uint32  nameFlags;                                    // 17, unused
-    //unit32  spellicon;                                    // 18
-    // 19 not used
-    uint32  ClassMask;                                      // 20
-    uint32  petTalentMask;                                  // 21
-    uint32  tabpage;                                        // 22
-    //char const* internalname;                             // 23
-    //char const* description;                              //
-    //uint32  roleMask;                                     //
-    uint32  MasterySpellID[MAX_MASTERY_SPELLS];             //          passive mastery spells
+    uint32    ID;                                           // 0
+    // 1 background file
+    uint32    ClassID;                                      // 2
+    uint32    MasterySpellID[MAX_MASTERY_SPELLS];           // 3-4
+    uint32    OrderIndex;                                   // 5 tab page
+    uint32    PetTalentType;                                // 6
+    uint32    Role;                                         // 7 (0 tank, 1 healer, 2 damage)
+    uint32    SpellIconID;                                  // 8
+    uint32    RaidBuffs;                                    // 9
+    uint32    Flags;                                        // 10
+    char const* Name[16];                                   // 11
+    // 12 name, 13 description
 };
 
-// TalentTreePrimarySpells.dbc
-struct TalentTreePrimarySpellsEntry
+enum ChrSpecializationRole
 {
-    //uint32  ID;                                           // 0
-    uint32  TalentTabID;                                    // 1
-    uint32  SpellID;                                        // 2
-    //uint32  Flags;                                        // 3
+    CHR_SPECIALIZATION_ROLE_TANK    = 0,
+    CHR_SPECIALIZATION_ROLE_HEALER  = 1,
+    CHR_SPECIALIZATION_ROLE_DAMAGE  = 2
+};
+
+// 5.4.8 SpecializationSpells.dbc (replaces TalentTreePrimarySpells.dbc)
+struct SpecializationSpellsEntry
+{
+    uint32    ID;                                           // 0
+    uint32    SpecID;                                       // 1
+    uint32    SpellID;                                      // 2
+    uint32    OverridesSpellID;                             // 3
+    // 4 description
 };
 
 struct TaxiNodesEntry

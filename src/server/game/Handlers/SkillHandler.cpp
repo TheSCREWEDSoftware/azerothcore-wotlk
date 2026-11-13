@@ -24,57 +24,76 @@
 
 void WorldSession::HandleLearnTalentOpcode(WorldPacket& recvData)
 {
-    uint32 talent_id, requested_rank;
-    recvData >> talent_id >> requested_rank;
+    // 5.4.8 18414, from Project SkyFire: a list of Talent.dbc ids
+    uint32 talentCount = recvData.ReadBits(23);
 
-    _player->LearnTalent(talent_id, requested_rank);
+    // one talent per tier
+    if (talentCount > MAX_TALENT_TIERS)
+    {
+        recvData.rfinish();
+        return;
+    }
+
+    bool learned = false;
+    for (uint32 i = 0; i < talentCount; ++i)
+    {
+        uint16 talentId;
+        recvData >> talentId;
+        if (_player->LearnTalent(talentId))
+            learned = true;
+    }
+
+    if (learned)
+        _player->SendTalentsInfoData(false);
+}
+
+void WorldSession::HandleSetSpecializationOpcode(WorldPacket& recvData)
+{
+    // 5.4.8 18414, from Project SkyFire (CMSG_SET_PRIMARY_TALENT_TREE): the tab page of the specialization
+    uint32 specializationTab;
+    recvData >> specializationTab;
+
+    if (specializationTab >= MAX_TALENT_TABS)
+        return;
+
+    if (!_player->LearnPrimaryTalentSpecialization(uint8(specializationTab)))
+        return;
+
     _player->SendTalentsInfoData(false);
+}
+
+void WorldSession::HandleSetLootSpecializationOpcode(WorldPacket& recvData)
+{
+    // 5.4.8 18414, from Project SkyFire: 0 follows the current specialization
+    uint32 lootSpecialization;
+    recvData >> lootSpecialization;
+
+    if (lootSpecialization)
+    {
+        ChrSpecializationEntry const* specialization = sChrSpecializationStore.LookupEntry(lootSpecialization);
+        if (!specialization || specialization->ClassID != _player->getClass())
+            return;
+    }
+
+    _player->SetUInt32Value(PLAYER_FIELD_LOOT_SPEC_ID, lootSpecialization);
 }
 
 void WorldSession::HandleLearnPreviewTalents(WorldPacket& recvPacket)
 {
+    // 4.3.4 talent preview; the 5.4.8 client sends CMSG_LEARN_TALENT instead
     LOG_DEBUG("network", "CMSG_LEARN_PREVIEW_TALENTS");
-
-    int32 talentTab;
-    uint32 talentsCount;
-    recvPacket >> talentTab >> talentsCount;
-
-    // The client picks the primary talent tree with its first talents
-    if (talentTab >= 0 && !_player->LearnPrimaryTalentSpecialization(uint8(talentTab)))
-    {
-        recvPacket.rfinish();
-        return;
-    }
-
-    uint32 talentId, talentRank;
-
-    // Client has max 44 talents for tree for 3 trees, rounded up : 150
-    uint32 const MaxTalentsCount = 150;
-
-    for (uint32 i = 0; i < talentsCount && i < MaxTalentsCount; ++i)
-    {
-        recvPacket >> talentId >> talentRank;
-
-        _player->LearnTalent(talentId, talentRank);
-    }
-
-    _player->SendTalentsInfoData(false);
-
     recvPacket.rfinish();
 }
 
 void WorldSession::HandleTalentWipeConfirmOpcode(WorldPacket& recvData)
 {
     LOG_DEBUG("network", "CMSG_CONFIRM_RESPEC_WIPE");
-    // 5.4.8 18414, from Project SkyFire: 0 = talents, 1 = specialization (not reset yet)
+    // 5.4.8 18414, from Project SkyFire: 0 = talents, 1 = specialization
     uint8 respecType;
     recvData >> respecType;
     ObjectGuid guid;
     recvData.ReadGuidMask(guid, { 7, 2, 6, 1, 4, 0, 3, 5 });
     recvData.ReadGuidBytes(guid, { 2, 4, 1, 3, 0, 5, 7, 6 });
-    if (respecType != 0)
-        return;
-
     Creature* unit = GetPlayer()->GetNPCIfCanInteractWith(guid, UNIT_NPC_FLAG_TRAINER);
     if (!unit)
     {
@@ -88,6 +107,19 @@ void WorldSession::HandleTalentWipeConfirmOpcode(WorldPacket& recvData)
     // remove fake death
     if (GetPlayer()->HasUnitState(UNIT_STATE_DIED))
         GetPlayer()->RemoveAurasByType(SPELL_AURA_FEIGN_DEATH);
+
+    // 1: forget the specialization (the talents stay)
+    if (respecType != 0)
+    {
+        if (!_player->GetSpecializationId(_player->GetActiveSpec()))
+            return;
+
+        _player->RemoveSpecializationSpells();
+        _player->SetSpecializationId(_player->GetActiveSpec(), 0);
+        _player->SendTalentsInfoData(false);
+        unit->CastSpell(_player, 14867, true);              //spell: "Untalent Visual Effect"
+        return;
+    }
 
     if (!(_player->resetTalents()))
     {

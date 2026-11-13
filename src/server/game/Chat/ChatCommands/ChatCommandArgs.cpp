@@ -95,7 +95,7 @@ struct SpellInfoVisitor
     value_type operator()(Hyperlink<spell> spell) const { return *spell; }
     value_type operator()(Hyperlink<talent> talent) const
     {
-        return operator()(talent->Talent->RankID[talent->Rank - 1]);
+        return operator()(talent->Talent->SpellId); // 5.4.8 talents have a single rank
     };
     value_type operator()(Hyperlink<trade> trade) const { return trade->Spell; };
 

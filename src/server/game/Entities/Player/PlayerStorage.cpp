@@ -5781,8 +5781,8 @@ bool Player::LoadFromDB(ObjectGuid playerGuid, CharacterDatabaseQueryHolder cons
 
     std::vector<std::string_view> talentTrees = Acore::Tokenize(fields[75].Get<std::string_view>(), ' ', false);
     for (uint8 spec = 0; spec < MAX_TALENT_SPECS && spec < talentTrees.size(); ++spec)
-        if (Optional<uint32> talentTree = Acore::StringTo<uint32>(talentTrees[spec]); talentTree && sTalentTabStore.LookupEntry(*talentTree))
-            SetPrimaryTalentTree(spec, *talentTree);
+        if (Optional<uint32> specializationId = Acore::StringTo<uint32>(talentTrees[spec]); specializationId && sChrSpecializationStore.LookupEntry(*specializationId))
+            SetSpecializationId(spec, *specializationId);
 
     LearnDefaultSkills();
     LearnCustomSpells();
