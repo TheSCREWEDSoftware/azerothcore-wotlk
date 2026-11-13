@@ -1753,3 +1753,40 @@ void WorldSession::InitRBACDataForTest()
     _RBACData = new rbac::RBACData(_accountId, _accountName, realm.Id.Realm, _security);
     _RBACData->LoadFromDBCallback(nullptr);
 }
+
+bool WorldSession::IsAddonRegistered(std::string const& prefix) const
+{
+    // past the soft cap nothing is filtered
+    if (!_filterAddonMessages)
+        return true;
+
+    return std::find(_registeredAddonPrefixes.begin(), _registeredAddonPrefixes.end(), prefix) != _registeredAddonPrefixes.end();
+}
+
+void WorldSession::HandleUnregisterAddonPrefixesOpcode(WorldPacket& /*recvData*/)
+{
+    _registeredAddonPrefixes.clear();
+}
+
+void WorldSession::HandleAddonRegisteredPrefixesOpcode(WorldPacket& recvData)
+{
+    // always sent after CMSG_UNREGISTER_ALL_ADDON_PREFIXES
+    static constexpr std::size_t REGISTERED_ADDON_PREFIX_SOFTCAP = 64;
+
+    uint32 count = recvData.ReadBits(25);
+    if (count > REGISTERED_ADDON_PREFIX_SOFTCAP)
+    {
+        _filterAddonMessages = false;
+        recvData.rfinish();
+        return;
+    }
+
+    std::vector<uint8> lengths(count);
+    for (uint8& length : lengths)
+        length = recvData.ReadBits(5);
+
+    for (uint8 length : lengths)
+        _registeredAddonPrefixes.push_back(recvData.ReadString(length));
+
+    _filterAddonMessages = _registeredAddonPrefixes.size() <= REGISTERED_ADDON_PREFIX_SOFTCAP;
+}

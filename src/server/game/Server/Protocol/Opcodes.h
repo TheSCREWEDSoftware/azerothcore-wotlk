@@ -28,6 +28,7 @@
 /// Lists of opcodes by wire direction
 enum OpcodeClient : uint16
 {
+    CMSG_ADDON_REGISTERED_PREFIXES                  = 0x0954,
     CMSG_CLEAR_RAID_MARKER                          = 0x7300,
     CMSG_SET_PET_SLOT                               = 0x3A04,
     CMSG_GENERATE_RANDOM_CHARACTER_NAME             = 0x2413,

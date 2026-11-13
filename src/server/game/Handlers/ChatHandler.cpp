@@ -703,6 +703,23 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recvData)
 // the resulting SMSG_MESSAGECHAT is unchanged from WotLK (message = "prefix\tpayload"), so once
 // prefix and message are split back out here, this reuses the same LANG_ADDON broadcast paths
 // HandleMessagechatOpcode already has for guild/officer/party/raid/battleground/whisper.
+namespace
+{
+    // like Group::BroadcastPacket, but only to members that registered the addon prefix
+    void BroadcastAddonToGroup(Group* group, WorldPacket const* data, std::string const& prefix, uint8 subGroup = 0xFF)
+    {
+        for (GroupReference* itr = group->GetFirstMember(); itr != nullptr; itr = itr->next())
+        {
+            Player* member = itr->GetSource();
+            if (!member || !member->GetSession() || (subGroup != 0xFF && group->GetMemberGroup(member->GetGUID()) != subGroup))
+                continue;
+
+            if (member->GetSession()->IsAddonRegistered(prefix))
+                member->SendDirectMessage(data);
+        }
+    }
+}
+
 void WorldSession::HandleAddonMessagechatOpcode(WorldPacket& recvData)
 {
     Player* sender = GetPlayer();
@@ -783,16 +800,23 @@ void WorldSession::HandleAddonMessagechatOpcode(WorldPacket& recvData)
         case CHAT_MSG_OFFICER:
             if (GetPlayer()->GetGuildId())
                 if (Guild* guild = sGuildMgr->GetGuildById(GetPlayer()->GetGuildId()))
-                    guild->BroadcastToGuild(this, type == CHAT_MSG_OFFICER, combined, LANG_ADDON);
+                    guild->BroadcastAddonToGuild(this, type == CHAT_MSG_OFFICER, message, prefix);
             break;
         case CHAT_MSG_WHISPER:
         {
             if (!normalizePlayerName(to))
                 break;
             Player* receiver = ObjectAccessor::FindPlayerByName(to, false);
-            if (!receiver)
+            if (!receiver || !receiver->GetSession()->IsAddonRegistered(prefix))
                 break;
-            sender->Whisper(combined, LANG_ADDON, receiver);
+
+            std::string text(message);
+            if (!sScriptMgr->OnPlayerCanUseChat(sender, CHAT_MSG_WHISPER, LANG_ADDON, text, receiver))
+                break;
+
+            WorldPacket data;
+            ChatHandler::BuildChatPacket(data, CHAT_MSG_WHISPER, LANG_ADDON, sender, sender, text, 0, "", DEFAULT_LOCALE, prefix);
+            receiver->SendDirectMessage(&data);
             break;
         }
         case CHAT_MSG_PARTY:
@@ -805,8 +829,8 @@ void WorldSession::HandleAddonMessagechatOpcode(WorldPacket& recvData)
                     break;
             }
             WorldPacket data;
-            ChatHandler::BuildChatPacket(data, CHAT_MSG_PARTY, LANG_ADDON, sender, nullptr, combined);
-            group->BroadcastPacket(&data, false, group->GetMemberGroup(sender->GetGUID()));
+            ChatHandler::BuildChatPacket(data, CHAT_MSG_PARTY, LANG_ADDON, sender, nullptr, message, 0, "", DEFAULT_LOCALE, prefix);
+            BroadcastAddonToGroup(group, &data, prefix, group->GetMemberGroup(sender->GetGUID()));
             break;
         }
         case CHAT_MSG_RAID:
@@ -819,8 +843,8 @@ void WorldSession::HandleAddonMessagechatOpcode(WorldPacket& recvData)
                     break;
             }
             WorldPacket data;
-            ChatHandler::BuildChatPacket(data, CHAT_MSG_RAID, LANG_ADDON, sender, nullptr, combined);
-            group->BroadcastPacket(&data, false);
+            ChatHandler::BuildChatPacket(data, CHAT_MSG_RAID, LANG_ADDON, sender, nullptr, message, 0, "", DEFAULT_LOCALE, prefix);
+            BroadcastAddonToGroup(group, &data, prefix);
             break;
         }
         case CHAT_MSG_BATTLEGROUND:
@@ -829,8 +853,8 @@ void WorldSession::HandleAddonMessagechatOpcode(WorldPacket& recvData)
             if (!group || !group->isBGGroup())
                 break;
             WorldPacket data;
-            ChatHandler::BuildChatPacket(data, CHAT_MSG_BATTLEGROUND, LANG_ADDON, sender, nullptr, combined);
-            group->BroadcastPacket(&data, false);
+            ChatHandler::BuildChatPacket(data, CHAT_MSG_BATTLEGROUND, LANG_ADDON, sender, nullptr, message, 0, "", DEFAULT_LOCALE, prefix);
+            BroadcastAddonToGroup(group, &data, prefix);
             break;
         }
         default:

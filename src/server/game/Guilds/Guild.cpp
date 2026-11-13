@@ -2654,6 +2654,20 @@ void Guild::BroadcastToGuild(WorldSession* session, bool officerOnly, std::strin
     }
 }
 
+void Guild::BroadcastAddonToGuild(WorldSession* session, bool officerOnly, std::string_view msg, std::string const& prefix) const
+{
+    if (session && session->GetPlayer() && _HasRankRight(session->GetPlayer(), officerOnly ? GR_RIGHT_OFFCHATSPEAK : GR_RIGHT_GCHATSPEAK))
+    {
+        WorldPacket data;
+        ChatHandler::BuildChatPacket(data, officerOnly ? CHAT_MSG_OFFICER : CHAT_MSG_GUILD, LANG_ADDON, session->GetPlayer(), nullptr, msg, 0, "", DEFAULT_LOCALE, prefix);
+        for (auto const& [guid, member] : m_members)
+            if (Player* player = member.FindPlayer())
+                if (_HasRankRight(player, officerOnly ? GR_RIGHT_OFFCHATLISTEN : GR_RIGHT_GCHATLISTEN) && !player->GetSocial()->HasIgnore(session->GetPlayer()->GetGUID())
+                    && player->GetSession()->IsAddonRegistered(prefix))
+                    player->SendDirectMessage(&data);
+    }
+}
+
 void Guild::BroadcastPacketToRank(WorldPacket const* packet, uint8 rankId) const
 {
     for (auto const& [guid, member] : m_members)

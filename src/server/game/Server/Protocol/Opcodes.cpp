@@ -870,6 +870,7 @@ void OpcodeTable::Initialize()
     /*0x1026*/ DEFINE_HANDLER(CMSG_GUILD_QUERY_RANKS,                                                STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildQueryRanksOpcode              );
     /*0x3032*/ DEFINE_HANDLER(CMSG_GUILD_ASSIGN_MEMBER_RANK,                                         STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildAssignRankOpcode              );
     /*0x1221*/ DEFINE_HANDLER(CMSG_GUILD_SWITCH_RANK,                                                STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildSwitchRankOpcode              );
+    /*0x0954*/ DEFINE_HANDLER(CMSG_ADDON_REGISTERED_PREFIXES,                                        STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleAddonRegisteredPrefixesOpcode      );
     /*0x7300*/ DEFINE_HANDLER(CMSG_CLEAR_RAID_MARKER,                                                STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleClearRaidMarkerOpcode              );
     /*0x3A04*/ DEFINE_HANDLER(CMSG_SET_PET_SLOT,                                                     STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleSetPetSlot                         );
     /*0x2413*/ DEFINE_HANDLER(CMSG_GENERATE_RANDOM_CHARACTER_NAME,                                   STATUS_AUTHED,     PROCESS_THREADUNSAFE,   &WorldSession::HandleRandomizeCharNameOpcode            );
@@ -977,7 +978,7 @@ void OpcodeTable::Initialize()
     /*0x7202*/ DEFINE_HANDLER(CMSG_QUERY_BATTLEFIELD_STATE,                                         STATUS_LOGGEDIN,   PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );
     /*0x4407*/ DEFINE_HANDLER(CMSG_QUEST_GIVER_STATUS_QUERY,                                   STATUS_LOGGEDIN,   PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );
     /*0x720A*/ DEFINE_HANDLER(CMSG_REQUEST_CEMETERY_LIST,                                           STATUS_LOGGEDIN,   PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );
-    /*0x3D54*/ DEFINE_HANDLER(CMSG_UNREGISTER_ALL_ADDON_PREFIXES,                                   STATUS_LOGGEDIN,   PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );
+    /*0x3D54*/ DEFINE_HANDLER(CMSG_UNREGISTER_ALL_ADDON_PREFIXES,                                   STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleUnregisterAddonPrefixesOpcode     );
     /*0x2401*/ DEFINE_HANDLER(CMSG_DB_QUERY_BULK,                                                   STATUS_LOGGEDIN,   PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );
     /*0x730E*/ DEFINE_HANDLER(CMSG_SAVE_CUF_PROFILES,                                               STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleSaveCUFProfiles                    );
     /*0x7102*/ DEFINE_HANDLER(CMSG_REQUEST_CATEGORY_COOLDOWNS,                                      STATUS_LOGGEDIN,   PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );

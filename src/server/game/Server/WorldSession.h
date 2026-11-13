@@ -908,6 +908,10 @@ public:                                                 // opcodes handlers
     void HandleSetRoleOpcode(WorldPackets::Party::SetRole& packet);
     void HandleRolePollBeginOpcode(WorldPacket& recvData);
     void HandleClearRaidMarkerOpcode(WorldPacket& recvData);
+    void HandleUnregisterAddonPrefixesOpcode(WorldPacket& recvData);
+    void HandleAddonRegisteredPrefixesOpcode(WorldPacket& recvData);
+    // addon messages only go to clients that registered the prefix, unless they registered too many
+    [[nodiscard]] bool IsAddonRegistered(std::string const& prefix) const;
     void HandleSetEveryoneIsAssistant(WorldPackets::Party::SetEveryoneIsAssistant& packet);
     void HandleGroupUninviteOpcode(WorldPacket& recvPacket);
     void HandleGroupUninviteGuidOpcode(WorldPacket& recvPacket);
@@ -1458,6 +1462,8 @@ private:
     uint32 m_Tutorials[MAX_ACCOUNT_TUTORIAL_VALUES];
     bool   m_TutorialsChanged;
     AddonsList m_addonsList;
+    std::vector<std::string> _registeredAddonPrefixes;
+    bool _filterAddonMessages = false;
     uint32 recruiterId;
     bool isRecruiter;
     LockedQueue<WorldPacket*> _recvQueue;
