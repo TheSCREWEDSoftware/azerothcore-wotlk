@@ -2831,7 +2831,9 @@ void Spell::DoAllEffectOnTarget(TargetInfo* target)
         // Do healing and triggers
         if (m_healing > 0)
         {
-            bool crit = target->crit;
+            // SPELL_EFFECT_HEAL_PCT must never crit, even if other spell effects do crit. As of 4.3.4.15595,
+            // this spell effect does not share other healing effects in any spell so we can use this rule here
+            bool crit = target->crit && !m_spellInfo->HasEffect(SPELL_EFFECT_HEAL_PCT);
             uint32 addhealth = m_healing;
 
             if (crit)
