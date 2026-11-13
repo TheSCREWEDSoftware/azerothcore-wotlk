@@ -190,7 +190,7 @@ void OpcodeTable::Initialize()
     /*0x12B3*/ DEFINE_HANDLER(CMSG_ENABLE_NAGLE, STATUS_UNHANDLED, PROCESS_INPLACE, &WorldSession::Handle_NULL);
     /*0x1452*/ DEFINE_HANDLER(CMSG_GET_CHALLENGE_MODE_REWARDS, STATUS_UNHANDLED, PROCESS_INPLACE, &WorldSession::Handle_NULL);
     /*0x1258*/ DEFINE_HANDLER(CMSG_GET_ITEM_PURCHASE_DATA,                                           STATUS_LOGGEDIN, PROCESS_INPLACE,          &WorldSession::HandleItemRefundInfoRequest              );
-    /*0x15A8*/ DEFINE_HANDLER(CMSG_GM_TICKET_CASE_STATUS, STATUS_UNHANDLED, PROCESS_INPLACE, &WorldSession::Handle_NULL);
+    /*0x15A8*/ DEFINE_HANDLER(CMSG_GM_TICKET_CASE_STATUS, STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGMTicketCaseStatusOpcode);
     /*0x1882*/ DEFINE_HANDLER(CMSG_GROUP_INITIATE_ROLE_POLL, STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleRolePollBeginOpcode);
     /*0x04D9*/ DEFINE_HANDLER(CMSG_GUILD_BANK_NOTE,                                                  STATUS_LOGGEDIN, PROCESS_THREADUNSAFE,     &WorldSession::HandleSetGuildBankTabText                );
     /*0x0550*/ DEFINE_HANDLER(CMSG_GUILD_BANK_QUERY_TEXT,                                            STATUS_LOGGEDIN, PROCESS_THREADUNSAFE,     &WorldSession::HandleQueryGuildBankTabText              );

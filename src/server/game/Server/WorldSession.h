@@ -849,6 +849,7 @@ public:                                                 // opcodes handlers
     void HandleGMTicketDeleteOpcode(WorldPacket& recvPacket);
     void HandleGMTicketGetTicketOpcode(WorldPacket& recvPacket);
     void HandleGMTicketSystemStatusOpcode(WorldPacket& recvPacket);
+    void HandleGMTicketCaseStatusOpcode(WorldPacket& recvPacket);
     void HandleGMSurveySubmit(WorldPacket& recvPacket);
     void HandleReportLag(WorldPacket& recvPacket);
     void HandleGMResponseResolve(WorldPacket& recvPacket);

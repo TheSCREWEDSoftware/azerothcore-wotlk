@@ -55,51 +55,60 @@ void WorldSession::HandleGMTicketCreateOpcode(WorldPacket& recvData)
         bool needMoreHelp;
         uint32 count;
         std::list<uint32> times;
-        uint32 decompressedSize;
         std::string chatLog;
 
+        // 5.4.8 18414, from Project SkyFire
         recvData >> mapId;
-        recvData >> x >> y >> z;
-        recvData >> message;
+        recvData >> z >> y;
+        recvData.read_skip<uint8>();                        // flags
+        recvData >> x;
+        recvData >> count;
+
+        if (count > 0)
+        {
+            uint8 textCount;
+            recvData >> textCount;
+            for (uint8 i = 0; i < textCount; ++i)
+                times.push_back(recvData.read<uint32>());
+
+            uint32 decompressedSize;
+            recvData >> decompressedSize;
+
+            if (decompressedSize && decompressedSize < 0xFFFF)
+            {
+                ByteBuffer dest;
+                dest.resize(decompressedSize);
+
+                // inflate tells how much of the packet the compressed chat log used, the request text follows it
+                z_stream stream = {};
+                stream.next_in = recvData.contents() + recvData.rpos();
+                stream.avail_in = uInt(recvData.size() - recvData.rpos());
+                stream.next_out = dest.contents();
+                stream.avail_out = uInt(decompressedSize);
+                bool ok = inflateInit(&stream) == Z_OK;
+                ok = ok && inflate(&stream, Z_FINISH) == Z_STREAM_END;
+                inflateEnd(&stream);
+
+                if (!ok)
+                {
+                    LOG_ERROR("network.opcode", "CMSG_GMTICKET_CREATE possibly corrupt. Uncompression failed.");
+                    recvData.rfinish();
+                    return;
+                }
+
+                recvData.rpos(recvData.size() - stream.avail_in);
+                dest >> chatLog;
+            }
+        }
+
+        recvData.ResetBitPos();
+        needResponse = recvData.ReadBit();
+        needMoreHelp = recvData.ReadBit();
+        message = recvData.ReadString(recvData.ReadBits(11));
 
         if (!ValidateHyperlinksAndMaybeKick(message))
         {
             return;
-        }
-
-        recvData >> needResponse;
-        recvData >> needMoreHelp;
-
-        recvData >> count;
-
-        for (uint32 i = 0; i < count; i++)
-        {
-            uint32 time;
-            recvData >> time;
-            times.push_back(time);
-        }
-
-        recvData >> decompressedSize;
-
-        if (count && decompressedSize && decompressedSize < 0xFFFF)
-        {
-            uint32 pos = recvData.rpos();
-            ByteBuffer dest;
-            dest.resize(decompressedSize);
-
-            uLongf realSize = decompressedSize;
-            if (uncompress(dest.contents(), &realSize, recvData.contents() + pos, recvData.size() - pos) == Z_OK)
-            {
-                dest >> chatLog;
-            }
-            else
-            {
-                LOG_ERROR("network.opcode", "CMSG_GMTICKET_CREATE possibly corrupt. Uncompression failed.");
-                recvData.rfinish();
-                return;
-            }
-
-            recvData.rfinish(); // Will still have compressed data in buffer.
         }
 
         if (!chatLog.empty() && !ValidateHyperlinksAndMaybeKick(chatLog))
@@ -123,15 +132,12 @@ void WorldSession::HandleGMTicketCreateOpcode(WorldPacket& recvData)
         response = GMTICKET_RESPONSE_CREATE_SUCCESS;
     }
 
-    WorldPacket data(SMSG_GMTICKET_CREATE, 4);
-    data << uint32(response);
-    SendPacket(&data);
+    TicketMgr::SendTicketUpdate(this, response);
 }
 
 void WorldSession::HandleGMTicketUpdateOpcode(WorldPacket& recv_data)
 {
-    std::string message;
-    recv_data >> message;
+    std::string message = recv_data.ReadString(recv_data.ReadBits(11));
 
     if (!ValidateHyperlinksAndMaybeKick(message))
     {
@@ -150,18 +156,14 @@ void WorldSession::HandleGMTicketUpdateOpcode(WorldPacket& recv_data)
         response = GMTICKET_RESPONSE_UPDATE_SUCCESS;
     }
 
-    WorldPacket data(SMSG_GMTICKET_UPDATETEXT, 4);
-    data << uint32(response);
-    SendPacket(&data);
+    TicketMgr::SendTicketUpdate(this, response);
 }
 
 void WorldSession::HandleGMTicketDeleteOpcode(WorldPacket& /*recv_data*/)
 {
     if (GmTicket* ticket = sTicketMgr->GetTicketByPlayer(GetPlayer()->GetGUID()))
     {
-        WorldPacket data(SMSG_GMTICKET_DELETETICKET, 4);
-        data << uint32(GMTICKET_RESPONSE_TICKET_DELETED);
-        SendPacket(&data);
+        TicketMgr::SendTicketUpdate(this, GMTICKET_RESPONSE_TICKET_DELETED);
 
         ChatHandler(nullptr).SendGMText(LANG_COMMAND_TICKETPLAYERABANDON, GetPlayer()->GetName(), ticket->GetId());
 
@@ -194,63 +196,81 @@ void WorldSession::HandleGMTicketSystemStatusOpcode(WorldPacket& /*recv_data*/)
     SendPacket(&data);
 }
 
+// 5.4.8 18414, from Project SkyFire
 void WorldSession::HandleGMSurveySubmit(WorldPacket& recv_data)
 {
-    uint32 nextSurveyID = sTicketMgr->GetNextSurveyID();
-    // just put the survey into the database
+    struct SurveyAnswer
+    {
+        uint32 QuestionId;
+        uint8 Rank;
+        std::string Comment;
+    };
+
     uint32 mainSurvey; // GMSurveyCurrentSurvey.dbc, column 1 (all 9) ref to GMSurveySurveys.dbc
     recv_data >> mainSurvey;
 
+    uint8 answerCount = recv_data.ReadBits(4);
+    std::vector<uint32> commentLengths(answerCount);
+    for (uint8 i = 0; i < answerCount; ++i)
+        commentLengths[i] = recv_data.ReadBits(9);
+
+    std::string overallComment = recv_data.ReadString(recv_data.ReadBits(11));
+    if (!ValidateHyperlinksAndMaybeKick(overallComment))
+        return;
+
     std::unordered_set<uint32> surveyIds;
-    CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
+    std::vector<SurveyAnswer> answers;
+    answers.reserve(answerCount);
 
-    // sub_survey1, r1, comment1, sub_survey2, r2, comment2, sub_survey3, r3, comment3, sub_survey4, r4, comment4, sub_survey5, r5, comment5, sub_survey6, r6, comment6, sub_survey7, r7, comment7, sub_survey8, r8, comment8, sub_survey9, r9, comment9, sub_survey10, r10, comment10,
-    for (uint8 i = 0; i < 10; i++)
+    for (uint8 i = 0; i < answerCount; ++i)
     {
-        uint32 subSurveyId; // ref to i'th GMSurveySurveys.dbc field (all fields in that dbc point to fields in GMSurveyQuestions.dbc)
-        recv_data >> subSurveyId;
-        if (!subSurveyId)
-            break;
+        SurveyAnswer answer;
+        recv_data >> answer.QuestionId;                    // ref to GMSurveyQuestions.dbc
+        recv_data >> answer.Rank;                          // probably some sort of ref to GMSurveyAnswers.dbc
+        answer.Comment = recv_data.ReadString(commentLengths[i]);
 
-        uint8 rank; // probably some sort of ref to GMSurveyAnswers.dbc
-        recv_data >> rank;
-        std::string comment; // comment ("Usage: GMSurveyAnswerSubmit(question, rank, comment)")
-        recv_data >> comment;
-
-        if (!ValidateHyperlinksAndMaybeKick(comment))
-        {
+        if (!ValidateHyperlinksAndMaybeKick(answer.Comment))
             return;
-        }
 
         // make sure the same sub survey is not added to DB twice
-        if (!surveyIds.insert(subSurveyId).second)
+        if (!answer.QuestionId || !surveyIds.insert(answer.QuestionId).second)
             continue;
 
-        CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_INS_GM_SUBSURVEY);
-        stmt->SetData(0, nextSurveyID);
-        stmt->SetData(1, subSurveyId);
-        stmt->SetData(2, rank);
-        stmt->SetData(3, comment);
-        trans->Append(stmt);
+        answers.push_back(std::move(answer));
     }
 
-    std::string comment; // just a guess
-    recv_data >> comment;
+    uint32 nextSurveyID = sTicketMgr->GetNextSurveyID();
+    CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
 
-    if (!ValidateHyperlinksAndMaybeKick(comment))
+    for (SurveyAnswer const& answer : answers)
     {
-        return;
+        CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_INS_GM_SUBSURVEY);
+        stmt->SetData(0, nextSurveyID);
+        stmt->SetData(1, answer.QuestionId);
+        stmt->SetData(2, answer.Rank);
+        stmt->SetData(3, answer.Comment);
+        trans->Append(stmt);
     }
 
     CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_INS_GM_SURVEY);
     stmt->SetData(0, GetPlayer()->GetGUID().GetCounter());
     stmt->SetData(1, nextSurveyID);
     stmt->SetData(2, mainSurvey);
-    stmt->SetData(3, comment);
-
+    stmt->SetData(3, overallComment);
     trans->Append(stmt);
 
     CharacterDatabase.CommitTransaction(trans);
+}
+
+// 5.4.8 18414, from Project SkyFire
+void WorldSession::HandleGMTicketCaseStatusOpcode(WorldPacket& /*recvData*/)
+{
+    WorldPacket data(SMSG_GM_TICKET_CASE_STATUS, 3 + 4 + 4);
+    data.WriteBits(0, 20);                                  // case count
+    data.FlushBits();
+    data.AppendPackedTime(0);                               // update time
+    data.AppendPackedTime(GameTime::GetGameTime().count()); // oldest ticket time
+    SendPacket(&data);
 }
 
 void WorldSession::HandleReportLag(WorldPacket& recv_data)
@@ -286,13 +306,12 @@ void WorldSession::HandleGMResponseResolve(WorldPacket& /*recvPacket*/)
         if (float(rand_chance()) < sWorld->getFloatConfig(CONFIG_CHANCE_OF_GM_SURVEY))
             getSurvey = 1;
 
-        WorldPacket data(SMSG_GMRESPONSE_STATUS_UPDATE, 4);
-        data << uint8(getSurvey);
+        WorldPacket data(SMSG_GM_TICKET_RESOLVE_RESPONSE, 1);
+        data.WriteBit(getSurvey);
+        data.FlushBits();
         SendPacket(&data);
 
-        WorldPacket data2(SMSG_GMTICKET_DELETETICKET, 4);
-        data2 << uint32(GMTICKET_RESPONSE_TICKET_DELETED);
-        SendPacket(&data2);
+        TicketMgr::SendTicketUpdate(this, GMTICKET_RESPONSE_TICKET_DELETED);
 
         sTicketMgr->CloseTicket(ticket->GetId(), GetPlayer()->GetGUID());
         sTicketMgr->SendTicket(this, nullptr);

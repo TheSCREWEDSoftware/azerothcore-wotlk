@@ -244,6 +244,7 @@ public:
     void ShowEscalatedList(ChatHandler& handler) const;
 
     void SendTicket(WorldSession* session, GmTicket* ticket) const;
+    static void SendTicketUpdate(WorldSession* session, GMTicketResponse response);
 
 protected:
     void _RemoveTicket(uint32 ticketId, int64 source = -1, bool permanently = false);
