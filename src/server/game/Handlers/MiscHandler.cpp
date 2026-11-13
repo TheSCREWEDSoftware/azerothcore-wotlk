@@ -20,6 +20,7 @@
 #include "RBAC.h"
 #include "Battleground.h"
 #include "BattlegroundMgr.h"
+#include "ArchaeologyPackets.h"
 #include "CharacterPackets.h"
 #include "Chat.h"
 #include "Common.h"
@@ -1792,4 +1793,9 @@ void WorldSession::HandleUpdateMissileTrajectory(WorldPacket& recvPacket)
         recvPacket.SetOpcode(opcode);
         HandleMovementOpcodes(recvPacket);
     }
+}
+
+void WorldSession::HandleRequestResearchHistory(WorldPackets::Archaeology::RequestResearchHistory& /*packet*/)
+{
+    _player->NotifyRequestResearchHistory();
 }

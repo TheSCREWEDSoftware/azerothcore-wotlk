@@ -406,6 +406,7 @@ public:
     int32  EquippedItemSubClassMask;
     int32  EquippedItemInventoryTypeMask;
     std::array<uint32, 2> TotemCategory;
+    uint32 ResearchProjectId;
     std::array<uint32, 2> SpellVisual;
     uint32 SpellIconID;
     uint32 ActiveIconID;

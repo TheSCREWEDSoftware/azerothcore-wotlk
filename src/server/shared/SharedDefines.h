@@ -3315,10 +3315,11 @@ enum SkillType
     SKILL_PET_WASP                 = 785,
     SKILL_PET_EXOTIC_RHINO         = 786,
     SKILL_PET_EXOTIC_CORE_HOUND    = 787,
-    SKILL_PET_EXOTIC_SPIRIT_BEAST  = 788
+    SKILL_PET_EXOTIC_SPIRIT_BEAST  = 788,
+    SKILL_ARCHAEOLOGY              = 794
 };
 
-#define MAX_SKILL_TYPE               789
+#define MAX_SKILL_TYPE               795
 
 inline SkillType SkillByLockType(LockType locktype)
 {

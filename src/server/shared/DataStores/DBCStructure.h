@@ -88,6 +88,12 @@ struct AchievementCriteriaEntry
             uint32  winCount;                               // 4
         } win_bg;
 
+        // ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_ARCHAEOLOGY_PROJECTS = 3
+        struct
+        {
+            uint32  itemCount;                              // 3
+        } complete_archaeology_projects;
+
         // ACHIEVEMENT_CRITERIA_TYPE_REACH_LEVEL            = 5
         struct
         {
@@ -867,7 +873,7 @@ struct CurrencyCategoryEntry
 struct CurrencyTypesEntry
 {
     uint32    ID;                                           // 0        client currency id, store key
-    //uint32    CategoryID;                                 // 1
+    uint32    CategoryID;                                   // 1
     //char*     Name;                                       // 2
     uint32    BitIndex;                                     // 3        WotLK known-currency bit (4.3.4: string offset)
     uint32    MaxQty;                                       // 7        raw total cap, 0 = uncapped
@@ -881,6 +887,7 @@ struct CurrencyTypesEntry
 
 constexpr uint32 CURRENCY_PRECISION = 100;
 constexpr uint32 CURRENCY_TYPE_JUSTICE_POINTS = 395;
+constexpr uint32 CURRENCY_CATEGORY_ARCHAEOLOGY = 82;
 
 struct DestructibleModelDataEntry
 {
@@ -1580,6 +1587,22 @@ struct PvPDifficultyEntry
     [[nodiscard]] BattlegroundBracketId GetBracketId() const { return BattlegroundBracketId(bracketId); }
 };
 
+struct QuestPOIBlobEntry
+{
+    uint32  ID;                                             // 0
+    uint32  NumPoints;                                      // 1
+    uint32  MapID;                                          // 2
+    uint32  WorldMapAreaID;                                 // 3
+};
+
+struct QuestPOIPointEntry
+{
+    uint32  ID;                                             // 0
+    int32   X;                                              // 1
+    int32   Y;                                              // 2
+    uint32  QuestPOIBlobID;                                 // 3
+};
+
 struct QuestSortEntry
 {
     uint32      id;                                         // 0        m_ID
@@ -1606,6 +1629,61 @@ struct RandomPropertiesPointsEntry
     uint32    EpicPropertiesPoints[5];                      // 2-6
     uint32    RarePropertiesPoints[5];                      // 7-11
     uint32    UncommonPropertiesPoints[5];                  // 12-16
+};
+
+// ResearchBranch.dbc
+struct ResearchBranchEntry
+{
+    uint32  ID;                                             // 0
+    char*   Name;                                           // 1
+    uint32  ResearchFieldID;                                // 2
+    uint32  CurrencyID;                                     // 3
+    char*   Texture;                                        // 4
+    uint32  ItemID;                                         // 5
+};
+
+// ResearchField.dbc
+struct ResearchFieldEntry
+{
+    uint32 ID;                                              // 0
+    char*  Name;                                            // 1
+    uint32 Slot;                                            // 2
+};
+
+// ResearchProject.dbc
+struct ResearchProjectEntry
+{
+    uint32  ID;                                             // 0
+    char*   Name;                                           // 1
+    char*   Description;                                    // 2
+    uint32  Rarity;                                         // 3
+    uint32  ResearchBranchID;                               // 4
+    uint32  SpellID;                                        // 5
+    uint32  NumSockets;                                     // 6
+    char*   Texture;                                        // 7
+    uint32  RequiredWeight;                                 // 8
+};
+
+// ResearchSite.dbc
+struct ResearchSiteEntry
+{
+    uint32  ID;                                             // 0
+    uint32  MapID;                                          // 1
+    uint32  QuestPOIBlobID;                                 // 2
+    char*   Name;                                           // 3
+    char*   AreaPOIIconEnum;                                // 4
+
+    // AC: a handful of ids in the client data are unused template/placeholder rows
+    // (or Vashj'ir sites that never shipped a usable dig site) - skip them.
+    bool IsValid() const
+    {
+        return ID != 140 && // template
+            ID != 142 &&    // template
+            ID != 161 &&    // template
+            ID != 471 &&    // Vashj'ir
+            ID != 473 &&    // Vashj'ir
+            ID != 475;      // Vashj'ir
+    }
 };
 
 struct ScalingStatDistributionEntry

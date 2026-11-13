@@ -910,6 +910,8 @@ SpellInfo::SpellInfo(SpellEntry const* spellEntry, std::array<SpellEffectEntry c
     TotemCategory = totems ? totems->RequiredTotemCategoryID : decltype(TotemCategory){};
     Totem = totems ? totems->Totem : decltype(Totem){};
 
+    ResearchProjectId = spellEntry->RequiredProjectID;
+
     for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
         Effects[i] = SpellEffectInfo(effects[i], this, i);
 

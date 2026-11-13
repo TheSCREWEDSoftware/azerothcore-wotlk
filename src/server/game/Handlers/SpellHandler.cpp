@@ -15,6 +15,7 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "Archaeology.h"
 #include "DBCStores.h"
 #include "GameObjectAI.h"
 #include "Log.h"
@@ -52,6 +53,33 @@ void WorldSession::HandleClientCastFlags(WorldPacket& recvPacket, uint8 castFlag
             recvPacket.SetOpcode(recvPacket.read<uint32>());
             HandleMovementOpcodes(recvPacket);
         }
+    }
+    else if (castFlags & 0x8)   // Archaeology: fragment/keystone reagent substitution data
+    {
+        ArchData archData;
+        uint32 count;
+        uint8 type;
+        recvPacket >> count;
+        for (uint32 i = 0; i < count; ++i)
+        {
+            recvPacket >> type;
+            switch (type)
+            {
+                case 2: // Keystones
+                    recvPacket >> archData.KeyId;       // Item id
+                    recvPacket >> archData.KeyCount;    // Item count
+                    break;
+                case 1: // Fragments
+                    recvPacket >> archData.FragId;      // Currency id
+                    recvPacket >> archData.FragCount;   // Currency count
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        if (Player* player = GetPlayer())
+            player->SetArchData(archData);
     }
 }
 
@@ -458,7 +486,8 @@ void WorldSession::HandleCastSpellOpcode(WorldPacket& recvPacket)
         // not have spell in spellbook or spell passive and not casted by client
         if (!(spellInfo->Targets & TARGET_FLAG_GAMEOBJECT_ITEM) && (!mover->ToPlayer()->HasActiveSpell(spellId) || spellInfo->IsPassive()))
         {
-            bool allow = false;
+            // artifact solve spells are not in the spellbook
+            bool allow = !spellInfo->IsPassive() && spellInfo->ResearchProjectId && mover->ToPlayer()->HasArchProject(uint16(spellInfo->ResearchProjectId));
 
             // allow casting of unknown spells for special lock cases
             if (GameObject* go = targets.GetGOTarget())

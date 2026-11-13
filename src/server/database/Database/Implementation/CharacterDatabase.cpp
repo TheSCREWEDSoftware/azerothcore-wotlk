@@ -519,6 +519,16 @@ void CharacterDatabaseConnection::DoPrepareStatements()
     PrepareStatement(CHAR_REP_CHAR_VOID_STORAGE_ITEM, "REPLACE INTO character_void_storage (itemId, playerGuid, itemEntry, slot, creatorGuid, randomPropertyId, suffixFactor) VALUES (?, ?, ?, ?, ?, ?, ?)", CONNECTION_ASYNC);
     PrepareStatement(CHAR_DEL_CHAR_VOID_STORAGE_ITEM_BY_SLOT, "DELETE FROM character_void_storage WHERE slot = ? AND playerGuid = ?", CONNECTION_ASYNC);
     PrepareStatement(CHAR_DEL_CHAR_VOID_STORAGE, "DELETE FROM character_void_storage WHERE playerGuid = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_SEL_CHAR_ARCHAEOLOGY_SITES, "SELECT site, type, finds FROM character_archaeology_sites WHERE guid = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_SEL_CHAR_ARCHAEOLOGY_COMPLETED, "SELECT project, time, count FROM character_archaeology_completed WHERE guid = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_SEL_CHAR_ARCHAEOLOGY_PROJECTS, "SELECT branch, project FROM character_archaeology_projects WHERE guid = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_REP_CHAR_ARCHAEOLOGY_SITE, "REPLACE INTO character_archaeology_sites (guid, site, type, finds) VALUES (?, ?, ?, ?)", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_UPD_CHAR_ARCHAEOLOGY_SITE_FINDS, "UPDATE character_archaeology_sites SET finds = ? WHERE guid = ? AND site = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_REP_CHAR_ARCHAEOLOGY_COMPLETED, "REPLACE INTO character_archaeology_completed (guid, project, time, count) VALUES (?, ?, ?, ?)", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_REP_CHAR_ARCHAEOLOGY_PROJECT, "REPLACE INTO character_archaeology_projects (guid, branch, project) VALUES (?, ?, ?)", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_DEL_CHAR_ARCHAEOLOGY_SITES, "DELETE FROM character_archaeology_sites WHERE guid = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_DEL_CHAR_ARCHAEOLOGY_COMPLETED, "DELETE FROM character_archaeology_completed WHERE guid = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_DEL_CHAR_ARCHAEOLOGY_PROJECTS, "DELETE FROM character_archaeology_projects WHERE guid = ?", CONNECTION_ASYNC);
     PrepareStatement(CHAR_DEL_CHAR_SPELL, "DELETE FROM character_spell WHERE guid = ?", CONNECTION_ASYNC);
     PrepareStatement(CHAR_DEL_MAIL, "DELETE FROM mail WHERE receiver = ?", CONNECTION_ASYNC);
     PrepareStatement(CHAR_DEL_MAIL_ITEMS, "DELETE FROM mail_items WHERE receiver = ?", CONNECTION_ASYNC);

@@ -28,6 +28,7 @@
 /// Lists of opcodes by wire direction
 enum OpcodeClient : uint16
 {
+    CMSG_REQUEST_RESEARCH_HISTORY                   = 0x3306,
     CMSG_GUILD_NEWS_UPDATE_STICKY                   = 0x3223,
     CMSG_GUILD_QUERY_NEWS                           = 0x3020,
     CMSG_LF_GUILD_SET_GUILD_POST                    = 0x0448,
@@ -808,6 +809,8 @@ enum OpcodeClient : uint16
 
 enum OpcodeServer : uint16
 {
+    SMSG_RESEARCH_COMPLETE                          = 0x35A6,
+    SMSG_SETUP_RESEARCH_HISTORY                     = 0x10B6,
     SMSG_GUILD_NEWS                                 = 0x35A7,
     SMSG_LF_GUILD_RECRUIT_LIST_UPDATED              = 0x1CB2,
     SMSG_LF_GUILD_POST_UPDATED                      = 0x35B7,

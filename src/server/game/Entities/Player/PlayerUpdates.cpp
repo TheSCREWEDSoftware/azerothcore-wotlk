@@ -16,6 +16,7 @@
  */
 
 #include "AchievementMgr.h"
+#include "Archaeology.h"
 #include "BattlefieldMgr.h"
 #include "CellImpl.h"
 #include "Channel.h"
@@ -746,6 +747,9 @@ bool Player::UpdateSkill(uint32 skill_id, uint32 step)
         UpdateSkillEnchantments(skill_id, value, new_value);
         UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_REACH_SKILL_LEVEL,
                                   skill_id);
+
+        if (skill_id == SKILL_ARCHAEOLOGY)
+            _archaeology->Update();
 
         sScriptMgr->OnPlayerUpdateSkill(this, skill_id, value, max, step, new_value);
         return true;

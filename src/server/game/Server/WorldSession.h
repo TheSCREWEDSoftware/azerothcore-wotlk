@@ -82,6 +82,11 @@ namespace lfg
 
 namespace WorldPackets
 {
+    namespace Archaeology
+    {
+        class RequestResearchHistory;
+    }
+
     namespace LFG
     {
         class LFGJoin;
@@ -792,6 +797,7 @@ public:                                                 // opcodes handlers
     void HandleWhoOpcode(WorldPacket& recvPacket);
     void HandleLogoutRequestOpcode(WorldPackets::Character::LogoutRequest& logoutRequest);
     void HandlePlayerLoginOpcode(WorldPackets::Character::PlayerLogin& playerLogin);
+    void HandleRequestResearchHistory(WorldPackets::Archaeology::RequestResearchHistory& packet);
     void HandlePlayerLogoutOpcode(WorldPackets::Character::PlayerLogout& playerLogout);
     void HandleLogoutCancelOpcode(WorldPackets::Character::LogoutCancel& logoutCancel);
 

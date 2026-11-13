@@ -48,6 +48,8 @@
 #include <vector>
 
 struct CreatureTemplate;
+class Archaeology;
+struct ArchData;
 struct Mail;
 struct TrainerSpell;
 struct VendorItem;
@@ -890,6 +892,9 @@ enum PlayerLoginQueryIndex
     PLAYER_LOGIN_QUERY_LOAD_OFFLINE_ACHIEVEMENTS_UPDATES = 38,
     PLAYER_LOGIN_QUERY_LOAD_CURRENCY                     = 39,
     PLAYER_LOGIN_QUERY_LOAD_VOID_STORAGE                 = 40,
+    PLAYER_LOGIN_QUERY_LOAD_ARCHAEOLOGY_SITES            = 41,
+    PLAYER_LOGIN_QUERY_LOAD_ARCHAEOLOGY_COMPLETED        = 42,
+    PLAYER_LOGIN_QUERY_LOAD_ARCHAEOLOGY_PROJECTS         = 43,
     MAX_PLAYER_LOGIN_QUERY
 };
 
@@ -1745,6 +1750,14 @@ public:
         return GetCurrency(currencyId, false) >= amount;
     }
     void ModifyCurrency(uint32 currencyId, int32 amount, bool suppressChatLog = false);
+
+    // Archaeology
+    void SurveyDigSite();
+    void NotifyRequestResearchHistory();
+    bool ArchProjectCompleteable(uint16 projectId);
+    bool HasArchProject(uint16 projectId);
+    void CompleteArchProject(uint16 projectId);
+    void SetArchData(ArchData const& data);
 
     // Void Storage
     [[nodiscard]] bool IsVoidStorageUnlocked() const { return HasPlayerFlag(PLAYER_FLAGS_VOID_UNLOCKED); }
@@ -2985,6 +2998,7 @@ private:
     PlayerMails m_mail;
     PlayerSpellMap m_spells;
     PlayerTalentMap m_talents;
+    std::unique_ptr<Archaeology> _archaeology;
     uint32 m_lastPotionId;                              // last used health/mana potion in combat, that block next potion use
 
     GlobalCooldownMgr m_GlobalCooldownMgr;

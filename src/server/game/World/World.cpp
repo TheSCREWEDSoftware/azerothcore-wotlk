@@ -21,6 +21,7 @@
 
 #include "World.h"
 #include "AccountMgr.h"
+#include "ArchaeologyMgr.h"
 #include "AchievementMgr.h"
 #include "AddonMgr.h"
 #include "ArenaSeasonMgr.h"
@@ -429,6 +430,9 @@ void World::SetInitialWorldSettings()
 
     LOG_INFO("server.loading", "Loading SkillLineAbilityMultiMap Data...");
     sSpellMgr->LoadSkillLineAbilityMap();
+
+    LOG_INFO("server.loading", "Loading Archaeology Data...");
+    sArchaeologyMgr->LoadData();
 
     LOG_INFO("server.loading", "Loading SpellInfo Custom Attributes...");
     sSpellMgr->LoadSpellInfoCustomAttributes();

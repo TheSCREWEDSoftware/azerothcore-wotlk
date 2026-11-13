@@ -15,6 +15,7 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "ArchaeologyMgr.h"
 #include "Battleground.h"
 #include "BattlegroundIC.h"
 #include "BattlegroundMgr.h"
@@ -175,7 +176,7 @@ pEffect SpellEffects[TOTAL_SPELL_EFFECTS] =
     &Spell::EffectDismissPet,                               //102 SPELL_EFFECT_DISMISS_PET
     &Spell::EffectReputation,                               //103 SPELL_EFFECT_REPUTATION
     &Spell::EffectSummonObject,                             //104 SPELL_EFFECT_SUMMON_OBJECT_SLOT1
-    &Spell::EffectSummonObject,                             //105 SPELL_EFFECT_SUMMON_OBJECT_SLOT2
+    &Spell::EffectSurvey,                                   //105 SPELL_EFFECT_SUMMON_OBJECT_SLOT2
     &Spell::EffectSummonObject,                             //106 SPELL_EFFECT_SUMMON_OBJECT_SLOT3
     &Spell::EffectSummonObject,                             //107 SPELL_EFFECT_SUMMON_OBJECT_SLOT4
     &Spell::EffectDispelMechanic,                           //108 SPELL_EFFECT_DISPEL_MECHANIC
@@ -1848,6 +1849,13 @@ void Spell::DoCreateItem(uint8 /*effIndex*/, uint32 itemId)
 
     if (addNumber)
     {
+        uint16 projectId = uint16(m_spellInfo->ResearchProjectId);
+        if (projectId && !player->ArchProjectCompleteable(projectId))
+        {
+            player->SendEquipError(EQUIP_ERR_MISSING_REAGENT, nullptr, nullptr);
+            return;
+        }
+
         // create the new item and store it
         Item* pItem = player->StoreNewItem(dest, newitemid, true);
 
@@ -1857,6 +1865,9 @@ void Spell::DoCreateItem(uint8 /*effIndex*/, uint32 itemId)
             player->SendEquipError(EQUIP_ERR_ITEM_NOT_FOUND, nullptr, nullptr);
             return;
         }
+
+        if (projectId)
+            player->CompleteArchProject(projectId);
 
         // set the "Crafted by ..." property of the item
         if (unitCaster && unitCaster->IsPlayer() && pItem->GetTemplate()->HasSignature())
@@ -6568,6 +6579,23 @@ void Spell::EffectRemoveAura(SpellEffIndex effIndex)
         return;
     // there may be need of specifying casterguid of removed auras
     unitTarget->RemoveAurasDueToSpell(m_spellInfo->Effects[effIndex].TriggerSpell);
+}
+
+void Spell::EffectSurvey(SpellEffIndex effIndex)
+{
+    // Archaeology's Survey shares SPELL_EFFECT_SUMMON_OBJECT_SLOT2 with the plain object summons
+    if (m_spellInfo->Id != SPELL_ARCHAEOLOGY_SURVEY)
+    {
+        EffectSummonObject(effIndex);
+        return;
+    }
+
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_LAUNCH || effIndex != EFFECT_0)
+        return;
+
+    if (Player* player = m_caster->ToPlayer())
+        if (player->HasSkill(SKILL_ARCHAEOLOGY))
+            player->SurveyDigSite();
 }
 
 void Spell::EffectCastButtons(SpellEffIndex effIndex)

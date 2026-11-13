@@ -147,12 +147,18 @@ DBCStorage <OverrideSpellDataEntry> sOverrideSpellDataStore(OverrideSpellDatafmt
 DBCStorage <PhaseEntry> sPhaseStore(Phasefmt);
 DBCStorage <PhaseGroupEntry> sPhaseGroupStore(PhaseGroupfmt);
 DBCStorage <PowerDisplayEntry> sPowerDisplayStore(PowerDisplayfmt);
+DBCStorage <QuestPOIBlobEntry> sQuestPOIBlobStore(QuestPOIBlobfmt);
+DBCStorage <QuestPOIPointEntry> sQuestPOIPointStore(QuestPOIPointfmt);
 DBCStorage <PvPDifficultyEntry> sPvPDifficultyStore(PvPDifficultyfmt);
 
 DBCStorage <QuestSortEntry> sQuestSortStore(QuestSortEntryfmt);
 DBCStorage <QuestXPEntry>   sQuestXPStore(QuestXPfmt);
 DBCStorage <QuestFactionRewEntry>  sQuestFactionRewardStore(QuestFactionRewardfmt);
 DBCStorage <RandomPropertiesPointsEntry> sRandomPropertiesPointsStore(RandomPropertiesPointsfmt);
+DBCStorage <ResearchBranchEntry> sResearchBranchStore(ResearchBranchfmt);
+DBCStorage <ResearchFieldEntry> sResearchFieldStore(ResearchFieldfmt);
+DBCStorage <ResearchProjectEntry> sResearchProjectStore(ResearchProjectfmt);
+DBCStorage <ResearchSiteEntry> sResearchSiteStore(ResearchSitefmt);
 DBCStorage <ScalingStatDistributionEntry> sScalingStatDistributionStore(ScalingStatDistributionfmt);
 DBCStorage <ScalingStatValuesEntry> sScalingStatValuesStore(ScalingStatValuesfmt);
 
@@ -393,11 +399,17 @@ void LoadDBCStores(std::string const& dataPath)
     LOAD_DBC(sPhaseStore,                           "Phase.dbc",                             nullptr);
     LOAD_DBC(sPhaseGroupStore,                      "PhaseXPhaseGroup.dbc",                  nullptr);
     LOAD_DBC(sPowerDisplayStore,                    "PowerDisplay.dbc",                     "powerdisplay_dbc");
+    LOAD_DBC(sQuestPOIBlobStore,                    "QuestPOIBlob.dbc",                      nullptr);
+    LOAD_DBC(sQuestPOIPointStore,                   "QuestPOIPoint.dbc",                     nullptr);
     LOAD_DBC(sPvPDifficultyStore,                   "PvpDifficulty.dbc",                    "pvpdifficulty_dbc");
     LOAD_DBC(sQuestXPStore,                         "QuestXP.dbc",                          "questxp_dbc");
     LOAD_DBC(sQuestFactionRewardStore,              "QuestFactionReward.dbc",               "questfactionreward_dbc");
     LOAD_DBC(sQuestSortStore,                       "QuestSort.dbc",                        "questsort_dbc");
     LOAD_DBC(sRandomPropertiesPointsStore,          "RandPropPoints.dbc",                   "randproppoints_dbc");
+    LOAD_DBC(sResearchBranchStore,                  "ResearchBranch.dbc",                    nullptr);
+    LOAD_DBC(sResearchFieldStore,                   "ResearchField.dbc",                     nullptr);
+    LOAD_DBC(sResearchProjectStore,                 "ResearchProject.dbc",                   nullptr);
+    LOAD_DBC(sResearchSiteStore,                    "ResearchSite.dbc",                      nullptr);
     LOAD_DBC(sScalingStatDistributionStore,         "ScalingStatDistribution.dbc",          "scalingstatdistribution_dbc");
     LOAD_DBC(sScalingStatValuesStore,               "ScalingStatValues.dbc",                "scalingstatvalues_dbc");
     LOAD_DBC(sSkillLineStore,                       "SkillLine.dbc",                        nullptr);

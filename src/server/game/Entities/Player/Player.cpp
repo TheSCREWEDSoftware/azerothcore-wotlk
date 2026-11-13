@@ -18,6 +18,7 @@
 #include "Player.h"
 #include "AccountMgr.h"
 #include "AchievementMgr.h"
+#include "Archaeology.h"
 #include "AreaDefines.h"
 #include "ArenaSpectator.h"
 #include "ArenaTeam.h"
@@ -384,6 +385,8 @@ Player::Player(WorldSession* session): Unit(), m_mover(this), _cinematicMgr(*thi
     _expectingChangeTransport = false;
     _pendingFlightChangeCounter = 0;
     _mapChangeOrderCounter = 0;
+
+    _archaeology = std::make_unique<Archaeology>(this);
 }
 
 Player::~Player()
@@ -4221,6 +4224,18 @@ void Player::DeleteFromDB(ObjectGuid::LowType lowGuid, uint32 accountId, bool up
                 stmt->SetData(0, lowGuid);
                 trans->Append(stmt);
 
+                stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_CHAR_ARCHAEOLOGY_SITES);
+                stmt->SetData(0, lowGuid);
+                trans->Append(stmt);
+
+                stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_CHAR_ARCHAEOLOGY_COMPLETED);
+                stmt->SetData(0, lowGuid);
+                trans->Append(stmt);
+
+                stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_CHAR_ARCHAEOLOGY_PROJECTS);
+                stmt->SetData(0, lowGuid);
+                trans->Append(stmt);
+
                 stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_CHAR_SPELL);
                 stmt->SetData(0, lowGuid);
                 trans->Append(stmt);
@@ -5490,6 +5505,13 @@ void Player::SetSkill(uint16 id, uint16 step, uint16 newVal, uint16 maxVal)
                 UpdateSkillEnchantments(id, currVal, newVal);
             UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_REACH_SKILL_LEVEL, id);
             UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_LEARN_SKILL_LEVEL, id);
+
+            if (id == SKILL_ARCHAEOLOGY)
+            {
+                if (currVal == 0)
+                    _archaeology->Learn();
+                _archaeology->Update();
+            }
         }
         else                                                //remove
         {
@@ -5512,6 +5534,9 @@ void Player::SetSkill(uint16 id, uint16 step, uint16 newVal, uint16 maxVal)
                 removeSpell(sSpellMgr->GetFirstSpellInChain(pAbility->Spell), SPEC_MASK_ALL, false);
                 RemoveAurasDueToSpell(pAbility->Spell);
             }
+
+            if (id == SKILL_ARCHAEOLOGY)
+                _archaeology->UnLearn();
         }
         sScriptMgr->OnPlayerSetSkill(this, id, currVal, maxVal, step, newVal);
     }
@@ -5560,6 +5585,10 @@ void Player::SetSkill(uint16 id, uint16 step, uint16 newVal, uint16 maxVal)
                 learnSkillRewardedSpells(id, newVal);
                 UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_REACH_SKILL_LEVEL, id);
                 UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_LEARN_SKILL_LEVEL, id);
+
+                if (id == SKILL_ARCHAEOLOGY)
+                    _archaeology->Learn();
+
                 sScriptMgr->OnPlayerSetSkill(this, id, currVal, maxVal, step, newVal);
                 return;
             }
@@ -10335,6 +10364,7 @@ void Player::ModifyCurrency(uint32 currencyId, int32 amount, bool suppressChatLo
     if (updated == current)
         return;
 
+    bool firstGain = _currencyStorage.find(currencyId) == _currencyStorage.end();
     _currencyStorage[currencyId] = uint32(updated);
 
     WorldPackets::Misc::SetCurrency packet;
@@ -10342,6 +10372,10 @@ void Player::ModifyCurrency(uint32 currencyId, int32 amount, bool suppressChatLo
     packet.Quantity = int32(GetCurrency(currencyId));
     packet.SuppressChatLog = suppressChatLog;
     SendDirectMessage(packet.Write());
+
+    // The first fragments of a race unlock that archaeology branch
+    if (firstGain && currency->CategoryID == CURRENCY_CATEGORY_ARCHAEOLOGY && HasSkill(SKILL_ARCHAEOLOGY))
+        _archaeology->ActivateBranch(sArchaeologyMgr->Currency2BranchId(currency->ID));
 }
 
 void Player::SendBindPointUpdate() const
@@ -14761,6 +14795,36 @@ void Player::AddKnownCurrency(uint32 itemId)
 {
     if (CurrencyTypesEntry const* ctEntry = sCurrencyTypesStore.LookupEntry(itemId))
         AddKnownCurrencyFlag((1LL << (ctEntry->BitIndex - 1)));
+}
+
+void Player::SurveyDigSite()
+{
+    _archaeology->UseSite();
+}
+
+void Player::NotifyRequestResearchHistory()
+{
+    _archaeology->SendResearchHistory();
+}
+
+bool Player::ArchProjectCompleteable(uint16 projectId)
+{
+    return _archaeology->ProjectCompleteable(projectId);
+}
+
+bool Player::HasArchProject(uint16 projectId)
+{
+    return _archaeology->ProjectExists(projectId);
+}
+
+void Player::CompleteArchProject(uint16 projectId)
+{
+    _archaeology->CompleteProject(projectId);
+}
+
+void Player::SetArchData(ArchData const& data)
+{
+    _archaeology->SetArchData(data);
 }
 
 void Player::UnsummonPetTemporaryIfAny()
