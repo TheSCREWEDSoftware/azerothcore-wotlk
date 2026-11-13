@@ -2886,3 +2886,48 @@ void WorldSession::SendSetPlayerDeclinedNamesResult(DeclinedNameResult result, O
     data << guid;
     SendPacket(&data);
 }
+
+void WorldSession::HandleReorderCharacters(WorldPacket& recvData)
+{
+    uint32 charactersCount = std::min<uint32>(recvData.ReadBits(10), sWorld->getIntConfig(CONFIG_CHARACTERS_PER_REALM));
+
+    std::vector<ObjectGuid> guids(charactersCount);
+    for (ObjectGuid& guid : guids)
+    {
+        guid[1] = recvData.ReadBit();
+        guid[4] = recvData.ReadBit();
+        guid[5] = recvData.ReadBit();
+        guid[3] = recvData.ReadBit();
+        guid[0] = recvData.ReadBit();
+        guid[7] = recvData.ReadBit();
+        guid[6] = recvData.ReadBit();
+        guid[2] = recvData.ReadBit();
+    }
+
+    CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
+    for (ObjectGuid& guid : guids)
+    {
+        uint8 position;
+
+        recvData.ReadByteSeq(guid[6]);
+        recvData.ReadByteSeq(guid[5]);
+        recvData.ReadByteSeq(guid[1]);
+        recvData.ReadByteSeq(guid[4]);
+        recvData.ReadByteSeq(guid[0]);
+        recvData.ReadByteSeq(guid[3]);
+
+        recvData >> position;
+
+        recvData.ReadByteSeq(guid[2]);
+        recvData.ReadByteSeq(guid[7]);
+
+        // the account check keeps a client from reordering characters of another account
+        CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_CHAR_LIST_ORDER);
+        stmt->SetData(0, position);
+        stmt->SetData(1, guid.GetCounter());
+        stmt->SetData(2, GetAccountId());
+        trans->Append(stmt);
+    }
+
+    CharacterDatabase.CommitTransaction(trans);
+}

@@ -766,6 +766,7 @@ public:                                                 // opcodes handlers
     void Handle_Deprecated(WorldPacket& recvPacket);    // never used anymore by client
 
     void HandleCharEnumOpcode(WorldPackets::Character::EnumCharacters& packet);
+    void HandleReorderCharacters(WorldPacket& recvData);
     void HandleCharDeleteOpcode(WorldPacket& recvPacket);
     void HandleCharCreateOpcode(WorldPacket& recvPacket);
     void HandleLoadScreenOpcode(WorldPacket& recvPacket);
