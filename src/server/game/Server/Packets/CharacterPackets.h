@@ -19,11 +19,76 @@
 #define CharacterPackets_h__
 
 #include "Packet.h"
+#include "ObjectGuid.h"
+#include "Position.h"
+#include <array>
+#include <string>
+#include <vector>
 
 namespace WorldPackets
 {
     namespace Character
     {
+        class EnumCharacters final : public ClientPacket
+        {
+        public:
+            EnumCharacters(WorldPacket&& packet) : ClientPacket(CMSG_CHAR_ENUM, std::move(packet)) { }
+
+            void Read() override;
+        };
+
+        class EnumCharactersResult final : public ServerPacket
+        {
+        public:
+            struct CharacterInfo
+            {
+                struct VisualItemInfo
+                {
+                    uint32 DisplayID = 0;
+                    uint32 DisplayEnchantID = 0;
+                    uint8 InvType = 0;
+                };
+
+                Position PreloadPos;
+                ObjectGuid Guid;
+                ObjectGuid GuildGUID;
+                uint32 Flags = 0;
+                uint32 Flags2 = 0;
+                int32 MapID = 0;
+                uint32 PetCreatureDisplayID = 0;
+                uint32 PetCreatureFamilyID = 0;
+                uint32 PetExperienceLevel = 0;
+                int32 ZoneID = 0;
+                uint8 ClassID = 0;
+                uint8 ExperienceLevel = 0;
+                uint8 FaceID = 0;
+                uint8 FacialHair = 0;
+                uint8 HairColor = 0;
+                uint8 HairStyle = 0;
+                uint8 ListPosition = 0;
+                uint8 RaceID = 0;
+                uint8 SexID = 0;
+                uint8 SkinID = 0;
+                bool FirstLogin = false;
+                std::string Name;
+                std::array<VisualItemInfo, 23> VisualItems = { };
+            };
+
+            struct RestrictedFactionChangeRuleInfo
+            {
+                int32 Mask = 0;
+                uint8 Race = 0;
+            };
+
+            EnumCharactersResult() : ServerPacket(SMSG_CHAR_ENUM) { }
+
+            WorldPacket const* Write() override;
+
+            bool Success = false;
+            std::vector<CharacterInfo> Characters;
+            std::vector<RestrictedFactionChangeRuleInfo> FactionChangeRestrictions;
+        };
+
         class ShowingCloak final : public ClientPacket
         {
         public:
@@ -87,6 +152,16 @@ namespace WorldPackets
             WorldPacket const* Write() override { return &_worldPacket; }
         };
 
+        class PlayerLogin final : public ClientPacket
+        {
+        public:
+            PlayerLogin(WorldPacket&& packet) : ClientPacket(CMSG_PLAYER_LOGIN, std::move(packet)) { }
+
+            void Read() override;
+
+            ObjectGuid Guid;      ///< Guid of the player that is logging in
+        };
+
         class PlayerLogout final : public ClientPacket
         {
         public:
@@ -115,6 +190,20 @@ namespace WorldPackets
             uint32 TotalTime = 0;
             uint32 LevelTime = 0;
             bool TriggerScriptEvent = false;
+        };
+
+        // Sent once, immediately after the player is added to its map (never before);
+        // field order is int32 MapID, then Position X/Y/Z/O, matching the pinned
+        // Cataclysm reference and this fork's existing raw writer.
+        class LoginVerifyWorld final : public ServerPacket
+        {
+        public:
+            LoginVerifyWorld() : ServerPacket(SMSG_LOGIN_VERIFY_WORLD, 20) { }
+
+            WorldPacket const* Write() override;
+
+            int32 MapID = 0;
+            Position Pos;
         };
     }
 }

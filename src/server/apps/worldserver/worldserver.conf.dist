@@ -985,11 +985,12 @@ DBC.Locale = 255
 #    Expansion
 #        Description: Allow server to use content from expansions. Checks for expansion-related
 #                     map files, client compatibility and class/race character creation.
-#        Default:     2 - (Expansion 2)
+#        Default:     3 - (Expansion 3)
+#                     2 - (Expansion 2)
 #                     1 - (Expansion 1)
 #                     0 - (Disabled, Ignore and disable expansion content (maps, races, classes)
 
-Expansion = 2
+Expansion = 3
 
 #
 #    ClientCacheVersion
@@ -1300,6 +1301,19 @@ Visibility.GroupMode = 1
 Visibility.Distance.Continents = 100
 Visibility.Distance.Instances = 170
 Visibility.Distance.BGArenas = 250
+
+#
+#    Visibility.Distance.GameObjects
+#        Description: Minimum distance at which gameobjects are created for a player, independent of the
+#                     map visibility distance above (players and creatures keep using that one).
+#                     The 4.3.4 client only binds a model to a gameobject whose model it already has
+#                     loaded when the object is created and never retries, so gameobjects that first
+#                     appear while the player is walking can crash it. Creating them earlier (while the
+#                     client is still loading) avoids that.
+#                     Max: 250
+#        Default:     250
+
+Visibility.Distance.GameObjects = 250
 
 #
 #    Visibility.ObjectSparkles
@@ -2125,9 +2139,9 @@ EnablePlayerSettings = 0
 #        Description: Maximum level that can be reached by players.
 #        Important:   Levels beyond 100 are not recommended at all.
 #        Range:       1-255
-#        Default:     80
+#        Default:     85
 
-MaxPlayerLevel = 80
+MaxPlayerLevel = 85
 
 #
 #    MinDualSpecLevel

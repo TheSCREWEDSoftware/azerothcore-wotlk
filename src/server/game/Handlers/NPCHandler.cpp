@@ -133,6 +133,16 @@ void WorldSession::HandleTrainerBuySpellOpcode(WorldPackets::NPC::TrainerBuySpel
     if (!trainer)
         return;
 
+    // 4.x carries the trainer id in the request; it must name the trainer this NPC currently offers
+    // through AC's creature -> default trainer mapping (the list a client was previously shown is not
+    // tracked, unlike the reference's interaction history)
+    if (trainer->GetTrainerId() != uint32(packet.TrainerID))
+    {
+        LOG_DEBUG("network", "WORLD: HandleTrainerBuySpellOpcode - trainer id {} does not match {} for {}",
+            packet.TrainerID, trainer->GetTrainerId(), packet.TrainerGUID.ToString());
+        return;
+    }
+
     trainer->TeachSpell(npc, _player, packet.SpellID);
 }
 
@@ -259,6 +269,9 @@ void WorldSession::HandleSpiritHealerActivateOpcode(WorldPacket& recvData)
 
 void WorldSession::SendSpiritResurrect()
 {
+    if (_player->IsAlive())
+        return;
+
     _player->ResurrectPlayer(0.5f, true);
 
     float durabilityLossOnSpiritResurrect = sWorld->getRate(RATE_DURABILITY_LOSS_ON_SPIRIT_RESURRECT) / 100.0f;
@@ -604,6 +617,9 @@ void WorldSession::HandleUnstablePet(WorldPacket& recvData)
     }
 }
 
+// CMSG_BUY_STABLE_SLOT is never sent by the real Cata client (matches upstream TC, which drops
+// this handler entirely); StableSlotPrices.dbc that it depends on no longer exists either.
+/*
 void WorldSession::HandleBuyStableSlot(WorldPacket& recvData)
 {
     LOG_DEBUG("network", "WORLD: Recv CMSG_BUY_STABLE_SLOT.");
@@ -637,6 +653,7 @@ void WorldSession::HandleBuyStableSlot(WorldPacket& recvData)
     else
         SendStableResult(STABLE_ERR_STABLE);
 }
+*/
 
 void WorldSession::HandleStableRevivePet(WorldPacket& /* recvData */)
 {

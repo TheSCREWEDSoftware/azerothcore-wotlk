@@ -46,6 +46,8 @@
 #include "MoveSpline.h"
 #include "MoveSplineInit.h"
 #include "MovementGenerator.h"
+#include "MovementPackets.h"
+#include "MiscPackets.h"
 #include "ObjectAccessor.h"
 #include "ObjectMgr.h"
 #include "OutdoorPvP.h"
@@ -362,7 +364,7 @@ Unit::Unit() : WorldObject(),
     m_objectType |= TYPEMASK_UNIT;
     m_objectTypeId = TYPEID_UNIT;
 
-    m_updateFlag = (UPDATEFLAG_LIVING | UPDATEFLAG_STATIONARY_POSITION);
+    m_updateFlag.MovementUpdate = true;
 
     m_attackTimer[BASE_ATTACK] = 0;
     m_attackTimer[OFF_ATTACK] = 0;
@@ -661,21 +663,9 @@ void Unit::MonsterMoveWithSpeed(float x, float y, float z, float speed)
     init.Launch();
 }
 
-void Unit::SendMonsterMove(float NewPosX, float NewPosY, float NewPosZ, uint32 TransitTime, SplineFlags sf)
+bool Unit::IsSplineEnabled() const
 {
-    WorldPacket data(SMSG_MONSTER_MOVE, 1 + 12 + 4 + 1 + 4 + 4 + 4 + 12 + GetPackGUID().size());
-    data << GetPackGUID();
-
-    data << uint8(0);                                       // new in 3.1
-    data << GetPositionX() << GetPositionY() << GetPositionZ();
-    data << GameTime::GetGameTimeMS().count();
-    data << uint8(0);
-    data << uint32(sf);
-    data << TransitTime;                                           // Time in between points
-    data << uint32(1);                                      // 1 single waypoint
-    data << NewPosX << NewPosY << NewPosZ;                  // the single waypoint Point B
-
-    SendMessageToSet(&data, true);
+    return movespline->Initialized() && !movespline->Finalized();
 }
 
 class SplineHandler
@@ -2185,7 +2175,7 @@ void Unit::DealDamageShieldDamage(Unit* victim)
         Unit::DealDamageMods(this, damage, &absorb);
 
         /// @todo: Move this to a packet handler
-        WorldPacket data(SMSG_SPELLDAMAGESHIELD, (8 + 8 + 4 + 4 + 4 + 4));
+        WorldPacket data(SMSG_SPELLDAMAGESHIELD, (8 + 8 + 4 + 4 + 4 + 4 + 4));
         data << victim->GetGUID();
         data << GetGUID();
         data << uint32(i_spellProto->Id);
@@ -2193,6 +2183,7 @@ void Unit::DealDamageShieldDamage(Unit* victim)
         int32 overkill = int32(damage) - int32(GetHealth());
         data << uint32(overkill > 0 ? overkill : 0); // Overkill
         data << uint32(i_spellProto->GetSchoolMask());
+        data << uint32(absorb);                  // Absorbed by the shield target (Cata field)
         victim->SendMessageToSet(&data, true);
 
         Unit::DealDamage(victim, this, damage, 0, SPELL_DIRECT_DAMAGE, i_spellProto->GetSchoolMask(), i_spellProto, true);
@@ -6728,7 +6719,7 @@ void Unit::SendAttackStateUpdate(CalcDamageInfo* damageInfo)
     data << damageInfo->target->GetPackGUID();
     data << uint32(tmpDamage[0] + tmpDamage[1]);                    // Full damage
     int32 overkill = tmpDamage[0] + tmpDamage[1] - damageInfo->target->GetHealth();
-    data << uint32(overkill < 0 ? 0 : overkill);                    // Overkill
+    data << int32(overkill < 0 ? -1 : overkill);                    // Overkill
     data << uint8(count);                                           // Sub damage count
 
     for (uint32 i = 0; i < count; ++i)
@@ -7505,7 +7496,7 @@ void Unit::SetOwnerGUID(ObjectGuid owner)
 
     SetFieldNotifyFlag(UF_FLAG_OWNER);
 
-    UpdateData udata;
+    UpdateData udata(GetMapId());
     WorldPacket packet;
     BuildValuesUpdateBlockForPlayer(&udata, player);
     udata.BuildPacket(packet);
@@ -10241,7 +10232,7 @@ uint32 Unit::MeleeDamageBonusTaken(Unit* attacker, uint32 pdamage, WeaponAttackT
     float tmpDamage = (float(pdamage) + TakenFlatBenefit) * TakenTotalMod;
 
     // bonus result can be negative
-    return uint32(std::max(tmpDamage, 0.0f));
+    return uint32(std::max(std::ceil(tmpDamage), 0.0f));
 }
 
 void Unit::ApplySpellImmune(uint32 spellId, uint32 op, uint32 type, bool apply, SpellImmuneBlockType /*blockType*/)
@@ -10318,10 +10309,10 @@ void Unit::Mount(uint32 mount, uint32 VehicleId, uint32 creatureEntry)
             {
                 GetVehicleKit()->Reset();
 
-                // Send others that we now have a vehicle
-                WorldPacket data(SMSG_PLAYER_VEHICLE_DATA, GetPackGUID().size() + 4);
+                // Send others that we now have a vehicle (4.3.4 vehicle record id)
+                WorldPacket data(SMSG_SET_VEHICLE_REC_ID, GetPackGUID().size() + 4);
                 data << GetPackGUID();
-                data << uint32(VehicleId);
+                data << int32(VehicleId);
                 SendMessageToSet(&data, true);
 
                 data.Initialize(SMSG_ON_CANCEL_EXPECTED_RIDE_VEHICLE_AURA, 0);
@@ -10386,9 +10377,9 @@ void Unit::Dismount()
     if (IsPlayer() && GetVehicleKit())
     {
         // Send other players that we are no longer a vehicle
-        data.Initialize(SMSG_PLAYER_VEHICLE_DATA, 8 + 4);
+        data.Initialize(SMSG_SET_VEHICLE_REC_ID, 8 + 4);
         data << GetPackGUID();
-        data << uint32(0);
+        data << int32(0);
         ToPlayer()->SendMessageToSet(&data, true);
         // Remove vehicle from player
         RemoveVehicleKit();
@@ -11164,16 +11155,31 @@ void Unit::SetSpeed(UnitMoveType mtype, float rate, bool forced)
 void Unit::SendSpeedToController(UnitMoveType mtype, Player* target) const
 {
     SpeedOpcodePair const& speedOpcodes = SetSpeed2Opc_table[mtype];
-    uint32 const counter = target->GetSession()->GetOrderCounter();
+    uint32 counter = target->GetSession()->GetOrderCounter();
+
+    if (mtype == MOVE_RUN)
+    {
+        // The map-change guard rejects the boundary counter itself, including zero at login.
+        if (counter == target->GetMapChangeOrderCounter())
+        {
+            target->GetSession()->IncrementOrderCounter();
+            counter = target->GetSession()->GetOrderCounter();
+        }
+        float const speed = GetSpeed(mtype);
+        m_pendingRunSpeedChange = PendingRunSpeedChange{ counter, speed };
+        WorldPacket data(SMSG_MOVE_SET_RUN_SPEED, 17);
+        WorldPackets::Movement::WriteRunSpeedChange(data, GetGUID(), counter, speed);
+        target->GetSession()->SendPacket(&data);
+        target->GetSession()->IncrementOrderCounter();
+        LOG_DEBUG("network", "Sent Cataclysm run-speed change: counter={}, speed={}", counter, speed);
+        return;
+    }
 
     ++target->m_forced_speed_changes[mtype];
 
     WorldPacket data(speedOpcodes[static_cast<size_t>(SpeedOpcodeIndex::PC)], 18);
     data << GetPackGUID();
     data << counter;
-    if (mtype == MOVE_RUN)
-        data << uint8(0);
-
     data << GetSpeed(mtype);
     target->GetSession()->SendPacket(&data);
     target->GetSession()->IncrementOrderCounter();
@@ -11591,9 +11597,17 @@ float Unit::GetSpellMinRangeForTarget(Unit const* target, SpellInfo const* spell
     return spellInfo->GetMinRange(!IsHostileTo(target));
 }
 
-void Unit::SetAnimTier(AnimTier animTier)
+void Unit::SetAnimTier(AnimTier animTier, bool notifyClient)
 {
     SetByteValue(UNIT_FIELD_BYTES_1, UNIT_BYTES_1_OFFSET_ANIM_TIER, uint8(animTier));
+
+    if (notifyClient)
+    {
+        WorldPackets::Misc::SetAnimTier packet;
+        packet.Unit = GetGUID();
+        packet.Tier = uint32(animTier);
+        SendMessageToSet(packet.Write(), true);
+    }
 }
 
 uint32 Unit::GetCreatureType() const
@@ -11971,7 +11985,7 @@ float Unit::GetTotalAttackPowerValue(WeaponAttackType attType, Unit* victim) con
 {
     if (attType == RANGED_ATTACK)
     {
-        int32 ap = GetInt32Value(UNIT_FIELD_RANGED_ATTACK_POWER) + GetInt32Value(UNIT_FIELD_RANGED_ATTACK_POWER_MODS);
+        int32 ap = GetInt32Value(UNIT_FIELD_RANGED_ATTACK_POWER) + GetInt32Value(UNIT_FIELD_RANGED_ATTACK_POWER_MOD_POS) - GetInt32Value(UNIT_FIELD_RANGED_ATTACK_POWER_MOD_NEG);
         if (victim)
             ap += victim->GetTotalAuraModifier(SPELL_AURA_RANGED_ATTACK_POWER_ATTACKER_BONUS);
 
@@ -11981,7 +11995,7 @@ float Unit::GetTotalAttackPowerValue(WeaponAttackType attType, Unit* victim) con
     }
     else
     {
-        int32 ap = GetInt32Value(UNIT_FIELD_ATTACK_POWER) + GetInt32Value(UNIT_FIELD_ATTACK_POWER_MODS);
+        int32 ap = GetInt32Value(UNIT_FIELD_ATTACK_POWER) + GetInt32Value(UNIT_FIELD_ATTACK_POWER_MOD_POS) - GetInt32Value(UNIT_FIELD_ATTACK_POWER_MOD_NEG);
         if (victim)
             ap += victim->GetTotalAuraModifier(SPELL_AURA_MELEE_ATTACK_POWER_ATTACKER_BONUS);
 
@@ -12105,8 +12119,36 @@ void Unit::SetMaxHealth(uint32 val)
         SetHealth(val);
 }
 
+uint32 Unit::GetPowerIndex(Powers power) const
+{
+    if (uint32(power) >= MAX_POWERS)
+        return MAX_POWERS;
+
+    if (IsPlayer())
+        return GetPowerIndexByClass(power, getClass());
+
+    // shortcut: retain non-player slots until creature/pet powers, including happiness, are converted together.
+    return uint32(power) < MAX_UNIT_POWER_FIELDS ? uint32(power) : uint32(MAX_POWERS);
+}
+
+uint32 Unit::GetPower(Powers power) const
+{
+    uint32 index = GetPowerIndex(power);
+    return index < MAX_UNIT_POWER_FIELDS ? GetUInt32Value(UNIT_FIELD_POWER1 + index) : 0;
+}
+
+uint32 Unit::GetMaxPower(Powers power) const
+{
+    uint32 index = GetPowerIndex(power);
+    return index < MAX_UNIT_POWER_FIELDS ? GetUInt32Value(UNIT_FIELD_MAXPOWER1 + index) : 0;
+}
+
 void Unit::SetPower(Powers power, uint32 val, bool withPowerUpdate /*= true*/, bool fromRegenerate /* = false */)
 {
+    uint32 index = GetPowerIndex(power);
+    if (index >= MAX_UNIT_POWER_FIELDS)
+        return;
+
     if (!fromRegenerate && GetPower(power) == val)
         return;
 
@@ -12116,16 +12158,17 @@ void Unit::SetPower(Powers power, uint32 val, bool withPowerUpdate /*= true*/, b
 
     if (fromRegenerate)
     {
-        UpdateUInt32Value(UNIT_FIELD_POWER1 + AsUnderlyingType(power), val);
+        UpdateUInt32Value(UNIT_FIELD_POWER1 + index, val);
         AddToObjectUpdateIfNeeded();
     }
     else
-        SetStatInt32Value(UNIT_FIELD_POWER1 + AsUnderlyingType(power), val);
+        SetStatInt32Value(UNIT_FIELD_POWER1 + index, val);
 
     if (withPowerUpdate)
     {
-        WorldPacket data(SMSG_POWER_UPDATE, 8 + 1 + 4);
+        WorldPacket data(SMSG_POWER_UPDATE, 8 + 4 + 1 + 4);
         data << GetPackGUID();
+        data << uint32(1);
         data << uint8(power);
         data << uint32(val);
         SendMessageToSet(&data, IsPlayer());
@@ -12158,8 +12201,12 @@ void Unit::SetPower(Powers power, uint32 val, bool withPowerUpdate /*= true*/, b
 
 void Unit::SetMaxPower(Powers power, uint32 val)
 {
+    uint32 index = GetPowerIndex(power);
+    if (index >= MAX_UNIT_POWER_FIELDS)
+        return;
+
     uint32 cur_power = GetPower(power);
-    SetStatInt32Value(static_cast<uint16>(UNIT_FIELD_MAXPOWER1) + power, val);
+    SetStatInt32Value(UNIT_FIELD_MAXPOWER1 + index, val);
 
     // group update
     if (IsPlayer())
@@ -13505,6 +13552,12 @@ bool Unit::InitTamedPet(Pet* pet, uint8 level, uint32 spell_id)
     pet->InitPetCreateSpells();
     pet->SetFullHealth();
     pet->FillPetInfo(&petStable.CurrentPet.emplace());
+
+    // Tamed pets follow the tamer's phase shift like summoned pets.
+    pet->InheritPhasesFrom(this);
+    if (player)
+        player->RegisterPhaseSummon(pet);
+
     return true;
 }
 
@@ -13660,11 +13713,17 @@ void Unit::Kill(Unit* killer, Unit* victim, bool durabilityLoss, WeaponAttackTyp
     // find player: owner of controlled `this` or `this` itself maybe
     Player* player = killer ? killer->GetCharmerOrOwnerPlayerOrPlayerItself() : nullptr;
     Creature* creature = victim->ToCreature();
+    Player* tapPlayer = creature ? creature->GetLootRecipient() : nullptr;
+    Group* tapGroup = creature ? creature->GetLootRecipientGroup() : nullptr;
 
+    bool hasEnoughDamage = true;
+    bool isLootRewardDisabled = false;
     bool isRewardAllowed = true;
     if (creature)
     {
-        isRewardAllowed = (creature->IsDamageEnoughForLootingAndReward() && !creature->IsLootRewardDisabled());
+        hasEnoughDamage = creature->IsDamageEnoughForLootingAndReward();
+        isLootRewardDisabled = creature->IsLootRewardDisabled();
+        isRewardAllowed = hasEnoughDamage && !isLootRewardDisabled;
         if (!isRewardAllowed)
             creature->SetLootRecipient(nullptr);
     }
@@ -13759,6 +13818,37 @@ void Unit::Kill(Unit* killer, Unit* victim, bool durabilityLoss, WeaponAttackTyp
         }
 
         player->RewardPlayerAndGroupAtKill(victim, false);
+    }
+
+    // Quest kill credit belongs to the tapper's group even when NPC damage pushes them below
+    // the loot threshold. Loot stays restricted; credit alternate KillCredit entries too.
+    if (!hasEnoughDamage && !isLootRewardDisabled && creature)
+    {
+        bool const isPvP = creature->GetCharmerOrOwnerGUID().IsPlayer() && !creature->IsVehicle();
+        if (!isPvP)
+        {
+            auto credit = [&](Player* creditPlayer, bool checkDistance)
+            {
+                if (!creditPlayer || !creditPlayer->IsInMap(creature))
+                    return;
+
+                if (checkDistance && !creditPlayer->IsAtGroupRewardDistance(creature))
+                    return;
+
+                if (checkDistance && !creditPlayer->IsAlive() && creditPlayer->GetCorpse())
+                    return;
+
+                creditPlayer->KilledMonster(creature->GetCreatureTemplate(), creature->GetGUID());
+            };
+
+            if (tapGroup)
+            {
+                for (GroupReference* itr = tapGroup->GetFirstMember(); itr != nullptr; itr = itr->next())
+                    credit(itr->GetSource(), true);
+            }
+            else
+                credit(tapPlayer, false);
+        }
     }
 
     // Do KILL and KILLED procs. KILL proc is called only for the unit who landed the killing blow (and its owner - for pets and totems) regardless of who tapped the victim
@@ -14206,9 +14296,11 @@ void Unit::SendMoveRoot(bool apply)
     {
         uint32 const counter = client->GetSession()->GetOrderCounter();
 
-        WorldPacket data(apply ? SMSG_FORCE_MOVE_ROOT : SMSG_FORCE_MOVE_UNROOT, guid.size() + 4);
-        data << guid;
-        data << counter;
+        WorldPacket data(apply ? SMSG_MOVE_ROOT : SMSG_MOVE_UNROOT, guid.size() + 4);
+        MovementInfo info;
+        info.guid = GetGUID();
+        WorldPackets::Movement::WriteGroundMovement(data, info,
+            WorldPackets::Movement::GetMovementFlagSequence(data.GetOpcode()), counter);
         client->GetSession()->SendPacket(&data);
         client->GetSession()->IncrementOrderCounter();
     }
@@ -14681,7 +14773,7 @@ bool Unit::CreateVehicleKit(uint32 id, uint32 creatureEntry)
         return false;
 
     m_vehicleKit = new Vehicle(this, vehInfo, creatureEntry);
-    m_updateFlag |= UPDATEFLAG_VEHICLE;
+    m_updateFlag.Vehicle = true;
     m_unitTypeMask |= UNIT_MASK_VEHICLE;
     return true;
 }
@@ -14696,7 +14788,7 @@ void Unit::RemoveVehicleKit()
 
     m_vehicleKit = nullptr;
 
-    m_updateFlag &= ~UPDATEFLAG_VEHICLE;
+    m_updateFlag.Vehicle = false;
     m_unitTypeMask &= ~UNIT_MASK_VEHICLE;
     RemoveNpcFlag(UNIT_NPC_FLAG_SPELLCLICK | UNIT_NPC_FLAG_PLAYER_VEHICLE);
 }
@@ -15471,7 +15563,7 @@ void Unit::_ExitVehicle(Position const* exitPosition)
             {
                 pos.RelocateOffset({ seatAddon->ExitParameterX, seatAddon->ExitParameterY, seatAddon->ExitParameterZ, seatAddon->ExitParameterO });
 
-                bool isInLoS = GetMap()->isInLineOfSight(GetPositionX(), GetPositionY(), GetPositionZ(), pos.GetPositionX(), pos.GetPositionY(), pos.GetPositionZ(), GetPhaseMask(), LINEOFSIGHT_ALL_CHECKS, VMAP::ModelIgnoreFlags::Nothing);
+                bool isInLoS = GetMap()->isInLineOfSight(GetPositionX(), GetPositionY(), GetPositionZ(), pos.GetPositionX(), pos.GetPositionY(), pos.GetPositionZ(), GetPhaseMask(), LINEOFSIGHT_ALL_CHECKS, VMAP::ModelIgnoreFlags::Nothing, GetTerrainMapIds());
                 float floorZ = GetMapHeight(pos.GetPositionX(), pos.GetPositionY(), pos.GetPositionZ());
 
                 if (!isInLoS || pos.GetPositionZ() < floorZ)
@@ -15683,9 +15775,12 @@ void Unit::SendTeleportPacket(Position& pos)
     {
         ToPlayer()->SetCanTeleport(true);
     }
-    WorldPacket data2(MSG_MOVE_TELEPORT, 38);
-    data2 << GetPackGUID();
-    BuildMovementPacket(&data2);
+    WorldPacket data2(SMSG_MOVE_UPDATE_TELEPORT, 38);
+    MovementInfo info = m_movementInfo;
+    info.guid = GetGUID();
+    info.pos.Relocate(GetPosition());
+    info.time = GameTime::GetGameTimeMS().count();
+    WorldPackets::Movement::WriteTeleportUpdate(data2, info);
     if (IsCreature())
         Relocate(&oldPos);
     if (IsPlayer())
@@ -16351,39 +16446,55 @@ void Unit::SetFeatherFall(bool enable)
     SendMessageToSet(&data, true);
 }
 
-void Unit::SetHover(bool enable)
+bool Unit::SetHover(bool enable, bool /*updateAnimTier*/)
 {
     bool isClientControlled = IsClientControlled();
 
-    if (!isClientControlled)
-    {
-        if (enable)
-            m_movementInfo.AddMovementFlag(MOVEMENTFLAG_HOVER);
-        else
-            m_movementInfo.RemoveMovementFlag(MOVEMENTFLAG_HOVER);
-    }
+    if (!isClientControlled && enable == HasUnitMovementFlag(MOVEMENTFLAG_HOVER))
+        return false;
 
-    float hoverHeight = GetHoverHeight();
+    // Read the raw field: on disable the hover flag is being removed, and GetHoverHeight()
+    // would return 0 before the descent is applied.
+    float hoverHeight = GetFloatValue(UNIT_FIELD_HOVERHEIGHT);
 
     if (enable)
     {
-        if (hoverHeight && GetPositionZ() - GetMap()->GetHeight(GetPhaseMask(), GetPositionX(), GetPositionY(), GetPositionZ()) < hoverHeight)
-            Relocate(GetPositionX(), GetPositionY(), GetPositionZ() + hoverHeight);
+        if (!isClientControlled)
+            AddUnitMovementFlag(MOVEMENTFLAG_HOVER);
+
+        //! No need to check height on ascent
+        if (hoverHeight && GetPositionZ() - GetFloorZ() < hoverHeight)
+            UpdateHeight(GetPositionZ() + hoverHeight);
     }
     else
     {
-        if (IsAlive() || !IsUnit())
+        if (!isClientControlled)
+            RemoveUnitMovementFlag(MOVEMENTFLAG_HOVER);
+
+        //! Dying creatures will MoveFall from setDeathState
+        if (hoverHeight && (!isDying() || !IsCreature()))
         {
-            float newZ = std::max<float>(GetMap()->GetHeight(GetPhaseMask(), GetPositionX(), GetPositionY(), GetPositionZ()), GetPositionZ() - hoverHeight);
+            float newZ = std::max<float>(GetFloorZ(), GetPositionZ() - hoverHeight);
             UpdateAllowedPositionZ(GetPositionX(), GetPositionY(), newZ);
-            Relocate(GetPositionX(), GetPositionY(), newZ);
+            UpdateHeight(newZ);
         }
     }
 
+    if (IsAlive())
+        SetPlayHoverAnim(enable || IsLevitating());
+    else if (IsPlayer())
+        SetPlayHoverAnim(false, false);
+
+    SendHoverUpdate(enable);
+    return true;
+}
+
+void Unit::SendHoverUpdate(bool enable)
+{
     if (!IsInWorld()) // is sent on add to map
         return;
 
-    if (isClientControlled)
+    if (IsClientControlled())
     {
         if (Player const* player = GetClientControlling())
         {
@@ -16395,13 +16506,29 @@ void Unit::SetHover(bool enable)
             data << counter;
             player->SendDirectMessage(&data);
             player->GetSession()->IncrementOrderCounter();
-            return;
         }
+        return;
     }
 
     WorldPacket data(enable ? SMSG_SPLINE_MOVE_SET_HOVER : SMSG_SPLINE_MOVE_UNSET_HOVER, 9);
     data << GetPackGUID();
     SendMessageToSet(&data, true);
+}
+
+void Unit::SetPlayHoverAnim(bool enable, bool sendUpdate)
+{
+    if (IsPlayingHoverAnim() == enable)
+        return;
+
+    m_updateFlag.PlayerHoverAnim = enable;
+
+    if (!sendUpdate)
+        return;
+
+    WorldPackets::Misc::SetPlayHoverAnim packet;
+    packet.UnitGUID = GetGUID();
+    packet.PlayHoverAnim = enable;
+    SendMessageToSet(packet.Write(), true);
 }
 
 void Unit::SetWaterWalking(bool enable)
@@ -16426,8 +16553,10 @@ void Unit::SetWaterWalking(bool enable)
             uint32 const counter = player->GetSession()->GetOrderCounter();
 
             WorldPacket data(enable ? SMSG_MOVE_WATER_WALK : SMSG_MOVE_LAND_WALK, GetPackGUID().size() + 4);
-            data << GetPackGUID();
-            data << counter;
+            MovementInfo info;
+            info.guid = GetGUID();
+            WorldPackets::Movement::WriteGroundMovement(data, info,
+                WorldPackets::Movement::GetMovementFlagSequence(data.GetOpcode()), counter);
             player->SendDirectMessage(&data);
             player->GetSession()->IncrementOrderCounter();
             return;
@@ -16584,7 +16713,6 @@ void Unit::BuildValuesUpdate(uint8 updateType, ByteBuffer* data, Player* target)
         }
     }
 
-    cacheValue.buffer << uint8(updateMask.GetBlockCount());
     updateMask.AppendToPacket(&cacheValue.buffer);
     int32 fieldBufferPos = static_cast<int32>(cacheValue.buffer.wpos());
     cacheValue.buffer.append(fieldBuffer);

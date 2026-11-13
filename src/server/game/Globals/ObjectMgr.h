@@ -873,6 +873,34 @@ public:
         return nullptr;
     }
 
+    struct PhaseAreaData
+    {
+        uint32 phaseId = 0;
+        uint32 phaseGroup = 0;
+    };
+
+    struct TerrainSwapInfo
+    {
+        uint32 Id = 0;
+        std::vector<uint32> UiMapPhaseIDs;
+    };
+
+    // Raw `phase_area` rows for one area id (not yet condition-checked or phase-group expanded).
+    void LoadTerrainWorldMaps();
+    void LoadTerrainSwapDefaults();
+    [[nodiscard]] TerrainSwapInfo const* GetTerrainSwapInfo(uint32 id) const;
+    [[nodiscard]] std::unordered_map<uint32, std::vector<TerrainSwapInfo const*>> const& GetTerrainSwaps() const
+    {
+        return _terrainSwapsByMap;
+    }
+
+    [[nodiscard]] std::vector<PhaseAreaData> const& GetPhasesForArea(uint32 areaId) const
+    {
+        static std::vector<PhaseAreaData> const empty;
+        PhaseAreaContainer::const_iterator itr = _phasesByArea.find(areaId);
+        return itr != _phasesByArea.end() ? itr->second : empty;
+    }
+
     [[nodiscard]] AreaTriggerTeleportContainer const& GetAllAreaTriggerTeleports() const { return _areaTriggerTeleportStore; }
     [[nodiscard]] AreaTriggerTeleport const* GetAreaTriggerTeleport(uint32 trigger) const
     {
@@ -1081,6 +1109,7 @@ public:
     void LoadGossipText();
 
     void LoadAreaTriggers();
+    void LoadPhaseAreas();
     void LoadAreaTriggerTeleports();
     void LoadAccessRequirements();
     void LoadQuestAreaTriggers();
@@ -1564,6 +1593,10 @@ private:
     GossipTextContainer _gossipTextStore;
     QuestGreetingContainer _questGreetingStore;
     AreaTriggerContainer _areaTriggerStore;
+    typedef std::unordered_map<uint32 /*areaId*/, std::vector<PhaseAreaData>> PhaseAreaContainer;
+    PhaseAreaContainer _phasesByArea;
+    std::unordered_map<uint32, TerrainSwapInfo> _terrainSwapInfos;
+    std::unordered_map<uint32, std::vector<TerrainSwapInfo const*>> _terrainSwapsByMap;
     AreaTriggerTeleportContainer _areaTriggerTeleportStore;
     AreaTriggerScriptContainer _areaTriggerScriptStore;
     DungeonProgressionRequirementsContainer _accessRequirementStore;

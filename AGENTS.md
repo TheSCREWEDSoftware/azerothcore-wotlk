@@ -1,6 +1,7 @@
 # AGENTS.md
 
-AzerothCore is a C++ MMORPG server emulator for World of Warcraft 3.3.5a (WotLK), built with CMake, backed by MySQL.
+This fork converts the C++ AzerothCore 3.3.5a (WotLK) server emulator to Cataclysm 4.3.4 while
+staying close to upstream.
 
 ## Agent rules
 
@@ -9,6 +10,10 @@ AzerothCore is a C++ MMORPG server emulator for World of Warcraft 3.3.5a (WotLK)
 - Formatting follows `.editorconfig`: UTF-8, LF, max 120 cols, trailing newline, no trailing whitespace; 4-space indent for C++ (tabs forbidden), 2-space for JSON/YAML/sh/ts/js.
 - **Do not write or add live-stack e2e tests unless the user explicitly asks.** Do not create `e2e/local/` scratch tests to validate a fix. Existing `e2e/` tests that break after a change may be updated. Do not mention missing coverage unless the user asked about it.
 - Planning docs go in `.agents/plans/<task-slug>/` (gitignored), named `<task-slug>.<TYPE>.md` (`PLAN`, `REQUIREMENTS`, `ANALYSIS`, …).
+- **In-world client testing is human-only.** The real-client harness only launches the client and gets into
+  the world; never script in-world input or claim an in-world acceptance result. Human sign-off is not a
+  merge or closure gate: land on the deterministic checks and pick in-world validation up when the issue is
+  revisited; a finding becomes a new issue.
 - **Credit upstream authors.** Code, a mechanism, or data mirrored from another core (TrinityCore, cMaNGOS, …) is committed with `--author` naming the original commit's author (extra sources as `Co-authored-by`), even when rewritten against AC or confirmed by own sniffs; find them in the upstream file's commit history.
 
 ## Mandatory reading per task
@@ -22,6 +27,11 @@ Read the matching doc(s) BEFORE starting the task:
   - SmartAI work (`smart_scripts` data) → also `.agents/docs/cpp-scripts.md`
 - Reviewing a changeset or PR → `.agents/docs/code-review.md`
 - Self-reviewing, or opening or updating a PR → also `.agents/docs/self-review-rules.md`
+- Cataclysm conversion work for this fork → `.agents/docs/cataclysm-conversion-goal.md`
+  - Also `plan/conversion-roadmap.md` for where the conversion currently stands, and the
+    numbered `plan/NN-*.md` doc for the boundary you are working on.
+- Running the real 4.3.4 client against the server → `plan/client-automation.md` (harness
+  tools, wine/client settings, the exact invocation, and which failures are transient)
 - Touching a subsystem that has a doc in `.agents/docs/systems/` → read that doc too
 - Changing existing live-stack e2e (`e2e/`), and only when the user asked or an existing test broke → `e2e/README.md` and `.agents/docs/e2e-policy.md`
 - Capturing a lesson or adding/updating agent docs → `.agents/docs/README.md`

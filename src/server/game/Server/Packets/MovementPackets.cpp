@@ -1,0 +1,3260 @@
+/*
+ * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
+ *
+ * You may redistribute it and/or modify it under the terms of the GNU General Public License
+ * version 2 or, at your option, any later version.
+ */
+
+#include "MovementPackets.h"
+#include "Object.h"
+#include <G3D/Vector3.h>
+
+uint32 WorldPackets::Movement::MovementFlagsToClient(uint32 flags)
+{
+    // AC keeps its internal flag positions. Cata moved transport and spline presence out of this field.
+    return (flags & 0x000001FF) | ((flags & 0x07FFFC00) >> 1) | ((flags & 0xF0000000) >> 2);
+}
+
+uint16 WorldPackets::Movement::ExtraMovementFlagsToClient(uint16 flags)
+{
+    return (flags & 0x03C3) | ((flags & 0x0038) >> 1) | ((flags & 0x0004) << 3) |
+        ((flags & 0x1C00) << 3) | ((flags & 0xE000) >> 3);
+}
+
+void WorldPackets::Movement::ReadHeartbeat(WorldPacket& packet, MovementInfo& info)
+{
+    info = MovementInfo();
+    packet >> info.pos.m_positionZ >> info.pos.m_positionX >> info.pos.m_positionY;
+    bool hasPitch = !packet.ReadBit();
+    bool hasTimestamp = !packet.ReadBit();
+    bool hasFallData = packet.ReadBit();
+    bool hasFlags2 = !packet.ReadBit();
+    bool hasTransport = packet.ReadBit();
+    for (uint8 index : { 7, 1, 0, 4, 2 })
+        info.guid[index] = packet.ReadBit();
+    bool hasOrientation = !packet.ReadBit();
+    info.guid[5] = packet.ReadBit();
+    info.guid[3] = packet.ReadBit();
+    bool hasSplineElevation = !packet.ReadBit();
+    bool hasSpline = packet.ReadBit();
+    packet.ReadBit();
+    info.guid[6] = packet.ReadBit();
+    bool hasFlags = !packet.ReadBit();
+    bool hasVehicleId = false;
+    bool hasTransportTime2 = false;
+    if (hasTransport)
+    {
+        hasVehicleId = packet.ReadBit();
+        info.transport.guid[4] = packet.ReadBit();
+        info.transport.guid[2] = packet.ReadBit();
+        hasTransportTime2 = packet.ReadBit();
+        for (uint8 index : { 5, 7, 6, 0, 3, 1 })
+            info.transport.guid[index] = packet.ReadBit();
+    }
+    bool hasFallDirection = hasFallData && packet.ReadBit();
+    if (hasFlags)
+    {
+        uint32 flags = packet.ReadBits(30);
+        info.flags = (flags & 0x000001FF) | ((flags & 0x03FFFE00) << 1) | ((flags & 0x3C000000) << 2);
+    }
+    if (hasFlags2)
+    {
+        uint16 flags = packet.ReadBits(12);
+        info.flags2 = (flags & 0x03C3) | ((flags & 0x001C) << 1) | ((flags & 0x0020) >> 3) |
+            ((flags & 0xE000) >> 3) | ((flags & 0x1C00) << 3);
+    }
+    if (hasTransport)
+        info.AddMovementFlag(MOVEMENTFLAG_ONTRANSPORT);
+    if (hasSpline)
+        info.AddMovementFlag(MOVEMENTFLAG_SPLINE_ENABLED);
+    if (hasTransportTime2)
+        info.AddExtraMovementFlag(MOVEMENTFLAG2_INTERPOLATED_MOVEMENT);
+    for (uint8 index : { 3, 6, 1, 7, 2, 5, 0, 4 })
+        packet.ReadByteSeq(info.guid[index]);
+    if (hasTransport)
+    {
+        packet >> info.transport.pos.m_positionZ >> info.transport.seat;
+        info.transport.pos.SetOrientation(packet.read<float>());
+        packet.ReadByteSeq(info.transport.guid[4]);
+        packet >> info.transport.pos.m_positionY >> info.transport.time >> info.transport.pos.m_positionX;
+        for (uint8 index : { 5, 1, 3, 7 })
+            packet.ReadByteSeq(info.transport.guid[index]);
+        if (hasVehicleId)
+            packet >> info.transport.vehicleId;
+        if (hasTransportTime2)
+            packet >> info.transport.time2;
+        for (uint8 index : { 2, 0, 6 })
+            packet.ReadByteSeq(info.transport.guid[index]);
+    }
+    if (hasOrientation)
+        info.pos.SetOrientation(packet.read<float>());
+    if (hasFallData)
+    {
+        packet >> info.jump.zspeed >> info.fallTime;
+        if (hasFallDirection)
+            packet >> info.jump.xyspeed >> info.jump.cosAngle >> info.jump.sinAngle;
+    }
+    if (hasPitch)
+        info.pitch = G3D::wrap(packet.read<float>(), float(-M_PI), float(M_PI));
+    if (hasSplineElevation)
+        packet >> info.splineElevation;
+    if (hasTimestamp)
+        packet >> info.time;
+    if (packet.rpos() != packet.size())
+        throw ByteBufferInvalidValueException("heartbeat payload", "trailing bytes");
+}
+
+void WorldPackets::Movement::WriteMovementUpdate(WorldPacket& packet, MovementInfo const& info)
+{
+    uint32 flags = MovementFlagsToClient(info.flags);
+    uint16 flags2 = ExtraMovementFlagsToClient(info.flags2) & 0x0FFF;
+    bool hasFallDirection = info.HasMovementFlag(MOVEMENTFLAG_FALLING);
+    bool hasFallData = hasFallDirection || info.fallTime != 0;
+    bool hasOrientation = !G3D::fuzzyEq(info.pos.GetOrientation(), 0.0f);
+    bool hasTransport = !info.transport.guid.IsEmpty();
+    bool hasVehicleId = hasTransport && info.transport.vehicleId != 0;
+    bool hasTransportTime2 = hasTransport && info.transport.time2 != 0;
+    bool hasPitch = info.HasMovementFlag(MOVEMENTFLAG_SWIMMING | MOVEMENTFLAG_FLYING) ||
+        info.HasExtraMovementFlag(MOVEMENTFLAG2_ALWAYS_ALLOW_PITCHING);
+    bool hasSplineElevation = info.HasMovementFlag(MOVEMENTFLAG_SPLINE_ELEVATION);
+    ObjectGuid const& guid = info.guid;
+    ObjectGuid const& transport = info.transport.guid;
+
+    packet.WriteBit(hasFallData);
+    packet.WriteBit(guid[3]);
+    packet.WriteBit(guid[6]);
+    packet.WriteBit(!flags2);
+    packet.WriteBit(info.HasMovementFlag(MOVEMENTFLAG_SPLINE_ENABLED));
+    packet.WriteBit(false); // Timestamp is always present in server movement updates.
+    packet.WriteBit(guid[0]);
+    packet.WriteBit(guid[1]);
+    if (flags2)
+        packet.WriteBits(flags2, 12);
+    packet.WriteBit(guid[7]);
+    packet.WriteBit(!flags);
+    packet.WriteBit(!hasOrientation);
+    packet.WriteBit(guid[2]);
+    packet.WriteBit(!hasSplineElevation);
+    packet.WriteBit(false); // Height change failed.
+    packet.WriteBit(guid[4]);
+    if (hasFallData)
+        packet.WriteBit(hasFallDirection);
+    packet.WriteBit(guid[5]);
+    packet.WriteBit(hasTransport);
+    if (flags)
+        packet.WriteBits(flags, 30);
+    if (hasTransport)
+    {
+        packet.WriteBit(transport[3]);
+        packet.WriteBit(hasVehicleId);
+        for (uint8 index : { 6, 1, 7, 0, 4 })
+            packet.WriteBit(transport[index]);
+        packet.WriteBit(hasTransportTime2);
+        packet.WriteBit(transport[5]);
+        packet.WriteBit(transport[2]);
+    }
+    packet.WriteBit(!hasPitch);
+    packet.FlushBits();
+    packet.WriteByteSeq(guid[5]);
+    if (hasFallData)
+    {
+        if (hasFallDirection)
+            packet << info.jump.xyspeed << info.jump.sinAngle << info.jump.cosAngle;
+        packet << info.jump.zspeed << info.fallTime;
+    }
+    if (hasSplineElevation)
+        packet << info.splineElevation;
+    packet.WriteByteSeq(guid[7]);
+    packet << info.pos.GetPositionY();
+    packet.WriteByteSeq(guid[3]);
+    if (hasTransport)
+    {
+        if (hasVehicleId)
+            packet << info.transport.vehicleId;
+        packet.WriteByteSeq(transport[6]);
+        packet << info.transport.seat;
+        packet.WriteByteSeq(transport[5]);
+        packet << info.transport.pos.GetPositionX();
+        packet.WriteByteSeq(transport[1]);
+        packet << info.transport.pos.GetOrientation();
+        packet.WriteByteSeq(transport[2]);
+        if (hasTransportTime2)
+            packet << info.transport.time2;
+        packet.WriteByteSeq(transport[0]);
+        packet << info.transport.pos.GetPositionZ();
+        for (uint8 index : { 7, 4, 3 })
+            packet.WriteByteSeq(transport[index]);
+        packet << info.transport.pos.GetPositionY() << info.transport.time;
+    }
+    packet.WriteByteSeq(guid[4]);
+    packet << info.pos.GetPositionX();
+    packet.WriteByteSeq(guid[6]);
+    packet << info.pos.GetPositionZ() << info.time;
+    packet.WriteByteSeq(guid[2]);
+    if (hasPitch)
+        packet << info.pitch;
+    packet.WriteByteSeq(guid[0]);
+    if (hasOrientation)
+        packet << info.pos.GetOrientation();
+    packet.WriteByteSeq(guid[1]);
+}
+
+void WorldPackets::Movement::WriteRunSpeedChange(WorldPacket& packet, ObjectGuid const& guid, uint32 counter, float speed)
+{
+    for (uint8 index : { 6, 1, 5, 2, 7, 0, 3, 4 })
+        packet.WriteBit(guid[index]);
+    packet.FlushBits();
+    for (uint8 index : { 5, 3, 1, 4 })
+        packet.WriteByteSeq(guid[index]);
+    packet << counter << speed;
+    for (uint8 index : { 6, 0, 7, 2 })
+        packet.WriteByteSeq(guid[index]);
+}
+
+void WorldPackets::Movement::ReadRunSpeedChangeAck(
+    WorldPacket& packet, MovementInfo& info, uint32& counter, float& speed)
+{
+    info = MovementInfo();
+    packet >> counter >> info.pos.m_positionX >> speed >> info.pos.m_positionZ >> info.pos.m_positionY;
+    for (uint8 index : { 2, 4, 1, 7 })
+        info.guid[index] = packet.ReadBit();
+    bool hasOrientation = !packet.ReadBit();
+    bool hasFallData = packet.ReadBit();
+    info.guid[0] = packet.ReadBit();
+    bool hasSpline = packet.ReadBit();
+    bool hasTransport = packet.ReadBit();
+    bool hasTimestamp = !packet.ReadBit();
+    bool hasFlags2 = !packet.ReadBit();
+    info.guid[6] = packet.ReadBit();
+    packet.ReadBit();
+    bool hasSplineElevation = !packet.ReadBit();
+    bool hasPitch = !packet.ReadBit();
+    info.guid[5] = packet.ReadBit();
+    bool hasFlags = !packet.ReadBit();
+    info.guid[3] = packet.ReadBit();
+    bool hasVehicleId = false;
+    bool hasTransportTime2 = false;
+    if (hasTransport)
+    {
+        hasVehicleId = packet.ReadBit();
+        info.transport.guid[5] = packet.ReadBit();
+        hasTransportTime2 = packet.ReadBit();
+        for (uint8 index : { 3, 2, 0, 7, 6, 1, 4 })
+            info.transport.guid[index] = packet.ReadBit();
+    }
+    if (hasFlags)
+    {
+        uint32 flags = packet.ReadBits(30);
+        info.flags = (flags & 0x000001FF) | ((flags & 0x03FFFE00) << 1) | ((flags & 0x3C000000) << 2);
+    }
+    bool hasFallDirection = hasFallData && packet.ReadBit();
+    if (hasFlags2)
+    {
+        uint16 flags = packet.ReadBits(12);
+        info.flags2 = (flags & 0x03C3) | ((flags & 0x001C) << 1) | ((flags & 0x0020) >> 3) |
+            ((flags & 0xE000) >> 3) | ((flags & 0x1C00) << 3);
+    }
+    if (hasTransport)
+        info.AddMovementFlag(MOVEMENTFLAG_ONTRANSPORT);
+    if (hasSpline)
+        info.AddMovementFlag(MOVEMENTFLAG_SPLINE_ENABLED);
+    if (hasTransportTime2)
+        info.AddExtraMovementFlag(MOVEMENTFLAG2_INTERPOLATED_MOVEMENT);
+    for (uint8 index : { 6, 4, 1, 3, 5, 2, 7, 0 })
+        packet.ReadByteSeq(info.guid[index]);
+    if (hasTransport)
+    {
+        packet >> info.transport.pos.m_positionZ;
+        packet.ReadByteSeq(info.transport.guid[6]);
+        packet.ReadByteSeq(info.transport.guid[1]);
+        packet >> info.transport.pos.m_positionY;
+        packet.ReadByteSeq(info.transport.guid[0]);
+        packet.ReadByteSeq(info.transport.guid[5]);
+        if (hasTransportTime2)
+            packet >> info.transport.time2;
+        packet >> info.transport.pos.m_positionX >> info.transport.time;
+        packet.ReadByteSeq(info.transport.guid[7]);
+        info.transport.pos.SetOrientation(packet.read<float>());
+        packet.ReadByteSeq(info.transport.guid[3]);
+        if (hasVehicleId)
+            packet >> info.transport.vehicleId;
+        packet.ReadByteSeq(info.transport.guid[2]);
+        packet >> info.transport.seat;
+        packet.ReadByteSeq(info.transport.guid[4]);
+    }
+    if (hasFallData)
+    {
+        packet >> info.jump.zspeed;
+        if (hasFallDirection)
+            packet >> info.jump.xyspeed >> info.jump.sinAngle >> info.jump.cosAngle;
+        packet >> info.fallTime;
+    }
+    if (hasSplineElevation)
+        packet >> info.splineElevation;
+    if (hasPitch)
+        info.pitch = G3D::wrap(packet.read<float>(), float(-M_PI), float(M_PI));
+    if (hasTimestamp)
+        packet >> info.time;
+    if (hasOrientation)
+        info.pos.SetOrientation(packet.read<float>());
+    if (packet.rpos() != packet.size())
+        throw ByteBufferInvalidValueException("run-speed acknowledgement", "trailing bytes");
+}
+
+void WorldPackets::Movement::WriteRunSpeedUpdate(WorldPacket& packet, MovementInfo const& info, float speed)
+{
+    uint32 flags = MovementFlagsToClient(info.flags);
+    uint16 flags2 = ExtraMovementFlagsToClient(info.flags2) & 0x0FFF;
+    bool hasFallDirection = info.HasMovementFlag(MOVEMENTFLAG_FALLING);
+    bool hasFallData = hasFallDirection || info.fallTime != 0;
+    bool hasOrientation = !G3D::fuzzyEq(info.pos.GetOrientation(), 0.0f);
+    bool hasTransport = !info.transport.guid.IsEmpty();
+    bool hasVehicleId = hasTransport && info.transport.vehicleId != 0;
+    bool hasTransportTime2 = hasTransport && info.transport.time2 != 0;
+    bool hasPitch = info.HasMovementFlag(MOVEMENTFLAG_SWIMMING | MOVEMENTFLAG_FLYING) ||
+        info.HasExtraMovementFlag(MOVEMENTFLAG2_ALWAYS_ALLOW_PITCHING);
+    bool hasSplineElevation = info.HasMovementFlag(MOVEMENTFLAG_SPLINE_ELEVATION);
+    ObjectGuid const& guid = info.guid;
+    ObjectGuid const& transport = info.transport.guid;
+
+    packet << info.pos.GetPositionZ() << info.pos.GetPositionX() << info.pos.GetPositionY() << speed;
+    packet.WriteBit(guid[6]);
+    packet.WriteBit(!flags2);
+    packet.WriteBit(!hasPitch);
+    packet.WriteBit(guid[2]);
+    packet.WriteBit(guid[5]);
+    packet.WriteBit(!hasSplineElevation);
+    packet.WriteBit(info.HasMovementFlag(MOVEMENTFLAG_SPLINE_ENABLED));
+    packet.WriteBit(!flags);
+    packet.WriteBit(false); // Timestamp is always present in server movement updates.
+    packet.WriteBit(guid[1]);
+    if (flags2)
+        packet.WriteBits(flags2, 12);
+    packet.WriteBit(guid[3]);
+    if (flags)
+        packet.WriteBits(flags, 30);
+    packet.WriteBit(guid[7]);
+    packet.WriteBit(guid[0]);
+    packet.WriteBit(!hasOrientation);
+    packet.WriteBit(hasTransport);
+    if (hasTransport)
+    {
+        packet.WriteBit(transport[5]);
+        packet.WriteBit(hasTransportTime2);
+        packet.WriteBit(hasVehicleId);
+        for (uint8 index : { 7, 4, 2, 3, 6, 1, 0 })
+            packet.WriteBit(transport[index]);
+    }
+    packet.WriteBit(hasFallData);
+    if (hasFallData)
+        packet.WriteBit(hasFallDirection);
+    packet.WriteBit(guid[4]);
+    packet.WriteBit(false); // Height change failed.
+    packet.FlushBits();
+    if (hasTransport)
+    {
+        packet.WriteByteSeq(transport[4]);
+        packet.WriteByteSeq(transport[5]);
+        packet << info.transport.pos.GetPositionX() << info.transport.pos.GetOrientation();
+        for (uint8 index : { 1, 0, 6 })
+            packet.WriteByteSeq(transport[index]);
+        packet << info.transport.time;
+        packet.WriteByteSeq(transport[7]);
+        packet << info.transport.seat;
+        if (hasTransportTime2)
+            packet << info.transport.time2;
+        packet << info.transport.pos.GetPositionY();
+        packet.WriteByteSeq(transport[3]);
+        packet.WriteByteSeq(transport[2]);
+        if (hasVehicleId)
+            packet << info.transport.vehicleId;
+        packet << info.transport.pos.GetPositionZ();
+    }
+    packet << info.time;
+    if (hasFallData)
+    {
+        if (hasFallDirection)
+            packet << info.jump.cosAngle << info.jump.xyspeed << info.jump.sinAngle;
+        packet << info.jump.zspeed << info.fallTime;
+    }
+    if (hasPitch)
+        packet << info.pitch;
+    packet.WriteByteSeq(guid[6]);
+    if (hasSplineElevation)
+        packet << info.splineElevation;
+    for (uint8 index : { 5, 7, 4 })
+        packet.WriteByteSeq(guid[index]);
+    if (hasOrientation)
+        packet << info.pos.GetOrientation();
+    for (uint8 index : { 0, 3, 2, 1 })
+        packet.WriteByteSeq(guid[index]);
+}
+
+WorldPacket const* WorldPackets::Movement::TransferPending::Write()
+{
+    _worldPacket.WriteBit(TransferSpellID.has_value());
+    _worldPacket.WriteBit(Ship.has_value());
+    // AC's ByteBuffer does not flush pending bits on scalar writes like TC's append does.
+    _worldPacket.FlushBits();
+    if (Ship)
+    {
+        _worldPacket << int32(Ship->OriginMapID);
+        _worldPacket << uint32(Ship->ID);
+    }
+    if (TransferSpellID)
+        _worldPacket << int32(*TransferSpellID);
+    _worldPacket << int32(MapID);
+    _worldPacket.FlushBits();
+
+    return &_worldPacket;
+}
+
+WorldPacket const* WorldPackets::Movement::SuspendToken::Write()
+{
+    _worldPacket << uint32(SequenceIndex);
+    _worldPacket.WriteBit(Reason);
+    _worldPacket.FlushBits();
+
+    return &_worldPacket;
+}
+
+WorldPacket const* WorldPackets::Movement::NewWorld::Write()
+{
+    _worldPacket << Pos.GetPositionX();
+    _worldPacket << Pos.GetOrientation();
+    _worldPacket << Pos.GetPositionZ();
+    _worldPacket << int32(MapID);
+    _worldPacket << Pos.GetPositionY();
+
+    return &_worldPacket;
+}
+
+WorldPacket const* WorldPackets::Movement::MoveSetActiveMover::Write()
+{
+    _worldPacket.WriteBit(MoverGUID[5]);
+    _worldPacket.WriteBit(MoverGUID[7]);
+    _worldPacket.WriteBit(MoverGUID[3]);
+    _worldPacket.WriteBit(MoverGUID[6]);
+    _worldPacket.WriteBit(MoverGUID[0]);
+    _worldPacket.WriteBit(MoverGUID[4]);
+    _worldPacket.WriteBit(MoverGUID[1]);
+    _worldPacket.WriteBit(MoverGUID[2]);
+
+    _worldPacket.WriteByteSeq(MoverGUID[6]);
+    _worldPacket.WriteByteSeq(MoverGUID[2]);
+    _worldPacket.WriteByteSeq(MoverGUID[3]);
+    _worldPacket.WriteByteSeq(MoverGUID[0]);
+    _worldPacket.WriteByteSeq(MoverGUID[5]);
+    _worldPacket.WriteByteSeq(MoverGUID[7]);
+    _worldPacket.WriteByteSeq(MoverGUID[1]);
+    _worldPacket.WriteByteSeq(MoverGUID[4]);
+
+    return &_worldPacket;
+}
+
+using namespace WorldPackets::Movement;
+
+static MovementStatusElements const MovementStartBackward[] =
+{
+    MSEPositionX,
+    MSEPositionZ,
+    MSEPositionY,
+    MSEHasTransportData,
+    MSEHasGuidByte3,
+    MSEHasGuidByte0,
+    MSEHasGuidByte2,
+    MSEHasTimestamp,
+    MSEHasGuidByte7,
+    MSEHasPitch,
+    MSEZeroBit,
+    MSEHasMovementFlags,
+    MSEHasOrientation,
+    MSEHasSpline,
+    MSEHasMovementFlags2,
+    MSEHasFallData,
+    MSEHasGuidByte5,
+    MSEHasGuidByte1,
+    MSEHasGuidByte4,
+    MSEHasGuidByte6,
+    MSEHasSplineElevation,
+    MSEHasTransportGuidByte3,
+    MSEHasTransportGuidByte1,
+    MSEHasTransportTime2,
+    MSEHasTransportGuidByte2,
+    MSEHasTransportGuidByte7,
+    MSEHasTransportGuidByte0,
+    MSEHasTransportGuidByte6,
+    MSEHasTransportGuidByte5,
+    MSEHasTransportGuidByte4,
+    MSEHasVehicleId,
+    MSEMovementFlags,
+    MSEMovementFlags2,
+    MSEHasFallDirection,
+    MSEGuidByte6,
+    MSEGuidByte7,
+    MSEGuidByte4,
+    MSEGuidByte1,
+    MSEGuidByte5,
+    MSEGuidByte0,
+    MSEGuidByte2,
+    MSEGuidByte3,
+    MSETransportPositionZ,
+    MSETransportGuidByte2,
+    MSETransportVehicleId,
+    MSETransportGuidByte0,
+    MSETransportGuidByte5,
+    MSETransportPositionY,
+    MSETransportGuidByte1,
+    MSETransportPositionX,
+    MSETransportTime2,
+    MSETransportGuidByte4,
+    MSETransportOrientation,
+    MSETransportSeat,
+    MSETransportGuidByte7,
+    MSETransportTime,
+    MSETransportGuidByte6,
+    MSETransportGuidByte3,
+    MSEPitch,
+    MSETimestamp,
+    MSEFallHorizontalSpeed,
+    MSEFallCosAngle,
+    MSEFallSinAngle,
+    MSEFallVerticalSpeed,
+    MSEFallTime,
+    MSEOrientation,
+    MSESplineElevation,
+    MSEEnd,
+};
+
+static MovementStatusElements const MovementStartForward[] =
+{
+    MSEPositionY,
+    MSEPositionZ,
+    MSEPositionX,
+    MSEHasGuidByte5,
+    MSEHasGuidByte2,
+    MSEHasGuidByte0,
+    MSEZeroBit,
+    MSEHasMovementFlags,
+    MSEHasGuidByte7,
+    MSEHasGuidByte3,
+    MSEHasGuidByte1,
+    MSEHasOrientation,
+    MSEHasGuidByte6,
+    MSEHasSpline,
+    MSEHasSplineElevation,
+    MSEHasGuidByte4,
+    MSEHasTransportData,
+    MSEHasTimestamp,
+    MSEHasPitch,
+    MSEHasMovementFlags2,
+    MSEHasFallData,
+    MSEMovementFlags,
+    MSEHasTransportGuidByte3,
+    MSEHasTransportGuidByte4,
+    MSEHasTransportGuidByte6,
+    MSEHasTransportGuidByte2,
+    MSEHasTransportGuidByte5,
+    MSEHasTransportGuidByte0,
+    MSEHasTransportGuidByte7,
+    MSEHasTransportGuidByte1,
+    MSEHasVehicleId,
+    MSEHasTransportTime2,
+    MSEHasFallDirection,
+    MSEMovementFlags2,
+    MSEGuidByte2,
+    MSEGuidByte4,
+    MSEGuidByte6,
+    MSEGuidByte1,
+    MSEGuidByte7,
+    MSEGuidByte3,
+    MSEGuidByte5,
+    MSEGuidByte0,
+    MSEFallVerticalSpeed,
+    MSEFallHorizontalSpeed,
+    MSEFallSinAngle,
+    MSEFallCosAngle,
+    MSEFallTime,
+    MSETransportGuidByte3,
+    MSETransportPositionY,
+    MSETransportPositionZ,
+    MSETransportGuidByte1,
+    MSETransportGuidByte4,
+    MSETransportGuidByte7,
+    MSETransportOrientation,
+    MSETransportGuidByte2,
+    MSETransportPositionX,
+    MSETransportGuidByte5,
+    MSETransportVehicleId,
+    MSETransportTime,
+    MSETransportGuidByte6,
+    MSETransportGuidByte0,
+    MSETransportSeat,
+    MSETransportTime2,
+    MSESplineElevation,
+    MSEPitch,
+    MSEOrientation,
+    MSETimestamp,
+    MSEEnd,
+};
+
+static MovementStatusElements const MovementStartStrafeLeft[] =
+{
+    MSEPositionZ,
+    MSEPositionX,
+    MSEPositionY,
+    MSEHasSplineElevation,
+    MSEHasGuidByte5,
+    MSEHasPitch,
+    MSEHasGuidByte6,
+    MSEHasTimestamp,
+    MSEHasGuidByte1,
+    MSEZeroBit,
+    MSEHasGuidByte4,
+    MSEHasGuidByte0,
+    MSEHasGuidByte2,
+    MSEHasFallData,
+    MSEHasOrientation,
+    MSEHasGuidByte3,
+    MSEHasMovementFlags2,
+    MSEHasGuidByte7,
+    MSEHasSpline,
+    MSEHasMovementFlags,
+    MSEHasTransportData,
+    MSEHasFallDirection,
+    MSEHasTransportTime2,
+    MSEHasTransportGuidByte7,
+    MSEHasVehicleId,
+    MSEHasTransportGuidByte3,
+    MSEHasTransportGuidByte1,
+    MSEHasTransportGuidByte6,
+    MSEHasTransportGuidByte5,
+    MSEHasTransportGuidByte2,
+    MSEHasTransportGuidByte4,
+    MSEHasTransportGuidByte0,
+    MSEMovementFlags,
+    MSEMovementFlags2,
+    MSEGuidByte2,
+    MSEGuidByte6,
+    MSEGuidByte3,
+    MSEGuidByte1,
+    MSEGuidByte0,
+    MSEGuidByte7,
+    MSEGuidByte4,
+    MSEGuidByte5,
+    MSEFallCosAngle,
+    MSEFallHorizontalSpeed,
+    MSEFallSinAngle,
+    MSEFallTime,
+    MSEFallVerticalSpeed,
+    MSETransportSeat,
+    MSETransportGuidByte2,
+    MSETransportTime2,
+    MSETransportGuidByte3,
+    MSETransportPositionZ,
+    MSETransportVehicleId,
+    MSETransportGuidByte0,
+    MSETransportGuidByte7,
+    MSETransportPositionY,
+    MSETransportGuidByte5,
+    MSETransportGuidByte1,
+    MSETransportOrientation,
+    MSETransportTime,
+    MSETransportGuidByte6,
+    MSETransportGuidByte4,
+    MSETransportPositionX,
+    MSETimestamp,
+    MSEOrientation,
+    MSEPitch,
+    MSESplineElevation,
+    MSEEnd,
+};
+
+static MovementStatusElements const MovementStartStrafeRight[] =
+{
+    MSEPositionY,
+    MSEPositionX,
+    MSEPositionZ,
+    MSEHasPitch,
+    MSEHasGuidByte1,
+    MSEHasOrientation,
+    MSEHasGuidByte4,
+    MSEHasSpline,
+    MSEZeroBit,
+    MSEHasGuidByte5,
+    MSEHasFallData,
+    MSEHasSplineElevation,
+    MSEHasTimestamp,
+    MSEHasMovementFlags,
+    MSEHasGuidByte2,
+    MSEHasGuidByte7,
+    MSEHasGuidByte6,
+    MSEHasGuidByte3,
+    MSEHasMovementFlags2,
+    MSEHasTransportData,
+    MSEHasGuidByte0,
+    MSEHasTransportGuidByte7,
+    MSEHasTransportGuidByte2,
+    MSEHasTransportGuidByte3,
+    MSEHasTransportGuidByte5,
+    MSEHasTransportGuidByte0,
+    MSEHasTransportTime2,
+    MSEHasTransportGuidByte6,
+    MSEHasTransportGuidByte1,
+    MSEHasTransportGuidByte4,
+    MSEHasVehicleId,
+    MSEMovementFlags2,
+    MSEMovementFlags,
+    MSEHasFallDirection,
+    MSEGuidByte7,
+    MSEGuidByte5,
+    MSEGuidByte3,
+    MSEGuidByte1,
+    MSEGuidByte2,
+    MSEGuidByte4,
+    MSEGuidByte6,
+    MSEGuidByte0,
+    MSETransportGuidByte5,
+    MSETransportGuidByte1,
+    MSETransportGuidByte6,
+    MSETransportPositionY,
+    MSETransportOrientation,
+    MSETransportGuidByte0,
+    MSETransportGuidByte2,
+    MSETransportSeat,
+    MSETransportPositionX,
+    MSETransportVehicleId,
+    MSETransportTime,
+    MSETransportGuidByte4,
+    MSETransportGuidByte7,
+    MSETransportTime2,
+    MSETransportPositionZ,
+    MSETransportGuidByte3,
+    MSEPitch,
+    MSEOrientation,
+    MSEFallSinAngle,
+    MSEFallCosAngle,
+    MSEFallHorizontalSpeed,
+    MSEFallTime,
+    MSEFallVerticalSpeed,
+    MSETimestamp,
+    MSESplineElevation,
+    MSEEnd,
+};
+
+static MovementStatusElements const MovementStartTurnLeft[] =
+{
+    MSEPositionY,
+    MSEPositionX,
+    MSEPositionZ,
+    MSEZeroBit,
+    MSEHasGuidByte1,
+    MSEHasOrientation,
+    MSEHasSpline,
+    MSEHasMovementFlags,
+    MSEHasGuidByte4,
+    MSEHasGuidByte2,
+    MSEHasMovementFlags2,
+    MSEHasGuidByte5,
+    MSEHasGuidByte7,
+    MSEHasTransportData,
+    MSEHasGuidByte6,
+    MSEHasSplineElevation,
+    MSEHasGuidByte0,
+    MSEHasGuidByte3,
+    MSEHasPitch,
+    MSEHasTimestamp,
+    MSEHasFallData,
+    MSEMovementFlags2,
+    MSEHasTransportGuidByte3,
+    MSEHasTransportGuidByte1,
+    MSEHasTransportGuidByte0,
+    MSEHasTransportTime2,
+    MSEHasTransportGuidByte2,
+    MSEHasVehicleId,
+    MSEHasTransportGuidByte4,
+    MSEHasTransportGuidByte7,
+    MSEHasTransportGuidByte5,
+    MSEHasTransportGuidByte6,
+    MSEHasFallDirection,
+    MSEMovementFlags,
+    MSEGuidByte0,
+    MSEGuidByte4,
+    MSEGuidByte7,
+    MSEGuidByte5,
+    MSEGuidByte6,
+    MSEGuidByte3,
+    MSEGuidByte2,
+    MSEGuidByte1,
+    MSEFallCosAngle,
+    MSEFallSinAngle,
+    MSEFallHorizontalSpeed,
+    MSEFallVerticalSpeed,
+    MSEFallTime,
+    MSETransportGuidByte0,
+    MSETransportPositionX,
+    MSETransportTime,
+    MSETransportSeat,
+    MSETransportPositionZ,
+    MSETransportGuidByte4,
+    MSETransportOrientation,
+    MSETransportGuidByte2,
+    MSETransportGuidByte6,
+    MSETransportGuidByte1,
+    MSETransportGuidByte3,
+    MSETransportPositionY,
+    MSETransportVehicleId,
+    MSETransportTime2,
+    MSETransportGuidByte5,
+    MSETransportGuidByte7,
+    MSETimestamp,
+    MSEPitch,
+    MSEOrientation,
+    MSESplineElevation,
+    MSEEnd,
+};
+
+static MovementStatusElements const MovementStartTurnRight[] =
+{
+    MSEPositionX,
+    MSEPositionZ,
+    MSEPositionY,
+    MSEHasGuidByte3,
+    MSEHasGuidByte5,
+    MSEHasMovementFlags,
+    MSEHasSpline,
+    MSEHasGuidByte0,
+    MSEHasOrientation,
+    MSEHasTransportData,
+    MSEHasGuidByte7,
+    MSEZeroBit,
+    MSEHasMovementFlags2,
+    MSEHasGuidByte1,
+    MSEHasTimestamp,
+    MSEHasGuidByte6,
+    MSEHasGuidByte2,
+    MSEHasGuidByte4,
+    MSEHasSplineElevation,
+    MSEHasPitch,
+    MSEHasFallData,
+    MSEHasTransportGuidByte1,
+    MSEHasTransportTime2,
+    MSEHasTransportGuidByte6,
+    MSEHasTransportGuidByte0,
+    MSEHasTransportGuidByte3,
+    MSEHasTransportGuidByte5,
+    MSEHasTransportGuidByte2,
+    MSEHasTransportGuidByte4,
+    MSEHasTransportGuidByte7,
+    MSEHasVehicleId,
+    MSEMovementFlags2,
+    MSEMovementFlags,
+    MSEHasFallDirection,
+    MSEGuidByte5,
+    MSEGuidByte0,
+    MSEGuidByte7,
+    MSEGuidByte3,
+    MSEGuidByte2,
+    MSEGuidByte1,
+    MSEGuidByte4,
+    MSEGuidByte6,
+    MSETransportPositionY,
+    MSETransportGuidByte0,
+    MSETransportGuidByte4,
+    MSETransportGuidByte1,
+    MSETransportGuidByte6,
+    MSETransportGuidByte2,
+    MSETransportSeat,
+    MSETransportOrientation,
+    MSETransportGuidByte5,
+    MSETransportVehicleId,
+    MSETransportPositionZ,
+    MSETransportPositionX,
+    MSETransportTime,
+    MSETransportGuidByte7,
+    MSETransportGuidByte3,
+    MSETransportTime2,
+    MSEFallHorizontalSpeed,
+    MSEFallCosAngle,
+    MSEFallSinAngle,
+    MSEFallTime,
+    MSEFallVerticalSpeed,
+    MSEPitch,
+    MSEOrientation,
+    MSESplineElevation,
+    MSETimestamp,
+    MSEEnd,
+};
+
+static MovementStatusElements const MovementStop[] =
+{
+    MSEPositionX,
+    MSEPositionY,
+    MSEPositionZ,
+    MSEHasGuidByte3,
+    MSEHasGuidByte6,
+    MSEHasSplineElevation,
+    MSEHasSpline,
+    MSEHasOrientation,
+    MSEHasGuidByte7,
+    MSEHasMovementFlags,
+    MSEHasGuidByte5,
+    MSEHasFallData,
+    MSEHasMovementFlags2,
+    MSEHasTransportData,
+    MSEHasTimestamp,
+    MSEHasGuidByte4,
+    MSEHasGuidByte1,
+    MSEZeroBit,
+    MSEHasGuidByte2,
+    MSEHasGuidByte0,
+    MSEHasPitch,
+    MSEHasTransportGuidByte7,
+    MSEHasTransportGuidByte4,
+    MSEHasTransportGuidByte1,
+    MSEHasTransportGuidByte5,
+    MSEHasTransportTime2,
+    MSEHasVehicleId,
+    MSEHasTransportGuidByte3,
+    MSEHasTransportGuidByte6,
+    MSEHasTransportGuidByte0,
+    MSEHasTransportGuidByte2,
+    MSEMovementFlags,
+    MSEMovementFlags2,
+    MSEHasFallDirection,
+    MSEGuidByte6,
+    MSEGuidByte3,
+    MSEGuidByte0,
+    MSEGuidByte4,
+    MSEGuidByte2,
+    MSEGuidByte1,
+    MSEGuidByte5,
+    MSEGuidByte7,
+    MSETransportGuidByte4,
+    MSETransportGuidByte7,
+    MSETransportTime,
+    MSETransportSeat,
+    MSETransportPositionZ,
+    MSETransportVehicleId,
+    MSETransportGuidByte2,
+    MSETransportGuidByte0,
+    MSETransportPositionY,
+    MSETransportGuidByte1,
+    MSETransportGuidByte3,
+    MSETransportTime2,
+    MSETransportPositionX,
+    MSETransportOrientation,
+    MSETransportGuidByte5,
+    MSETransportGuidByte6,
+    MSETimestamp,
+    MSEOrientation,
+    MSEPitch,
+    MSESplineElevation,
+    MSEFallSinAngle,
+    MSEFallCosAngle,
+    MSEFallHorizontalSpeed,
+    MSEFallVerticalSpeed,
+    MSEFallTime,
+    MSEEnd,
+};
+
+static MovementStatusElements const MovementStopStrafe[] =
+{
+    MSEPositionY,
+    MSEPositionZ,
+    MSEPositionX,
+    MSEHasPitch,
+    MSEHasTimestamp,
+    MSEHasGuidByte2,
+    MSEHasFallData,
+    MSEHasGuidByte7,
+    MSEHasSplineElevation,
+    MSEHasGuidByte3,
+    MSEHasOrientation,
+    MSEHasMovementFlags2,
+    MSEHasTransportData,
+    MSEHasMovementFlags,
+    MSEHasSpline,
+    MSEHasGuidByte0,
+    MSEZeroBit,
+    MSEHasGuidByte6,
+    MSEHasGuidByte5,
+    MSEHasGuidByte1,
+    MSEHasGuidByte4,
+    MSEHasTransportGuidByte7,
+    MSEHasTransportGuidByte0,
+    MSEHasTransportGuidByte4,
+    MSEHasTransportGuidByte2,
+    MSEHasTransportGuidByte6,
+    MSEHasTransportGuidByte5,
+    MSEHasTransportTime2,
+    MSEHasTransportGuidByte1,
+    MSEHasTransportGuidByte3,
+    MSEHasVehicleId,
+    MSEMovementFlags,
+    MSEHasFallDirection,
+    MSEMovementFlags2,
+    MSEGuidByte2,
+    MSEGuidByte7,
+    MSEGuidByte3,
+    MSEGuidByte4,
+    MSEGuidByte5,
+    MSEGuidByte6,
+    MSEGuidByte1,
+    MSEGuidByte0,
+    MSETransportSeat,
+    MSETransportGuidByte6,
+    MSETransportPositionZ,
+    MSETransportVehicleId,
+    MSETransportGuidByte1,
+    MSETransportGuidByte3,
+    MSETransportGuidByte2,
+    MSETransportGuidByte4,
+    MSETransportGuidByte5,
+    MSETransportTime,
+    MSETransportOrientation,
+    MSETransportPositionX,
+    MSETransportGuidByte0,
+    MSETransportPositionY,
+    MSETransportTime2,
+    MSETransportGuidByte7,
+    MSEFallSinAngle,
+    MSEFallHorizontalSpeed,
+    MSEFallCosAngle,
+    MSEFallTime,
+    MSEFallVerticalSpeed,
+    MSESplineElevation,
+    MSEOrientation,
+    MSEPitch,
+    MSETimestamp,
+    MSEEnd,
+};
+
+static MovementStatusElements const MovementStopTurn[] =
+{
+    MSEPositionX,
+    MSEPositionZ,
+    MSEPositionY,
+    MSEHasGuidByte5,
+    MSEHasGuidByte4,
+    MSEHasFallData,
+    MSEZeroBit,
+    MSEHasGuidByte1,
+    MSEHasGuidByte0,
+    MSEHasSpline,
+    MSEHasMovementFlags,
+    MSEHasGuidByte2,
+    MSEHasGuidByte6,
+    MSEHasPitch,
+    MSEHasTransportData,
+    MSEHasGuidByte3,
+    MSEHasSplineElevation,
+    MSEHasTimestamp,
+    MSEHasMovementFlags2,
+    MSEHasOrientation,
+    MSEHasGuidByte7,
+    MSEHasTransportGuidByte2,
+    MSEHasTransportGuidByte7,
+    MSEHasVehicleId,
+    MSEHasTransportGuidByte4,
+    MSEHasTransportTime2,
+    MSEHasTransportGuidByte5,
+    MSEHasTransportGuidByte0,
+    MSEHasTransportGuidByte3,
+    MSEHasTransportGuidByte6,
+    MSEHasTransportGuidByte1,
+    MSEHasFallDirection,
+    MSEMovementFlags,
+    MSEMovementFlags2,
+    MSEGuidByte3,
+    MSEGuidByte2,
+    MSEGuidByte6,
+    MSEGuidByte4,
+    MSEGuidByte0,
+    MSEGuidByte7,
+    MSEGuidByte1,
+    MSEGuidByte5,
+    MSESplineElevation,
+    MSETransportPositionX,
+    MSETransportGuidByte5,
+    MSETransportSeat,
+    MSETransportGuidByte2,
+    MSETransportGuidByte3,
+    MSETransportOrientation,
+    MSETransportTime2,
+    MSETransportVehicleId,
+    MSETransportGuidByte7,
+    MSETransportGuidByte1,
+    MSETransportGuidByte0,
+    MSETransportGuidByte4,
+    MSETransportPositionY,
+    MSETransportPositionZ,
+    MSETransportTime,
+    MSETransportGuidByte6,
+    MSEFallTime,
+    MSEFallHorizontalSpeed,
+    MSEFallSinAngle,
+    MSEFallCosAngle,
+    MSEFallVerticalSpeed,
+    MSETimestamp,
+    MSEPitch,
+    MSEOrientation,
+    MSEEnd,
+};
+
+static MovementStatusElements const MovementSetRunMode[] =
+{
+    MSEPositionY,
+    MSEPositionX,
+    MSEPositionZ,
+    MSEHasTimestamp,
+    MSEHasMovementFlags2,
+    MSEHasGuidByte1,
+    MSEHasSpline,
+    MSEHasMovementFlags,
+    MSEHasGuidByte7,
+    MSEHasTransportData,
+    MSEZeroBit,
+    MSEHasGuidByte0,
+    MSEHasGuidByte3,
+    MSEHasSplineElevation,
+    MSEHasGuidByte5,
+    MSEHasPitch,
+    MSEHasGuidByte6,
+    MSEHasGuidByte4,
+    MSEHasFallData,
+    MSEHasOrientation,
+    MSEHasGuidByte2,
+    MSEHasTransportGuidByte6,
+    MSEHasTransportGuidByte4,
+    MSEHasVehicleId,
+    MSEHasTransportGuidByte5,
+    MSEHasTransportGuidByte3,
+    MSEHasTransportGuidByte1,
+    MSEHasTransportTime2,
+    MSEHasTransportGuidByte7,
+    MSEHasTransportGuidByte0,
+    MSEHasTransportGuidByte2,
+    MSEHasFallDirection,
+    MSEMovementFlags2,
+    MSEMovementFlags,
+    MSEGuidByte3,
+    MSEGuidByte6,
+    MSEGuidByte0,
+    MSEGuidByte7,
+    MSEGuidByte4,
+    MSEGuidByte1,
+    MSEGuidByte5,
+    MSEGuidByte2,
+    MSEPitch,
+    MSETransportTime2,
+    MSETransportGuidByte3,
+    MSETransportPositionX,
+    MSETransportSeat,
+    MSETransportGuidByte5,
+    MSETransportGuidByte1,
+    MSETransportPositionZ,
+    MSETransportGuidByte2,
+    MSETransportGuidByte7,
+    MSETransportOrientation,
+    MSETransportGuidByte4,
+    MSETransportTime,
+    MSETransportVehicleId,
+    MSETransportGuidByte0,
+    MSETransportPositionY,
+    MSETransportGuidByte6,
+    MSEFallSinAngle,
+    MSEFallHorizontalSpeed,
+    MSEFallCosAngle,
+    MSEFallTime,
+    MSEFallVerticalSpeed,
+    MSESplineElevation,
+    MSETimestamp,
+    MSEOrientation,
+    MSEEnd,
+};
+
+static MovementStatusElements const MovementSetWalkMode[] =
+{
+    MSEPositionY,
+    MSEPositionX,
+    MSEPositionZ,
+    MSEHasGuidByte6,
+    MSEHasSpline,
+    MSEHasTimestamp,
+    MSEHasGuidByte0,
+    MSEHasGuidByte1,
+    MSEHasMovementFlags,
+    MSEHasPitch,
+    MSEHasGuidByte7,
+    MSEHasSplineElevation,
+    MSEHasGuidByte4,
+    MSEHasOrientation,
+    MSEHasTransportData,
+    MSEHasGuidByte2,
+    MSEHasGuidByte5,
+    MSEHasGuidByte3,
+    MSEZeroBit,
+    MSEHasMovementFlags2,
+    MSEHasFallData,
+    MSEHasTransportGuidByte2,
+    MSEHasTransportGuidByte0,
+    MSEHasTransportGuidByte6,
+    MSEHasTransportGuidByte1,
+    MSEHasTransportGuidByte3,
+    MSEHasTransportTime2,
+    MSEHasTransportGuidByte5,
+    MSEHasVehicleId,
+    MSEHasTransportGuidByte4,
+    MSEHasTransportGuidByte7,
+    MSEHasFallDirection,
+    MSEMovementFlags,
+    MSEMovementFlags2,
+    MSEGuidByte5,
+    MSEGuidByte6,
+    MSEGuidByte4,
+    MSEGuidByte7,
+    MSEGuidByte3,
+    MSEGuidByte0,
+    MSEGuidByte2,
+    MSEGuidByte1,
+    MSETransportGuidByte2,
+    MSETransportGuidByte5,
+    MSETransportSeat,
+    MSETransportPositionZ,
+    MSETransportGuidByte3,
+    MSETransportGuidByte6,
+    MSETransportGuidByte0,
+    MSETransportTime,
+    MSETransportGuidByte4,
+    MSETransportTime2,
+    MSETransportOrientation,
+    MSETransportPositionX,
+    MSETransportVehicleId,
+    MSETransportGuidByte7,
+    MSETransportPositionY,
+    MSETransportGuidByte1,
+    MSEFallCosAngle,
+    MSEFallHorizontalSpeed,
+    MSEFallSinAngle,
+    MSEFallVerticalSpeed,
+    MSEFallTime,
+    MSESplineElevation,
+    MSEPitch,
+    MSETimestamp,
+    MSEOrientation,
+    MSEEnd,
+};
+static MovementStatusElements const MovementSetFacing[] =
+{
+    MSEPositionX,
+    MSEPositionY,
+    MSEPositionZ,
+    MSEHasGuidByte6,
+    MSEHasTransportData,
+    MSEHasGuidByte4,
+    MSEHasSpline,
+    MSEHasGuidByte0,
+    MSEHasOrientation,
+    MSEHasTimestamp,
+    MSEHasPitch,
+    MSEHasMovementFlags2,
+    MSEHasGuidByte5,
+    MSEHasGuidByte7,
+    MSEHasGuidByte2,
+    MSEHasFallData,
+    MSEHasSplineElevation,
+    MSEHasMovementFlags,
+    MSEHasGuidByte3,
+    MSEZeroBit,
+    MSEHasGuidByte1,
+    MSEHasVehicleId,
+    MSEHasTransportGuidByte3,
+    MSEHasTransportGuidByte7,
+    MSEHasTransportGuidByte5,
+    MSEHasTransportGuidByte2,
+    MSEHasTransportGuidByte6,
+    MSEHasTransportGuidByte0,
+    MSEHasTransportTime2,
+    MSEHasTransportGuidByte4,
+    MSEHasTransportGuidByte1,
+    MSEHasFallDirection,
+    MSEMovementFlags2,
+    MSEMovementFlags,
+    MSEGuidByte6,
+    MSEGuidByte7,
+    MSEGuidByte2,
+    MSEGuidByte0,
+    MSEGuidByte4,
+    MSEGuidByte1,
+    MSEGuidByte5,
+    MSEGuidByte3,
+    MSETransportGuidByte0,
+    MSETransportPositionX,
+    MSETransportGuidByte1,
+    MSETransportTime2,
+    MSETransportGuidByte4,
+    MSETransportPositionZ,
+    MSETransportOrientation,
+    MSETransportGuidByte2,
+    MSETransportVehicleId,
+    MSETransportGuidByte3,
+    MSETransportSeat,
+    MSETransportPositionY,
+    MSETransportGuidByte5,
+    MSETransportGuidByte6,
+    MSETransportTime,
+    MSETransportGuidByte7,
+    MSEFallHorizontalSpeed,
+    MSEFallCosAngle,
+    MSEFallSinAngle,
+    MSEFallTime,
+    MSEFallVerticalSpeed,
+    MSESplineElevation,
+    MSEOrientation,
+    MSETimestamp,
+    MSEPitch,
+    MSEEnd,
+};
+
+static MovementStatusElements const MovementFallLand[] =
+{
+    MSEPositionX,
+    MSEPositionY,
+    MSEPositionZ,
+    MSEHasTransportData,
+    MSEHasGuidByte7,
+    MSEHasGuidByte1,
+    MSEHasMovementFlags2,
+    MSEHasGuidByte3,
+    MSEHasSplineElevation,
+    MSEHasOrientation,
+    MSEHasGuidByte6,
+    MSEHasTimestamp,
+    MSEZeroBit,
+    MSEHasPitch,
+    MSEHasGuidByte4,
+    MSEHasSpline,
+    MSEHasGuidByte5,
+    MSEHasMovementFlags,
+    MSEHasFallData,
+    MSEHasGuidByte0,
+    MSEHasGuidByte2,
+    MSEHasTransportGuidByte0,
+    MSEHasTransportGuidByte5,
+    MSEHasTransportGuidByte3,
+    MSEHasTransportGuidByte2,
+    MSEHasVehicleId,
+    MSEHasTransportTime2,
+    MSEHasTransportGuidByte6,
+    MSEHasTransportGuidByte4,
+    MSEHasTransportGuidByte1,
+    MSEHasTransportGuidByte7,
+    MSEMovementFlags2,
+    MSEMovementFlags,
+    MSEHasFallDirection,
+    MSEGuidByte1,
+    MSEGuidByte7,
+    MSEGuidByte4,
+    MSEGuidByte3,
+    MSEGuidByte6,
+    MSEGuidByte0,
+    MSEGuidByte2,
+    MSEGuidByte5,
+    MSETransportTime,
+    MSETransportPositionZ,
+    MSETransportPositionY,
+    MSETransportPositionX,
+    MSETransportGuidByte5,
+    MSETransportVehicleId,
+    MSETransportGuidByte1,
+    MSETransportSeat,
+    MSETransportTime2,
+    MSETransportGuidByte4,
+    MSETransportOrientation,
+    MSETransportGuidByte0,
+    MSETransportGuidByte7,
+    MSETransportGuidByte3,
+    MSETransportGuidByte6,
+    MSETransportGuidByte2,
+    MSEFallVerticalSpeed,
+    MSEFallTime,
+    MSEFallSinAngle,
+    MSEFallHorizontalSpeed,
+    MSEFallCosAngle,
+    MSESplineElevation,
+    MSETimestamp,
+    MSEPitch,
+    MSEOrientation,
+    MSEEnd,
+};
+
+static MovementStatusElements const MovementJump[] =
+{
+    MSEPositionY,
+    MSEPositionX,
+    MSEPositionZ,
+    MSEHasTimestamp,
+    MSEHasGuidByte5,
+    MSEHasMovementFlags,
+    MSEHasGuidByte4,
+    MSEHasGuidByte6,
+    MSEHasMovementFlags2,
+    MSEHasGuidByte0,
+    MSEHasTransportData,
+    MSEHasGuidByte3,
+    MSEHasPitch,
+    MSEHasGuidByte7,
+    MSEHasFallData,
+    MSEHasSpline,
+    MSEHasOrientation,
+    MSEHasGuidByte1,
+    MSEHasSplineElevation,
+    MSEZeroBit,
+    MSEHasGuidByte2,
+    MSEHasTransportGuidByte3,
+    MSEHasTransportGuidByte7,
+    MSEHasTransportGuidByte6,
+    MSEHasTransportGuidByte0,
+    MSEHasTransportGuidByte5,
+    MSEHasTransportGuidByte1,
+    MSEHasTransportGuidByte4,
+    MSEHasVehicleId,
+    MSEHasTransportTime2,
+    MSEHasTransportGuidByte2,
+    MSEHasFallDirection,
+    MSEMovementFlags,
+    MSEMovementFlags2,
+    MSEGuidByte6,
+    MSEGuidByte5,
+    MSEGuidByte4,
+    MSEGuidByte0,
+    MSEGuidByte2,
+    MSEGuidByte3,
+    MSEGuidByte7,
+    MSEGuidByte1,
+    MSETransportGuidByte1,
+    MSETransportGuidByte7,
+    MSETransportPositionX,
+    MSETransportGuidByte4,
+    MSETransportVehicleId,
+    MSETransportGuidByte0,
+    MSETransportOrientation,
+    MSETransportTime2,
+    MSETransportTime,
+    MSETransportGuidByte6,
+    MSETransportPositionZ,
+    MSETransportSeat,
+    MSETransportPositionY,
+    MSETransportGuidByte3,
+    MSETransportGuidByte2,
+    MSETransportGuidByte5,
+    MSEPitch,
+    MSETimestamp,
+    MSEFallSinAngle,
+    MSEFallCosAngle,
+    MSEFallHorizontalSpeed,
+    MSEFallVerticalSpeed,
+    MSEFallTime,
+    MSESplineElevation,
+    MSEOrientation,
+    MSEEnd,
+};
+
+static MovementStatusElements const MovementSetPitch[] =
+{
+    MSEPositionX,
+    MSEPositionZ,
+    MSEPositionY,
+    MSEHasFallData,
+    MSEHasMovementFlags,
+    MSEHasGuidByte1,
+    MSEHasOrientation,
+    MSEHasGuidByte7,
+    MSEHasGuidByte3,
+    MSEHasMovementFlags2,
+    MSEHasTransportData,
+    MSEHasSplineElevation,
+    MSEHasGuidByte6,
+    MSEHasPitch,
+    MSEHasGuidByte4,
+    MSEHasSpline,
+    MSEHasGuidByte2,
+    MSEZeroBit,
+    MSEHasTimestamp,
+    MSEHasGuidByte0,
+    MSEHasGuidByte5,
+    MSEHasTransportGuidByte3,
+    MSEHasTransportGuidByte6,
+    MSEHasTransportGuidByte2,
+    MSEHasTransportGuidByte4,
+    MSEHasTransportGuidByte0,
+    MSEHasTransportGuidByte1,
+    MSEHasTransportGuidByte5,
+    MSEHasVehicleId,
+    MSEHasTransportGuidByte7,
+    MSEHasTransportTime2,
+    MSEMovementFlags2,
+    MSEMovementFlags,
+    MSEHasFallDirection,
+    MSEGuidByte3,
+    MSEGuidByte7,
+    MSEGuidByte1,
+    MSEGuidByte6,
+    MSEGuidByte0,
+    MSEGuidByte5,
+    MSEGuidByte2,
+    MSEGuidByte4,
+    MSETransportGuidByte4,
+    MSETransportGuidByte3,
+    MSETransportGuidByte6,
+    MSETransportOrientation,
+    MSETransportGuidByte1,
+    MSETransportVehicleId,
+    MSETransportTime,
+    MSETransportGuidByte2,
+    MSETransportPositionZ,
+    MSETransportGuidByte0,
+    MSETransportTime2,
+    MSETransportPositionY,
+    MSETransportGuidByte5,
+    MSETransportSeat,
+    MSETransportGuidByte7,
+    MSETransportPositionX,
+    MSEFallVerticalSpeed,
+    MSEFallTime,
+    MSEFallHorizontalSpeed,
+    MSEFallSinAngle,
+    MSEFallCosAngle,
+    MSEPitch,
+    MSESplineElevation,
+    MSETimestamp,
+    MSEOrientation,
+    MSEEnd,
+};
+static MovementStatusElements const MovementStartAscend[] =
+{
+    MSEPositionX,
+    MSEPositionY,
+    MSEPositionZ,
+    MSEHasGuidByte0,
+    MSEHasGuidByte1,
+    MSEHasGuidByte7,
+    MSEZeroBit,
+    MSEHasGuidByte5,
+    MSEHasTransportData,
+    MSEHasGuidByte2,
+    MSEHasSplineElevation,
+    MSEHasFallData,
+    MSEHasSpline,
+    MSEHasGuidByte3,
+    MSEHasMovementFlags2,
+    MSEHasGuidByte6,
+    MSEHasMovementFlags,
+    MSEHasPitch,
+    MSEHasTimestamp,
+    MSEHasOrientation,
+    MSEHasGuidByte4,
+    MSEMovementFlags,
+    MSEHasTransportGuidByte0,
+    MSEHasTransportGuidByte2,
+    MSEHasVehicleId,
+    MSEHasTransportGuidByte6,
+    MSEHasTransportGuidByte1,
+    MSEHasTransportGuidByte4,
+    MSEHasTransportTime2,
+    MSEHasTransportGuidByte5,
+    MSEHasTransportGuidByte3,
+    MSEHasTransportGuidByte7,
+    MSEMovementFlags2,
+    MSEHasFallDirection,
+    MSEGuidByte6,
+    MSEGuidByte3,
+    MSEGuidByte1,
+    MSEGuidByte4,
+    MSEGuidByte2,
+    MSEGuidByte0,
+    MSEGuidByte5,
+    MSEGuidByte7,
+    MSETransportGuidByte3,
+    MSETransportGuidByte5,
+    MSETransportGuidByte4,
+    MSETransportSeat,
+    MSETransportGuidByte2,
+    MSETransportOrientation,
+    MSETransportPositionY,
+    MSETransportGuidByte7,
+    MSETransportTime2,
+    MSETransportPositionZ,
+    MSETransportVehicleId,
+    MSETransportGuidByte6,
+    MSETransportTime,
+    MSETransportGuidByte0,
+    MSETransportGuidByte1,
+    MSETransportPositionX,
+    MSEFallSinAngle,
+    MSEFallCosAngle,
+    MSEFallHorizontalSpeed,
+    MSEFallTime,
+    MSEFallVerticalSpeed,
+    MSEOrientation,
+    MSEPitch,
+    MSETimestamp,
+    MSESplineElevation,
+    MSEEnd,
+};
+static MovementStatusElements const MovementStartDescend[] =
+{
+    MSEPositionY,
+    MSEPositionZ,
+    MSEPositionX,
+    MSEHasGuidByte0,
+    MSEHasPitch,
+    MSEHasFallData,
+    MSEHasGuidByte4,
+    MSEHasOrientation,
+    MSEHasTimestamp,
+    MSEHasMovementFlags2,
+    MSEHasMovementFlags,
+    MSEHasGuidByte6,
+    MSEZeroBit,
+    MSEHasGuidByte1,
+    MSEHasTransportData,
+    MSEHasSpline,
+    MSEHasSplineElevation,
+    MSEHasGuidByte5,
+    MSEHasGuidByte3,
+    MSEHasGuidByte7,
+    MSEHasGuidByte2,
+    MSEHasTransportGuidByte0,
+    MSEHasTransportGuidByte1,
+    MSEHasTransportGuidByte2,
+    MSEHasVehicleId,
+    MSEHasTransportGuidByte7,
+    MSEHasTransportGuidByte4,
+    MSEHasTransportGuidByte6,
+    MSEHasTransportTime2,
+    MSEHasTransportGuidByte3,
+    MSEHasTransportGuidByte5,
+    MSEMovementFlags2,
+    MSEMovementFlags,
+    MSEHasFallDirection,
+    MSEGuidByte2,
+    MSEGuidByte7,
+    MSEGuidByte6,
+    MSEGuidByte0,
+    MSEGuidByte1,
+    MSEGuidByte5,
+    MSEGuidByte4,
+    MSEGuidByte3,
+    MSEPitch,
+    MSETransportPositionZ,
+    MSETransportSeat,
+    MSETransportVehicleId,
+    MSETransportGuidByte6,
+    MSETransportTime2,
+    MSETransportGuidByte1,
+    MSETransportTime,
+    MSETransportGuidByte4,
+    MSETransportPositionY,
+    MSETransportPositionX,
+    MSETransportGuidByte7,
+    MSETransportGuidByte3,
+    MSETransportGuidByte5,
+    MSETransportGuidByte2,
+    MSETransportOrientation,
+    MSETransportGuidByte0,
+    MSEFallTime,
+    MSEFallCosAngle,
+    MSEFallSinAngle,
+    MSEFallHorizontalSpeed,
+    MSEFallVerticalSpeed,
+    MSETimestamp,
+    MSEOrientation,
+    MSESplineElevation,
+    MSEEnd,
+};
+static MovementStatusElements const MovementStartSwim[] =
+{
+    MSEPositionZ,
+    MSEPositionX,
+    MSEPositionY,
+    MSEHasGuidByte3,
+    MSEHasSplineElevation,
+    MSEHasGuidByte4,
+    MSEHasGuidByte7,
+    MSEZeroBit,
+    MSEHasPitch,
+    MSEHasGuidByte0,
+    MSEHasOrientation,
+    MSEHasMovementFlags,
+    MSEHasFallData,
+    MSEHasGuidByte5,
+    MSEHasTransportData,
+    MSEHasMovementFlags2,
+    MSEHasTimestamp,
+    MSEHasGuidByte6,
+    MSEHasGuidByte1,
+    MSEHasSpline,
+    MSEHasGuidByte2,
+    MSEHasTransportGuidByte2,
+    MSEHasTransportGuidByte3,
+    MSEHasTransportGuidByte7,
+    MSEHasTransportGuidByte5,
+    MSEHasTransportGuidByte4,
+    MSEHasTransportGuidByte0,
+    MSEHasTransportTime2,
+    MSEHasTransportGuidByte6,
+    MSEHasTransportGuidByte1,
+    MSEHasVehicleId,
+    MSEMovementFlags,
+    MSEHasFallDirection,
+    MSEMovementFlags2,
+    MSEGuidByte0,
+    MSEGuidByte2,
+    MSEGuidByte1,
+    MSEGuidByte5,
+    MSEGuidByte4,
+    MSEGuidByte6,
+    MSEGuidByte3,
+    MSEGuidByte7,
+    MSEPitch,
+    MSETransportTime2,
+    MSETransportGuidByte2,
+    MSETransportPositionY,
+    MSETransportGuidByte3,
+    MSETransportTime,
+    MSETransportPositionX,
+    MSETransportOrientation,
+    MSETransportVehicleId,
+    MSETransportGuidByte6,
+    MSETransportGuidByte5,
+    MSETransportGuidByte4,
+    MSETransportPositionZ,
+    MSETransportGuidByte1,
+    MSETransportGuidByte7,
+    MSETransportGuidByte0,
+    MSETransportSeat,
+    MSEFallSinAngle,
+    MSEFallHorizontalSpeed,
+    MSEFallCosAngle,
+    MSEFallVerticalSpeed,
+    MSEFallTime,
+    MSEOrientation,
+    MSETimestamp,
+    MSESplineElevation,
+    MSEEnd,
+};
+static MovementStatusElements const MovementStopSwim[] =
+{
+    MSEPositionX,
+    MSEPositionY,
+    MSEPositionZ,
+    MSEHasSpline,
+    MSEHasPitch,
+    MSEHasGuidByte5,
+    MSEHasGuidByte3,
+    MSEHasGuidByte7,
+    MSEHasSplineElevation,
+    MSEHasMovementFlags,
+    MSEHasGuidByte4,
+    MSEHasMovementFlags2,
+    MSEHasGuidByte2,
+    MSEHasGuidByte6,
+    MSEHasTransportData,
+    MSEHasOrientation,
+    MSEZeroBit,
+    MSEHasTimestamp,
+    MSEHasGuidByte1,
+    MSEHasGuidByte0,
+    MSEHasFallData,
+    MSEHasVehicleId,
+    MSEHasTransportGuidByte4,
+    MSEHasTransportGuidByte6,
+    MSEHasTransportGuidByte3,
+    MSEHasTransportGuidByte7,
+    MSEHasTransportGuidByte1,
+    MSEHasTransportGuidByte0,
+    MSEHasTransportTime2,
+    MSEHasTransportGuidByte2,
+    MSEHasTransportGuidByte5,
+    MSEMovementFlags,
+    MSEMovementFlags2,
+    MSEHasFallDirection,
+    MSEGuidByte0,
+    MSEGuidByte4,
+    MSEGuidByte3,
+    MSEGuidByte6,
+    MSEGuidByte7,
+    MSEGuidByte1,
+    MSEGuidByte5,
+    MSEGuidByte2,
+    MSETransportVehicleId,
+    MSETransportGuidByte4,
+    MSETransportTime,
+    MSETransportPositionZ,
+    MSETransportSeat,
+    MSETransportGuidByte3,
+    MSETransportGuidByte2,
+    MSETransportPositionY,
+    MSETransportGuidByte7,
+    MSETransportGuidByte1,
+    MSETransportGuidByte6,
+    MSETransportGuidByte5,
+    MSETransportTime2,
+    MSETransportPositionX,
+    MSETransportGuidByte0,
+    MSETransportOrientation,
+    MSEFallVerticalSpeed,
+    MSEFallSinAngle,
+    MSEFallHorizontalSpeed,
+    MSEFallCosAngle,
+    MSEFallTime,
+    MSETimestamp,
+    MSEPitch,
+    MSEOrientation,
+    MSESplineElevation,
+    MSEEnd,
+};
+static MovementStatusElements const MovementStopAscend[] =
+{
+    MSEPositionZ,
+    MSEPositionY,
+    MSEPositionX,
+    MSEHasGuidByte3,
+    MSEHasGuidByte2,
+    MSEHasFallData,
+    MSEHasGuidByte7,
+    MSEHasOrientation,
+    MSEHasPitch,
+    MSEHasSpline,
+    MSEZeroBit,
+    MSEHasGuidByte1,
+    MSEHasGuidByte4,
+    MSEHasMovementFlags,
+    MSEHasGuidByte0,
+    MSEHasGuidByte6,
+    MSEHasSplineElevation,
+    MSEHasTransportData,
+    MSEHasMovementFlags2,
+    MSEHasTimestamp,
+    MSEHasGuidByte5,
+    MSEHasTransportTime2,
+    MSEHasVehicleId,
+    MSEHasTransportGuidByte1,
+    MSEHasTransportGuidByte3,
+    MSEHasTransportGuidByte2,
+    MSEHasTransportGuidByte5,
+    MSEHasTransportGuidByte7,
+    MSEHasTransportGuidByte4,
+    MSEHasTransportGuidByte6,
+    MSEHasTransportGuidByte0,
+    MSEMovementFlags2,
+    MSEMovementFlags,
+    MSEHasFallDirection,
+    MSEGuidByte7,
+    MSEGuidByte5,
+    MSEGuidByte4,
+    MSEGuidByte3,
+    MSEGuidByte2,
+    MSEGuidByte1,
+    MSEGuidByte0,
+    MSEGuidByte6,
+    MSETransportGuidByte5,
+    MSETransportPositionY,
+    MSETransportGuidByte7,
+    MSETransportGuidByte2,
+    MSETransportGuidByte6,
+    MSETransportTime2,
+    MSETransportVehicleId,
+    MSETransportOrientation,
+    MSETransportGuidByte3,
+    MSETransportGuidByte4,
+    MSETransportSeat,
+    MSETransportGuidByte1,
+    MSETransportTime,
+    MSETransportGuidByte0,
+    MSETransportPositionX,
+    MSETransportPositionZ,
+    MSEFallTime,
+    MSEFallVerticalSpeed,
+    MSEFallSinAngle,
+    MSEFallCosAngle,
+    MSEFallHorizontalSpeed,
+    MSEPitch,
+    MSESplineElevation,
+    MSETimestamp,
+    MSEOrientation,
+    MSEEnd,
+};
+static MovementStatusElements const MovementStopPitch[] =
+{
+    MSEPositionX,
+    MSEPositionZ,
+    MSEPositionY,
+    MSEHasGuidByte0,
+    MSEHasGuidByte5,
+    MSEHasGuidByte3,
+    MSEHasFallData,
+    MSEHasGuidByte2,
+    MSEHasGuidByte4,
+    MSEHasGuidByte7,
+    MSEHasPitch,
+    MSEHasSpline,
+    MSEHasOrientation,
+    MSEZeroBit,
+    MSEHasMovementFlags2,
+    MSEHasSplineElevation,
+    MSEHasGuidByte6,
+    MSEHasGuidByte1,
+    MSEHasTimestamp,
+    MSEHasTransportData,
+    MSEHasMovementFlags,
+    MSEHasTransportGuidByte7,
+    MSEHasTransportGuidByte0,
+    MSEHasTransportGuidByte5,
+    MSEHasTransportGuidByte2,
+    MSEHasVehicleId,
+    MSEHasTransportGuidByte6,
+    MSEHasTransportGuidByte3,
+    MSEHasTransportTime2,
+    MSEHasTransportGuidByte4,
+    MSEHasTransportGuidByte1,
+    MSEHasFallDirection,
+    MSEMovementFlags2,
+    MSEMovementFlags,
+    MSEGuidByte1,
+    MSEGuidByte7,
+    MSEGuidByte0,
+    MSEGuidByte6,
+    MSEGuidByte4,
+    MSEGuidByte3,
+    MSEGuidByte5,
+    MSEGuidByte2,
+    MSETimestamp,
+    MSEFallHorizontalSpeed,
+    MSEFallCosAngle,
+    MSEFallSinAngle,
+    MSEFallVerticalSpeed,
+    MSEFallTime,
+    MSETransportGuidByte5,
+    MSETransportGuidByte2,
+    MSETransportTime2,
+    MSETransportPositionX,
+    MSETransportOrientation,
+    MSETransportGuidByte6,
+    MSETransportGuidByte3,
+    MSETransportGuidByte1,
+    MSETransportPositionZ,
+    MSETransportVehicleId,
+    MSETransportGuidByte0,
+    MSETransportGuidByte4,
+    MSETransportTime,
+    MSETransportPositionY,
+    MSETransportSeat,
+    MSETransportGuidByte7,
+    MSESplineElevation,
+    MSEOrientation,
+    MSEPitch,
+    MSEEnd,
+};
+static MovementStatusElements const MovementStartPitchDown[] =
+{
+    MSEPositionX,
+    MSEPositionZ,
+    MSEPositionY,
+    MSEHasMovementFlags,
+    MSEHasGuidByte7,
+    MSEHasGuidByte6,
+    MSEHasPitch,
+    MSEZeroBit,
+    MSEHasGuidByte1,
+    MSEHasGuidByte4,
+    MSEHasTimestamp,
+    MSEHasSplineElevation,
+    MSEHasMovementFlags2,
+    MSEHasTransportData,
+    MSEHasGuidByte0,
+    MSEHasGuidByte5,
+    MSEHasGuidByte3,
+    MSEHasSpline,
+    MSEHasOrientation,
+    MSEHasFallData,
+    MSEHasGuidByte2,
+    MSEHasTransportGuidByte1,
+    MSEHasTransportGuidByte5,
+    MSEHasVehicleId,
+    MSEHasTransportGuidByte7,
+    MSEHasTransportGuidByte4,
+    MSEHasTransportGuidByte6,
+    MSEHasTransportTime2,
+    MSEHasTransportGuidByte0,
+    MSEHasTransportGuidByte3,
+    MSEHasTransportGuidByte2,
+    MSEMovementFlags2,
+    MSEHasFallDirection,
+    MSEMovementFlags,
+    MSEGuidByte3,
+    MSEGuidByte7,
+    MSEGuidByte0,
+    MSEGuidByte5,
+    MSEGuidByte2,
+    MSEGuidByte6,
+    MSEGuidByte4,
+    MSEGuidByte1,
+    MSETransportVehicleId,
+    MSETransportGuidByte3,
+    MSETransportTime2,
+    MSETransportGuidByte5,
+    MSETransportGuidByte1,
+    MSETransportPositionY,
+    MSETransportGuidByte6,
+    MSETransportGuidByte4,
+    MSETransportTime,
+    MSETransportPositionZ,
+    MSETransportPositionX,
+    MSETransportGuidByte0,
+    MSETransportSeat,
+    MSETransportGuidByte2,
+    MSETransportGuidByte7,
+    MSETransportOrientation,
+    MSEFallCosAngle,
+    MSEFallHorizontalSpeed,
+    MSEFallSinAngle,
+    MSEFallVerticalSpeed,
+    MSEFallTime,
+    MSEPitch,
+    MSEOrientation,
+    MSESplineElevation,
+    MSETimestamp,
+    MSEEnd,
+};
+static MovementStatusElements const MovementStartPitchUp[] =
+{
+    MSEPositionZ,
+    MSEPositionY,
+    MSEPositionX,
+    MSEHasGuidByte4,
+    MSEHasMovementFlags,
+    MSEHasMovementFlags2,
+    MSEHasSpline,
+    MSEHasGuidByte2,
+    MSEHasGuidByte6,
+    MSEHasGuidByte3,
+    MSEZeroBit,
+    MSEHasSplineElevation,
+    MSEHasFallData,
+    MSEHasGuidByte0,
+    MSEHasTransportData,
+    MSEHasGuidByte1,
+    MSEHasGuidByte5,
+    MSEHasPitch,
+    MSEHasTimestamp,
+    MSEHasOrientation,
+    MSEHasGuidByte7,
+    MSEMovementFlags2,
+    MSEHasTransportGuidByte7,
+    MSEHasTransportGuidByte3,
+    MSEHasTransportGuidByte1,
+    MSEHasTransportTime2,
+    MSEHasTransportGuidByte4,
+    MSEHasVehicleId,
+    MSEHasTransportGuidByte0,
+    MSEHasTransportGuidByte6,
+    MSEHasTransportGuidByte5,
+    MSEHasTransportGuidByte2,
+    MSEMovementFlags,
+    MSEHasFallDirection,
+    MSEGuidByte0,
+    MSEGuidByte3,
+    MSEGuidByte4,
+    MSEGuidByte6,
+    MSEGuidByte7,
+    MSEGuidByte1,
+    MSEGuidByte5,
+    MSEGuidByte2,
+    MSETransportPositionX,
+    MSETransportGuidByte1,
+    MSETransportGuidByte3,
+    MSETransportGuidByte2,
+    MSETransportGuidByte0,
+    MSETransportTime,
+    MSETransportPositionZ,
+    MSETransportOrientation,
+    MSETransportGuidByte7,
+    MSETransportTime2,
+    MSETransportSeat,
+    MSETransportGuidByte6,
+    MSETransportGuidByte5,
+    MSETransportVehicleId,
+    MSETransportPositionY,
+    MSETransportGuidByte4,
+    MSEFallTime,
+    MSEFallSinAngle,
+    MSEFallCosAngle,
+    MSEFallHorizontalSpeed,
+    MSEFallVerticalSpeed,
+    MSEOrientation,
+    MSESplineElevation,
+    MSEPitch,
+    MSETimestamp,
+    MSEEnd,
+};
+static MovementStatusElements const MoveChngTransport[]=
+{
+    MSEPositionY,
+    MSEPositionX,
+    MSEPositionZ,
+    MSEHasGuidByte4,
+    MSEHasGuidByte0,
+    MSEHasGuidByte2,
+    MSEHasTransportData,
+    MSEHasSpline,
+    MSEHasOrientation,
+    MSEHasGuidByte6,
+    MSEHasTimestamp,
+    MSEHasGuidByte5,
+    MSEHasGuidByte7,
+    MSEHasPitch,
+    MSEZeroBit,
+    MSEHasGuidByte3,
+    MSEHasSplineElevation,
+    MSEHasGuidByte1,
+    MSEHasFallData,
+    MSEHasMovementFlags,
+    MSEHasMovementFlags2,
+    MSEHasTransportGuidByte3,
+    MSEHasVehicleId,
+    MSEHasTransportGuidByte4,
+    MSEHasTransportGuidByte1,
+    MSEHasTransportGuidByte6,
+    MSEHasTransportGuidByte2,
+    MSEHasTransportTime2,
+    MSEHasTransportGuidByte0,
+    MSEHasTransportGuidByte7,
+    MSEHasTransportGuidByte5,
+    MSEMovementFlags,
+    MSEMovementFlags2,
+    MSEHasFallDirection,
+    MSEGuidByte7,
+    MSEGuidByte5,
+    MSEGuidByte1,
+    MSEGuidByte2,
+    MSEGuidByte6,
+    MSEGuidByte4,
+    MSEGuidByte0,
+    MSEGuidByte3,
+    MSETransportPositionY,
+    MSETransportSeat,
+    MSETransportGuidByte1,
+    MSETransportGuidByte0,
+    MSETransportGuidByte2,
+    MSETransportGuidByte3,
+    MSETransportGuidByte6,
+    MSETransportPositionZ,
+    MSETransportPositionX,
+    MSETransportVehicleId,
+    MSETransportTime,
+    MSETransportGuidByte7,
+    MSETransportGuidByte5,
+    MSETransportGuidByte4,
+    MSETransportOrientation,
+    MSETransportTime2,
+    MSEFallTime,
+    MSEFallHorizontalSpeed,
+    MSEFallSinAngle,
+    MSEFallCosAngle,
+    MSEFallVerticalSpeed,
+    MSEOrientation,
+    MSEPitch,
+    MSESplineElevation,
+    MSETimestamp,
+    MSEEnd,
+};
+static MovementStatusElements const MovementFallReset[] =
+{
+    MSEPositionZ,
+    MSEPositionX,
+    MSEPositionY,
+    MSEHasGuidByte1,
+    MSEHasTimestamp,
+    MSEHasMovementFlags,
+    MSEZeroBit,
+    MSEHasGuidByte6,
+    MSEHasSplineElevation,
+    MSEHasPitch,
+    MSEHasGuidByte3,
+    MSEHasTransportData,
+    MSEHasGuidByte2,
+    MSEHasMovementFlags2,
+    MSEHasOrientation,
+    MSEHasGuidByte4,
+    MSEHasGuidByte5,
+    MSEHasSpline,
+    MSEHasGuidByte7,
+    MSEHasGuidByte0,
+    MSEHasFallData,
+    MSEHasTransportGuidByte0,
+    MSEHasTransportGuidByte1,
+    MSEHasTransportGuidByte5,
+    MSEHasTransportGuidByte4,
+    MSEHasTransportTime2,
+    MSEHasTransportGuidByte2,
+    MSEHasVehicleId,
+    MSEHasTransportGuidByte6,
+    MSEHasTransportGuidByte7,
+    MSEHasTransportGuidByte3,
+    MSEHasFallDirection,
+    MSEMovementFlags2,
+    MSEMovementFlags,
+    MSEGuidByte4,
+    MSEGuidByte0,
+    MSEGuidByte1,
+    MSEGuidByte7,
+    MSEGuidByte5,
+    MSEGuidByte2,
+    MSEGuidByte3,
+    MSEGuidByte6,
+    MSETransportPositionX,
+    MSETransportGuidByte7,
+    MSETransportGuidByte2,
+    MSETransportGuidByte3,
+    MSETransportGuidByte5,
+    MSETransportPositionY,
+    MSETransportPositionZ,
+    MSETransportSeat,
+    MSETransportTime2,
+    MSETransportGuidByte6,
+    MSETransportVehicleId,
+    MSETransportTime,
+    MSETransportGuidByte0,
+    MSETransportOrientation,
+    MSETransportGuidByte4,
+    MSETransportGuidByte1,
+    MSEFallVerticalSpeed,
+    MSEFallSinAngle,
+    MSEFallCosAngle,
+    MSEFallHorizontalSpeed,
+    MSEFallTime,
+    MSEOrientation,
+    MSETimestamp,
+    MSESplineElevation,
+    MSEPitch,
+    MSEEnd,
+};
+
+static MovementStatusElements const DismissControlledVehicle[] =
+{
+    MSEPositionY,
+    MSEPositionZ,
+    MSEPositionX,
+    MSEHasSplineElevation,
+    MSEHasFallData,
+    MSEHasTransportData,
+    MSEHasGuidByte4,
+    MSEHasGuidByte7,
+    MSEHasMovementFlags2,
+    MSEHasGuidByte2,
+    MSEHasOrientation,
+    MSEHasGuidByte0,
+    MSEHasGuidByte6,
+    MSEHasPitch,
+    MSEHasTimestamp,
+    MSEHasGuidByte1,
+    MSEZeroBit,
+    MSEHasSpline,
+    MSEHasGuidByte3,
+    MSEHasMovementFlags,
+    MSEHasGuidByte5,
+
+    MSEHasTransportGuidByte5,
+    MSEHasVehicleId,
+    MSEHasTransportGuidByte2,
+    MSEHasTransportGuidByte0,
+    MSEHasTransportGuidByte7,
+    MSEHasTransportGuidByte3,
+    MSEHasTransportGuidByte4,
+    MSEHasTransportGuidByte1,
+    MSEHasTransportGuidByte6,
+    MSEHasTransportTime2,
+
+    MSEMovementFlags2,
+    MSEHasFallDirection,
+    MSEMovementFlags,
+
+    MSEGuidByte6,
+    MSEGuidByte3,
+    MSEGuidByte1,
+    MSEGuidByte5,
+    MSEGuidByte2,
+    MSEGuidByte4,
+    MSEGuidByte7,
+    MSEGuidByte0,
+
+    MSETimestamp,
+
+    MSETransportVehicleId,
+    MSETransportGuidByte4,
+    MSETransportGuidByte7,
+    MSETransportTime2,
+    MSETransportGuidByte6,
+    MSETransportTime,
+    MSETransportPositionZ,
+    MSETransportGuidByte0,
+    MSETransportPositionX,
+    MSETransportGuidByte3,
+    MSETransportSeat,
+    MSETransportPositionY,
+    MSETransportOrientation,
+    MSETransportGuidByte1,
+    MSETransportGuidByte5,
+    MSETransportGuidByte2,
+
+    MSEFallTime,
+    MSEFallHorizontalSpeed,
+    MSEFallCosAngle,
+    MSEFallSinAngle,
+    MSEFallVerticalSpeed,
+
+    MSEOrientation,
+    MSESplineElevation,
+    MSEPitch,
+    MSEEnd,
+};
+
+static MovementStatusElements const ChangeSeatsAccessoryGuid[] =
+{
+    MSEExtraInt8,
+    MSEHasGuidByte2,
+    MSEHasGuidByte4,
+    MSEHasGuidByte7,
+    MSEHasGuidByte6,
+    MSEHasGuidByte5,
+    MSEHasGuidByte0,
+    MSEHasGuidByte1,
+    MSEHasGuidByte3,
+    MSEGuidByte6,
+    MSEGuidByte1,
+    MSEGuidByte2,
+    MSEGuidByte5,
+    MSEGuidByte3,
+    MSEGuidByte0,
+    MSEGuidByte4,
+    MSEGuidByte7,
+    MSEEnd,
+};
+
+static MovementStatusElements const ChangeSeatsOnControlledVehicle[] =
+{
+    MSEPositionY,
+    MSEPositionX,
+    MSEPositionZ,
+    MSEExtraElement,
+    MSEHasMovementFlags,
+    MSEHasTransportData,
+    MSEHasGuidByte2,
+    MSEHasGuidByte6,
+    MSEHasGuidByte4,
+    MSEExtraElement,
+    MSEExtraElement,
+    MSEHasOrientation,
+    MSEZeroBit,
+    MSEExtraElement,
+    MSEHasGuidByte7,
+    MSEExtraElement,
+    MSEHasTimestamp,
+    MSEHasSplineElevation,
+    MSEHasGuidByte5,
+    MSEExtraElement,
+    MSEHasMovementFlags2,
+    MSEHasPitch,
+    MSEExtraElement,
+    MSEHasGuidByte0,
+    MSEExtraElement,
+    MSEHasFallData,
+    MSEHasGuidByte1,
+    MSEHasSpline,
+    MSEMovementFlags,
+    MSEExtraElement,
+    MSEHasGuidByte3,
+    MSEHasTransportGuidByte3,
+    MSEHasTransportGuidByte0,
+    MSEHasTransportGuidByte7,
+    MSEHasTransportGuidByte5,
+    MSEHasVehicleId,
+    MSEHasTransportGuidByte1,
+    MSEHasTransportGuidByte2,
+    MSEHasTransportTime2,
+    MSEHasTransportGuidByte4,
+    MSEHasTransportGuidByte6,
+    MSEMovementFlags2,
+    MSEHasFallDirection,
+    MSEExtraElement,
+    MSEGuidByte7,
+    MSEGuidByte5,
+    MSEExtraElement,
+    MSEExtraElement,
+    MSEGuidByte6,
+    MSEExtraElement,
+    MSEExtraElement,
+    MSEGuidByte3,
+    MSEExtraElement,
+    MSEGuidByte0,
+    MSEExtraElement,
+    MSEGuidByte4,
+    MSEGuidByte1,
+    MSEExtraElement,
+    MSEGuidByte2,
+    MSEPitch,
+    MSEFallCosAngle,
+    MSEFallSinAngle,
+    MSEFallHorizontalSpeed,
+    MSEFallTime,
+    MSEFallVerticalSpeed,
+    MSETransportGuidByte2,
+    MSETransportTime2,
+    MSETransportVehicleId,
+    MSETransportGuidByte0,
+    MSETransportTime,
+    MSETransportSeat,
+    MSETransportPositionX,
+    MSETransportOrientation,
+    MSETransportGuidByte7,
+    MSETransportGuidByte4,
+    MSETransportGuidByte3,
+    MSETransportGuidByte5,
+    MSETransportPositionZ,
+    MSETransportGuidByte1,
+    MSETransportGuidByte6,
+    MSETransportPositionY,
+    MSESplineElevation,
+    MSEOrientation,
+    MSETimestamp,
+    MSEEnd,
+};
+
+MovementStatusElements const* WorldPackets::Movement::GetChangeSeatsExtraSequence()
+{
+    return ChangeSeatsAccessoryGuid;
+}
+
+MovementStatusElements const* WorldPackets::Movement::GetMovementSequence(uint16 opcode)
+{
+    switch (opcode)
+    {
+        case CMSG_DISMISS_CONTROLLED_VEHICLE:            return DismissControlledVehicle;
+        case CMSG_CHANGE_SEATS_ON_CONTROLLED_VEHICLE:    return ChangeSeatsOnControlledVehicle;
+        case MSG_MOVE_START_BACKWARD:     return MovementStartBackward;
+        case MSG_MOVE_START_FORWARD:      return MovementStartForward;
+        case MSG_MOVE_START_STRAFE_LEFT:  return MovementStartStrafeLeft;
+        case MSG_MOVE_START_STRAFE_RIGHT: return MovementStartStrafeRight;
+        case MSG_MOVE_START_TURN_LEFT:    return MovementStartTurnLeft;
+        case MSG_MOVE_START_TURN_RIGHT:   return MovementStartTurnRight;
+        case MSG_MOVE_STOP:               return MovementStop;
+        case MSG_MOVE_STOP_STRAFE:        return MovementStopStrafe;
+        case MSG_MOVE_STOP_TURN:          return MovementStopTurn;
+        case MSG_MOVE_SET_RUN_MODE:       return MovementSetRunMode;
+        case MSG_MOVE_SET_WALK_MODE:      return MovementSetWalkMode;
+        case MSG_MOVE_SET_FACING:         return MovementSetFacing;
+        case MSG_MOVE_FALL_LAND:          return MovementFallLand;
+        case MSG_MOVE_JUMP:               return MovementJump;
+        case MSG_MOVE_SET_PITCH:          return MovementSetPitch;
+        case MSG_MOVE_START_ASCEND:       return MovementStartAscend;
+        case MSG_MOVE_START_DESCEND:      return MovementStartDescend;
+        case MSG_MOVE_START_PITCH_DOWN:   return MovementStartPitchDown;
+        case MSG_MOVE_START_PITCH_UP:     return MovementStartPitchUp;
+        case MSG_MOVE_START_SWIM:         return MovementStartSwim;
+        case MSG_MOVE_STOP_ASCEND:        return MovementStopAscend;
+        case MSG_MOVE_STOP_PITCH:         return MovementStopPitch;
+        case MSG_MOVE_STOP_SWIM:          return MovementStopSwim;
+        case CMSG_MOVE_CHNG_TRANSPORT:    return MoveChngTransport;
+        case CMSG_MOVE_FALL_RESET:        return MovementFallReset;
+        default:                         return nullptr;
+    }
+}
+
+namespace
+{
+    MovementStatusElements const MoveRoot[] =
+    {
+        MSEHasGuidByte2,
+        MSEHasGuidByte7,
+        MSEHasGuidByte6,
+        MSEHasGuidByte0,
+        MSEHasGuidByte5,
+        MSEHasGuidByte4,
+        MSEHasGuidByte1,
+        MSEHasGuidByte3,
+        MSEGuidByte1,
+        MSEGuidByte0,
+        MSEGuidByte2,
+        MSEGuidByte5,
+        MSECounter,
+        MSEGuidByte3,
+        MSEGuidByte4,
+        MSEGuidByte7,
+        MSEGuidByte6,
+        MSEEnd,
+    };
+
+    MovementStatusElements const MoveUnroot[] =
+    {
+        MSEHasGuidByte0,
+        MSEHasGuidByte1,
+        MSEHasGuidByte3,
+        MSEHasGuidByte7,
+        MSEHasGuidByte5,
+        MSEHasGuidByte2,
+        MSEHasGuidByte4,
+        MSEHasGuidByte6,
+        MSEGuidByte3,
+        MSEGuidByte6,
+        MSEGuidByte1,
+        MSECounter,
+        MSEGuidByte2,
+        MSEGuidByte0,
+        MSEGuidByte7,
+        MSEGuidByte4,
+        MSEGuidByte5,
+        MSEEnd,
+    };
+
+    MovementStatusElements const MoveWaterWalk[] =
+    {
+        MSEHasGuidByte4,
+        MSEHasGuidByte7,
+        MSEHasGuidByte6,
+        MSEHasGuidByte0,
+        MSEHasGuidByte1,
+        MSEHasGuidByte3,
+        MSEHasGuidByte5,
+        MSEHasGuidByte2,
+        MSEGuidByte0,
+        MSEGuidByte5,
+        MSEGuidByte2,
+        MSECounter,
+        MSEGuidByte7,
+        MSEGuidByte3,
+        MSEGuidByte4,
+        MSEGuidByte1,
+        MSEGuidByte6,
+        MSEEnd,
+    };
+
+    MovementStatusElements const MoveLandWalk[] =
+    {
+        MSEHasGuidByte5,
+        MSEHasGuidByte1,
+        MSEHasGuidByte6,
+        MSEHasGuidByte2,
+        MSEHasGuidByte3,
+        MSEHasGuidByte4,
+        MSEHasGuidByte0,
+        MSEHasGuidByte7,
+        MSEGuidByte6,
+        MSEGuidByte1,
+        MSEGuidByte7,
+        MSEGuidByte5,
+        MSEGuidByte4,
+        MSEGuidByte0,
+        MSEGuidByte3,
+        MSEGuidByte2,
+        MSECounter,
+        MSEEnd,
+    };
+
+    MovementStatusElements const ForceMoveRootAck[] =
+    {
+        MSEPositionY,
+        MSEPositionZ,
+        MSECounter,
+        MSEPositionX,
+        MSEHasGuidByte3,
+        MSEHasTimestamp,
+        MSEHasTransportData,
+        MSEHasPitch,
+        MSEHasGuidByte2,
+        MSEHasOrientation,
+        MSEHasSplineElevation,
+        MSEHasFallData,
+        MSEHasSpline,
+        MSEHasGuidByte4,
+        MSEHasGuidByte0,
+        MSEHasGuidByte6,
+        MSEHasGuidByte1,
+        MSEHasGuidByte7,
+        MSEHasMovementFlags2,
+        MSEHasMovementFlags,
+        MSEZeroBit,
+        MSEHasGuidByte5,
+        MSEHasTransportGuidByte6,
+        MSEHasTransportGuidByte0,
+        MSEHasTransportGuidByte7,
+        MSEHasTransportGuidByte3,
+        MSEHasTransportGuidByte1,
+        MSEHasTransportGuidByte2,
+        MSEHasTransportTime2,
+        MSEHasTransportGuidByte4,
+        MSEHasVehicleId,
+        MSEHasTransportGuidByte5,
+        MSEMovementFlags2,
+        MSEMovementFlags,
+        MSEHasFallDirection,
+        MSEGuidByte5,
+        MSEGuidByte3,
+        MSEGuidByte1,
+        MSEGuidByte7,
+        MSEGuidByte4,
+        MSEGuidByte0,
+        MSEGuidByte6,
+        MSEGuidByte2,
+        MSETransportGuidByte5,
+        MSETransportGuidByte4,
+        MSETransportOrientation,
+        MSETransportPositionZ,
+        MSETransportVehicleId,
+        MSETransportTime2,
+        MSETransportGuidByte7,
+        MSETransportGuidByte2,
+        MSETransportGuidByte0,
+        MSETransportTime,
+        MSETransportGuidByte6,
+        MSETransportGuidByte3,
+        MSETransportPositionX,
+        MSETransportGuidByte1,
+        MSETransportPositionY,
+        MSETransportSeat,
+        MSETimestamp,
+        MSEFallVerticalSpeed,
+        MSEFallHorizontalSpeed,
+        MSEFallCosAngle,
+        MSEFallSinAngle,
+        MSEFallTime,
+        MSEOrientation,
+        MSESplineElevation,
+        MSEPitch,
+        MSEEnd,
+    };
+
+    MovementStatusElements const ForceMoveUnrootAck[] =
+    {
+        MSECounter,
+        MSEPositionZ,
+        MSEPositionY,
+        MSEPositionX,
+        MSEHasGuidByte7,
+        MSEHasSplineElevation,
+        MSEHasSpline,
+        MSEHasGuidByte5,
+        MSEHasGuidByte4,
+        MSEZeroBit,
+        MSEHasTimestamp,
+        MSEHasMovementFlags,
+        MSEHasOrientation,
+        MSEHasPitch,
+        MSEHasGuidByte3,
+        MSEHasGuidByte1,
+        MSEHasTransportData,
+        MSEHasMovementFlags2,
+        MSEHasGuidByte2,
+        MSEHasGuidByte0,
+        MSEHasFallData,
+        MSEHasGuidByte6,
+        MSEHasFallDirection,
+        MSEHasTransportGuidByte0,
+        MSEHasVehicleId,
+        MSEHasTransportGuidByte6,
+        MSEHasTransportTime2,
+        MSEHasTransportGuidByte3,
+        MSEHasTransportGuidByte5,
+        MSEHasTransportGuidByte7,
+        MSEHasTransportGuidByte2,
+        MSEHasTransportGuidByte4,
+        MSEHasTransportGuidByte1,
+        MSEMovementFlags2,
+        MSEMovementFlags,
+        MSEGuidByte7,
+        MSEGuidByte1,
+        MSEGuidByte0,
+        MSEGuidByte6,
+        MSEGuidByte2,
+        MSEGuidByte4,
+        MSEGuidByte5,
+        MSEGuidByte3,
+        MSETransportGuidByte6,
+        MSETransportPositionZ,
+        MSETransportGuidByte2,
+        MSETransportGuidByte3,
+        MSETransportPositionY,
+        MSETransportVehicleId,
+        MSETransportGuidByte5,
+        MSETransportSeat,
+        MSETransportGuidByte0,
+        MSETransportTime,
+        MSETransportTime2,
+        MSETransportGuidByte4,
+        MSETransportOrientation,
+        MSETransportPositionX,
+        MSETransportGuidByte1,
+        MSETransportGuidByte7,
+        MSEFallSinAngle,
+        MSEFallHorizontalSpeed,
+        MSEFallCosAngle,
+        MSEFallVerticalSpeed,
+        MSEFallTime,
+        MSETimestamp,
+        MSESplineElevation,
+        MSEOrientation,
+        MSEPitch,
+        MSEEnd,
+    };
+
+    MovementStatusElements const MovementWaterWalkAck[] =
+    {
+        MSEPositionY,
+        MSEPositionZ,
+        MSECounter,
+        MSEPositionX,
+        MSEHasTimestamp,
+        MSEHasPitch,
+        MSEHasGuidByte5,
+        MSEHasGuidByte0,
+        MSEHasGuidByte7,
+        MSEHasOrientation,
+        MSEHasGuidByte1,
+        MSEHasMovementFlags2,
+        MSEHasGuidByte2,
+        MSEHasMovementFlags,
+        MSEHasGuidByte3,
+        MSEHasTransportData,
+        MSEHasGuidByte6,
+        MSEHasFallData,
+        MSEHasGuidByte4,
+        MSEZeroBit,
+        MSEHasSplineElevation,
+        MSEHasSpline,
+        MSEHasTransportGuidByte0,
+        MSEHasTransportGuidByte1,
+        MSEHasTransportGuidByte6,
+        MSEHasTransportGuidByte2,
+        MSEHasTransportGuidByte7,
+        MSEHasTransportGuidByte5,
+        MSEHasTransportTime2,
+        MSEHasTransportGuidByte3,
+        MSEHasVehicleId,
+        MSEHasTransportGuidByte4,
+        MSEMovementFlags,
+        MSEHasFallDirection,
+        MSEMovementFlags2,
+        MSEGuidByte2,
+        MSEGuidByte7,
+        MSEGuidByte3,
+        MSEGuidByte5,
+        MSEGuidByte6,
+        MSEGuidByte0,
+        MSEGuidByte4,
+        MSEGuidByte1,
+        MSETransportPositionX,
+        MSETransportGuidByte1,
+        MSETransportVehicleId,
+        MSETransportGuidByte0,
+        MSETransportOrientation,
+        MSETransportGuidByte7,
+        MSETransportPositionY,
+        MSETransportTime2,
+        MSETransportTime,
+        MSETransportGuidByte5,
+        MSETransportSeat,
+        MSETransportPositionZ,
+        MSETransportGuidByte3,
+        MSETransportGuidByte2,
+        MSETransportGuidByte6,
+        MSETransportGuidByte4,
+        MSESplineElevation,
+        MSEFallCosAngle,
+        MSEFallHorizontalSpeed,
+        MSEFallSinAngle,
+        MSEFallVerticalSpeed,
+        MSEFallTime,
+        MSEOrientation,
+        MSETimestamp,
+        MSEPitch,
+        MSEEnd
+    };
+
+}
+
+void WorldPackets::Movement::ReadGroundMovement(WorldPacket& packet, MovementInfo& info,
+    MovementStatusElements const* sequence, uint32* counter, ExtraMovementStatusElement* extras)
+{
+    info = MovementInfo();
+    bool hasTransportData = false;
+    bool hasVehicleId = false;
+    bool hasTransportTime2 = false;
+    bool hasMovementFlags = false;
+    bool hasMovementFlags2 = false;
+    bool hasTimestamp = false;
+    bool hasOrientation = false;
+    bool hasPitch = false;
+    bool hasSplineElevation = false;
+    bool hasSpline = false;
+    bool hasFallData = false;
+    bool hasFallDirection = false;
+
+    for (; *sequence != MSEEnd; ++sequence)
+    {
+        switch (*sequence)
+        {
+            case MSEHasGuidByte0: info.guid[0] = packet.ReadBit(); break;
+            case MSEHasGuidByte1: info.guid[1] = packet.ReadBit(); break;
+            case MSEHasGuidByte2: info.guid[2] = packet.ReadBit(); break;
+            case MSEHasGuidByte3: info.guid[3] = packet.ReadBit(); break;
+            case MSEHasGuidByte4: info.guid[4] = packet.ReadBit(); break;
+            case MSEHasGuidByte5: info.guid[5] = packet.ReadBit(); break;
+            case MSEHasGuidByte6: info.guid[6] = packet.ReadBit(); break;
+            case MSEHasGuidByte7: info.guid[7] = packet.ReadBit(); break;
+            case MSEGuidByte0: packet.ReadByteSeq(info.guid[0]); break;
+            case MSEGuidByte1: packet.ReadByteSeq(info.guid[1]); break;
+            case MSEGuidByte2: packet.ReadByteSeq(info.guid[2]); break;
+            case MSEGuidByte3: packet.ReadByteSeq(info.guid[3]); break;
+            case MSEGuidByte4: packet.ReadByteSeq(info.guid[4]); break;
+            case MSEGuidByte5: packet.ReadByteSeq(info.guid[5]); break;
+            case MSEGuidByte6: packet.ReadByteSeq(info.guid[6]); break;
+            case MSEGuidByte7: packet.ReadByteSeq(info.guid[7]); break;
+            case MSEHasTransportGuidByte0: if (hasTransportData) info.transport.guid[0] = packet.ReadBit(); break;
+            case MSEHasTransportGuidByte1: if (hasTransportData) info.transport.guid[1] = packet.ReadBit(); break;
+            case MSEHasTransportGuidByte2: if (hasTransportData) info.transport.guid[2] = packet.ReadBit(); break;
+            case MSEHasTransportGuidByte3: if (hasTransportData) info.transport.guid[3] = packet.ReadBit(); break;
+            case MSEHasTransportGuidByte4: if (hasTransportData) info.transport.guid[4] = packet.ReadBit(); break;
+            case MSEHasTransportGuidByte5: if (hasTransportData) info.transport.guid[5] = packet.ReadBit(); break;
+            case MSEHasTransportGuidByte6: if (hasTransportData) info.transport.guid[6] = packet.ReadBit(); break;
+            case MSEHasTransportGuidByte7: if (hasTransportData) info.transport.guid[7] = packet.ReadBit(); break;
+            case MSETransportGuidByte0: if (hasTransportData) packet.ReadByteSeq(info.transport.guid[0]); break;
+            case MSETransportGuidByte1: if (hasTransportData) packet.ReadByteSeq(info.transport.guid[1]); break;
+            case MSETransportGuidByte2: if (hasTransportData) packet.ReadByteSeq(info.transport.guid[2]); break;
+            case MSETransportGuidByte3: if (hasTransportData) packet.ReadByteSeq(info.transport.guid[3]); break;
+            case MSETransportGuidByte4: if (hasTransportData) packet.ReadByteSeq(info.transport.guid[4]); break;
+            case MSETransportGuidByte5: if (hasTransportData) packet.ReadByteSeq(info.transport.guid[5]); break;
+            case MSETransportGuidByte6: if (hasTransportData) packet.ReadByteSeq(info.transport.guid[6]); break;
+            case MSETransportGuidByte7: if (hasTransportData) packet.ReadByteSeq(info.transport.guid[7]); break;
+            case MSEHasTransportData: hasTransportData = packet.ReadBit(); break;
+            case MSEHasVehicleId: if (hasTransportData) hasVehicleId = packet.ReadBit(); break;
+            case MSEHasTransportTime2: if (hasTransportData) hasTransportTime2 = packet.ReadBit(); break;
+            case MSEHasMovementFlags: hasMovementFlags = !packet.ReadBit(); break;
+            case MSEHasMovementFlags2: hasMovementFlags2 = !packet.ReadBit(); break;
+            case MSEHasTimestamp: hasTimestamp = !packet.ReadBit(); break;
+            case MSEHasOrientation: hasOrientation = !packet.ReadBit(); break;
+            case MSEHasPitch: hasPitch = !packet.ReadBit(); break;
+            case MSEHasSplineElevation: hasSplineElevation = !packet.ReadBit(); break;
+            case MSEHasSpline: hasSpline = packet.ReadBit(); break;
+            case MSEHasFallData: hasFallData = packet.ReadBit(); break;
+            case MSEHasFallDirection: if (hasFallData) hasFallDirection = packet.ReadBit(); break;
+            case MSEZeroBit: packet.ReadBit(); break;
+            case MSEMovementFlags:
+                if (hasMovementFlags)
+                {
+                    uint32 flags = packet.ReadBits(30);
+                    info.flags = (flags & 0x000001FF) | ((flags & 0x03FFFE00) << 1) | ((flags & 0x3C000000) << 2);
+                }
+                break;
+            case MSEMovementFlags2:
+                if (hasMovementFlags2)
+                {
+                    uint16 flags = packet.ReadBits(12);
+                    info.flags2 = (flags & 0x03C3) | ((flags & 0x001C) << 1) | ((flags & 0x0020) >> 3) |
+                        ((flags & 0xE000) >> 3) | ((flags & 0x1C00) << 3);
+                }
+                break;
+            case MSEPositionX: packet >> info.pos.m_positionX; break;
+            case MSEPositionY: packet >> info.pos.m_positionY; break;
+            case MSEPositionZ: packet >> info.pos.m_positionZ; break;
+            case MSEOrientation: if (hasOrientation) info.pos.SetOrientation(packet.read<float>()); break;
+            case MSETransportPositionX: if (hasTransportData) packet >> info.transport.pos.m_positionX; break;
+            case MSETransportPositionY: if (hasTransportData) packet >> info.transport.pos.m_positionY; break;
+            case MSETransportPositionZ: if (hasTransportData) packet >> info.transport.pos.m_positionZ; break;
+            case MSETransportOrientation: if (hasTransportData) info.transport.pos.SetOrientation(packet.read<float>()); break;
+            case MSETransportSeat: if (hasTransportData) packet >> info.transport.seat; break;
+            case MSETransportTime: if (hasTransportData) packet >> info.transport.time; break;
+            case MSETransportTime2: if (hasTransportData && hasTransportTime2) packet >> info.transport.time2; break;
+            case MSETransportVehicleId: if (hasTransportData && hasVehicleId) packet >> info.transport.vehicleId; break;
+            case MSEPitch: if (hasPitch) info.pitch = G3D::wrap(packet.read<float>(), float(-M_PI), float(M_PI)); break;
+            case MSEFallTime: if (hasFallData) packet >> info.fallTime; break;
+            case MSEFallVerticalSpeed: if (hasFallData) packet >> info.jump.zspeed; break;
+            case MSEFallCosAngle: if (hasFallData && hasFallDirection) packet >> info.jump.cosAngle; break;
+            case MSEFallSinAngle: if (hasFallData && hasFallDirection) packet >> info.jump.sinAngle; break;
+            case MSEFallHorizontalSpeed: if (hasFallData && hasFallDirection) packet >> info.jump.xyspeed; break;
+            case MSESplineElevation: if (hasSplineElevation) packet >> info.splineElevation; break;
+            case MSETimestamp: if (hasTimestamp) packet >> info.time; break;
+            case MSECounter:
+                if (counter)
+                    packet >> *counter;
+                else
+                    packet.read_skip<uint32>();
+                break;
+            case MSEExtraElement:
+                extras->ReadNextElement(packet);
+                break;
+            case MSEExtraFloat:
+            case MSEExtraInt8:
+            case MSEExtraTwoBits:
+                break; // only valid inside an ExtraMovementStatusElement sequence
+            case MSEEnd: break;
+        }
+    }
+
+    if (hasTransportData)
+        info.AddMovementFlag(MOVEMENTFLAG_ONTRANSPORT);
+    if (hasSpline)
+        info.AddMovementFlag(MOVEMENTFLAG_SPLINE_ENABLED);
+    if (hasTransportTime2)
+        info.AddExtraMovementFlag(MOVEMENTFLAG2_INTERPOLATED_MOVEMENT);
+
+    if (packet.rpos() != packet.size())
+        throw ByteBufferInvalidValueException("ground movement payload", "trailing bytes");
+}
+
+void WorldPackets::Movement::ExtraMovementStatusElement::ReadNextElement(WorldPacket& packet)
+{
+    MovementStatusElements const element = _elements[_index++];
+
+    switch (element)
+    {
+        case MSEHasGuidByte0:
+        case MSEHasGuidByte1:
+        case MSEHasGuidByte2:
+        case MSEHasGuidByte3:
+        case MSEHasGuidByte4:
+        case MSEHasGuidByte5:
+        case MSEHasGuidByte6:
+        case MSEHasGuidByte7:
+            Data.guid[element - MSEHasGuidByte0] = packet.ReadBit();
+            break;
+        case MSEGuidByte0:
+        case MSEGuidByte1:
+        case MSEGuidByte2:
+        case MSEGuidByte3:
+        case MSEGuidByte4:
+        case MSEGuidByte5:
+        case MSEGuidByte6:
+        case MSEGuidByte7:
+            packet.ReadByteSeq(Data.guid[element - MSEGuidByte0]);
+            break;
+        case MSEExtraFloat:
+            packet >> Data.floatData;
+            break;
+        case MSEExtraInt8:
+            packet >> Data.byteData;
+            break;
+        case MSEExtraTwoBits:
+            Data.byteData = packet.ReadBits(2);
+            break;
+        default:
+            break;
+    }
+}
+
+void WorldPackets::Movement::WriteGroundMovement(WorldPacket& packet, MovementInfo const& info,
+    MovementStatusElements const* sequence, uint32 counter)
+{
+    uint32 flags = MovementFlagsToClient(info.flags);
+    uint16 flags2 = ExtraMovementFlagsToClient(info.flags2) & 0x0FFF;
+    bool hasFallDirection = info.HasMovementFlag(MOVEMENTFLAG_FALLING);
+    bool hasFallData = hasFallDirection || info.fallTime != 0;
+    bool hasOrientation = !G3D::fuzzyEq(info.pos.GetOrientation(), 0.0f);
+    bool hasTransport = !info.transport.guid.IsEmpty();
+    bool hasVehicleId = hasTransport && info.transport.vehicleId != 0;
+    bool hasTransportTime2 = hasTransport && info.transport.time2 != 0;
+    bool hasPitch = info.HasMovementFlag(MOVEMENTFLAG_SWIMMING | MOVEMENTFLAG_FLYING) ||
+        info.HasExtraMovementFlag(MOVEMENTFLAG2_ALWAYS_ALLOW_PITCHING);
+    bool hasSplineElevation = info.HasMovementFlag(MOVEMENTFLAG_SPLINE_ELEVATION);
+    bool hasSpline = info.HasMovementFlag(MOVEMENTFLAG_SPLINE_ENABLED);
+    ObjectGuid const& guid = info.guid;
+    ObjectGuid const& transport = info.transport.guid;
+
+    for (; *sequence != MSEEnd; ++sequence)
+    {
+        switch (*sequence)
+        {
+            case MSEHasGuidByte0: packet.WriteBit(guid[0]); break;
+            case MSEHasGuidByte1: packet.WriteBit(guid[1]); break;
+            case MSEHasGuidByte2: packet.WriteBit(guid[2]); break;
+            case MSEHasGuidByte3: packet.WriteBit(guid[3]); break;
+            case MSEHasGuidByte4: packet.WriteBit(guid[4]); break;
+            case MSEHasGuidByte5: packet.WriteBit(guid[5]); break;
+            case MSEHasGuidByte6: packet.WriteBit(guid[6]); break;
+            case MSEHasGuidByte7: packet.WriteBit(guid[7]); break;
+            case MSEHasTransportGuidByte0: if (hasTransport) packet.WriteBit(transport[0]); break;
+            case MSEHasTransportGuidByte1: if (hasTransport) packet.WriteBit(transport[1]); break;
+            case MSEHasTransportGuidByte2: if (hasTransport) packet.WriteBit(transport[2]); break;
+            case MSEHasTransportGuidByte3: if (hasTransport) packet.WriteBit(transport[3]); break;
+            case MSEHasTransportGuidByte4: if (hasTransport) packet.WriteBit(transport[4]); break;
+            case MSEHasTransportGuidByte5: if (hasTransport) packet.WriteBit(transport[5]); break;
+            case MSEHasTransportGuidByte6: if (hasTransport) packet.WriteBit(transport[6]); break;
+            case MSEHasTransportGuidByte7: if (hasTransport) packet.WriteBit(transport[7]); break;
+            case MSEHasTransportData: packet.WriteBit(hasTransport); break;
+            case MSEHasVehicleId: if (hasTransport) packet.WriteBit(hasVehicleId); break;
+            case MSEHasTransportTime2: if (hasTransport) packet.WriteBit(hasTransportTime2); break;
+            case MSEHasMovementFlags: packet.WriteBit(!flags); break;
+            case MSEHasMovementFlags2: packet.WriteBit(!flags2); break;
+            case MSEHasTimestamp: packet.WriteBit(false); break; // Timestamp is always present in server movement updates.
+            case MSEHasOrientation: packet.WriteBit(!hasOrientation); break;
+            case MSEHasPitch: packet.WriteBit(!hasPitch); break;
+            case MSEHasSplineElevation: packet.WriteBit(!hasSplineElevation); break;
+            case MSEHasSpline: packet.WriteBit(hasSpline); break;
+            case MSEHasFallData: packet.WriteBit(hasFallData); break;
+            case MSEHasFallDirection: if (hasFallData) packet.WriteBit(hasFallDirection); break;
+            case MSEZeroBit: packet.WriteBit(false); break;
+            case MSEMovementFlags: if (flags) packet.WriteBits(flags, 30); break;
+            case MSEMovementFlags2: if (flags2) packet.WriteBits(flags2, 12); break;
+            case MSEPositionX: packet << info.pos.GetPositionX(); break;
+            case MSEPositionY: packet << info.pos.GetPositionY(); break;
+            case MSEPositionZ: packet << info.pos.GetPositionZ(); break;
+            case MSEOrientation: packet.FlushBits(); if (hasOrientation) packet << info.pos.GetOrientation(); break;
+            case MSEGuidByte0: packet.FlushBits(); packet.WriteByteSeq(guid[0]); break;
+            case MSEGuidByte1: packet.FlushBits(); packet.WriteByteSeq(guid[1]); break;
+            case MSEGuidByte2: packet.FlushBits(); packet.WriteByteSeq(guid[2]); break;
+            case MSEGuidByte3: packet.FlushBits(); packet.WriteByteSeq(guid[3]); break;
+            case MSEGuidByte4: packet.FlushBits(); packet.WriteByteSeq(guid[4]); break;
+            case MSEGuidByte5: packet.FlushBits(); packet.WriteByteSeq(guid[5]); break;
+            case MSEGuidByte6: packet.FlushBits(); packet.WriteByteSeq(guid[6]); break;
+            case MSEGuidByte7: packet.FlushBits(); packet.WriteByteSeq(guid[7]); break;
+            case MSETransportGuidByte0: packet.FlushBits(); if (hasTransport) packet.WriteByteSeq(transport[0]); break;
+            case MSETransportGuidByte1: packet.FlushBits(); if (hasTransport) packet.WriteByteSeq(transport[1]); break;
+            case MSETransportGuidByte2: packet.FlushBits(); if (hasTransport) packet.WriteByteSeq(transport[2]); break;
+            case MSETransportGuidByte3: packet.FlushBits(); if (hasTransport) packet.WriteByteSeq(transport[3]); break;
+            case MSETransportGuidByte4: packet.FlushBits(); if (hasTransport) packet.WriteByteSeq(transport[4]); break;
+            case MSETransportGuidByte5: packet.FlushBits(); if (hasTransport) packet.WriteByteSeq(transport[5]); break;
+            case MSETransportGuidByte6: packet.FlushBits(); if (hasTransport) packet.WriteByteSeq(transport[6]); break;
+            case MSETransportGuidByte7: packet.FlushBits(); if (hasTransport) packet.WriteByteSeq(transport[7]); break;
+            case MSETransportPositionX: packet.FlushBits(); if (hasTransport) packet << info.transport.pos.GetPositionX(); break;
+            case MSETransportPositionY: packet.FlushBits(); if (hasTransport) packet << info.transport.pos.GetPositionY(); break;
+            case MSETransportPositionZ: packet.FlushBits(); if (hasTransport) packet << info.transport.pos.GetPositionZ(); break;
+            case MSETransportOrientation: packet.FlushBits(); if (hasTransport) packet << info.transport.pos.GetOrientation(); break;
+            case MSETransportSeat: packet.FlushBits(); if (hasTransport) packet << info.transport.seat; break;
+            case MSETransportTime: packet.FlushBits(); if (hasTransport) packet << info.transport.time; break;
+            case MSETransportTime2: packet.FlushBits(); if (hasTransport && hasTransportTime2) packet << info.transport.time2; break;
+            case MSETransportVehicleId: packet.FlushBits(); if (hasTransport && hasVehicleId) packet << info.transport.vehicleId; break;
+            case MSEPitch: packet.FlushBits(); if (hasPitch) packet << info.pitch; break;
+            case MSEFallTime: packet.FlushBits(); if (hasFallData) packet << info.fallTime; break;
+            case MSEFallVerticalSpeed: packet.FlushBits(); if (hasFallData) packet << info.jump.zspeed; break;
+            case MSEFallCosAngle: packet.FlushBits(); if (hasFallData && hasFallDirection) packet << info.jump.cosAngle; break;
+            case MSEFallSinAngle: packet.FlushBits(); if (hasFallData && hasFallDirection) packet << info.jump.sinAngle; break;
+            case MSEFallHorizontalSpeed: packet.FlushBits(); if (hasFallData && hasFallDirection) packet << info.jump.xyspeed; break;
+            case MSESplineElevation: packet.FlushBits(); if (hasSplineElevation) packet << info.splineElevation; break;
+            case MSETimestamp: packet.FlushBits(); packet << info.time; break;
+            case MSECounter: packet.FlushBits(); packet << counter; break;
+            case MSEExtraElement:
+            case MSEExtraFloat:
+            case MSEExtraInt8:
+            case MSEExtraTwoBits:
+                // Client-only extras; no server movement sequence writes them.
+                break;
+            case MSEEnd: break;
+        }
+    }
+}
+
+WorldPackets::Movement::MovementStatusElements const*
+WorldPackets::Movement::GetMovementFlagSequence(uint16 opcode)
+{
+    switch (opcode)
+    {
+        case SMSG_MOVE_ROOT: return MoveRoot;
+        case SMSG_MOVE_UNROOT: return MoveUnroot;
+        case SMSG_MOVE_WATER_WALK: return MoveWaterWalk;
+        case SMSG_MOVE_LAND_WALK: return MoveLandWalk;
+        case CMSG_FORCE_MOVE_ROOT_ACK: return ForceMoveRootAck;
+        case CMSG_FORCE_MOVE_UNROOT_ACK: return ForceMoveUnrootAck;
+        case CMSG_MOVE_WATER_WALK_ACK: return MovementWaterWalkAck;
+        default: return nullptr;
+    }
+}
+
+void WorldPackets::Movement::WriteTeleport(WorldPacket& packet, ObjectGuid guid, uint32 counter,
+    Position const& pos, ObjectGuid transport)
+{
+    for (uint8 index : { 6, 0, 3, 2 })
+        packet.WriteBit(guid[index]);
+    packet.WriteBit(false); // no vehicle exit
+    packet.WriteBit(!transport.IsEmpty());
+    packet.WriteBit(guid[1]);
+    if (transport)
+        for (uint8 index : { 1, 3, 2, 5, 0, 7, 6, 4 })
+            packet.WriteBit(transport[index]);
+    for (uint8 index : { 4, 7, 5 })
+        packet.WriteBit(guid[index]);
+    packet.FlushBits();
+    if (transport)
+        for (uint8 index : { 5, 6, 1, 7, 0, 2, 4, 3 })
+            packet.WriteByteSeq(transport[index]);
+    packet << counter;
+    for (uint8 index : { 1, 2, 3, 5 })
+        packet.WriteByteSeq(guid[index]);
+    packet << pos.GetPositionX();
+    packet.WriteByteSeq(guid[4]);
+    packet << pos.GetOrientation();
+    packet.WriteByteSeq(guid[7]);
+    packet << pos.GetPositionZ();
+    packet.WriteByteSeq(guid[0]);
+    packet.WriteByteSeq(guid[6]);
+    packet << pos.GetPositionY();
+}
+
+void WorldPackets::Movement::ReadTeleportAck(WorldPacket& packet, ObjectGuid& guid, uint32& counter, uint32& time)
+{
+    packet >> counter >> time;
+    guid.Clear();
+    for (uint8 index : { 5, 0, 1, 6, 3, 7, 2, 4 })
+        guid[index] = packet.ReadBit();
+    for (uint8 index : { 4, 2, 7, 6, 5, 1, 3, 0 })
+        packet.ReadByteSeq(guid[index]);
+}
+
+void WorldPackets::Movement::ReadTimeSkipped(WorldPacket& packet, ObjectGuid& guid, uint32& time)
+{
+    // Cata: time first, then the bit-packed mover GUID.
+    packet >> time;
+    guid.Clear();
+    for (uint8 index : { 5, 1, 3, 7, 6, 0, 4, 2 })
+        guid[index] = packet.ReadBit();
+    for (uint8 index : { 7, 1, 2, 4, 3, 6, 0, 5 })
+        packet.ReadByteSeq(guid[index]);
+}
+
+void WorldPackets::Movement::WriteTimeSkipped(WorldPacket& packet, ObjectGuid const& guid, uint32 time)
+{
+    packet << time;
+    packet << guid.WriteAsPacked();
+}
+
+void WorldPackets::Movement::WriteTeleportUpdate(WorldPacket& packet, MovementInfo const& info)
+{
+    uint32 flags = MovementFlagsToClient(info.flags);
+    uint16 flags2 = ExtraMovementFlagsToClient(info.flags2) & 0x0FFF;
+    bool hasOrientation = !G3D::fuzzyEq(info.pos.GetOrientation(), 0.0f);
+    bool hasFallDirection = info.HasMovementFlag(MOVEMENTFLAG_FALLING);
+    bool hasFallData = hasFallDirection || info.fallTime != 0;
+    bool hasTransport = !info.transport.guid.IsEmpty();
+    bool hasPitch = info.HasMovementFlag(MOVEMENTFLAG_SWIMMING | MOVEMENTFLAG_FLYING) ||
+        info.HasExtraMovementFlag(MOVEMENTFLAG2_ALWAYS_ALLOW_PITCHING);
+    bool hasSplineElevation = info.HasMovementFlag(MOVEMENTFLAG_SPLINE_ELEVATION);
+
+    packet << float(info.pos.GetPositionZ());
+    packet << float(info.pos.GetPositionY());
+    packet << float(info.pos.GetPositionX());
+
+    packet.WriteBit(!hasOrientation);
+    packet.WriteBit(info.HasMovementFlag(MOVEMENTFLAG_SPLINE_ENABLED));
+    packet.WriteBit(!(flags != 0));
+    packet.WriteBit(info.guid[2]);
+    packet.WriteBit(info.guid[4]);
+    packet.WriteBit(info.guid[6]);
+    packet.WriteBit(hasFallData);
+    packet.WriteBit(info.guid[0]);
+    packet.WriteBit(hasTransport);
+    packet.WriteBit(info.guid[5]);
+
+    if (hasTransport)
+    {
+        packet.WriteBit(info.transport.guid[1]);
+        packet.WriteBit(info.transport.guid[4]);
+        packet.WriteBit(info.transport.guid[5]);
+        packet.WriteBit(info.transport.guid[3]);
+        packet.WriteBit(info.transport.guid[0]);
+        packet.WriteBit(info.transport.time2 != 0);
+        packet.WriteBit(info.transport.guid[7]);
+        packet.WriteBit(info.transport.guid[6]);
+        packet.WriteBit(info.transport.vehicleId != 0);
+        packet.WriteBit(info.transport.guid[2]);
+    }
+
+    packet.WriteBit(false);
+    packet.WriteBit(info.guid[7]);
+    packet.WriteBit(info.guid[3]);
+
+    packet.WriteBit(!hasPitch);
+    packet.WriteBit(!(flags2 != 0));
+    packet.WriteBit(!(info.time != 0));
+
+    if (hasFallData)
+        packet.WriteBit(hasFallDirection);
+
+    if ((flags2 != 0))
+        packet.WriteBits(flags2, 12);
+
+    packet.WriteBit(!hasSplineElevation);
+
+    if ((flags != 0))
+        packet.WriteBits(flags, 30);
+
+    packet.WriteBit(info.guid[1]);
+    packet.FlushBits();
+
+    packet.WriteByteSeq(info.guid[7]);
+
+    if (hasTransport)
+    {
+        packet.WriteByteSeq(info.transport.guid[3]);
+        packet.WriteByteSeq(info.transport.guid[4]);
+        packet << float(info.transport.pos.GetOrientation());
+
+        if (info.transport.vehicleId != 0)
+            packet << uint32(info.transport.vehicleId);
+
+        packet.WriteByteSeq(info.transport.guid[1]);
+
+        if (info.transport.time2 != 0)
+            packet << uint32(info.transport.time2);
+
+        packet << float(info.transport.pos.GetPositionZ());
+
+        packet.WriteByteSeq(info.transport.guid[7]);
+        packet.WriteByteSeq(info.transport.guid[0]);
+        packet.WriteByteSeq(info.transport.guid[6]);
+        packet.WriteByteSeq(info.transport.guid[5]);
+        packet.WriteByteSeq(info.transport.guid[2]);
+
+        packet << int8(info.transport.seat);
+        packet << uint32(info.transport.time);
+        packet << float(info.transport.pos.GetPositionY());
+        packet << float(info.transport.pos.GetPositionX());
+    }
+
+    packet.WriteByteSeq(info.guid[6]);
+
+    if (hasPitch)
+        packet << float(info.pitch);
+
+    if (hasSplineElevation)
+        packet << float(info.splineElevation);
+
+    if (hasOrientation)
+        packet << float(info.pos.GetOrientation());
+
+    packet.WriteByteSeq(info.guid[2]);
+    packet.WriteByteSeq(info.guid[3]);
+    packet.WriteByteSeq(info.guid[1]);
+
+    if (hasFallData)
+    {
+        packet << uint32(info.fallTime);
+
+        if (hasFallDirection)
+        {
+            packet << float(info.jump.xyspeed);
+            packet << float(info.jump.cosAngle);
+            packet << float(info.jump.sinAngle);
+        }
+
+        packet << float(info.jump.zspeed);
+    }
+
+    packet.WriteByteSeq(info.guid[5]);
+    packet.WriteByteSeq(info.guid[4]);
+
+    if (info.time != 0)
+        packet << uint32(info.time);
+
+    packet.WriteByteSeq(info.guid[0]);
+
+}

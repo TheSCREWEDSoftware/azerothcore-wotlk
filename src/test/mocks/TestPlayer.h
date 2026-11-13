@@ -25,6 +25,8 @@ class TestPlayer : public Player
 public:
     using Player::Player;
 
+    void SetDeathStateForTest(DeathState state) { m_deathState = state; }
+
     void UpdateObjectVisibility(bool /*forced*/ = true, bool /*fromUpdate*/ = false) override { }
 
     void AddToWorld() override { Object::AddToWorld(); }
@@ -42,6 +44,9 @@ public:
     {
         Object::_Create(guidLow, uint32(0), HighGuid::Player);
     }
+
+    // Set Cata phase membership directly, bypassing UpdatePhasesForArea's DB/singleton dependencies
+    void SetPhasesForTest(std::vector<uint32> phases) { m_phases = std::move(phases); }
 };
 
 #endif //AZEROTHCORE_TEST_PLAYER_H

@@ -37,6 +37,7 @@
 #include "MapMgr.h"
 #include "Metric.h"
 #include "MiscPackets.h"
+#include "MovementPackets.h"
 #include "ObjectAccessor.h"
 #include "ObjectMgr.h"
 #include "Opcodes.h"
@@ -68,6 +69,9 @@ bool MapSessionFilter::Process(WorldPacket* packet)
 {
     ClientOpcodeHandler const* opHandle = opcodeTable[static_cast<OpcodeClient>(packet->GetOpcode())];
 
+    if (!opHandle)
+        return true;
+
     //let's check if our has an anxiety disorder can be really processed in Map::Update()
     if (opHandle->ProcessingPlace == PROCESS_INPLACE)
         return true;
@@ -89,6 +93,9 @@ bool MapSessionFilter::Process(WorldPacket* packet)
 bool WorldSessionFilter::Process(WorldPacket* packet)
 {
     ClientOpcodeHandler const* opHandle = opcodeTable[static_cast<OpcodeClient>(packet->GetOpcode())];
+
+    if (!opHandle)
+        return true;
 
     //check if packet handler is supposed to be safe
     if (opHandle->ProcessingPlace == PROCESS_INPLACE)
@@ -354,7 +361,7 @@ void WorldSession::SendPacket(WorldPacket const* packet)
         return;
     }
 
-    m_Socket->SendPacket(*packet);
+    m_Socket->SendPacketAndLogOpcode(*packet);
 }
 
 /// Add an incoming packet to the queue
@@ -416,9 +423,10 @@ bool WorldSession::Update(uint32 diff, PacketFilter& updater)
     {
         OpcodeClient opcode = static_cast<OpcodeClient>(packet->GetOpcode());
         ClientOpcodeHandler const* opHandle = opcodeTable[opcode];
+        OpcodeHandler const* opMetadata = opcodeTable.GetIncomingOpcode(packet->GetOpcode());
 
-        METRIC_DETAILED_TIMER("worldsession_update_opcode_time", METRIC_TAG("opcode", opHandle->Name));
-        LOG_DEBUG("network", "message id {} ({}) under READ", opcode, opHandle->Name);
+        METRIC_DETAILED_TIMER("worldsession_update_opcode_time", METRIC_TAG("opcode", opMetadata->Name));
+        LOG_INFO("network", "message id {} ({}), status: {} under READ", opcode, opMetadata->Name, opMetadata->Status);
 
         WorldSession::DosProtection::Policy const evaluationPolicy = AntiDOS.EvaluateOpcode(*packet, currentTime);
         switch (evaluationPolicy)
@@ -436,14 +444,18 @@ bool WorldSession::Update(uint32 diff, PacketFilter& updater)
                 break;
         }
 
+        LOG_INFO("network", "DosProtection evaluation for opcode {} returned policy {}", opMetadata->Name, static_cast<int>(evaluationPolicy));
+
         if (evaluationPolicy == WorldSession::DosProtection::Policy::Process
             || evaluationPolicy == WorldSession::DosProtection::Policy::Log)
         {
             try
             {
-                switch (opHandle->Status)
+                switch (opMetadata->Status)
                 {
                 case STATUS_LOGGEDIN:
+                    if (!opHandle)
+                        break;
                     if (!_player)
                     {
                         // skip STATUS_LOGGEDIN opcode unexpected errors if player logout sometime ago - this can be network lag delayed packets
@@ -462,6 +474,7 @@ bool WorldSession::Update(uint32 diff, PacketFilter& updater)
                         if (!sScriptMgr->CanPacketReceive(this, *packet))
                             break;
 
+                        LOG_INFO("network", "Processing message with status STATUS_LOGGEDIN");
                         opHandle->Call(this, *packet);
                         LogUnprocessedTail(packet);
                     }
@@ -469,6 +482,8 @@ bool WorldSession::Update(uint32 diff, PacketFilter& updater)
                     // lag can cause STATUS_LOGGEDIN opcodes to arrive after the player started a transfer
                     break;
                 case STATUS_LOGGEDIN_OR_RECENTLY_LOGGOUT:
+                    if (!opHandle)
+                        break;
                     if (!_player && !m_playerRecentlyLogout) // There's a short delay between _player = null and m_playerRecentlyLogout = true during logout
                     {
                         LogUnexpectedOpcode(packet, "STATUS_LOGGEDIN_OR_RECENTLY_LOGGOUT",
@@ -485,6 +500,8 @@ bool WorldSession::Update(uint32 diff, PacketFilter& updater)
                     }
                     break;
                 case STATUS_TRANSFER:
+                    if (!opHandle)
+                        break;
                     if (_player && !_player->IsInWorld())
                     {
                         if (!sScriptMgr->CanPacketReceive(this, *packet))
@@ -495,6 +512,8 @@ bool WorldSession::Update(uint32 diff, PacketFilter& updater)
                     }
                     break;
                 case STATUS_AUTHED:
+                    if (!opHandle)
+                        break;
                     if (m_inQueue) // prevent cheating
                         break;
 
@@ -952,12 +971,6 @@ void WorldSession::Handle_EarlyProccess(WorldPacket& recvPacket)
         GetOpcodeNameForLogging(static_cast<OpcodeClient>(recvPacket.GetOpcode())), GetPlayerInfo());
 }
 
-void WorldSession::Handle_ServerSide(WorldPacket& recvPacket)
-{
-    LOG_ERROR("network.opcode", "Received server-side opcode {} from {}",
-        GetOpcodeNameForLogging(static_cast<OpcodeServer>(recvPacket.GetOpcode())), GetPlayerInfo());
-}
-
 void WorldSession::Handle_Deprecated(WorldPacket& recvPacket)
 {
     LOG_ERROR("network.opcode", "Received deprecated opcode {} from {}",
@@ -966,20 +979,7 @@ void WorldSession::Handle_Deprecated(WorldPacket& recvPacket)
 
 void WorldSession::SendAuthWaitQueue(uint32 position)
 {
-    if (position == 0)
-    {
-        WorldPacket packet(SMSG_AUTH_RESPONSE, 1);
-        packet << uint8(AUTH_OK);
-        SendPacket(&packet);
-    }
-    else
-    {
-        WorldPacket packet(SMSG_AUTH_RESPONSE, 6);
-        packet << uint8(AUTH_WAIT_QUEUE);
-        packet << uint32(position);
-        packet << uint8(0);                                 // unk
-        SendPacket(&packet);
-    }
+    SendAuthResponse(position == 0 ? AUTH_OK : AUTH_WAIT_QUEUE, position == 0, position);
 }
 
 void WorldSession::LoadAccountData(PreparedQueryResult result, uint32 mask)
@@ -1096,41 +1096,55 @@ void WorldSession::SaveTutorialsData(CharacterDatabaseTransaction trans)
     m_TutorialsChanged = false;
 }
 
-void WorldSession::ReadMovementInfo(WorldPacket& data, MovementInfo* mi)
+void WorldSession::ReadMovementInfo(WorldPacket& data, MovementInfo* mi,
+    WorldPackets::Movement::ExtraMovementStatusElement* extras)
 {
-    data >> mi->flags;
-    data >> mi->flags2;
-    data >> mi->time;
-    data >> mi->pos.PositionXYZOStream();
-
-    if (mi->HasMovementFlag(MOVEMENTFLAG_ONTRANSPORT))
+    if (data.GetOpcode() == MSG_MOVE_HEARTBEAT)
+        WorldPackets::Movement::ReadHeartbeat(data, *mi);
+    else if (WorldPackets::Movement::MovementStatusElements const* sequence =
+        WorldPackets::Movement::GetMovementSequence(data.GetOpcode()))
+        WorldPackets::Movement::ReadGroundMovement(data, *mi, sequence, nullptr, extras);
+    else
     {
-        data >> mi->transport.guid.ReadAsPacked();
+        data >> mi->flags;
+        data >> mi->flags2;
+        data >> mi->time;
+        data >> mi->pos.PositionXYZOStream();
 
-        data >> mi->transport.pos.PositionXYZOStream();
-        data >> mi->transport.time;
-        data >> mi->transport.seat;
+        if (mi->HasMovementFlag(MOVEMENTFLAG_ONTRANSPORT))
+        {
+            data >> mi->transport.guid.ReadAsPacked();
 
-        if (mi->HasExtraMovementFlag(MOVEMENTFLAG2_INTERPOLATED_MOVEMENT))
-            data >> mi->transport.time2;
+            data >> mi->transport.pos.PositionXYZOStream();
+            data >> mi->transport.time;
+            data >> mi->transport.seat;
+
+            if (mi->HasExtraMovementFlag(MOVEMENTFLAG2_INTERPOLATED_MOVEMENT))
+                data >> mi->transport.time2;
+        }
+
+        if (mi->HasMovementFlag(MovementFlags(MOVEMENTFLAG_SWIMMING | MOVEMENTFLAG_FLYING)) || (mi->HasExtraMovementFlag(MOVEMENTFLAG2_ALWAYS_ALLOW_PITCHING)))
+            data >> mi->pitch;
+
+        data >> mi->fallTime;
+
+        if (mi->HasMovementFlag(MOVEMENTFLAG_FALLING))
+        {
+            data >> mi->jump.zspeed;
+            data >> mi->jump.sinAngle;
+            data >> mi->jump.cosAngle;
+            data >> mi->jump.xyspeed;
+        }
+
+        if (mi->HasMovementFlag(MOVEMENTFLAG_SPLINE_ELEVATION))
+            data >> mi->splineElevation;
     }
 
-    if (mi->HasMovementFlag(MovementFlags(MOVEMENTFLAG_SWIMMING | MOVEMENTFLAG_FLYING)) || (mi->HasExtraMovementFlag(MOVEMENTFLAG2_ALWAYS_ALLOW_PITCHING)))
-        data >> mi->pitch;
+    SanitizeMovementFlags(mi);
+}
 
-    data >> mi->fallTime;
-
-    if (mi->HasMovementFlag(MOVEMENTFLAG_FALLING))
-    {
-        data >> mi->jump.zspeed;
-        data >> mi->jump.sinAngle;
-        data >> mi->jump.cosAngle;
-        data >> mi->jump.xyspeed;
-    }
-
-    if (mi->HasMovementFlag(MOVEMENTFLAG_SPLINE_ELEVATION))
-        data >> mi->splineElevation;
-
+void WorldSession::SanitizeMovementFlags(MovementInfo* mi)
+{
     //! Anti-cheat checks. Please keep them in seperate if () blocks to maintain a clear overview.
     //! Might be subject to latency, so just remove improper flags.
 #ifdef ACORE_DEBUG
@@ -1212,6 +1226,19 @@ void WorldSession::ReadMovementInfo(WorldPacket& data, MovementInfo* mi)
 
 void WorldSession::WriteMovementInfo(WorldPacket* data, MovementInfo* mi)
 {
+    if (data->GetOpcode() == SMSG_MOVE_UPDATE)
+    {
+        WorldPackets::Movement::WriteMovementUpdate(*data, *mi);
+        return;
+    }
+
+    if (WorldPackets::Movement::MovementStatusElements const* sequence =
+        WorldPackets::Movement::GetMovementSequence(data->GetOpcode()))
+    {
+        WorldPackets::Movement::WriteGroundMovement(*data, *mi, sequence);
+        return;
+    }
+
     *data << mi->guid.WriteAsPacked();
 
     *data << mi->flags;
@@ -1453,6 +1480,7 @@ Warden* WorldSession::GetWarden()
 
 WorldSession::DosProtection::Policy WorldSession::DosProtection::EvaluateOpcode(WorldPacket const& p, time_t const time) const
 {
+    LOG_INFO("network", "AntiDOS: Evaluating opcode {}", p.GetOpcode());
     AntiDosOpcodePolicy const* policy = sWorldGlobals->GetAntiDosPolicyForOpcode(p.GetOpcode());
     if (!policy)
         return WorldSession::DosProtection::Policy::Process; // Return true if there is no policy for the opcode
@@ -1477,9 +1505,10 @@ WorldSession::DosProtection::Policy WorldSession::DosProtection::EvaluateOpcode(
     {
         LOG_WARN("network", "AntiDOS: Account {}, IP: {}, Ping: {}, Character: {}, flooding packet (opc: {} (0x{:X}), count: {})",
             Session->GetAccountId(), Session->GetRemoteAddress(), Session->GetLatency(), Session->GetPlayerName(),
-            opcodeTable[static_cast<OpcodeClient>(p.GetOpcode())]->Name, p.GetOpcode(), packetCounter.amountCounter);
+            opcodeTable.GetIncomingOpcode(p.GetOpcode())->Name, p.GetOpcode(), packetCounter.amountCounter);
     }
 
+    LOG_INFO("network", "AntiDOS: Still evaluating opcode {}", p.GetOpcode());
     switch (WorldSession::DosProtection::Policy(policy->Policy))
     {
         case WorldSession::DosProtection::Policy::Kick:
@@ -1579,7 +1608,7 @@ void WorldSession::InitializeSession()
     std::shared_ptr<AccountInfoQueryHolderPerRealm> realmHolder = std::make_shared<AccountInfoQueryHolderPerRealm>();
     if (!realmHolder->Initialize(GetAccountId()))
     {
-        SendAuthResponse(AUTH_SYSTEM_ERROR, false);
+        SendAuthResponse(AUTH_SYSTEM_ERROR, true);
         return;
     }
 

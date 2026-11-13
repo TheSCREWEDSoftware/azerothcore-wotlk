@@ -20,15 +20,19 @@
 #include "Errors.h"
 #include "Log.h"
 #include "MapDefines.h"
+#include <filesystem>
 
 namespace MMAP
 {
     // ######################## MMapMgr ########################
     std::shared_ptr<dtNavMesh> MMapMgr::LoadNavMesh(uint32 mapId)
     {
-        // load and init dtNavMesh - read parameters from file
-        std::string fileName = Acore::StringFormat(MAP_FILE_NAME_FORMAT, sConfigMgr->GetOption<std::string>("DataDir", "."), mapId);
+        std::string const fileName = Acore::StringFormat(MAP_FILE_NAME_FORMAT, sConfigMgr->GetOption<std::string>("DataDir", "."), mapId);
+        return LoadNavMeshFromFile(fileName);
+    }
 
+    std::shared_ptr<dtNavMesh> MMapMgr::LoadNavMeshFromFile(std::string const& fileName)
+    {
         FILE* file = fopen(fileName.c_str(), "rb");
         if (!file)
         {
@@ -50,11 +54,11 @@ namespace MMAP
         if (DT_SUCCESS != mesh->init(&params))
         {
             dtFreeNavMesh(mesh);
-            LOG_ERROR("maps", "MMAP:loadMapData: Failed to initialize dtNavMesh for mmap {:03} from file {}", mapId, fileName);
+            LOG_ERROR("maps", "MMAP:loadMapData: Failed to initialize dtNavMesh from file {}", fileName);
             return nullptr;
         }
 
-        LOG_DEBUG("maps", "MMAP:loadMapData: Loaded {:03}.mmap", mapId);
+        LOG_DEBUG("maps", "MMAP:loadMapData: Loaded '{}'", fileName);
 
         std::shared_ptr<dtNavMesh> navMesh = std::shared_ptr<dtNavMesh>(mesh, NavMeshDeleter());
         return navMesh;
@@ -67,8 +71,12 @@ namespace MMAP
 
     bool MMapMgr::LoadTile(dtNavMesh* navMesh, uint32 mapId, int32 x, int32 y)
     {
-        // load this tile :: mmaps/MMMXXYY.mmtile
-        std::string fileName = Acore::StringFormat(TILE_FILE_NAME_FORMAT, sConfigMgr->GetOption<std::string>("DataDir", "."), mapId, x, y);
+        std::string const fileName = Acore::StringFormat(TILE_FILE_NAME_FORMAT, sConfigMgr->GetOption<std::string>("DataDir", "."), mapId, x, y);
+        return LoadTileFromFile(navMesh, mapId, fileName);
+    }
+
+    bool MMapMgr::LoadTileFromFile(dtNavMesh* navMesh, uint32 mapId, std::string const& fileName)
+    {
         FILE* file = fopen(fileName.c_str(), "rb");
         if (!file)
         {
@@ -80,15 +88,15 @@ namespace MMAP
         MmapTileHeader fileHeader;
         if (fread(&fileHeader, sizeof(MmapTileHeader), 1, file) != 1 || fileHeader.mmapMagic != MMAP_MAGIC)
         {
-            LOG_ERROR("maps", "MMAP:loadMap: Bad header in mmap {:03}{:02}{:02}.mmtile", mapId, x, y);
+            LOG_ERROR("maps", "MMAP:loadMap: Bad header in mmtile '{}'", fileName);
             fclose(file);
             return false;
         }
 
         if (fileHeader.mmapVersion != MMAP_VERSION)
         {
-            LOG_ERROR("maps", "MMAP:loadMap: {:03}{:02}{:02}.mmtile was built with generator v{}, expected v{}",
-                           mapId, x, y, fileHeader.mmapVersion, MMAP_VERSION);
+            LOG_ERROR("maps", "MMAP:loadMap: '{}' was built with generator v{}, expected v{}",
+                           fileName, fileHeader.mmapVersion, MMAP_VERSION);
             fclose(file);
             return false;
         }
@@ -99,7 +107,8 @@ namespace MMAP
         std::size_t result = fread(data, fileHeader.size, 1, file);
         if (!result)
         {
-            LOG_ERROR("maps", "MMAP:loadMap: Bad header or data in mmap {:03}{:02}{:02}.mmtile", mapId, x, y);
+            LOG_ERROR("maps", "MMAP:loadMap: Bad header or data in mmtile '{}'", fileName);
+            dtFree(data);
             fclose(file);
             return false;
         }
@@ -112,18 +121,38 @@ namespace MMAP
         if (dtStatusSucceed(navMesh->addTile(data, fileHeader.size, DT_TILE_FREE_DATA, 0, &tileRef)))
         {
             dtMeshHeader* header = (dtMeshHeader*)data;
-            LOG_DEBUG("maps", "MMAP:loadMap: Loaded mmtile {:03}[{:02},{:02}] into {:03}[{:02},{:02}]", mapId, x, y, mapId, header->x, header->y);
+            LOG_DEBUG("maps", "MMAP:loadMap: Loaded mmtile '{}' into {:03}[{:02},{:02}]", fileName, mapId, header->x, header->y);
             return true;
         }
 
-        LOG_ERROR("maps", "MMAP:loadMap: Could not load {:03}{:02}{:02}.mmtile into navmesh", mapId, x, y);
+        LOG_ERROR("maps", "MMAP:loadMap: Could not load '{}' into navmesh", fileName);
         dtFree(data);
         return false;
     }
 
+    uint32 MMapMgr::LoadTilesFromDirectory(dtNavMesh* navMesh, uint32 mapId, std::string const& directory)
+    {
+        if (!navMesh)
+            return 0;
+
+        uint32 loaded = 0;
+        std::error_code error;
+        for (std::filesystem::directory_iterator itr(directory, error), end; !error && itr != end; itr.increment(error))
+        {
+            std::string const fileName = itr->path().filename().string();
+            if (fileName.size() != 14 || fileName.substr(7) != ".mmtile" ||
+                fileName.compare(0, 3, Acore::StringFormat("{:03}", mapId)) != 0)
+                continue;
+
+            if (LoadTileFromFile(navMesh, mapId, itr->path().string()))
+                ++loaded;
+        }
+
+        return loaded;
+    }
+
     ManagedNavMeshQuery MMapMgr::CreateNavMeshQuery(dtNavMesh* navMesh)
     {
-        // allocate mesh query
         dtNavMeshQuery* query = dtAllocNavMeshQuery();
         ASSERT(query);
 

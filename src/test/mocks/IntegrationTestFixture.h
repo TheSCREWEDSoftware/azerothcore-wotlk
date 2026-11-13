@@ -25,6 +25,8 @@
 #include "WorldSession.h"
 #include "DBCStores.h"
 #include "SharedDefines.h"
+#include "ScriptDefines/MovementHandlerScript.h"
+#include "ScriptMgr.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include <vector>
@@ -42,6 +44,10 @@ protected:
     {
         TestMap::EnsureDBC();
         EnsureFactionTemplates();
+        // Production startup resizes this via ScriptMgr::Initialize(), which tests never call;
+        // without it, CALL_ENABLED_HOOKS indexes an empty vector and crashes on any real handler
+        // code path (e.g. movement handling) that fires a script hook.
+        ScriptRegistry<MovementHandlerScript>::InitEnabledHooksIfNeeded(MOVEMENTHOOK_END);
 
         _originalWorld = sWorld.release();
         _worldMock = new NiceMock<WorldMock>();
@@ -138,7 +144,7 @@ protected:
         creature->SetTestMap(_testMap);
         creature->SetInWorld(true);
         creature->SetAlive(true);
-        creature->SetPhase(1);
+        creature->SetPhase(DEFAULT_PHASE);
         creature->SetFaction(factionId);
         creature->SetLevel(80);
         creature->SetMaxHealth(10000);

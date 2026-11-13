@@ -21,6 +21,8 @@
 #include "ObjectGuid.h"
 #include "Packet.h"
 #include "Weather.h"
+#include <optional>
+#include <vector>
 
 enum WeatherState : uint32;
 
@@ -28,6 +30,104 @@ namespace WorldPackets
 {
     namespace Misc
     {
+        class SetAnimTier final : public ServerPacket
+        {
+        public:
+            SetAnimTier() : ServerPacket(SMSG_SET_ANIM_TIER, 8 + 4) { }
+
+            WorldPacket const* Write() override;
+
+            ObjectGuid Unit;
+            uint32 Tier = 0;
+        };
+
+        class SetPlayHoverAnim final : public ServerPacket
+        {
+        public:
+            SetPlayHoverAnim() : ServerPacket(SMSG_SET_PLAY_HOVER_ANIM, 8 + 1) { }
+
+            WorldPacket const* Write() override;
+
+            ObjectGuid UnitGUID;
+            bool PlayHoverAnim = false;
+        };
+
+        class SetCurrency final : public ServerPacket
+        {
+        public:
+            SetCurrency() : ServerPacket(SMSG_SET_CURRENCY, 4 + 4 + 1 + 4 + 4 + 1) { }
+
+            WorldPacket const* Write() override;
+
+            int32 Type = 0;
+            int32 Quantity = 0;
+            std::optional<int32> WeeklyQuantity;
+            std::optional<int32> TrackedQuantity;
+            bool SuppressChatLog = false;
+        };
+
+        class SetupCurrency final : public ServerPacket
+        {
+        public:
+            struct Record
+            {
+                int32 Type = 0;
+                int32 Quantity = 0;
+                std::optional<int32> WeeklyQuantity;
+                std::optional<int32> MaxWeeklyQuantity;
+                std::optional<int32> TrackedQuantity;
+                std::optional<int32> MaxQuantity;
+                uint8 Flags = 0;
+            };
+
+            SetupCurrency() : ServerPacket(SMSG_SETUP_CURRENCY, 22) { }
+
+            WorldPacket const* Write() override;
+
+            std::vector<Record> Data;
+        };
+
+        class BindPointUpdate final : public ServerPacket
+        {
+        public:
+            BindPointUpdate() : ServerPacket(SMSG_BIND_POINT_UPDATE, 20) { }
+
+            WorldPacket const* Write() override;
+
+            float X = 0.0f;
+            float Y = 0.0f;
+            float Z = 0.0f;
+            uint32 MapID = 0;
+            uint32 AreaID = 0;
+        };
+
+        class WorldServerInfo final : public ServerPacket
+        {
+        public:
+            WorldServerInfo() : ServerPacket(SMSG_WORLD_SERVER_INFO, 10) { }
+
+            WorldPacket const* Write() override;
+
+            uint32 DifficultyID = 0;
+            uint32 WeeklyReset = 0;
+            uint8 IsTournamentRealm = 0;
+            std::optional<uint32> IneligibleForLootMask;
+            std::optional<uint32> RestrictedAccountMaxLevel;
+            std::optional<uint32> RestrictedAccountMaxMoney;
+        };
+
+        class LoginSetTimeSpeed final : public ServerPacket
+        {
+        public:
+            LoginSetTimeSpeed() : ServerPacket(SMSG_LOGIN_SET_TIME_SPEED, 12) { }
+
+            WorldPacket const* Write() override;
+
+            float NewSpeed = 0.0f;
+            uint32 GameTime = 0;
+            uint32 GameTimeHolidayOffset = 0;
+        };
+
         class AC_GAME_API Weather final : public ServerPacket
         {
         public:
@@ -44,14 +144,17 @@ namespace WorldPackets
         class LevelUpInfo final : public ServerPacket
         {
         public:
-            LevelUpInfo() : ServerPacket(SMSG_LEVELUP_INFO, 56) { }
+            LevelUpInfo() : ServerPacket(SMSG_LEVELUP_INFO, 48) { }
 
             WorldPacket const* Write() override;
 
-            uint32 Level = 0;
-            uint32 HealthDelta = 0;
-            std::array<uint32, MAX_POWERS> PowerDelta = { };
-            std::array<uint32, MAX_STATS> StatDelta = { };
+            int32 Level = 0;
+            int32 HealthDelta = 0;
+            // The 4.3.4 client reads a fixed number of power deltas, so this must not track
+            // MAX_POWERS (which grew to 7 when Cataclysm added POWER_RUNE). Matches the pinned
+            // TC-Cata layout: int32 level, health, 6 power deltas, then MAX_STATS stat deltas.
+            std::array<int32, 6> PowerDelta = { };
+            std::array<int32, MAX_STATS> StatDelta = { };
         };
 
         class AC_GAME_API PlayMusic final : public ServerPacket
@@ -107,7 +210,7 @@ namespace WorldPackets
         class MinimapPing final : public ServerPacket
         {
         public:
-            MinimapPing() : ServerPacket(MSG_MINIMAP_PING, 8 + 4 + 4) { }
+            MinimapPing() : ServerPacket(MSG_MINIMAP_PING_SERVER, 8 + 4 + 4) { }
 
             WorldPacket const* Write() override;
 
@@ -130,7 +233,7 @@ namespace WorldPackets
         class RandomRoll final : public ServerPacket
         {
         public:
-            RandomRoll() : ServerPacket(MSG_RANDOM_ROLL, 4 + 4 + 4 + 8) { }
+            RandomRoll() : ServerPacket(MSG_RANDOM_ROLL_SERVER, 4 + 4 + 4 + 8) { }
 
             WorldPacket const* Write() override;
 
@@ -246,6 +349,33 @@ namespace WorldPackets
 
             uint32 Flag = 0; // PlayTimeFlag mask, set by WorldSession::SendPlayTimeWarning
             int32 PlayTimeRemaining = 0;
+        };
+
+        // Sent by PhasingHandler::OnMapChange during AddPlayerToMap, and whenever the
+        // player's phase changes. A character with no active phases has PhaseShiftFlags::Unphased
+        // (8) set and every list stays empty, matching a fresh character's default phase.
+        class PhaseShiftChange final : public ServerPacket
+        {
+        public:
+            PhaseShiftChange() : ServerPacket(SMSG_PHASE_SHIFT_CHANGE, 32) { }
+
+            WorldPacket const* Write() override;
+
+            ObjectGuid Client;
+            uint32 PhaseShiftFlags = 0x8; // PhaseShiftFlags::Unphased
+            std::vector<uint16> Phases;
+            std::vector<uint16> VisibleMapIDs;
+            std::vector<uint16> UiMapPhaseIDs;
+            std::vector<uint16> PreloadMapIDs;
+        };
+
+        // Empty stub: no saved Compact Unit Frames profiles for a fresh character.
+        class LoadCufProfiles final : public ServerPacket
+        {
+        public:
+            LoadCufProfiles() : ServerPacket(SMSG_LOAD_CUF_PROFILES, 4) { }
+
+            WorldPacket const* Write() override;
         };
     }
 }

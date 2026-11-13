@@ -44,7 +44,8 @@ bool DBCFileLoader::Load(char const* filename, char const* fmt)
 
     EndianConvert(header);
 
-    if (header != 0x43424457)                                //'WDBC'
+    bool const isWdb2 = header == 0x32424457;                //'WDB2', Cata's replacement for some WDBC tables
+    if (header != 0x43424457 && !isWdb2)                     //'WDBC'
     {
         fclose(f);
         return false;
@@ -82,15 +83,67 @@ bool DBCFileLoader::Load(char const* filename, char const* fmt)
 
     EndianConvert(stringSize);
 
+    if (isWdb2)
+    {
+        uint32 tableHash, build, unk1;
+        int32 minIndex = 0, maxIndex = 0, locale, unk5;
+        if (fread(&tableHash, 4, 1, f) != 1 || fread(&build, 4, 1, f) != 1 || fread(&unk1, 4, 1, f) != 1)
+        {
+            fclose(f);
+            return false;
+        }
+        EndianConvert(build);
+
+        if (build > 12880)
+        {
+            if (fread(&minIndex, 4, 1, f) != 1 || fread(&maxIndex, 4, 1, f) != 1 ||
+                fread(&locale, 4, 1, f) != 1 || fread(&unk5, 4, 1, f) != 1)
+            {
+                fclose(f);
+                return false;
+            }
+            EndianConvert(minIndex);
+            EndianConvert(maxIndex);
+        }
+
+        if (maxIndex != 0)
+        {
+            // skip the sparse id lookup table (4 bytes/id) and string-offset bank (2 bytes/id)
+            int32 diff = maxIndex - minIndex + 1;
+            fseek(f, diff * 4 + diff * 2, SEEK_CUR);
+        }
+    }
+
+    uint32 expectedRecordSize = 0;
+    for (char const* field = fmt; *field; ++field)
+        expectedRecordSize += (*field == FT_BYTE || *field == FT_NA_BYTE) ? 1 : (*field == FT_LONG ? 8 : 4);
+    // real WDBC records are padded to a 4-byte boundary, so a format string whose raw field
+    // widths don't already sum to a multiple of 4 still matches a file padded up to the next one.
+    uint32 const paddedExpectedRecordSize = (expectedRecordSize + 3) & ~3u;
+    // ponytail: skip strict validation only for formats still using the legacy repeated FT_STRING
+    // locale block (16 raw fields collapsed to 1 on real single-locale Cata files) -- those tables
+    // are unconverted and would hard-fail boot otherwise. Formats with no legacy string block (native
+    // FT_LOCALIZED_STRING or none at all) are unaffected by that mismatch and stay strictly validated.
+    bool const hasLegacyStringBlock = strchr(fmt, FT_STRING) != nullptr;
+    if (!hasLegacyStringBlock && (fieldCount != strlen(fmt) || recordSize != paddedExpectedRecordSize))
+    {
+        fclose(f);
+        return false;
+    }
+
     fieldsOffset = new uint32[fieldCount];
     fieldsOffset[0] = 0;
 
     for (uint32 i = 1; i < fieldCount; ++i)
     {
         fieldsOffset[i] = fieldsOffset[i - 1];
-        if (fmt[i - 1] == 'b' || fmt[i - 1] == 'X')         // byte fields
+        if (fmt[i - 1] == FT_BYTE || fmt[i - 1] == FT_NA_BYTE)  // byte fields
         {
             fieldsOffset[i] += sizeof(uint8);
+        }
+        else if (fmt[i - 1] == FT_LONG)                         // 8 byte source column
+        {
+            fieldsOffset[i] += sizeof(uint64);
         }
         else                                                // 4 byte fields (int32/float/strings)
         {
@@ -140,6 +193,9 @@ uint32 DBCFileLoader::GetFormatRecordSize(char const* format, int32* index_pos)
             case FT_INT:
                 recordsize += sizeof(uint32);
                 break;
+            case FT_LOCALIZED_STRING:
+                recordsize += DBC_LOCALE_SLOTS * sizeof(char*);
+                break;
             case FT_STRING:
                 recordsize += sizeof(char*);
                 break;
@@ -152,6 +208,9 @@ uint32 DBCFileLoader::GetFormatRecordSize(char const* format, int32* index_pos)
                 break;
             case FT_BYTE:
                 recordsize += sizeof(uint8);
+                break;
+            case FT_LONG:
+                recordsize += sizeof(uint32); // only the low 32 bits of the 8-byte source column are stored
                 break;
             case FT_NA:
             case FT_NA_BYTE:
@@ -252,6 +311,18 @@ char* DBCFileLoader::AutoProduceData(char const* format, uint32& records, char**
                     *((uint8*)(&dataTable[offset])) = getRecord(y).getUInt8(x);
                     offset += sizeof(uint8);
                     break;
+                case FT_LONG:
+                    // little-endian: the low 32 bits of the 8-byte source column sit at its base offset
+                    *((uint32*)(&dataTable[offset])) = getRecord(y).getUInt(x);
+                    offset += sizeof(uint32);
+                    break;
+                case FT_LOCALIZED_STRING:
+                    for (uint32 locale = 0; locale < DBC_LOCALE_SLOTS; ++locale)
+                    {
+                        *reinterpret_cast<char**>(&dataTable[offset]) = nullptr;
+                        offset += sizeof(char*);
+                    }
+                    break;
                 case FT_STRING:
                     *((char**)(&dataTable[offset])) = nullptr;   // will replace non-empty or "" strings in AutoProduceStrings
                     offset += sizeof(char*);
@@ -301,6 +372,22 @@ char* DBCFileLoader::AutoProduceStrings(char const* format, char* dataTable)
                 case FT_BYTE:
                     offset += sizeof(uint8);
                     break;
+                case FT_LONG:
+                    offset += sizeof(uint32);
+                    break;
+                case FT_LOCALIZED_STRING:
+                {
+                    // ponytail: one locale per store; select locale slots when multi-locale Cata loading is added.
+                    char const* value = getRecord(y).getString(x);
+                    for (uint32 locale = 0; locale < DBC_LOCALE_SLOTS; ++locale)
+                    {
+                        char** slot = reinterpret_cast<char**>(&dataTable[offset]);
+                        if (!*slot || !**slot)
+                            *slot = stringPool + (value - reinterpret_cast<char const*>(stringTable));
+                        offset += sizeof(char*);
+                    }
+                    break;
+                }
                 case FT_STRING:
                 {
                     // fill only not filled entries

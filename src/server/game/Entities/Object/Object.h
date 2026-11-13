@@ -45,6 +45,9 @@
 
 class ALEEventProcessor;
 
+// Client Phase.dbc "Normal": the default, unphased world (TrinityCore DEFAULT_PHASE).
+constexpr uint32 DEFAULT_PHASE = 169;
+
 enum TempSummonType
 {
     TEMPSUMMON_TIMED_OR_DEAD_DESPAWN       = 1,             // despawns after a specified time OR when the creature disappears
@@ -107,6 +110,32 @@ typedef std::unordered_map<Player*, UpdateData> UpdateDataMapType;
 
 static constexpr Milliseconds HEARTBEAT_INTERVAL = 5s + 200ms;
 
+// Cata 4.3.4 replaced WotLK's OBJECT_UPDATE_FLAGS bitmask with a bit-packed struct written
+// directly into the movement/create block header (Object::BuildMovementUpdate) -- ported from
+// the pinned TrinityCore reference (Object.h) as part of Plan 19 (issue #40).
+struct CreateObjectBits
+{
+    bool PlayerHoverAnim : 1;
+    bool SupressedGreetings : 1;
+    bool Rotation : 1;
+    bool AnimKit : 1;
+    bool CombatVictim : 1;
+    bool ThisIsYou : 1;
+    bool Vehicle : 1;
+    bool MovementUpdate : 1;
+    bool NoBirthAnim : 1;
+    bool MovementTransport : 1;
+    bool Stationary : 1;
+    bool AreaTrigger : 1;
+    bool EnablePortals : 1;
+    bool ServerTime : 1;
+
+    void Clear()
+    {
+        memset(this, 0, sizeof(CreateObjectBits));
+    }
+};
+
 class Object
 {
 public:
@@ -140,7 +169,6 @@ public:
 
     void BuildValuesUpdateBlockForPlayer(UpdateData* data, Player* target);
     void BuildOutOfRangeUpdateBlock(UpdateData* data) const;
-    void BuildMovementUpdateBlock(UpdateData* data, uint32 flags = 0) const;
 
     virtual void DestroyForPlayer(Player* target, bool onDeath = false) const;
 
@@ -253,13 +281,13 @@ protected:
 
     uint32 GetUpdateFieldData(Player const* target, uint32*& flags) const;
 
-    void BuildMovementUpdate(ByteBuffer* data, uint16 flags) const;
+    void BuildMovementUpdate(ByteBuffer* data, CreateObjectBits flags) const;
     virtual void BuildValuesUpdate(uint8 updateType, ByteBuffer* data, Player* target);
 
     uint16 m_objectType;
 
     TypeID m_objectTypeId;
-    uint16 m_updateFlag;
+    CreateObjectBits m_updateFlag = {};
 
     union
     {
@@ -310,6 +338,7 @@ struct MovementInfo
             seat = -1;
             time = 0;
             time2 = 0;
+            vehicleId = 0;
         }
 
         ObjectGuid guid;
@@ -317,6 +346,7 @@ struct MovementInfo
         int8 seat;
         uint32 time;
         uint32 time2;
+        uint32 vehicleId;
     } transport;
 
     // swimming/flying
@@ -521,8 +551,38 @@ public:
 
     virtual void SetPhaseMask(uint32 newPhaseMask, bool update);
     [[nodiscard]] uint32 GetPhaseMask() const { return m_phaseMask; }
-    bool InSamePhase(WorldObject const* obj) const { return InSamePhase(obj->GetPhaseMask()); }
+    bool InSamePhase(WorldObject const* obj) const;
     [[nodiscard]] bool InSamePhase(uint32 phasemask) const { return m_useCombinedPhases ? GetPhaseMask() & phasemask : GetPhaseMask() == phasemask; }
+
+    // Cata Phase/PhaseGroup (see DBCStores::GetPhasesForGroup), independent of the legacy
+    // phasemask above. A spawn row with phase 0 is unphased (default phase 169); dynamic objects
+    // (summons, pets) inherit their owner's set, otherwise they are not phase-gated.
+    void SetSpawnPhaseId(uint32 phaseId) { m_spawnPhaseId = phaseId; m_hasSpawnPhase = true; }
+    void SetSpawnPhaseGroup(uint32 phaseGroup) { m_spawnPhaseGroup = phaseGroup; m_hasSpawnPhase = true; }
+    [[nodiscard]] uint32 GetSpawnPhaseId() const { return m_spawnPhaseId; }
+    [[nodiscard]] uint32 GetSpawnPhaseGroup() const { return m_spawnPhaseGroup; }
+    [[nodiscard]] bool HasSpawnPhase() const { return m_hasSpawnPhase; }
+    [[nodiscard]] std::vector<uint32> const& GetPhases() const { return m_phases; }
+    void AddPhase(uint32 phaseId, bool update = true);
+    void AddPhaseGroup(uint32 phaseGroupId, bool update = true);
+    void RemovePhase(uint32 phaseId, bool update = true);
+    void RemovePhaseGroup(uint32 phaseGroupId, bool update = true);
+    // Copy the owner's effective phase shift onto a summon/pet and drop any spawn gating.
+    void InheritPhasesFrom(WorldObject const* source);
+    void RegisterPhaseSummon(Creature* summon);
+    void UnregisterPhaseSummon(Creature* summon);
+    void RefreshPhaseSummons();
+    [[nodiscard]] bool IsPhaseVisibleTo(Player const* player) const;
+    // Exact 4.3.4 phase membership (CONDITION_PHASEID): a phase-0 spawn has no phase set.
+    [[nodiscard]] bool HasPhase(uint32 phaseId) const;
+    // Summons/pets follow their owner's live phase shift instead of a stale copy.
+    [[nodiscard]] virtual WorldObject const* GetPhaseShiftSource() const { return nullptr; }
+
+    bool AddPhaseToSet(uint32 phaseId);
+    bool RemovePhaseFromSet(uint32 phaseId);
+    // Builds the effective set; false when the object is not phase-gated at all.
+    [[nodiscard]] bool GetEffectivePhases(std::vector<uint32>& phases) const;
+    virtual void OnPhaseChanged();
 
     [[nodiscard]] uint32 GetZoneId() const;
     [[nodiscard]] uint32 GetAreaId() const;
@@ -721,6 +781,7 @@ public:
     };
     [[nodiscard]] float GetMapWaterOrGroundLevel(float x, float y, float z, float* ground = nullptr) const;
     [[nodiscard]] float GetMapHeight(float x, float y, float z, bool vmap = true, float distanceToSearch = 50.0f) const; // DEFAULT_HEIGHT_SEARCH in map.h
+    [[nodiscard]] std::vector<uint32> const* GetTerrainMapIds() const;
 
     [[nodiscard]] float GetFloorZ() const;
     [[nodiscard]] float GetMinHeightInWater() const;
@@ -830,6 +891,17 @@ private:
     uint32 m_InstanceId;                                // in map copy with instance id
     uint32 m_phaseMask;                                 // in area phase state
     bool m_useCombinedPhases;                           // true (default): use phaseMask as bit mask combining up to 32 phases
+    uint32 m_spawnPhaseId;                              // Cata Phase.dbc id from spawn data
+    uint32 m_spawnPhaseGroup;                           // Cata PhaseXPhaseGroup.dbc id from spawn data
+    bool m_hasSpawnPhase;                               // true when loaded from a spawn row (phase 0 = unphased)
+protected:
+    std::vector<uint32> m_phases;                       // own phase grants (auras/scripts)
+    std::unordered_map<uint32, uint32> m_phaseRefs;     // own phase id -> number of active grants
+    std::vector<uint32> m_inheritedPhases;              // owner shift copied onto summons/pets
+    bool m_hasPhaseShift;                               // an inherited/added set exists (empty = unphased)
+    bool m_inheritedUnphased = false;                   // owner shift is unphased (visibility only)
+    std::unordered_set<ObjectGuid> m_phaseSummons;      // summons following this object's shift
+private:
     // false: use phaseMask to represent single phases only (up to 4294967295 phases)
 
     uint16 m_notifyflags;

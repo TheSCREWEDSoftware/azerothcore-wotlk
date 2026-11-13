@@ -36,6 +36,7 @@
 #include "Log.h"
 #include "LootMgr.h"
 #include "MapMgr.h"
+#include "MovementPackets.h"
 #include "MiscPackets.h"
 #include "Object.h"
 #include "ObjectAccessor.h"
@@ -84,6 +85,14 @@ void WorldSession::HandleRepopRequestOpcode(WorldPacket& recv_data)
     GetPlayer()->RemovePet(nullptr, PET_SAVE_NOT_IN_SLOT, true);
     GetPlayer()->BuildPlayerRepop();
     GetPlayer()->RepopAtGraveyard();
+}
+
+void WorldSession::HandleViolenceLevel(WorldPacket& recvPacket)
+{
+    uint8 violenceLevel;
+    recvPacket >> violenceLevel;
+
+    // do something?
 }
 
 void WorldSession::HandleGossipSelectOptionOpcode(WorldPacket& recv_data)
@@ -943,6 +952,14 @@ void WorldSession::HandleCompleteCinematic(WorldPacket& /*recv_data*/)
     GetPlayer()->GetCinematicMgr().EndCinematic();
 }
 
+void WorldSession::HandleCompleteMovie(WorldPacket& /*recv_data*/)
+{
+    if (!GetPlayer()->GetMovie())
+        return;
+
+    GetPlayer()->SetMovie(0);
+}
+
 void WorldSession::HandleNextCinematicCamera(WorldPacket& /*recv_data*/)
 {
     // Sent by client when cinematic actually begun. So we begin the server side process
@@ -1042,8 +1059,8 @@ void WorldSession::HandleInspectHonorStatsOpcode(WorldPacket& recv_data)
     data << player->GetGUID();
     data << uint8(player->GetHonorPoints());
     data << uint32(player->GetUInt32Value(PLAYER_FIELD_KILLS));
-    data << uint32(player->GetUInt32Value(PLAYER_FIELD_TODAY_CONTRIBUTION));
-    data << uint32(player->GetUInt32Value(PLAYER_FIELD_YESTERDAY_CONTRIBUTION));
+    data << uint32(player->GetTodayContribution());
+    data << uint32(player->GetYesterdayContribution());
     data << uint32(player->GetUInt32Value(PLAYER_FIELD_LIFETIME_HONORABLE_KILLS));
     SendPacket(&data);
 }
@@ -1495,9 +1512,28 @@ void WorldSession::HandleCancelMountAuraOpcode(WorldPacket& /*recv_data*/)
 
 void WorldSession::HandleMoveFlagChangeOpcode(WorldPacket& recv_data)
 {
-    LOG_DEBUG("network", "WORLD: {}", GetOpcodeNameForLogging((Opcodes)recv_data.GetOpcode()));
+    LOG_DEBUG("network", "WORLD: {}", GetOpcodeNameForLogging(static_cast<OpcodeClient>(recv_data.GetOpcode())));
 
-    Opcodes opcode = (Opcodes)recv_data.GetOpcode();
+    OpcodeClient opcode = static_cast<OpcodeClient>(recv_data.GetOpcode());
+
+    if (opcode == CMSG_MOVE_WATER_WALK_ACK)
+    {
+        uint32 counter;
+        MovementInfo movementInfo;
+        WorldPackets::Movement::ReadGroundMovement(recv_data, movementInfo,
+            WorldPackets::Movement::GetMovementFlagSequence(opcode), &counter);
+        SanitizeMovementFlags(&movementInfo);
+        Unit* mover = _player->m_mover;
+        if (movementInfo.guid != mover->GetGUID() || counter <= _player->GetMapChangeOrderCounter())
+            return;
+        sScriptMgr->AnticheatSetCanFlybyServer(_player, movementInfo.HasMovementFlag(MOVEMENTFLAG_CAN_FLY));
+        if (!ProcessMovementInfo(movementInfo, mover, mover->ToPlayer(), recv_data))
+            return;
+        WorldPacket data(SMSG_MOVE_UPDATE);
+        WorldPackets::Movement::WriteMovementUpdate(data, movementInfo);
+        mover->SendMessageToSet(&data, _player);
+        return;
+    }
 
     ObjectGuid guid;
     uint32 counter;
@@ -1539,14 +1575,14 @@ void WorldSession::HandleMoveFlagChangeOpcode(WorldPacket& recv_data)
     if (_player->GetPendingFlightChange() == counter && opcode == CMSG_MOVE_SET_CAN_FLY_ACK)
         _player->SetPendingFlightChange(false);
 
-    Opcodes response;
+    OpcodeServer response;
 
     switch (recv_data.GetOpcode())
     {
         case CMSG_MOVE_HOVER_ACK: response = MSG_MOVE_HOVER; break;
-        case CMSG_MOVE_FEATHER_FALL_ACK: response = MSG_MOVE_FEATHER_FALL; break;
-        case CMSG_MOVE_WATER_WALK_ACK: response = MSG_MOVE_WATER_WALK; break;
-        case CMSG_MOVE_SET_CAN_FLY_ACK: response = MSG_MOVE_UPDATE_CAN_FLY; break;
+        case CMSG_MOVE_FEATHER_FALL_ACK: response = MSG_MOVE_FEATHER_FALL_SERVER; break;
+        case CMSG_MOVE_WATER_WALK_ACK: response = MSG_MOVE_WATER_WALK_SERVER; break;
+        case CMSG_MOVE_SET_CAN_FLY_ACK: response = MSG_MOVE_UPDATE_CAN_FLY_SERVER; break;
         case CMSG_MOVE_GRAVITY_DISABLE_ACK: response = MSG_MOVE_GRAVITY_CHNG; break;
         case CMSG_MOVE_GRAVITY_ENABLE_ACK: response = MSG_MOVE_GRAVITY_CHNG; break;
         default: return;
@@ -1627,13 +1663,6 @@ void WorldSession::HandleReadyForAccountDataTimes(WorldPacket& /*recv_data*/)
     LOG_DEBUG("network", "WORLD: CMSG_READY_FOR_ACCOUNT_DATA_TIMES");
 
     SendAccountDataTimes(GLOBAL_CACHE_MASK);
-}
-
-void WorldSession::SendSetPhaseShift(uint32 PhaseShift)
-{
-    WorldPacket data(SMSG_SET_PHASE_SHIFT, 4);
-    data << uint32(PhaseShift);
-    SendPacket(&data);
 }
 
 //Battlefield and Battleground

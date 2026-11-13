@@ -1763,7 +1763,7 @@ void ObjectMgr::LoadCreatureModelInfo()
         if (modelInfo.combat_reach < 0.1f)
             modelInfo.combat_reach = DEFAULT_COMBAT_REACH;
 
-        if (CreatureModelDataEntry const* modelData = sCreatureModelDataStore.LookupEntry(creatureDisplay->ModelId))
+        if (CreatureModelDataEntry const* modelData = creatureDisplay ? sCreatureModelDataStore.LookupEntry(creatureDisplay->ModelId) : nullptr)
         {
             for (uint32 i = 0; i < 14; i++)
             {
@@ -2317,6 +2317,31 @@ void ObjectMgr::LoadGameObjectSummons()
     LOG_INFO("server.loading", " ");
 }
 
+namespace
+{
+// Worlds imported before #348 collapsed a TDB phase group into PhaseId (only when the source
+// PhaseId was 0). Move values that are group-only back; ids that are both a phase and a group
+// cannot be disambiguated from the collapsed column and need the clean-world rebuild.
+void MigrateLegacySpawnPhase(SpawnData& data, char const* table, uint32 spawnId)
+{
+    if (!data.phaseId || IsValidPhaseId(data.phaseId))
+        return;
+
+    if (IsValidPhaseGroupId(data.phaseId) && !data.phaseGroup)
+    {
+        LOG_DEBUG("sql.sql", "Table `{}` has spawn {} with phase group {} in `PhaseId`; moved to `PhaseGroup` (#348).",
+                  table, spawnId, data.phaseId);
+        data.phaseGroup = data.phaseId;
+        data.phaseId = 0;
+        return;
+    }
+
+    LOG_ERROR("sql.sql", "Table `{}` has spawn {} with non-existing phase id {} in `PhaseId`, set to 0.",
+              table, spawnId, data.phaseId);
+    data.phaseId = 0;
+}
+}
+
 void ObjectMgr::LoadCreatures()
 {
     uint32 oldMSTime = getMSTime();
@@ -2325,8 +2350,8 @@ void ObjectMgr::LoadCreatures()
     QueryResult result = WorldDatabase.Query("SELECT creature.guid, id, map, equipment_id, position_x, position_y, position_z, orientation, spawntimesecs, wander_distance, "
                          //      10            11       12          13           14         15         16          17             18                 19                    20
                          "currentwaypoint, curhealth, curmana, MovementType, spawnMask, phaseMask, eventEntry, pool_entry, creature.npcflag, creature.unit_flags, creature.dynamicflags, "
-                         //       21
-                         "creature.ScriptName "
+                         //       21                     22
+                         "creature.ScriptName, creature.PhaseId, creature.PhaseGroup "
                          "FROM creature "
                          "LEFT OUTER JOIN game_event_creature ON creature.guid = game_event_creature.guid "
                          "LEFT OUTER JOIN pool_creature ON creature.guid = pool_creature.guid");
@@ -2387,7 +2412,16 @@ void ObjectMgr::LoadCreatures()
         data.unit_flags         = fields[19].Get<uint32>();
         data.dynamicflags       = fields[20].Get<uint32>();
         data.ScriptId           = GetScriptId(fields[21].Get<std::string>());
+        data.phaseId            = fields[22].Get<uint32>();
+        data.phaseGroup         = fields[23].Get<uint32>();
         data.spawnGroupId       = 0;
+
+        MigrateLegacySpawnPhase(data, "creature", spawnId);
+        if (data.phaseGroup && !IsValidPhaseGroupId(data.phaseGroup))
+        {
+            LOG_ERROR("sql.sql", "Table `creature` has creature (SpawnId: {}) with non-existing phase group id {} in `PhaseGroup` field, set to 0.", spawnId, data.phaseGroup);
+            data.phaseGroup = 0;
+        }
 
         if (!data.ScriptId)
             data.ScriptId = cInfo->ScriptID;
@@ -2580,7 +2614,7 @@ CreatureData const* ObjectMgr::LoadCreatureDataFromDB(ObjectGuid::LowType spawnI
     QueryResult result = WorldDatabase.Query("SELECT creature.guid, id, map, equipment_id, "
         "position_x, position_y, position_z, orientation, spawntimesecs, wander_distance, "
         "currentwaypoint, curhealth, curmana, MovementType, spawnMask, phaseMask, "
-        "creature.npcflag, creature.unit_flags, creature.dynamicflags, creature.ScriptName "
+        "creature.npcflag, creature.unit_flags, creature.dynamicflags, creature.ScriptName, creature.PhaseId, creature.PhaseGroup "
         "FROM creature WHERE creature.guid = {}", spawnId);
 
     if (!result)
@@ -2616,7 +2650,16 @@ CreatureData const* ObjectMgr::LoadCreatureDataFromDB(ObjectGuid::LowType spawnI
     creatureData.unit_flags       = fields[17].Get<uint32>();
     creatureData.dynamicflags     = fields[18].Get<uint32>();
     creatureData.ScriptId         = GetScriptId(fields[19].Get<std::string>());
+    creatureData.phaseId          = fields[20].Get<uint32>();
+    creatureData.phaseGroup       = fields[21].Get<uint32>();
     creatureData.spawnGroupId     = 0;
+
+    MigrateLegacySpawnPhase(creatureData, "creature", spawnId);
+    if (creatureData.phaseGroup && !IsValidPhaseGroupId(creatureData.phaseGroup))
+    {
+        LOG_ERROR("sql.sql", "Table `creature` has creature (SpawnId: {}) with non-existing phase group id {} in `PhaseGroup` field, set to 0.", spawnId, creatureData.phaseGroup);
+        creatureData.phaseGroup = 0;
+    }
 
     if (!creatureData.ScriptId)
         creatureData.ScriptId = cInfo->ScriptID;
@@ -2925,8 +2968,8 @@ void ObjectMgr::LoadGameobjects()
     QueryResult result = WorldDatabase.Query("SELECT gameobject.guid, id, map, position_x, position_y, position_z, orientation, "
                          //   7          8          9          10         11             12            13     14         15         16          17
                          "rotation0, rotation1, rotation2, rotation3, spawntimesecs, animprogress, state, spawnMask, phaseMask, eventEntry, pool_entry, "
-                         //   18
-                         "ScriptName "
+                         //   18                19
+                         "ScriptName, gameobject.PhaseId, gameobject.PhaseGroup "
                          "FROM gameobject LEFT OUTER JOIN game_event_gameobject ON gameobject.guid = game_event_gameobject.guid "
                          "LEFT OUTER JOIN pool_gameobject ON gameobject.guid = pool_gameobject.guid");
 
@@ -3037,6 +3080,15 @@ void ObjectMgr::LoadGameobjects()
         data.phaseMask      = fields[15].Get<uint32>();
         int16 gameEvent     = fields[16].Get<int16>();
         data.poolId         = fields[17].Get<uint32>();
+        data.phaseId        = fields[19].Get<uint32>();
+        data.phaseGroup     = fields[20].Get<uint32>();
+
+        MigrateLegacySpawnPhase(data, "gameobject", guid);
+        if (data.phaseGroup && !IsValidPhaseGroupId(data.phaseGroup))
+        {
+            LOG_ERROR("sql.sql", "Table `gameobject` has gameobject (GUID: {} Entry: {}) with non-existing phase group id {} in `PhaseGroup` field, set to 0.", guid, data.id, data.phaseGroup);
+            data.phaseGroup = 0;
+        }
 
         if (data.rotation.x < -1.0f || data.rotation.x > 1.0f)
         {
@@ -3114,7 +3166,7 @@ GameObjectData const* ObjectMgr::LoadGameObjectDataFromDB(ObjectGuid::LowType sp
 
     QueryResult result = WorldDatabase.Query("SELECT gameobject.guid, id, map, position_x, position_y, position_z, orientation, "
         "rotation0, rotation1, rotation2, rotation3, spawntimesecs, animprogress, state, spawnMask, phaseMask, "
-        "ScriptName "
+        "ScriptName, gameobject.PhaseId, gameobject.PhaseGroup "
         "FROM gameobject WHERE gameobject.guid = {}", spawnId);
 
     if (!result)
@@ -3180,6 +3232,15 @@ GameObjectData const* ObjectMgr::LoadGameObjectDataFromDB(ObjectGuid::LowType sp
 
     goData.spawnMask        = fields[14].Get<uint8>();
     goData.phaseMask        = fields[15].Get<uint32>();
+    goData.phaseId          = fields[17].Get<uint32>();
+    goData.phaseGroup       = fields[18].Get<uint32>();
+
+    MigrateLegacySpawnPhase(goData, "gameobject", spawnId);
+    if (goData.phaseGroup && !IsValidPhaseGroupId(goData.phaseGroup))
+    {
+        LOG_ERROR("sql.sql", "Table `gameobject` has gameobject (GUID: {} Entry: {}) with non-existing phase group id {} in `PhaseGroup` field, set to 0.", spawnId, entry, goData.phaseGroup);
+        goData.phaseGroup = 0;
+    }
 
     if (goData.rotation.x < -1.0f || goData.rotation.x > 1.0f)
     {
@@ -4510,79 +4571,34 @@ void ObjectMgr::LoadPlayerInfo()
         }
     }
 
-    // Load playercreate skills
     LOG_INFO("server.loading", "Loading Player Create Skill Data...");
     {
         uint32 oldMSTime = getMSTime();
-
-        QueryResult result = WorldDatabase.Query("SELECT raceMask, classMask, skill, `rank` FROM playercreateinfo_skills");
-
-        if (!result)
+        uint32 count = 0;
+        for (SkillRaceClassInfoEntry const* skill : sSkillRaceClassInfoStore)
         {
-            LOG_WARN("server.loading", ">> Loaded 0 Player Create Skills. DB Table `playercreateinfo_skills` Is Empty.");
-        }
-        else
-        {
-            uint32 count = 0;
+            if (skill->Availability != 1 || !sSkillLineStore.LookupEntry(skill->SkillID))
+                continue;
 
-            do
+            for (uint32 race = RACE_HUMAN; race < sRaceMgr->GetMaxRaces(); ++race)
             {
-                Field* fields = result->Fetch();
-                uint32 raceMask = fields[0].Get<uint32>();
-                uint32 classMask = fields[1].Get<uint32>();
-                PlayerCreateInfoSkill skill;
-                skill.SkillId = fields[2].Get<uint16>();
-                skill.Rank = fields[3].Get<uint16>();
-
-                if (skill.Rank >= MAX_SKILL_STEP)
-                {
-                    LOG_ERROR("sql.sql", "Skill rank value {} set for skill {} raceMask {} classMask {} is too high, max allowed value is {}", skill.Rank, skill.SkillId, raceMask, classMask, MAX_SKILL_STEP);
+                if (skill->RaceMask && !(skill->RaceMask & (1u << (race - 1))))
                     continue;
-                }
 
-                if (raceMask != 0 && !(raceMask & sRaceMgr->GetPlayableRaceMask()))
+                for (uint32 classId = CLASS_WARRIOR; classId < MAX_CLASSES; ++classId)
                 {
-                    LOG_ERROR("sql.sql", "Wrong race mask {} in `playercreateinfo_skills` table, ignoring.", raceMask);
-                    continue;
-                }
+                    if (skill->ClassMask && !(skill->ClassMask & (1u << (classId - 1))))
+                        continue;
 
-                if (classMask != 0 && !(classMask & CLASSMASK_ALL_PLAYABLE))
-                {
-                    LOG_ERROR("sql.sql", "Wrong class mask {} in `playercreateinfo_skills` table, ignoring.", classMask);
-                    continue;
-                }
-
-                if (!sSkillLineStore.LookupEntry(skill.SkillId))
-                {
-                    LOG_ERROR("sql.sql", "Wrong skill id {} in `playercreateinfo_skills` table, ignoring.", skill.SkillId);
-                    continue;
-                }
-
-                for (uint32 raceIndex = RACE_HUMAN; raceIndex < sRaceMgr->GetMaxRaces(); ++raceIndex)
-                {
-                    if (raceMask == 0 || ((1 << (raceIndex - 1)) & raceMask))
+                    if (PlayerInfo* info = _playerInfo[race][classId])
                     {
-                        for (uint32 classIndex = CLASS_WARRIOR; classIndex < MAX_CLASSES; ++classIndex)
-                        {
-                            if (classMask == 0 || ((1 << (classIndex - 1)) & classMask))
-                            {
-                                if (!GetSkillRaceClassInfo(skill.SkillId, raceIndex, classIndex))
-                                    continue;
-
-                                if (PlayerInfo* info = _playerInfo[raceIndex][classIndex])
-                                {
-                                    info->skills.push_back(skill);
-                                    ++count;
-                                }
-                            }
-                        }
+                        info->skills.push_back(skill);
+                        ++count;
                     }
                 }
-            } while (result->NextRow());
-
-            LOG_INFO("server.loading", ">> Loaded {} Player Create Skills in {} ms", count, GetMSTimeDiffToNow(oldMSTime));
-            LOG_INFO("server.loading", " ");
+            }
         }
+        LOG_INFO("server.loading", ">> Loaded {} Player Create Skills in {} ms", count, GetMSTimeDiffToNow(oldMSTime));
     }
 
     // Load playercreate spells
@@ -5115,7 +5131,12 @@ void ObjectMgr::LoadQuests()
                          //      87               88               89               90               91               92                93                  94                  95                  96                  97                  98
                          "RequiredItemId1, RequiredItemId2, RequiredItemId3, RequiredItemId4, RequiredItemId5, RequiredItemId6, RequiredItemCount1, RequiredItemCount2, RequiredItemCount3, RequiredItemCount4, RequiredItemCount5, RequiredItemCount6, "
                          //  99           100             101             102             103
-                         "Unknown0, ObjectiveText1, ObjectiveText2, ObjectiveText3, ObjectiveText4"
+                         "Unknown0, ObjectiveText1, ObjectiveText2, ObjectiveText3, ObjectiveText4, "
+                         "RewardReputationMask, SoundAccept, SoundTurnIn, RewardBonusMoney, "
+                         "RequiredSpell, RewardCurrencyId1, RewardCurrencyCount1, RewardCurrencyId2, RewardCurrencyCount2, "
+                         "RewardCurrencyId3, RewardCurrencyCount3, RewardCurrencyId4, RewardCurrencyCount4, "
+                         "RequiredCurrencyId1, RequiredCurrencyCount1, RequiredCurrencyId2, RequiredCurrencyCount2, "
+                         "RequiredCurrencyId3, RequiredCurrencyCount3, RequiredCurrencyId4, RequiredCurrencyCount4"
                          " FROM quest_template");
     if (!result)
     {
@@ -7302,6 +7323,120 @@ void ObjectMgr::LoadAreaTriggers()
     } while (result->NextRow());
 
     LOG_INFO("server.loading", ">> Loaded {} Area Trigger Definitions in {} ms", count, GetMSTimeDiffToNow(oldMSTime));
+    LOG_INFO("server.loading", " ");
+}
+
+void ObjectMgr::LoadTerrainWorldMaps()
+{
+    uint32 oldMSTime = getMSTime();
+    PreparedQueryResult result = WorldDatabase.Query(WorldDatabase.GetPreparedStatement(WORLD_SEL_TERRAIN_WORLD_MAP));
+    if (!result)
+    {
+        LOG_INFO("server.loading", ">> Loaded 0 terrain world maps. DB table `terrain_worldmap` is empty.");
+        return;
+    }
+
+    uint32 count = 0;
+    do
+    {
+        Field* fields = result->Fetch();
+        uint32 swapMap = fields[0].Get<uint32>();
+        uint32 worldMapArea = fields[1].Get<uint32>();
+        if (!sMapStore.LookupEntry(swapMap))
+        {
+            LOG_ERROR("sql.sql", "TerrainSwapMap {} defined in `terrain_worldmap` does not exist, skipped.", swapMap);
+            continue;
+        }
+
+        TerrainSwapInfo& info = _terrainSwapInfos[swapMap];
+        info.Id = swapMap;
+        info.UiMapPhaseIDs.push_back(worldMapArea);
+        ++count;
+    } while (result->NextRow());
+
+    LOG_INFO("server.loading", ">> Loaded {} terrain world maps in {} ms.", count, GetMSTimeDiffToNow(oldMSTime));
+}
+
+void ObjectMgr::LoadTerrainSwapDefaults()
+{
+    uint32 oldMSTime = getMSTime();
+    PreparedQueryResult result = WorldDatabase.Query(WorldDatabase.GetPreparedStatement(WORLD_SEL_TERRAIN_SWAP_DEFAULTS));
+    if (!result)
+    {
+        LOG_INFO("server.loading", ">> Loaded 0 terrain swap defaults. DB table `terrain_swap_defaults` is empty.");
+        return;
+    }
+
+    uint32 count = 0;
+    do
+    {
+        Field* fields = result->Fetch();
+        uint32 mapId = fields[0].Get<uint32>();
+        uint32 swapMap = fields[1].Get<uint32>();
+        if (!sMapStore.LookupEntry(mapId) || !sMapStore.LookupEntry(swapMap))
+        {
+            LOG_ERROR("sql.sql", "Terrain swap {}/{} defined in `terrain_swap_defaults` references a missing map, skipped.", mapId, swapMap);
+            continue;
+        }
+
+        TerrainSwapInfo& info = _terrainSwapInfos[swapMap];
+        info.Id = swapMap;
+        _terrainSwapsByMap[mapId].push_back(&info);
+        ++count;
+    } while (result->NextRow());
+
+    LOG_INFO("server.loading", ">> Loaded {} terrain swap defaults in {} ms.", count, GetMSTimeDiffToNow(oldMSTime));
+}
+
+ObjectMgr::TerrainSwapInfo const* ObjectMgr::GetTerrainSwapInfo(uint32 id) const
+{
+    auto itr = _terrainSwapInfos.find(id);
+    return itr != _terrainSwapInfos.end() ? &itr->second : nullptr;
+}
+
+void ObjectMgr::LoadPhaseAreas()
+{
+    uint32 oldMSTime = getMSTime();
+
+    _phasesByArea.clear();
+
+    WorldDatabasePreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_SEL_PHASE_AREA);
+    PreparedQueryResult result = WorldDatabase.Query(stmt);
+
+    if (!result)
+    {
+        LOG_INFO("server.loading", ">> Loaded 0 phase area definitions. DB table `phase_area` is empty.");
+        LOG_INFO("server.loading", " ");
+        return;
+    }
+
+    uint32 count = 0;
+
+    do
+    {
+        Field* fields = result->Fetch();
+
+        uint32 areaId = fields[0].Get<uint32>();
+        uint32 phaseId = fields[1].Get<uint32>();
+        uint32 phaseGroup = fields[2].Get<uint32>();
+
+        if (!sAreaTableStore.LookupEntry(areaId))
+        {
+            LOG_ERROR("sql.sql", "Table `phase_area` has AreaId {} not found in `AreaTable.dbc`, skipped.", areaId);
+            continue;
+        }
+
+        if ((!phaseId && !phaseGroup) || (phaseId && !IsValidPhaseId(phaseId)) || (phaseGroup && !IsValidPhaseGroupId(phaseGroup)))
+        {
+            LOG_ERROR("sql.sql", "Table `phase_area` has invalid PhaseId {} / PhaseGroup {} for area {}, skipped.", phaseId, phaseGroup, areaId);
+            continue;
+        }
+
+        _phasesByArea[areaId].push_back({ phaseId, phaseGroup });
+        ++count;
+    } while (result->NextRow());
+
+    LOG_INFO("server.loading", ">> Loaded {} phase area definitions in {} ms", count, GetMSTimeDiffToNow(oldMSTime));
     LOG_INFO("server.loading", " ");
 }
 
@@ -10716,7 +10851,7 @@ CreatureBaseStats const* ObjectMgr::GetCreatureBaseStats(uint8 level, uint8 unit
         DefaultCreatureBaseStats()
         {
             BaseArmor = 1;
-            for (uint8 j = 0; j < MAX_EXPANSIONS; ++j)
+            for (uint8 j = 0; j < MAX_CREATURE_EXPANSIONS; ++j)
             {
                 BaseHealth[j] = 1;
                 BaseDamage[j] = 0.0f;
@@ -10739,7 +10874,7 @@ void ObjectMgr::LoadCreatureClassLevelStats()
 {
     uint32 oldMSTime = getMSTime();
 
-    QueryResult result = WorldDatabase.Query("SELECT level, class, basehp0, basehp1, basehp2, basemana, basearmor, attackpower, rangedattackpower, damage_base, damage_exp1, damage_exp2, Strength, Agility, Stamina, Intellect, Spirit FROM creature_classlevelstats");
+    QueryResult result = WorldDatabase.Query("SELECT level, class, basehp0, basehp1, basehp2, basehp3, basemana, basearmor, attackpower, rangedattackpower, damage_base, damage_exp1, damage_exp2, damage_exp3, Strength, Agility, Stamina, Intellect, Spirit FROM creature_classlevelstats");
 
     if (!result)
     {
@@ -10761,7 +10896,7 @@ void ObjectMgr::LoadCreatureClassLevelStats()
 
         CreatureBaseStats stats;
 
-        for (uint8 i = 0; i < MAX_EXPANSIONS; ++i)
+        for (uint8 i = 0; i < MAX_CREATURE_EXPANSIONS; ++i)
         {
             stats.BaseHealth[i] = fields[2 + i].Get<uint32>();
 
@@ -10785,25 +10920,40 @@ void ObjectMgr::LoadCreatureClassLevelStats()
                 }
             }
 
-            stats.BaseDamage[i] = fields[9 + i].Get<float>();
+            stats.BaseDamage[i] = fields[10 + i].Get<float>();
             if (stats.BaseDamage[i] < 0.0f)
             {
                 LOG_ERROR("sql.sql", "Creature base stats for class {}, level {} has invalid negative base damage[{}] - set to 0.0", Class, Level, i);
                 stats.BaseDamage[i] = 0.0f;
             }
+
+            // TDB 434 only fills the Cataclysm damage column from level 80 on; keep the lower
+            // expansion's value elsewhere so a Cataclysm creature never swings for zero.
+            if (stats.BaseDamage[i] == 0.0f)
+            {
+                for (uint8 j = i; j > 0;)
+                {
+                    --j;
+                    if (stats.BaseDamage[j] > 0.0f)
+                    {
+                        stats.BaseDamage[i] = stats.BaseDamage[j];
+                        break;
+                    }
+                }
+            }
         }
 
-        stats.BaseMana = fields[5].Get<uint32>();
-        stats.BaseArmor = fields[6].Get<uint32>();
+        stats.BaseMana = fields[6].Get<uint32>();
+        stats.BaseArmor = fields[7].Get<uint32>();
 
-        stats.AttackPower = fields[7].Get<uint32>();
-        stats.RangedAttackPower = fields[8].Get<uint32>();
+        stats.AttackPower = fields[8].Get<uint32>();
+        stats.RangedAttackPower = fields[9].Get<uint32>();
 
-        stats.Strength = fields[12].Get<uint32>();
-        stats.Agility = fields[13].Get<uint32>();
-        stats.Stamina = fields[14].Get<uint32>();
-        stats.Intellect = fields[15].Get<uint32>();
-        stats.Spirit = fields[16].Get<uint32>();
+        stats.Strength = fields[14].Get<uint32>();
+        stats.Agility = fields[15].Get<uint32>();
+        stats.Stamina = fields[16].Get<uint32>();
+        stats.Intellect = fields[17].Get<uint32>();
+        stats.Spirit = fields[18].Get<uint32>();
 
         if (!stats.Strength || !stats.Agility || !stats.Stamina || !stats.Intellect || !stats.Spirit)
         {

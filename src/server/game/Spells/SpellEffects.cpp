@@ -114,7 +114,7 @@ pEffect SpellEffects[TOTAL_SPELL_EFFECTS] =
     &Spell::EffectJumpDest,                                 // 42 SPELL_EFFECT_JUMP_DEST
     &Spell::EffectTeleUnitsFaceCaster,                      // 43 SPELL_EFFECT_TELEPORT_UNITS_FACE_CASTER
     &Spell::EffectLearnSkill,                               // 44 SPELL_EFFECT_SKILL_STEP
-    &Spell::EffectAddHonor,                                 // 45 SPELL_EFFECT_ADD_HONOR                honor/pvp related
+    &Spell::EffectPlayMovie,                                // 45 SPELL_EFFECT_PLAY_MOVIE
     &Spell::EffectUnused,                                   // 46 SPELL_EFFECT_SPAWN client-side, unit appears as if it was just spawned
     &Spell::EffectTradeSkill,                               // 47 SPELL_EFFECT_TRADE_SKILL
     &Spell::EffectUnused,                                   // 48 SPELL_EFFECT_STEALTH                  one spell: Base Stealth
@@ -234,6 +234,12 @@ pEffect SpellEffects[TOTAL_SPELL_EFFECTS] =
     &Spell::EffectActivateSpec,                             //162 SPELL_EFFECT_TALENT_SPEC_SELECT       activate primary/secondary spec
     &Spell::EffectNULL,                                     //163 unused
     &Spell::EffectRemoveAura,                               //164 SPELL_EFFECT_REMOVE_AURA
+    &Spell::EffectUnused,                                   //165 SPELL_EFFECT_DAMAGE_FROM_MAX_HEALTH_PCT (excluded)
+    &Spell::EffectUnused,                                   //166 SPELL_EFFECT_GIVE_CURRENCY (excluded)
+    &Spell::EffectUpdatePlayerPhase,                        //167 SPELL_EFFECT_UPDATE_PLAYER_PHASE
+    &Spell::EffectUnused,                                   //168 SPELL_EFFECT_ALLOW_CONTROL_PET (excluded)
+    &Spell::EffectUnused,                                   //169 SPELL_EFFECT_DESTROY_ITEM (excluded)
+    &Spell::EffectUpdateZoneAurasAndPhases,                  //170 SPELL_EFFECT_UPDATE_ZONE_AURAS_AND_PHASES
 };
 
 void Spell::EffectNULL(SpellEffIndex /*effIndex*/)
@@ -1952,7 +1958,8 @@ void Spell::EffectPersistentAA(SpellEffIndex effIndex)
         if (!caster->IsInWorld() || !caster->FindMap() || !ObjectAccessor::GetUnit(*caster, caster->GetGUID())) // pussywizard: temporary crash fix (FindMap and GetUnit are mine)
             return;
         DynamicObject* dynObj = new DynamicObject();
-        if (!dynObj->CreateDynamicObject(caster->GetMap()->GenerateLowGuid<HighGuid::DynamicObject>(), caster, m_spellInfo->Id, *destTarget, radius, DYNAMIC_OBJECT_AREA_SPELL))
+        if (!dynObj->CreateDynamicObject(caster->GetMap()->GenerateLowGuid<HighGuid::DynamicObject>(),
+            caster, m_spellInfo, *destTarget, radius, DYNAMIC_OBJECT_AREA_SPELL))
         {
             delete dynObj;
             return;
@@ -2908,7 +2915,8 @@ void Spell::EffectAddFarsight(SpellEffIndex effIndex)
     bool updateViewerVisibility = unitCaster->RemoveDynObject(m_spellInfo->Id);
 
     DynamicObject* dynObj = new DynamicObject();
-    if (!dynObj->CreateDynamicObject(unitCaster->GetMap()->GenerateLowGuid<HighGuid::DynamicObject>(), unitCaster, m_spellInfo->Id, *destTarget, radius, DYNAMIC_OBJECT_FARSIGHT_FOCUS))
+    if (!dynObj->CreateDynamicObject(unitCaster->GetMap()->GenerateLowGuid<HighGuid::DynamicObject>(),
+        unitCaster, m_spellInfo, *destTarget, radius, DYNAMIC_OBJECT_FARSIGHT_FOCUS))
     {
         delete dynObj;
         return;
@@ -2964,37 +2972,35 @@ void Spell::EffectLearnSkill(SpellEffIndex effIndex)
     unitTarget->ToPlayer()->SetSkill(skillid, m_spellInfo->Effects[effIndex].CalcValue(), skillval ? skillval : 1, damage * 75);
 }
 
-void Spell::EffectAddHonor(SpellEffIndex /*effIndex*/)
+void Spell::EffectPlayMovie(SpellEffIndex effIndex)
 {
     if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
         return;
 
-    if (!unitTarget->IsPlayer())
+    if (Player* player = unitTarget->ToPlayer())
+        if (sMovieStore.LookupEntry(m_spellInfo->Effects[effIndex].MiscValue))
+            player->SendMovieStart(m_spellInfo->Effects[effIndex].MiscValue);
+}
+
+void Spell::EffectUpdatePlayerPhase(SpellEffIndex /*effIndex*/)
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET || !unitTarget)
         return;
 
-    // not scale value for item based reward (/10 value expected)
-    if (m_CastItem)
-    {
-        unitTarget->ToPlayer()->RewardHonor(nullptr, 1, damage / 10, false);
-        LOG_DEBUG("spells.aura", "SpellEffect::AddHonor (spell_id {}) rewards {} honor points (item {}) for player: {}",
-            m_spellInfo->Id, damage / 10, m_CastItem->GetEntry(), unitTarget->ToPlayer()->GetGUID().ToString());
-        return;
-    }
+    if (Player* player = unitTarget->ToPlayer())
+        player->RefreshPhases();
+}
 
-    // do not allow to add too many honor for player (50 * 21) = 1040 at level 70, or (50 * 31) = 1550 at level 80
-    if (damage <= 50)
+void Spell::EffectUpdateZoneAurasAndPhases(SpellEffIndex /*effIndex*/)
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET || !unitTarget)
+        return;
+
+    if (Player* player = unitTarget->ToPlayer())
     {
-        uint32 honor_reward = Acore::Honor::hk_honor_at_level(unitTarget->GetLevel(), float(damage));
-        unitTarget->ToPlayer()->RewardHonor(nullptr, 1, honor_reward, false);
-        LOG_DEBUG("spells.aura", "SpellEffect::AddHonor (spell_id {}) rewards {} honor points (scale) to player: {}",
-            m_spellInfo->Id, honor_reward, unitTarget->ToPlayer()->GetGUID().ToString());
-    }
-    else
-    {
-        //maybe we have correct honor_gain in damage already
-        unitTarget->ToPlayer()->RewardHonor(nullptr, 1, damage, false);
-        LOG_DEBUG("spells.aura", "SpellEffect::AddHonor (spell_id {}) rewards {} honor points (non scale) for player: {}",
-            m_spellInfo->Id, damage, unitTarget->ToPlayer()->GetGUID().ToString());
+        player->UpdateZoneDependentAuras(player->GetZoneId());
+        player->UpdateAreaDependentAuras(player->GetAreaId());
+        player->RefreshPhases();
     }
 }
 
@@ -6674,7 +6680,7 @@ void Spell::EffectBind(SpellEffIndex effIndex)
     player->SetHomebind(homeLoc, areaId);
 
     // binding
-    WorldPacket data(SMSG_BINDPOINTUPDATE, 4 + 4 + 4 + 4 + 4);
+    WorldPacket data(SMSG_BIND_POINT_UPDATE, 4 + 4 + 4 + 4 + 4);
     data << float(homeLoc.GetPositionX());
     data << float(homeLoc.GetPositionY());
     data << float(homeLoc.GetPositionZ());

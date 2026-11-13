@@ -31,6 +31,7 @@
 #include "Duration.h"
 #include "GossipDef.h"
 #include "Packet.h"
+#include "Position.h"
 #include "QueryHolder.h"
 #include "SharedDefines.h"
 #include "World.h"
@@ -60,6 +61,14 @@ struct ItemTemplate;
 struct MovementInfo;
 struct TradeStatusInfo;
 
+namespace WorldPackets
+{
+    namespace Movement
+    {
+        class ExtraMovementStatusElement;
+    }
+}
+
 namespace lfg
 {
     struct LfgJoinResultData;
@@ -88,8 +97,10 @@ namespace WorldPackets
     {
         class LogoutCancel;
         class LogoutRequest;
+        class EnumCharacters;
         class ShowingCloak;
         class ShowingHelm;
+        class PlayerLogin;
         class PlayerLogout;
         class PlayedTimeClient;
     }
@@ -455,11 +466,13 @@ public:
     void ReadAddonsInfo(ByteBuffer& data);
     void SendAddonsInfo();
 
-    void ReadMovementInfo(WorldPacket& data, MovementInfo* mi);
+    void ReadMovementInfo(WorldPacket& data, MovementInfo* mi,
+        WorldPackets::Movement::ExtraMovementStatusElement* extras = nullptr);
+    void SanitizeMovementFlags(MovementInfo* mi);
     void WriteMovementInfo(WorldPacket* data, MovementInfo* mi);
     void SynchronizeMovement(MovementInfo& movementInfo);
     void HandleMoverRelocation(MovementInfo& movementInfo, Unit* mover);
-    bool VerifyMovementInfo(MovementInfo const& movementInfo, Player* plrMover, Unit* mover, Opcodes opcode) const;
+    bool VerifyMovementInfo(MovementInfo const& movementInfo, Player* plrMover, Unit* mover, OpcodeClient opcode) const;
     bool ProcessMovementInfo(MovementInfo& movementInfo, Unit* mover, Player* plrMover, WorldPacket& recvData);
 
     void SendPacket(WorldPacket const* packet);
@@ -481,7 +494,6 @@ public:
             SendAreaTriggerMessage(Acore::StringFormat(GetAcoreString(strId), std::forward<Args>(args)...));
     }
 
-    void SendSetPhaseShift(uint32 phaseShift);
     void SendTimeQueryResponse();
 
     void SendAuthResponse(uint8 code, bool shortForm, uint32 queuePos = 0);
@@ -690,13 +702,14 @@ public:
 public:                                                 // opcodes handlers
     void Handle_NULL(WorldPacket& null);                // not used
     void Handle_EarlyProccess(WorldPacket& recvPacket); // just mark packets processed in WorldSocket::OnRead
-    void Handle_ServerSide(WorldPacket& recvPacket);    // sever side only, can't be accepted from client
     void Handle_Deprecated(WorldPacket& recvPacket);    // never used anymore by client
 
-    void HandleCharEnumOpcode(WorldPacket& recvPacket);
+    void HandleCharEnumOpcode(WorldPackets::Character::EnumCharacters& packet);
     void HandleCharDeleteOpcode(WorldPacket& recvPacket);
     void HandleCharCreateOpcode(WorldPacket& recvPacket);
-    void HandlePlayerLoginOpcode(WorldPacket& recvPacket);
+    void HandleLoadScreenOpcode(WorldPacket& recvPacket);
+    void HandleViolenceLevel(WorldPacket& recvPacket);
+
     void HandleCharEnum(PreparedQueryResult result);
     void HandlePlayerLoginFromDB(LoginQueryHolder const& holder);
     void HandlePlayerLoginToCharInWorld(Player* pCurrChar);
@@ -740,6 +753,7 @@ public:                                                 // opcodes handlers
 
     void HandleMoveTeleportAck(WorldPacket& recvPacket);
     void HandleForceSpeedChangeAck(WorldPacket& recvData);
+    void HandleForceRunSpeedChangeAck(WorldPacket& recvData);
 
     void HandleRepopRequestOpcode(WorldPacket& recvPacket);
     void HandleAutostoreLootItemOpcode(WorldPacket& recvPacket);
@@ -749,6 +763,7 @@ public:                                                 // opcodes handlers
     void HandleLootMasterGiveOpcode(WorldPacket& recvPacket);
     void HandleWhoOpcode(WorldPacket& recvPacket);
     void HandleLogoutRequestOpcode(WorldPackets::Character::LogoutRequest& logoutRequest);
+    void HandlePlayerLoginOpcode(WorldPackets::Character::PlayerLogin& playerLogin);
     void HandlePlayerLogoutOpcode(WorldPackets::Character::PlayerLogout& playerLogout);
     void HandleLogoutCancelOpcode(WorldPackets::Character::LogoutCancel& logoutCancel);
 
@@ -801,10 +816,12 @@ public:                                                 // opcodes handlers
     void HandleGameObjectQueryOpcode(WorldPacket& recvPacket);
 
     void HandleMoveWorldportAckOpcode(WorldPacket& recvPacket);
+    void HandleSuspendTokenResponse(WorldPacket& recvPacket);
     void HandleMoveWorldportAck(); // for server-side calls
 
     void HandleMovementOpcodes(WorldPacket& recvPacket);
     void HandleSetActiveMoverOpcode(WorldPacket& recvData);
+    void HandleObjectUpdateFailedOpcode(WorldPacket& recvData);
     void HandleMoveNotActiveMover(WorldPacket& recvData);
     void HandleDismissControlledVehicle(WorldPacket& recvData);
     void HandleRequestVehicleExit(WorldPacket& recvData);
@@ -985,11 +1002,13 @@ public:                                                 // opcodes handlers
     void HandleQuestPushResult(WorldPackets::Quest::QuestPushResultClient& packet);
 
     void HandleMessagechatOpcode(WorldPacket& recvPacket);
+    void HandleAddonMessagechatOpcode(WorldPacket& recvPacket);
     void SendPlayerNotFoundNotice(std::string const& name);
     void SendPlayerAmbiguousNotice(std::string const& name);
     void SendWrongFactionNotice();
     void SendChatRestrictedNotice(ChatRestrictionType restriction);
     void HandleTextEmoteOpcode(WorldPacket& recvPacket);
+    void HandleSendTextEmoteOpcode(WorldPacket& recvPacket);
     void HandleChatIgnoredOpcode(WorldPacket& recvPacket);
 
     void HandleReclaimCorpseOpcode(WorldPacket& recvPacket);
@@ -1022,6 +1041,7 @@ public:                                                 // opcodes handlers
 
     void HandleCompleteCinematic(WorldPacket& recvPacket);
     void HandleNextCinematicCamera(WorldPacket& recvPacket);
+    void HandleCompleteMovie(WorldPacket& recvPacket);
 
     void HandlePageTextQueryOpcode(WorldPacket& recvPacket);
 
@@ -1205,6 +1225,7 @@ public:                                                 // opcodes handlers
     void HandleReadyForAccountDataTimes(WorldPacket& recvData);
     void HandleQueryQuestsCompleted(WorldPacket& recvData);
     void HandleQuestPOIQuery(WorldPacket& recvData);
+    void HandleQuestNPCQuery(WorldPacket& recvData);
     void HandleEjectPassenger(WorldPacket& data);
     void HandleEnterPlayerVehicle(WorldPacket& data);
     void HandleUpdateProjectilePosition(WorldPacket& recvPacket);

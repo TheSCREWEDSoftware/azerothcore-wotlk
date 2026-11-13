@@ -54,7 +54,9 @@ namespace
 MotionTransport::MotionTransport() : Transport(), _transportInfo(nullptr), _isMoving(true), _pendingStop(false), _triggeredArrivalEvent(false), _triggeredDepartureEvent(false), _passengersLoaded(false), _delayedTeleport(false),
     _requiresFirstDepartureSync(false), _firstDepartureTime(transportStartDate)
 {
-    m_updateFlag = UPDATEFLAG_TRANSPORT | UPDATEFLAG_LOWGUID | UPDATEFLAG_STATIONARY_POSITION | UPDATEFLAG_ROTATION;
+    m_updateFlag.ServerTime = true;
+    m_updateFlag.Stationary = true;
+    m_updateFlag.Rotation = true;
 }
 
 MotionTransport::~MotionTransport()
@@ -173,7 +175,7 @@ uint32 MotionTransport::HandleFirstDepartureSync(uint32 diff)
                 if (!player->InSamePhase(this))
                     continue;
 
-                UpdateData transData;
+                UpdateData transData(player->GetMapId());
                 this->BuildCreateUpdateBlockForPlayer(&transData, player);
 
                 WorldPacket packet;
@@ -788,7 +790,9 @@ void MotionTransport::DoEventIfAny(KeyFrame const& node, bool departure)
 
 StaticTransport::StaticTransport() : Transport(), _needDoInitialRelocation(false)
 {
-    m_updateFlag = UPDATEFLAG_TRANSPORT | UPDATEFLAG_LOWGUID | UPDATEFLAG_STATIONARY_POSITION | UPDATEFLAG_ROTATION;
+    m_updateFlag.ServerTime = true;
+    m_updateFlag.Stationary = true;
+    m_updateFlag.Rotation = true;
 }
 
 StaticTransport::~StaticTransport()

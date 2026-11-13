@@ -23,7 +23,7 @@
 #include "World.h"
 #include "WorldPacket.h"
 
-UpdateData::UpdateData() : m_blockCount(0)
+UpdateData::UpdateData(uint16 map) : m_map(map), m_blockCount(0)
 {
     m_outOfRangeGUIDs.reserve(15);
 }
@@ -49,8 +49,9 @@ bool UpdateData::BuildPacket(WorldPacket& packet)
 {
     ASSERT(packet.empty());
 
-    packet.reserve(4 + (m_outOfRangeGUIDs.empty() ? 0 : 1 + 4 + 9 * m_outOfRangeGUIDs.size()) + m_data.wpos());
+    packet.reserve(2 + 4 + (m_outOfRangeGUIDs.empty() ? 0 : 1 + 4 + 9 * m_outOfRangeGUIDs.size()) + m_data.wpos());
 
+    packet << (uint16) m_map;
     packet << (uint32) (!m_outOfRangeGUIDs.empty() ? m_blockCount + 1 : m_blockCount);
 
     if (!m_outOfRangeGUIDs.empty())

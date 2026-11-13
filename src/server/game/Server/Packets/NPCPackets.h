@@ -21,6 +21,7 @@
 #include "Packet.h"
 #include "ObjectGuid.h"
 #include <array>
+#include <optional>
 
 namespace WorldPackets::NPC
 {
@@ -45,11 +46,13 @@ namespace WorldPackets::NPC
         int32 SpellID          = 0;
         uint8 Usable           = 0;
         int32 MoneyCost        = 0;
-        std::array<int32, 2> PointCost = { }; // compared with PLAYER_CHARACTER_POINTS in Lua
+        // 4.x replaced the WotLK point-cost pair with the profession dialog/button hints
+        int32 ProfessionDialog = 0;
+        int32 ProfessionButton = 0;
         uint8 ReqLevel         = 0;
         int32 ReqSkillLine     = 0;
         int32 ReqSkillRank     = 0;
-        std::array<int32, 3> ReqAbility = { };
+        std::array<int32, 2> ReqAbility = { };
     };
 
     class TrainerList final : public ServerPacket
@@ -61,6 +64,7 @@ namespace WorldPackets::NPC
 
         ObjectGuid TrainerGUID;
         int32 TrainerType = 0;
+        int32 TrainerID = 0;    // 4.x: the trainer table id, echoed back by the buy request
         std::vector<TrainerListSpell> Spells;
         std::string Greeting;
     };
@@ -73,6 +77,7 @@ namespace WorldPackets::NPC
         void Read() override;
 
         ObjectGuid TrainerGUID;
+        int32 TrainerID = 0;
         int32 SpellID = 0;
     };
 
@@ -97,6 +102,33 @@ namespace WorldPackets::NPC
 
         ObjectGuid TrainerGUID;
         int32 SpellID = 0;
+    };
+
+    struct VendorItem
+    {
+        int32 MuID              = 0;
+        int32 Type              = 0;
+        int32 ItemID            = 0;
+        int32 ItemDisplayInfoID = 0;
+        int32 Quantity          = -1;
+        uint32 Price            = 0;
+        int32 Durability        = 0;
+        int32 StackCount        = 0;
+        std::optional<uint32> ExtendedCostID;
+        // AC has no PlayerCondition.dbc store, so the Cata field stays absent until that store exists
+        std::optional<int32> PlayerConditionFailed;
+    };
+
+    class VendorInventory final : public ServerPacket
+    {
+    public:
+        VendorInventory() : ServerPacket(SMSG_VENDOR_INVENTORY, 600) { }
+
+        WorldPacket const* Write() override;
+
+        uint8 Reason = 0;
+        std::vector<VendorItem> Items;
+        ObjectGuid Vendor;
     };
 }
 

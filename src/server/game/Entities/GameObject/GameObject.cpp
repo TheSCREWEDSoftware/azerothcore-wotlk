@@ -113,7 +113,8 @@ GameObject::GameObject() : WorldObject(), MovableMapObject(),
     m_objectType |= TYPEMASK_GAMEOBJECT;
     m_objectTypeId = TYPEID_GAMEOBJECT;
 
-    m_updateFlag = (UPDATEFLAG_LOWGUID | UPDATEFLAG_STATIONARY_POSITION | UPDATEFLAG_POSITION | UPDATEFLAG_ROTATION);
+    m_updateFlag.Stationary = true;
+    m_updateFlag.Rotation = true;
 
     m_valuesCount = GAMEOBJECT_END;
     m_respawnTime = 0;
@@ -598,7 +599,7 @@ void GameObject::Update(uint32 diff)
                                     SetGoState(GO_STATE_ACTIVE);
                                     ReplaceAllGameObjectFlags(GO_FLAG_NODESPAWN);
 
-                                    UpdateData udata;
+                                    UpdateData udata(caster->ToPlayer()->GetMapId());
                                     WorldPacket packet;
                                     BuildValuesUpdateBlockForPlayer(&udata, caster->ToPlayer());
                                     udata.BuildPacket(packet);
@@ -1164,6 +1165,8 @@ void GameObject::SaveToDB(uint32 mapid, uint8 spawnMask, uint32 phaseMask, bool 
     data.id = GetEntry();
     data.mapid = mapid;
     data.phaseMask = phaseMask;
+    data.phaseId = GetSpawnPhaseId();
+    data.phaseGroup = GetSpawnPhaseGroup();
     data.posX = GetPositionX();
     data.posY = GetPositionY();
     data.posZ = GetPositionZ();
@@ -1190,6 +1193,8 @@ void GameObject::SaveToDB(uint32 mapid, uint8 spawnMask, uint32 phaseMask, bool 
     stmt->SetData(index++, uint16(mapid));
     stmt->SetData(index++, spawnMask);
     stmt->SetData(index++, GetPhaseMask());
+    stmt->SetData(index++, GetSpawnPhaseId());
+    stmt->SetData(index++, GetSpawnPhaseGroup());
     stmt->SetData(index++, GetPositionX());
     stmt->SetData(index++, GetPositionY());
     stmt->SetData(index++, GetPositionZ());
@@ -1247,6 +1252,9 @@ bool GameObject::LoadGameObjectFromDB(ObjectGuid::LowType spawnId, Map* map, boo
 
     if (!Create(map->GenerateLowGuid<HighGuid::GameObject>(), entry, map, phaseMask, x, y, z, ang, data->rotation, animprogress, go_state, artKit))
         return false;
+
+    SetSpawnPhaseId(data->phaseId);
+    SetSpawnPhaseGroup(data->phaseGroup);
 
     if (data->spawntimesecs >= 0)
     {
@@ -2937,7 +2945,6 @@ void GameObject::BuildValuesUpdate(uint8 updateType, ByteBuffer* data, Player* t
         }
     }
 
-    *data << uint8(updateMask.GetBlockCount());
     updateMask.AppendToPacket(data);
     data->append(fieldBuffer);
 }

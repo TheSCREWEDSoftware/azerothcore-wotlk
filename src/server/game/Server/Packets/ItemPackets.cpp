@@ -57,9 +57,6 @@ void WorldPackets::Item::DestroyItem::Read()
     _worldPacket >> Bag;
     _worldPacket >> Slot;
     _worldPacket >> Count;
-    _worldPacket >> Data1;
-    _worldPacket >> Data2;
-    _worldPacket >> Data3;
 }
 
 void WorldPackets::Item::ReadItem::Read()
@@ -94,10 +91,12 @@ void WorldPackets::Item::BuyItemInSlot::Read()
 void WorldPackets::Item::BuyItem::Read()
 {
     _worldPacket >> VendorGuid;
+    _worldPacket >> ItemType;
     _worldPacket >> Item;
     _worldPacket >> Slot;
     _worldPacket >> Count;
-    _worldPacket >> Unk;
+    _worldPacket >> BagGuid;
+    _worldPacket >> BagSlot;
 }
 
 void WorldPackets::Item::ListInventory::Read()

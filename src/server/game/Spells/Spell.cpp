@@ -43,6 +43,7 @@
 #include "SpellAuraEffects.h"
 #include "SpellInfo.h"
 #include "SpellMgr.h"
+#include "SpellPackets.h"
 #include "SpellScript.h"
 #include "TemporarySummon.h"
 #include "Unit.h"
@@ -1470,7 +1471,7 @@ void Spell::SelectImplicitCasterDestTargets(SpellEffIndex effIndex, SpellImplici
 
                 float ground = m_caster->GetMapHeight(x, y, z, true);
                 float liquidLevel = VMAP_INVALID_HEIGHT_VALUE;
-                LiquidData const& liquidData = m_caster->GetMap()->GetLiquidData(m_caster->GetPhaseMask(), x, y, z, m_caster->GetCollisionHeight(), {});
+                LiquidData const& liquidData = m_caster->GetMap()->GetLiquidData(m_caster->GetPhaseMask(), x, y, z, m_caster->GetCollisionHeight(), {}, m_caster->GetTerrainMapIds());
                 if (liquidData.Status)
                     liquidLevel = liquidData.Level;
 
@@ -1528,7 +1529,7 @@ void Spell::SelectImplicitCasterDestTargets(SpellEffIndex effIndex, SpellImplici
                 //    actual vmap ground: -56.342392
                 //    Z position:         -56.347195
                 float searchGroundZPos = pos.GetPositionZ()+GROUND_HEIGHT_TOLERANCE;
-                float ground = map->GetHeight(phasemask, pos.GetPositionX(), pos.GetPositionY(), searchGroundZPos);
+                float ground = map->GetHeight(phasemask, pos.GetPositionX(), pos.GetPositionY(), searchGroundZPos, true, DEFAULT_HEIGHT_SEARCH, unitCaster->GetTerrainMapIds());
 
                 bool isCasterInWater = unitCaster->IsInWater();
                 if (!unitCaster->HasUnitMovementFlag(MOVEMENTFLAG_FALLING) || (pos.GetPositionZ() - ground < distance))
@@ -1562,12 +1563,12 @@ void Spell::SelectImplicitCasterDestTargets(SpellEffIndex effIndex, SpellImplici
                             prevZ = tstZ;
                         }
 
-                        tstZ = map->GetHeight(phasemask, tstX, tstY, prevZ + maxtravelDistZ, true);
+                        tstZ = map->GetHeight(phasemask, tstX, tstY, prevZ + maxtravelDistZ, true, DEFAULT_HEIGHT_SEARCH, unitCaster->GetTerrainMapIds());
                         ground = tstZ;
 
                         if (!isCasterInWater)
                         {
-                            if (map->IsInWater(phasemask, tstX, tstY, tstZ, collisionHeight))
+                            if (map->IsInWater(phasemask, tstX, tstY, tstZ, collisionHeight, unitCaster->GetTerrainMapIds()))
                             {
                                 if (!(beforewaterz != 0.0f))
                                 {
@@ -1578,7 +1579,7 @@ void Spell::SelectImplicitCasterDestTargets(SpellEffIndex effIndex, SpellImplici
                                 //LOG_ERROR("spells", "(start was from land) step in water , number of cycle = {} , distance of step = {}, total path = {}, Z = {}", j, srange, totalpath, tstZ);
                             }
                         }
-                        else if (map->IsInWater(phasemask, tstX, tstY, tstZ, collisionHeight))
+                        else if (map->IsInWater(phasemask, tstX, tstY, tstZ, collisionHeight, unitCaster->GetTerrainMapIds()))
                         {
                             prevZ = pos.GetPositionZ();
                             tstZ = pos.GetPositionZ();
@@ -1597,18 +1598,18 @@ void Spell::SelectImplicitCasterDestTargets(SpellEffIndex effIndex, SpellImplici
                             //    LOG_ERROR("spells", "step in water, number of cycle = {} , distance of step = {}, total path = {}", j, srange, totalpath);
                         }
 
-                        bool IsInWater = map->IsInWater(phasemask, tstX, tstY, tstZ, collisionHeight);
+                        bool IsInWater = map->IsInWater(phasemask, tstX, tstY, tstZ, collisionHeight, unitCaster->GetTerrainMapIds());
                         if ((!IsInWater && tstZ != beforewaterz) || wcol)  // second safety check z for blink way if on the ground
                         {
                             if (inwater && !IsInWater)
                                 inwater = false;
 
                             // highest available point
-                            tstZ1 = map->GetHeight(phasemask, tstX, tstY, prevZ + maxtravelDistZ, true, 25.0f);
+                            tstZ1 = map->GetHeight(phasemask, tstX, tstY, prevZ + maxtravelDistZ, true, 25.0f, unitCaster->GetTerrainMapIds());
                             // upper or floor
-                            tstZ2 = map->GetHeight(phasemask, tstX, tstY, prevZ, true, 25.0f);
+                            tstZ2 = map->GetHeight(phasemask, tstX, tstY, prevZ, true, 25.0f, unitCaster->GetTerrainMapIds());
                             //lower than floor
-                            tstZ3 = map->GetHeight(phasemask, tstX, tstY, prevZ - maxtravelDistZ / 2, true, 25.0f);
+                            tstZ3 = map->GetHeight(phasemask, tstX, tstY, prevZ - maxtravelDistZ / 2, true, 25.0f, unitCaster->GetTerrainMapIds());
 
                             //distance of rays, will select the shortest in 3D
                             srange1 = sqrt((tstY - prevY) * (tstY - prevY) + (tstX - prevX) * (tstX - prevX) + (tstZ1 - prevZ) * (tstZ1 - prevZ));
@@ -1649,12 +1650,13 @@ void Spell::SelectImplicitCasterDestTargets(SpellEffIndex effIndex, SpellImplici
                             //LOG_ERROR("spells", "total path > than distance in 3D , need to move back a bit for save distance, total path = {}, overdistance = {}", totalpath, overdistance);
                         }
 
-                        bool col = unitCaster->GetMap()->GetMapCollisionData().GetStaticTree().GetObjectHitPos(prevX, prevY, prevZ + 0.5f, tstX, tstY, tstZ + 0.5f, tstX, tstY, tstZ, -0.5f);
+                        bool col = unitCaster->GetMap()->GetStaticObjectHitPos(unitCaster->GetTerrainMapIds(),
+                            prevX, prevY, prevZ + 0.5f, tstX, tstY, tstZ + 0.5f, tstX, tstY, tstZ, -0.5f);
                         // check dynamic collision
                         bool dcol = unitCaster->GetMap()->GetMapCollisionData().GetDynamicTree().GetObjectHitPos(phasemask, prevX, prevY, prevZ + 0.5f, tstX, tstY, tstZ + 0.5f, tstX, tstY, tstZ, -0.5f);
 
                         // collision occured
-                        if (col || dcol || (overdistance > 0.0f && !map->IsInWater(phasemask, tstX, tstY, ground, collisionHeight)) || (fabs(prevZ - tstZ) > maxtravelDistZ && (tstZ > prevZ)))
+                        if (col || dcol || (overdistance > 0.0f && !map->IsInWater(phasemask, tstX, tstY, ground, collisionHeight, unitCaster->GetTerrainMapIds())) || (fabs(prevZ - tstZ) > maxtravelDistZ && (tstZ > prevZ)))
                         {
                             if ((overdistance > 0.0f) && (overdistance < 1.f))
                             {
@@ -1671,11 +1673,11 @@ void Spell::SelectImplicitCasterDestTargets(SpellEffIndex effIndex, SpellImplici
                             }
 
                             // highest available point
-                            destz1 = map->GetHeight(phasemask, destx, desty, prevZ + maxtravelDistZ, true, 25.0f);
+                            destz1 = map->GetHeight(phasemask, destx, desty, prevZ + maxtravelDistZ, true, 25.0f, unitCaster->GetTerrainMapIds());
                             // upper or floor
-                            destz2 = map->GetHeight(phasemask, destx, desty, prevZ, true, 25.0f);
+                            destz2 = map->GetHeight(phasemask, destx, desty, prevZ, true, 25.0f, unitCaster->GetTerrainMapIds());
                             //lower than floor
-                            destz3 = map->GetHeight(phasemask, destx, desty, prevZ - maxtravelDistZ / 2, true, 25.0f);
+                            destz3 = map->GetHeight(phasemask, destx, desty, prevZ - maxtravelDistZ / 2, true, 25.0f, unitCaster->GetTerrainMapIds());
 
                             //distance of rays, will select the shortest in 3D
                             srange1 = sqrt((desty - prevY) * (desty - prevY) + (destx - prevX) * (destx - prevX) + (destz1 - prevZ) * (destz1 - prevZ));
@@ -1713,7 +1715,8 @@ void Spell::SelectImplicitCasterDestTargets(SpellEffIndex effIndex, SpellImplici
                 else
                 {
                     float z = pos.GetPositionZ();
-                    bool col = unitCaster->GetMap()->GetMapCollisionData().GetStaticTree().GetObjectHitPos(pos.GetPositionX(), pos.GetPositionY(), z, destx, desty, z, destx, desty, z, -0.5f);
+                    bool col = unitCaster->GetMap()->GetStaticObjectHitPos(unitCaster->GetTerrainMapIds(),
+                        pos.GetPositionX(), pos.GetPositionY(), z, destx, desty, z, destx, desty, z, -0.5f);
                     // check dynamic collision
                     bool dcol = unitCaster->GetMap()->GetMapCollisionData().GetDynamicTree().GetObjectHitPos(phasemask, pos.GetPositionX(), pos.GetPositionY(), z, destx, desty, z, destx, desty, z, -0.5f);
 
@@ -4944,6 +4947,7 @@ void Spell::SendSpellStart()
     data << uint8(m_cast_count);                            // pending spell cast?
     data << uint32(m_spellInfo->Id);                        // spellId
     data << uint32(castFlags);                              // cast flags
+    data << uint32(0);                                      // Cata: cast flags ex, unused
     data << int32(m_timer);                                 // delay?
 
     m_targets.Write(data);
@@ -5044,6 +5048,7 @@ void Spell::SendSpellGo()
     data << uint8(m_cast_count);                            // pending spell cast?
     data << uint32(m_spellInfo->Id);                        // spellId
     data << uint32(castFlags);                              // cast flags
+    data << uint32(0);                                      // Cata: cast flags ex, unused
     data << uint32(GameTime::GetGameTimeMS().count());                 // timestamp
 
     WriteSpellGoTargets(&data);
@@ -5114,7 +5119,7 @@ void Spell::WriteAmmoToPacket(WorldPacket* data)
                 ammoDisplayID = pItem->GetTemplate()->DisplayInfoID;
             else
             {
-                uint32 ammoID = unitCaster->ToPlayer()->GetUInt32Value(PLAYER_AMMO_ID);
+                uint32 ammoID = unitCaster->ToPlayer()->GetAmmoId();
                 if (ammoID)
                 {
                     ItemTemplate const* pProto = sObjectMgr->GetItemTemplate(ammoID);
@@ -5421,18 +5426,13 @@ void Spell::SendResurrectRequest(Player* target)
                                ? ""
                                : unitCaster->GetNameForLocaleIdx(target->GetSession()->GetSessionDbLocaleIndex()));
 
-    WorldPacket data(SMSG_RESURRECT_REQUEST, (8 + 4 + sentName.size() + 1 + 1 + 1 + 4));
-    data << unitCaster->GetGUID();
-    data << uint32(sentName.size() + 1);
-
-    data << sentName;
-    data << uint8(0); // null terminator
-
-    data << uint8(unitCaster->IsPlayer() ? 0 : 1); // "you'll be afflicted with resurrection sickness"
-    // override delay sent with SMSG_CORPSE_RECLAIM_DELAY, set instant resurrection for spells with this attribute
-    if (m_spellInfo->HasAttribute(SPELL_ATTR3_NO_RES_TIMER))
-        data << uint32(0);
-    target->SendDirectMessage(&data);
+    WorldPackets::Spells::ResurrectRequest request;
+    request.ResurrectOffererGUID = unitCaster->GetGUID();
+    request.Name = sentName;
+    request.Sickness = unitCaster->IsSpiritHealer();
+    request.UseTimer = !m_spellInfo->HasAttribute(SPELL_ATTR3_NO_RES_TIMER);
+    request.SpellID = m_spellInfo->Id;
+    target->SendDirectMessage(request.Write());
 }
 
 void Spell::TakeCastItem()
@@ -5599,7 +5599,7 @@ void Spell::TakeAmmo()
             }
         }
         else if (!sWorld->getBoolConfig(CONFIG_ENABLE_INFINITEAMMO))
-            if (uint32 ammo = unitCaster->ToPlayer()->GetUInt32Value(PLAYER_AMMO_ID))
+            if (uint32 ammo = unitCaster->ToPlayer()->GetAmmoId())
                 unitCaster->ToPlayer()->DestroyItemCount(ammo, 1, true);
     }
 }
@@ -6171,7 +6171,7 @@ SpellCastResult Spell::CheckCast(bool strict, uint32* /*param1*/, uint32* /*para
             if (std::optional<float> collisionHeight = GetLOSCollisionHeight())
                 inLineOfSight = m_caster->GetMap()->isInLineOfSight(m_caster->GetPositionX(), m_caster->GetPositionY(),
                     m_caster->GetPositionZ() + *collisionHeight, x, y, z + *collisionHeight, m_caster->GetPhaseMask(),
-                    LineOfSightChecks(losChecks), VMAP::ModelIgnoreFlags::M2);
+                    LineOfSightChecks(losChecks), VMAP::ModelIgnoreFlags::M2, m_caster->GetTerrainMapIds());
             else
                 inLineOfSight = m_caster->IsWithinLOS(x, y, z, VMAP::ModelIgnoreFlags::M2,
                     LineOfSightChecks(losChecks));
@@ -7990,7 +7990,7 @@ SpellCastResult Spell::CheckItems(uint32* param1, uint32* param2)
                         case ITEM_SUBCLASS_WEAPON_BOW:
                         case ITEM_SUBCLASS_WEAPON_CROSSBOW:
                             {
-                                uint32 ammo = unitCaster->ToPlayer()->GetUInt32Value(PLAYER_AMMO_ID);
+                                uint32 ammo = unitCaster->ToPlayer()->GetAmmoId();
                                 if (!ammo)
                                 {
                                     // Requires No Ammo
@@ -8025,7 +8025,7 @@ SpellCastResult Spell::CheckItems(uint32* param1, uint32* param2)
 
                                 if (!unitCaster->ToPlayer()->HasItemCount(ammo))
                                 {
-                                    unitCaster->ToPlayer()->SetUInt32Value(PLAYER_AMMO_ID, 0);
+                                    unitCaster->ToPlayer()->SetAmmoId(0);
                                     return SPELL_FAILED_NO_AMMO;
                                 }
                             };

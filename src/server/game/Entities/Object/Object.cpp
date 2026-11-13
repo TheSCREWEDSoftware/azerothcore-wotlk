@@ -16,6 +16,7 @@
  */
 
 #include "Object.h"
+#include "MovementPackets.h"
 #include "Battlefield.h"
 #include "BattlefieldMgr.h"
 #include "CellImpl.h"
@@ -62,6 +63,7 @@
 //  there is probably some underlying problem with imports which should properly addressed
 //  see: https://github.com/azerothcore/azerothcore-wotlk/issues/9766
 #include "GridNotifiersImpl.h"
+#include <algorithm>
 
 constexpr float VisibilityDistances[AsUnderlyingType(VisibilityDistanceType::Max)] =
 {
@@ -172,31 +174,19 @@ void Object::RemoveFromWorld()
     ClearUpdateMask(true);
 }
 
-void Object::BuildMovementUpdateBlock(UpdateData* data, uint32 flags) const
-{
-    ByteBuffer buf(500);
-
-    buf << uint8(UPDATETYPE_MOVEMENT);
-    buf << GetPackGUID();
-
-    BuildMovementUpdate(&buf, flags);
-
-    data->AddUpdateBlock(buf);
-}
-
 void Object::BuildCreateUpdateBlockForPlayer(UpdateData* data, Player* target)
 {
     if (!target)
         return;
 
-    uint8  updatetype = UPDATETYPE_CREATE_OBJECT;
-    uint16 flags      = m_updateFlag;
+    uint8 updatetype = UPDATETYPE_CREATE_OBJECT;
+    CreateObjectBits flags = m_updateFlag;
 
     /** lower flag1 **/
     if (target == this)                                      // building packet for yourself
-        flags |= UPDATEFLAG_SELF;
+        flags.ThisIsYou = true;
 
-    if (flags & UPDATEFLAG_STATIONARY_POSITION)
+    if (flags.Stationary || flags.MovementUpdate)
     {
         // UPDATETYPE_CREATE_OBJECT2 dynamic objects, corpses...
         if (isType(TYPEMASK_DYNAMICOBJECT) || isType(TYPEMASK_CORPSE) || isType(TYPEMASK_PLAYER))
@@ -223,12 +213,18 @@ void Object::BuildCreateUpdateBlockForPlayer(UpdateData* data, Player* target)
                     break;
             }
         }
+    }
 
-        if (IsUnit())
-        {
-            if (((Unit*)this)->GetVictim())
-                flags |= UPDATEFLAG_HAS_TARGET;
-        }
+    if (WorldObject const* worldObject = dynamic_cast<WorldObject const*>(this))
+    {
+        if (!flags.MovementUpdate && !worldObject->m_movementInfo.transport.guid.IsEmpty())
+            flags.MovementTransport = true;
+    }
+
+    if (IsUnit())
+    {
+        if (((Unit*)this)->GetVictim())
+            flags.CombatVictim = true;
     }
 
     ByteBuffer buf(500);
@@ -244,7 +240,7 @@ void Object::BuildCreateUpdateBlockForPlayer(UpdateData* data, Player* target)
 void Object::SendUpdateToPlayer(Player* player)
 {
     // send create update to player
-    UpdateData upd;
+    UpdateData upd(player->GetMapId());
     WorldPacket packet;
 
     BuildCreateUpdateBlockForPlayer(&upd, player);
@@ -338,158 +334,292 @@ void Object::DestroyForPlayer(Player* target, bool onDeath) const
     return *((ObjectGuid*) &(m_uint32Values[index]));
 }
 
-void Object::BuildMovementUpdate(ByteBuffer* data, uint16 flags) const
+void Object::BuildMovementUpdate(ByteBuffer* data, CreateObjectBits flags) const
 {
     Unit const* unit = nullptr;
     WorldObject const* object = nullptr;
 
-    if (IsUnit())
-        unit = ToUnit();
-    else
-        object = ((WorldObject*)this);
+    Unit const* self = nullptr;
+    ObjectGuid guid = GetGUID();
+    uint32 movementFlags = 0;
+    uint16 movementFlagsExtra = 0;
+    float orientation = 0.0f;
 
-    *data << uint16(flags);                                  // update flags
+    bool hasTransportTime2 = false;
+    bool hasFallDirection = false;
+    bool hasFallData = false;
+    bool hasPitch = false;
+    bool hasSpline = false;
+    bool hasSplineElevation = false;
 
-    // 0x20
-    if (flags & UPDATEFLAG_LIVING)
+    // Bit content -- ported from the pinned TrinityCore Cata reference
+    // (Object::BuildMovementUpdate) as part of Plan 19 (issue #40).
+    data->WriteBit(flags.PlayerHoverAnim);
+    data->WriteBit(flags.SupressedGreetings);
+    data->WriteBit(flags.Rotation);
+    data->WriteBit(flags.AnimKit);
+    data->WriteBit(flags.CombatVictim);
+    data->WriteBit(flags.ThisIsYou);
+    data->WriteBit(flags.Vehicle);
+    data->WriteBit(flags.MovementUpdate);
+    data->WriteBits(0, 24);                                  // PauseTimes count (transports only, not yet ported)
+    data->WriteBit(flags.NoBirthAnim);
+    data->WriteBit(flags.MovementTransport);
+    data->WriteBit(flags.Stationary);
+    data->WriteBit(flags.AreaTrigger);
+    data->WriteBit(flags.EnablePortals);
+    data->WriteBit(flags.ServerTime);
+
+    if (flags.MovementUpdate)
     {
-        unit->BuildMovementPacket(data);
+        self = ToUnit();
+        // the 4.3.4 client rejects the whole update packet if the orientation is outside [0, 2pi)
+        orientation = Position::NormalizeOrientation(self->GetOrientation());
+        movementFlags = WorldPackets::Movement::MovementFlagsToClient(self->m_movementInfo.GetMovementFlags());
+        movementFlagsExtra = WorldPackets::Movement::ExtraMovementFlagsToClient(
+            self->m_movementInfo.GetExtraMovementFlags()) & 0x0FFF;
 
-        *data << unit->GetSpeed(MOVE_WALK)
-              << unit->GetSpeed(MOVE_RUN)
-              << unit->GetSpeed(MOVE_RUN_BACK)
-              << unit->GetSpeed(MOVE_SWIM)
-              << unit->GetSpeed(MOVE_SWIM_BACK)
-              << unit->GetSpeed(MOVE_FLIGHT)
-              << unit->GetSpeed(MOVE_FLIGHT_BACK)
-              << unit->GetSpeed(MOVE_TURN_RATE)
-              << unit->GetSpeed(MOVE_PITCH_RATE);
+        hasTransportTime2 = !self->m_movementInfo.transport.guid.IsEmpty() && self->m_movementInfo.transport.time2 != 0;
+        hasPitch = self->HasUnitMovementFlag(MOVEMENTFLAG_SWIMMING | MOVEMENTFLAG_FLYING) || self->HasExtraUnitMovementFlag(MOVEMENTFLAG2_ALWAYS_ALLOW_PITCHING);
+        hasFallDirection = self->HasUnitMovementFlag(MOVEMENTFLAG_FALLING);
+        hasFallData = hasFallDirection || self->m_movementInfo.fallTime != 0;
+        hasSplineElevation = self->HasUnitMovementFlag(MOVEMENTFLAG_SPLINE_ELEVATION);
+        hasSpline = self->IsSplineEnabled();
 
-        // 0x08000000
-        if (unit->m_movementInfo.GetMovementFlags() & MOVEMENTFLAG_SPLINE_ENABLED)
+        data->WriteBit(!movementFlags);                                         // !Has MoveFlags0
+        data->WriteBit(G3D::fuzzyEq(orientation, 0.0f));                       // Has Orientation
+        data->WriteBit(guid[7]);
+        data->WriteBit(guid[3]);
+        data->WriteBit(guid[2]);
+        if (movementFlags)
+            data->WriteBits(movementFlags, 30);
+
+        data->WriteBit(hasSpline && !self->IsPlayer());                        // !Has player spline data
+        data->WriteBit(!hasPitch);                                              // !Has pitch
+        data->WriteBit(hasSpline);                                              // Has spline data (independent)
+        data->WriteBit(hasFallData);                                            // Has fall data
+        data->WriteBit(!hasSplineElevation);                                    // !Has spline elevation
+        data->WriteBit(guid[5]);
+        data->WriteBit(!self->m_movementInfo.transport.guid.IsEmpty());        // Has transport data
+        data->WriteBit(0);                                                      // !HasTime
+
+        if (!self->m_movementInfo.transport.guid.IsEmpty())
         {
-            Movement::PacketBuilder::WriteCreate(*unit->movespline, *data);
+            ObjectGuid transGuid = self->m_movementInfo.transport.guid;
+
+            data->WriteBit(transGuid[1]);
+            data->WriteBit(hasTransportTime2);                             // Has PrevMoveTime
+            data->WriteBit(transGuid[4]);
+            data->WriteBit(transGuid[0]);
+            data->WriteBit(transGuid[6]);
+            data->WriteBit(0);                                             // Has VehicleRecID
+            data->WriteBit(transGuid[7]);
+            data->WriteBit(transGuid[5]);
+            data->WriteBit(transGuid[3]);
+            data->WriteBit(transGuid[2]);
         }
+
+        data->WriteBit(guid[4]);
+
+        if (hasSpline)
+            Movement::PacketBuilder::WriteCreateBits(*self->movespline, *data);
+
+        data->WriteBit(guid[6]);
+        if (hasFallData)
+            data->WriteBit(hasFallDirection);
+
+        data->WriteBit(guid[0]);
+        data->WriteBit(guid[1]);
+        data->WriteBit(0);                                                      // HeightChangeFailed
+        data->WriteBit(!movementFlagsExtra);                                    // !Has MoveFlags1
+        if (movementFlagsExtra)
+            data->WriteBits(movementFlagsExtra, 12);
     }
-    else
+
+    if (flags.MovementTransport)
     {
-        if (flags & UPDATEFLAG_POSITION)
+        WorldObject const* worldObject = static_cast<WorldObject const*>(this);
+        ObjectGuid transGuid = worldObject->m_movementInfo.transport.guid;
+        data->WriteBit(transGuid[5]);
+        data->WriteBit(0);                                                      // Has GO transport time 3
+        data->WriteBit(transGuid[0]);
+        data->WriteBit(transGuid[3]);
+        data->WriteBit(transGuid[6]);
+        data->WriteBit(transGuid[1]);
+        data->WriteBit(transGuid[4]);
+        data->WriteBit(transGuid[2]);
+        data->WriteBit(worldObject->m_movementInfo.transport.time2 != 0);       // Has GO transport time 2
+        data->WriteBit(transGuid[7]);
+    }
+
+    if (flags.CombatVictim)
+    {
+        ObjectGuid victimGuid = self->GetVictim()->GetGUID();   // checked in BuildCreateUpdateBlockForPlayer
+        data->WriteBit(victimGuid[2]);
+        data->WriteBit(victimGuid[7]);
+        data->WriteBit(victimGuid[0]);
+        data->WriteBit(victimGuid[4]);
+        data->WriteBit(victimGuid[5]);
+        data->WriteBit(victimGuid[6]);
+        data->WriteBit(victimGuid[1]);
+        data->WriteBit(victimGuid[3]);
+    }
+
+    // AnimKit is never set on our fork (flags.AnimKit stays false; no AnimKit system ported
+    // yet), so no bits are written for it here -- matches TrinityCore's own branch shape.
+
+    data->FlushBits();
+
+    if (flags.MovementUpdate)
+    {
+        data->WriteByteSeq(guid[4]);
+        *data << self->GetSpeed(MOVE_RUN_BACK);
+
+        if (hasFallData)
         {
-            Transport* transport = object->GetTransport();
-
-            if (transport)
-                *data << transport->GetPackGUID();
-            else
-                *data << uint8(0);
-
-            *data << object->GetPositionX();
-            *data << object->GetPositionY();
-            *data << object->GetPositionZ();
-
-            if (transport)
+            if (hasFallDirection)
             {
-                *data << object->GetTransOffsetX();
-                *data << object->GetTransOffsetY();
-                *data << object->GetTransOffsetZ();
-            }
-            else
-            {
-                *data << object->GetPositionX();
-                *data << object->GetPositionY();
-                *data << object->GetPositionZ();
+                *data << float(self->m_movementInfo.jump.xyspeed);
+                *data << float(self->m_movementInfo.jump.sinAngle);
+                *data << float(self->m_movementInfo.jump.cosAngle);
             }
 
-            *data << object->GetOrientation();
-
-            if (IsCorpse())
-                *data << float(object->GetOrientation());
-            else
-                *data << float(0);
+            *data << uint32(self->m_movementInfo.fallTime);
+            *data << float(self->m_movementInfo.jump.zspeed);
         }
-        else
+
+        *data << self->GetSpeed(MOVE_SWIM_BACK);
+        if (hasSplineElevation)
+            *data << float(self->m_movementInfo.splineElevation);
+
+        if (hasSpline)
+            Movement::PacketBuilder::WriteCreateData(*self->movespline, *data);
+
+        *data << float(self->GetPositionZ());
+        data->WriteByteSeq(guid[5]);
+
+        if (!self->m_movementInfo.transport.guid.IsEmpty())
         {
-            // 0x40
-            if (flags & UPDATEFLAG_STATIONARY_POSITION)
-            {
-                *data << object->GetStationaryX();
-                *data << object->GetStationaryY();
-                *data << object->GetStationaryZ();
-                *data << object->GetStationaryO();
-            }
+            ObjectGuid transGuid = self->m_movementInfo.transport.guid;
+
+            data->WriteByteSeq(transGuid[5]);
+            data->WriteByteSeq(transGuid[7]);
+            *data << uint32(self->GetTransTime());
+            *data << float(self->GetTransOffsetO());
+            if (hasTransportTime2)
+                *data << uint32(self->m_movementInfo.transport.time2);
+
+            *data << float(self->GetTransOffsetY());
+            *data << float(self->GetTransOffsetX());
+            data->WriteByteSeq(transGuid[3]);
+            *data << float(self->GetTransOffsetZ());
+            data->WriteByteSeq(transGuid[0]);
+
+            *data << int8(self->GetTransSeat());
+            data->WriteByteSeq(transGuid[1]);
+            data->WriteByteSeq(transGuid[6]);
+            data->WriteByteSeq(transGuid[2]);
+            data->WriteByteSeq(transGuid[4]);
         }
+
+        *data << float(self->GetPositionX());
+        *data << self->GetSpeed(MOVE_PITCH_RATE);
+        data->WriteByteSeq(guid[3]);
+        data->WriteByteSeq(guid[0]);
+        *data << self->GetSpeed(MOVE_SWIM);
+        *data << float(self->GetPositionY());
+        data->WriteByteSeq(guid[7]);
+        data->WriteByteSeq(guid[1]);
+        data->WriteByteSeq(guid[2]);
+        *data << self->GetSpeed(MOVE_WALK);
+
+        //if (true)   // Has time, controlled by bit just after HasTransport
+        *data << uint32(GameTime::GetGameTimeMS().count());
+
+        *data << self->GetSpeed(MOVE_TURN_RATE);
+        data->WriteByteSeq(guid[6]);
+        *data << self->GetSpeed(MOVE_FLIGHT);
+        if (!G3D::fuzzyEq(orientation, 0.0f))
+            *data << orientation;
+
+        *data << self->GetSpeed(MOVE_RUN);
+        if (hasPitch)
+            *data << float(self->m_movementInfo.pitch);
+
+        *data << self->GetSpeed(MOVE_FLIGHT_BACK);
     }
 
-    // 0x8
-    if (flags & UPDATEFLAG_UNKNOWN)
+    if (flags.Vehicle)
     {
-        *data << uint32(0);
+        *data << float(self->GetTransport() ? self->GetTransOffsetO() : self->GetOrientation());
+        *data << uint32(self->GetVehicleKit()->GetVehicleInfo()->m_ID);
     }
 
-    // 0x10
-    if (flags & UPDATEFLAG_LOWGUID)
+    if (flags.MovementTransport)
     {
-        switch (GetTypeId())
-        {
-            case TYPEID_OBJECT:
-            case TYPEID_ITEM:
-            case TYPEID_CONTAINER:
-            case TYPEID_GAMEOBJECT:
-            case TYPEID_DYNAMICOBJECT:
-            case TYPEID_CORPSE:
-                *data << uint32(GetGUID().GetCounter());
-                break;
-            //! Unit, Player and default here are sending wrong values.
-            /// @todo Research the proper formula
-            case TYPEID_UNIT:
-                *data << uint32(0x0000000B);                // unk
-                break;
-            case TYPEID_PLAYER:
-                if (flags & UPDATEFLAG_SELF)
-                    *data << uint32(0x0000002F);            // unk
-                else
-                    *data << uint32(0x00000008);            // unk
-                break;
-            default:
-                *data << uint32(0x00000000);                // unk
-                break;
-        }
+        WorldObject const* worldObject = static_cast<WorldObject const*>(this);
+        ObjectGuid transGuid = worldObject->m_movementInfo.transport.guid;
+
+        data->WriteByteSeq(transGuid[0]);
+        data->WriteByteSeq(transGuid[5]);
+
+        data->WriteByteSeq(transGuid[3]);
+        *data << float(worldObject->GetTransOffsetX());
+        data->WriteByteSeq(transGuid[4]);
+        data->WriteByteSeq(transGuid[6]);
+        data->WriteByteSeq(transGuid[1]);
+        *data << uint32(worldObject->GetTransTime());
+        *data << float(worldObject->GetTransOffsetY());
+        data->WriteByteSeq(transGuid[2]);
+        data->WriteByteSeq(transGuid[7]);
+        *data << float(worldObject->GetTransOffsetZ());
+        *data << int8(worldObject->GetTransSeat());
+        *data << float(worldObject->GetTransOffsetO());
+        if (hasTransportTime2)
+            *data << uint32(worldObject->m_movementInfo.transport.time2);
     }
 
-    // 0x4
-    if (flags & UPDATEFLAG_HAS_TARGET)
+    if (flags.Rotation)
     {
-        if (Unit* victim = unit->GetVictim())
-            *data << victim->GetPackGUID();
-        else
-            *data << uint8(0);
+        *data << uint64(ToGameObject()->GetPackedWorldRotation());
     }
 
-    // 0x2
-    if (flags & UPDATEFLAG_TRANSPORT)
+    if (flags.AreaTrigger)
     {
-        GameObject const* go = ToGameObject();
-        if (go && go->ToTransport())
-            *data << uint32(go->ToTransport()->GetPathProgress());
-        else
-            *data << uint32(0);
+        // client doesn't use these values
+        for (int i = 0; i < 4; ++i)
+            *data << float(0.0f);
+        *data << uint8(0);
+        for (int i = 0; i < 12; ++i)
+            *data << float(0.0f);
     }
 
-    // 0x80
-    if (flags & UPDATEFLAG_VEHICLE)
+    if (flags.Stationary)
     {
-        /// @todo Allow players to aquire this updateflag.
-        *data << uint32(unit->GetVehicleKit()->GetVehicleInfo()->m_ID);
-        if (unit->HasUnitMovementFlag(MOVEMENTFLAG_ONTRANSPORT))
-            *data << float(unit->GetTransOffsetO());
-        else
-            *data << float(unit->GetOrientation());
+        WorldObject const* worldObject = static_cast<WorldObject const*>(this);
+        *data << float(worldObject->GetStationaryO());
+        *data << float(worldObject->GetStationaryX());
+        *data << float(worldObject->GetStationaryY());
+        *data << float(worldObject->GetStationaryZ());
     }
 
-    // 0x200
-    if (flags & UPDATEFLAG_ROTATION)
+    if (flags.CombatVictim)
     {
-        *data << int64(ToGameObject()->GetPackedWorldRotation());
+        ObjectGuid victimGuid = self->GetVictim()->GetGUID();
+        data->WriteByteSeq(victimGuid[4]);
+        data->WriteByteSeq(victimGuid[0]);
+        data->WriteByteSeq(victimGuid[3]);
+        data->WriteByteSeq(victimGuid[5]);
+        data->WriteByteSeq(victimGuid[7]);
+        data->WriteByteSeq(victimGuid[6]);
+        data->WriteByteSeq(victimGuid[2]);
+        data->WriteByteSeq(victimGuid[1]);
     }
+
+    // AnimKit data section intentionally omitted -- see comment above.
+
+    if (flags.ServerTime)
+        *data << uint32(GameTime::GetGameTimeMS().count());
 }
 
 void Object::BuildValuesUpdate(uint8 updateType, ByteBuffer* data, Player* target)
@@ -514,7 +644,6 @@ void Object::BuildValuesUpdate(uint8 updateType, ByteBuffer* data, Player* targe
         }
     }
 
-    *data << uint8(updateMask.GetBlockCount());
     updateMask.AppendToPacket(data);
     data->append(fieldBuffer);
 }
@@ -546,7 +675,7 @@ void Object::BuildFieldsUpdate(Player* player, UpdateDataMapType& data_map)
 
     if (iter == data_map.end())
     {
-        std::pair<UpdateDataMapType::iterator, bool> p = data_map.insert(UpdateDataMapType::value_type(player, UpdateData()));
+        std::pair<UpdateDataMapType::iterator, bool> p = data_map.insert(UpdateDataMapType::value_type(player, UpdateData(player->GetMapId())));
         ASSERT(p.second);
         iter = p.first;
     }
@@ -614,10 +743,12 @@ bool Object::_LoadIntoDataField(std::string const& data, uint32 startOffset, uin
 
     std::vector<std::string_view> tokens = Acore::Tokenize(data, ' ', false);
 
-    if (tokens.size() != count)
+    // Shorter data is zero-extended: existing characters stored explored zones with the old
+    // 128-word field count, and the field later grew (Cata: 156).
+    if (tokens.size() > count)
         return false;
 
-    for (uint32 index = 0; index < count; ++index)
+    for (size_t index = 0; index < tokens.size(); ++index)
     {
         Optional<uint32> val = Acore::StringTo<uint32>(tokens[index]);
         if (!val)
@@ -1066,7 +1197,9 @@ WorldObject::WorldObject() : WorldLocation(),
     LastUsedScriptID(0), m_name(""), m_isActive(false), _visibilityDistanceOverrideType(VisibilityDistanceType::Normal), m_zoneScript(nullptr),
     _zoneId(0), _areaId(0), _floorZ(INVALID_HEIGHT), _outdoors(false), _liquidData(), _updatePositionData(false), m_transport(nullptr),
     m_currMap(nullptr), _heartbeatTimer(HEARTBEAT_INTERVAL), m_InstanceId(0), m_phaseMask(PHASEMASK_NORMAL), m_useCombinedPhases(true),
-    m_notifyflags(0), m_executed_notifies(0), _objectVisibilityContainer(this)
+    m_spawnPhaseId(0), m_spawnPhaseGroup(0), m_hasSpawnPhase(false), m_hasPhaseShift(false), m_notifyflags(0),
+    m_executed_notifies(0),
+    _objectVisibilityContainer(this)
 {
     m_serverSideVisibility.SetValue(SERVERSIDE_VISIBILITY_GHOST, GHOST_VISIBILITY_ALIVE | GHOST_VISIBILITY_GHOST);
     m_serverSideVisibilityDetect.SetValue(SERVERSIDE_VISIBILITY_GHOST, GHOST_VISIBILITY_ALIVE);
@@ -1185,12 +1318,21 @@ void WorldObject::SetPositionDataUpdate()
         UpdatePositionData();
 }
 
+std::vector<uint32> const* WorldObject::GetTerrainMapIds() const
+{
+    if (IsUnit())
+        if (Player const* player = static_cast<Unit const*>(this)->GetCharmerOrOwnerPlayerOrPlayerItself())
+            return &player->GetVisibleMaps();
+
+    return nullptr;
+}
+
 void WorldObject::UpdatePositionData()
 {
     _updatePositionData = false;
 
     PositionFullTerrainStatus data;
-    GetMap()->GetFullTerrainStatusForPosition(GetPhaseMask(), GetPositionX(), GetPositionY(), GetPositionZ(), GetCollisionHeight(), data);
+    GetMap()->GetFullTerrainStatusForPosition(GetPhaseMask(), GetPositionX(), GetPositionY(), GetPositionZ(), GetCollisionHeight(), data, {}, GetTerrainMapIds());
     ProcessPositionDataChanged(data);
 }
 
@@ -1223,7 +1365,7 @@ void WorldObject::ProcessPositionDataChanged(PositionFullTerrainStatus const& da
 void WorldObject::AddToWorld()
 {
     Object::AddToWorld();
-    GetMap()->GetZoneAndAreaId(GetPhaseMask(), _zoneId, _areaId, GetPositionX(), GetPositionY(), GetPositionZ());
+    GetMap()->GetZoneAndAreaId(GetPhaseMask(), _zoneId, _areaId, GetPositionX(), GetPositionY(), GetPositionZ(), GetTerrainMapIds());
     GetMap()->AddObjectToPendingUpdateList(this);
 
     if (IsZoneWideVisible())
@@ -1404,7 +1546,7 @@ bool WorldObject::IsWithinLOS(float ox, float oy, float oz, VMAP::ModelIgnoreFla
             GetHitSpherePointFor({ ox, oy, oz }, x, y, z);
         }
 
-        return GetMap()->isInLineOfSight(x, y, z, ox, oy, oz, GetPhaseMask(), checks, ignoreFlags);
+        return GetMap()->isInLineOfSight(x, y, z, ox, oy, oz, GetPhaseMask(), checks, ignoreFlags, GetTerrainMapIds());
     }
     return true;
 }
@@ -1432,7 +1574,7 @@ bool WorldObject::IsWithinLOSInMap(WorldObject const* obj, VMAP::ModelIgnoreFlag
     else
         GetHitSpherePointFor({ obj->GetPositionX(), obj->GetPositionY(), obj->GetPositionZ() + obj->GetCollisionHeight() }, x, y, z, collisionHeight, combatReach);
 
-    return GetMap()->isInLineOfSight(x, y, z, ox, oy, oz, GetPhaseMask(), checks, ignoreFlags);
+    return GetMap()->isInLineOfSight(x, y, z, ox, oy, oz, GetPhaseMask(), checks, ignoreFlags, GetTerrainMapIds());
 }
 
 void WorldObject::GetHitSpherePointFor(Position const& dest, float& x, float& y, float& z, Optional<float> collisionHeight, Optional<float> combatReach) const
@@ -1641,7 +1783,7 @@ void WorldObject::UpdateAllowedPositionZ(float x, float y, float& z, float* grou
 
             if (max_z > INVALID_HEIGHT)
             {
-                if (canSwim && unit->GetMap()->IsInWater(unit->GetPhaseMask(), x, y, max_z - Z_OFFSET_FIND_HEIGHT, unit->GetCollisionHeight()))
+                if (canSwim && unit->GetMap()->IsInWater(unit->GetPhaseMask(), x, y, max_z - Z_OFFSET_FIND_HEIGHT, unit->GetCollisionHeight(), unit->GetTerrainMapIds()))
                 {
                     // do not allow creatures to walk on
                     // water level while swimming
@@ -1718,7 +1860,7 @@ float WorldObject::GetVisibilityRange() const
         else if (IsVisibilityOverridden())
             return GetVisibilityOverrideDistance();
         else
-            return GetMap()->GetVisibilityRange();
+            return std::max(GetMap()->GetVisibilityRange(), World::GetMaxVisibleDistanceForGameObjects());
     }
     else
         return IsInWintergrasp() ? VISIBILITY_DIST_WINTERGRASP : GetMap()->GetVisibilityRange();
@@ -1743,7 +1885,7 @@ float WorldObject::GetSightRange(WorldObject const* target) const
                     else if (ToPlayer()->GetCinematicMgr().IsOnCinematic())
                         return DEFAULT_VISIBILITY_INSTANCE;
                     else
-                        return GetMap()->GetVisibilityRange();
+                        return std::max(GetMap()->GetVisibilityRange(), World::GetMaxVisibleDistanceForGameObjects());
                 }
 
                 return IsInWintergrasp() && target->IsInWintergrasp() ? VISIBILITY_DIST_WINTERGRASP : GetMap()->GetVisibilityRange();
@@ -1955,6 +2097,317 @@ bool WorldObject::CanSeeOrDetect(WorldObject const* obj, bool ignoreStealth, boo
     return true;
 }
 
+namespace
+{
+std::vector<uint32> GetSpawnPhases(uint32 phaseId, uint32 phaseGroup)
+{
+    std::vector<uint32> phases;
+    if (phaseId)
+        phases.push_back(phaseId);
+    if (phaseGroup)
+    {
+        std::vector<uint32> groupPhases = GetPhasesForGroup(phaseGroup);
+        phases.insert(phases.end(), groupPhases.begin(), groupPhases.end());
+    }
+
+    if (phases.empty())
+        phases.push_back(DEFAULT_PHASE);
+
+    return phases;
+}
+}
+
+bool WorldObject::AddPhaseToSet(uint32 phaseId)
+{
+    if (!phaseId)
+        return false;
+
+    m_hasPhaseShift = true;
+    uint32& references = m_phaseRefs[phaseId];
+    if (references++)
+        return false;
+
+    m_phases.push_back(phaseId);
+    return true;
+}
+
+bool WorldObject::RemovePhaseFromSet(uint32 phaseId)
+{
+    auto itr = m_phaseRefs.find(phaseId);
+    if (itr == m_phaseRefs.end())
+        return false;
+
+    if (--itr->second)
+        return false;
+
+    m_phaseRefs.erase(itr);
+    m_phases.erase(std::find(m_phases.begin(), m_phases.end(), phaseId));
+    return true;
+}
+
+bool WorldObject::GetEffectivePhases(std::vector<uint32>& phases) const
+{
+    if (!m_hasSpawnPhase && !m_hasPhaseShift)
+        return false;
+
+    if (m_hasSpawnPhase)
+    {
+        std::vector<uint32> spawn = GetSpawnPhases(m_spawnPhaseId, m_spawnPhaseGroup);
+        phases.insert(phases.end(), spawn.begin(), spawn.end());
+    }
+
+    phases.insert(phases.end(), m_phases.begin(), m_phases.end());
+
+    if (WorldObject const* source = GetPhaseShiftSource())
+    {
+        if (Player const* player = source->ToPlayer())
+        {
+            phases.insert(phases.end(), player->GetPhases().begin(), player->GetPhases().end());
+            if (player->IsUnphased())
+                phases.push_back(DEFAULT_PHASE);
+        }
+        else
+        {
+            std::vector<uint32> inherited;
+            if (source->GetEffectivePhases(inherited))
+                phases.insert(phases.end(), inherited.begin(), inherited.end());
+            else
+                phases.push_back(DEFAULT_PHASE);
+        }
+    }
+    else
+    {
+        phases.insert(phases.end(), m_inheritedPhases.begin(), m_inheritedPhases.end());
+        if (m_inheritedUnphased)
+            phases.push_back(DEFAULT_PHASE);
+    }
+
+    if (phases.empty())
+        phases.push_back(DEFAULT_PHASE);
+
+    return true;
+}
+
+void WorldObject::AddPhase(uint32 phaseId, bool update)
+{
+    if (!AddPhaseToSet(phaseId))
+        return;
+
+    if (update)
+    {
+        OnPhaseChanged();
+        UpdateObjectVisibility();
+    }
+}
+
+void WorldObject::AddPhaseGroup(uint32 phaseGroupId, bool update)
+{
+    bool changed = false;
+    for (uint32 phaseId : GetPhasesForGroup(phaseGroupId))
+        changed = AddPhaseToSet(phaseId) || changed;
+
+    if (changed && update)
+    {
+        OnPhaseChanged();
+        UpdateObjectVisibility();
+    }
+}
+
+void WorldObject::RemovePhase(uint32 phaseId, bool update)
+{
+    if (!RemovePhaseFromSet(phaseId))
+        return;
+
+    if (update)
+    {
+        OnPhaseChanged();
+        UpdateObjectVisibility();
+    }
+}
+
+void WorldObject::RemovePhaseGroup(uint32 phaseGroupId, bool update)
+{
+    bool changed = false;
+    for (uint32 phaseId : GetPhasesForGroup(phaseGroupId))
+        changed = RemovePhaseFromSet(phaseId) || changed;
+
+    if (changed && update)
+    {
+        OnPhaseChanged();
+        UpdateObjectVisibility();
+    }
+}
+
+void WorldObject::InheritPhasesFrom(WorldObject const* source)
+{
+    // Only the inherited part is replaced: the object's own aura/script grants keep their refs.
+    m_inheritedPhases.clear();
+    m_inheritedUnphased = false;
+
+    if (Player const* player = source->ToPlayer())
+    {
+        // A player's set is the authoritative shift (unphased owners still see the summon).
+        m_inheritedPhases.assign(player->GetPhases().begin(), player->GetPhases().end());
+        m_inheritedUnphased = player->IsUnphased();
+    }
+    else
+    {
+        std::vector<uint32> phases;
+        if (source->GetEffectivePhases(phases))
+        {
+            // 169 can be the implicit unphased visibility fallback; keep it out of exact membership.
+            bool const explicitDefault = source->HasPhase(DEFAULT_PHASE);
+            bool const implicitDefault = !explicitDefault
+                && std::find(phases.begin(), phases.end(), DEFAULT_PHASE) != phases.end();
+            if (implicitDefault)
+                phases.erase(std::remove(phases.begin(), phases.end(), DEFAULT_PHASE), phases.end());
+
+            m_inheritedPhases = std::move(phases);
+            m_inheritedUnphased = implicitDefault || m_inheritedPhases.empty();
+        }
+        else
+            m_inheritedUnphased = true;
+    }
+
+    m_spawnPhaseId = 0;
+    m_spawnPhaseGroup = 0;
+    m_hasSpawnPhase = false;
+    m_hasPhaseShift = true;
+
+    if (IsInWorld())
+        UpdateObjectVisibility();
+
+    // Nested summons follow this object's new shift too.
+    RefreshPhaseSummons();
+}
+
+void WorldObject::RefreshPhaseSummons()
+{
+    for (auto itr = m_phaseSummons.begin(); itr != m_phaseSummons.end();)
+    {
+        Creature* summon = ObjectAccessor::GetCreature(*this, *itr);
+        if (!summon)
+        {
+            itr = m_phaseSummons.erase(itr);
+            continue;
+        }
+
+        summon->InheritPhasesFrom(this);
+        summon->UpdateObjectVisibility();
+        ++itr;
+    }
+}
+
+void WorldObject::OnPhaseChanged()
+{
+    RefreshPhaseSummons();
+}
+
+void WorldObject::RegisterPhaseSummon(Creature* summon)
+{
+    m_phaseSummons.insert(summon->GetGUID());
+}
+
+void WorldObject::UnregisterPhaseSummon(Creature* summon)
+{
+    m_phaseSummons.erase(summon->GetGUID());
+}
+
+bool WorldObject::InSamePhase(WorldObject const* obj) const
+{
+    if (Player const* player = ToPlayer())
+        return obj->IsPhaseVisibleTo(player);
+    if (Player const* player = obj->ToPlayer())
+        return IsPhaseVisibleTo(player);
+
+    // Scripts still hide objects with SetPhaseMask (instance portals, Valithria, Zuramat...);
+    // keep that legacy gate alongside the Cata comparison.
+    if (!InSamePhase(obj->GetPhaseMask()))
+        return false;
+
+    std::vector<uint32> mine, theirs;
+    bool const mineGated = GetEffectivePhases(mine);
+    bool const theirsGated = obj->GetEffectivePhases(theirs);
+    if (!mineGated || !theirsGated)
+        return true;
+
+    for (uint32 phaseId : mine)
+        if (std::find(theirs.begin(), theirs.end(), phaseId) != theirs.end())
+            return true;
+
+    return false;
+}
+
+bool WorldObject::HasPhase(uint32 phaseId) const
+{
+    if (std::find(m_phases.begin(), m_phases.end(), phaseId) != m_phases.end())
+        return true;
+
+    // Inherited membership follows the live owner; the stored snapshot is only a fallback.
+    if (WorldObject const* source = GetPhaseShiftSource())
+    {
+        if (source->HasPhase(phaseId))
+            return true;
+    }
+    else if (std::find(m_inheritedPhases.begin(), m_inheritedPhases.end(), phaseId) != m_inheritedPhases.end())
+        return true;
+
+    if (ToPlayer())
+        return false;
+
+    // The spawn phase field is an exact Phase.dbc id; only the group field expands.
+    if (m_spawnPhaseId == phaseId)
+        return true;
+    if (m_spawnPhaseGroup)
+    {
+        std::vector<uint32> const phases = GetPhasesForGroup(m_spawnPhaseGroup);
+        return std::find(phases.begin(), phases.end(), phaseId) != phases.end();
+    }
+
+    return false;
+}
+
+bool WorldObject::IsPhaseVisibleTo(Player const* player) const
+{
+    // GMs see and interact with every Cata phase, mirroring the legacy PHASEMASK_ANYWHERE override
+    if (player->IsGameMaster())
+        return true;
+    if (Player const* target = ToPlayer())
+        if (target->IsGameMaster())
+            return true;
+
+    // Legacy mask gate: scripts hide objects with SetPhaseMask, which is independent of Cata phases.
+    if (!InSamePhase(player->GetPhaseMask()))
+        return false;
+
+    if (Player const* other = ToPlayer())
+    {
+        // 4.3.4 PhaseShift::CanSee: unphased players see each other, others need a shared phase.
+        if (player->IsUnphased() && other->IsUnphased())
+            return true;
+
+        std::vector<uint32> const& playerPhases = player->GetPhases();
+        for (uint32 phaseId : other->GetPhases())
+            if (std::find(playerPhases.begin(), playerPhases.end(), phaseId) != playerPhases.end())
+                return true;
+
+        return false;
+    }
+
+    std::vector<uint32> phases;
+    if (!GetEffectivePhases(phases))
+        return true;
+
+    bool unphased = player->IsUnphased();
+    std::vector<uint32> const& playerPhases = player->GetPhases();
+    for (uint32 phaseId : phases)
+        if (std::find(playerPhases.begin(), playerPhases.end(), phaseId) != playerPhases.end()
+            || (unphased && phaseId == DEFAULT_PHASE))
+            return true;
+
+    return false;
+}
+
 bool WorldObject::CanNeverSee(WorldObject const* obj) const
 {
     if (!IsInWorld())
@@ -1962,6 +2415,10 @@ bool WorldObject::CanNeverSee(WorldObject const* obj) const
 
     if (obj->IsNeverVisible())
         return true;
+
+    if (Player const* player = ToPlayer())
+        if (!obj->IsPhaseVisibleTo(player))
+            return true;
 
     if (IsCreature() && obj->IsCreature())
         return GetMap() != obj->GetMap() || (!InSamePhase(obj) && ToUnit()->GetVehicleBase() != obj && this != obj->ToUnit()->GetVehicleBase());
@@ -3154,14 +3611,14 @@ float WorldObject::GetMapHeight(float x, float y, float z, bool vmap/* = true*/,
     if (z != MAX_HEIGHT)
         z += std::max(GetCollisionHeight(), Z_OFFSET_FIND_HEIGHT);
 
-    return GetMap()->GetHeight(GetPhaseMask(), x, y, z, vmap, distanceToSearch);
+    return GetMap()->GetHeight(GetPhaseMask(), x, y, z, vmap, distanceToSearch, GetTerrainMapIds());
 }
 
 float WorldObject::GetMapWaterOrGroundLevel(float x, float y, float z, float* ground/* = nullptr*/) const
 {
     return GetMap()->GetWaterOrGroundLevel(GetPhaseMask(), x, y, z, ground,
         IsUnit() ? !static_cast<Unit const*>(this)->HasWaterWalkAura() : false,
-        std::max(GetCollisionHeight(),  Z_OFFSET_FIND_HEIGHT));
+        std::max(GetCollisionHeight(),  Z_OFFSET_FIND_HEIGHT), GetTerrainMapIds());
 }
 
 float WorldObject::GetFloorZ() const

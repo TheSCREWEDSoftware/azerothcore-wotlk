@@ -22,6 +22,9 @@
 #include "MapTree.h"
 #include "MMapMgr.h"
 #include "IVMapMgr.h"
+#include <memory>
+#include <unordered_map>
+#include <unordered_set>
 
 class Map;
 
@@ -37,6 +40,8 @@ class StaticVMapCollisionData
 
 public:
     StaticVMapCollisionData(uint32 mapId) : _mapId(mapId) {}
+    StaticVMapCollisionData(uint32 mapId, std::shared_ptr<VMAP::StaticMapTree> staticTree)
+        : _staticTree(staticTree), _mapId(mapId) {}
 
     bool isInLineOfSight(float x1, float y1, float z1, float x2, float y2, float z2, VMAP::ModelIgnoreFlags ignoreFlags) const;
     bool GetObjectHitPos(float x1, float y1, float z1, float x2, float y2, float z2, float& rx, float& ry, float& rz, float modifyDist) const;
@@ -59,6 +64,7 @@ class MMapData
     friend class MapCollisionData;
 
 public:
+    MMapData() = default;
     dtNavMesh const* GetNavMesh() const { return _navMesh.get(); }
     dtNavMeshQuery const* GetNavMeshQuery();
 
@@ -85,6 +91,8 @@ public:
     StaticVMapCollisionData const& GetStaticTree() const { return _staticVMapData; }
     MMapData& GetMMapData() { return _mmapData; }
     MMapData const& GetMMapData() const { return _mmapData; }
+    MMapData& GetMMapDataForMap(uint32 mapId);
+    void LoadMMapTilesForMap(uint32 mapId, float x1, float y1, float x2, float y2);
 
     std::shared_ptr<VMAP::StaticMapTree> const GetStaticTreeSharedPtr() const { return _staticVMapData._staticTree; }
     std::shared_ptr<dtNavMesh> const GetMMapNavMeshSharedPtr() const { return _mmapData._navMesh; }
@@ -95,6 +103,8 @@ private:
     DynamicVMapCollisionData _dynamicVMapData;
     StaticVMapCollisionData _staticVMapData;
     MMapData _mmapData;
+    std::unordered_map<uint32, std::unique_ptr<MMapData>> _terrainMMapData;
+    std::unordered_map<uint32, std::unordered_set<uint32>> _terrainLoadedTiles;
 };
 
 #endif

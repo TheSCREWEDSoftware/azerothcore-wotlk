@@ -15,42 +15,25 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "GameTime.h"
-#include "Opcodes.h"
-#include "WorldPacket.h"
+#include "AuthenticationPackets.h"
+#include "World.h"
 #include "WorldSession.h"
 
 void WorldSession::SendAuthResponse(uint8 code, bool shortForm, uint32 queuePos)
 {
-    // BillingTimeRested: seconds of "healthy" play left before CAIS halves XP/loot from creatures
-    // and quests (read by the client's GetBillingTimeRested()); 0 unless the CAIS flag is set.
-    uint32 billingTimeRested = 0;
-    if (IsAffectedByCAIS())
+    WorldPackets::Auth::AuthResponse packet(code);
+
+    if (code == AUTH_OK)
     {
-        Seconds const played = GetConsecutivePlayTime(GameTime::GetGameTime());
-        if (played < PLAY_TIME_LIMIT_PARTIAL)
-            billingTimeRested = uint32((PLAY_TIME_LIMIT_PARTIAL - played).count());
+        WorldPackets::Auth::AuthSuccessInfo& successInfo = packet.SuccessInfo.emplace();
+        successInfo.ActiveExpansionLevel = uint8(sWorld->getIntConfig(CONFIG_EXPANSION));
+        successInfo.AccountExpansionLevel = Expansion();
     }
-
-    WorldPacket packet(SMSG_AUTH_RESPONSE, 1 + 4 + 1 + 4 + 1 + (shortForm ? 0 : (4 + 1)));
-    packet << uint8(code);
-    packet << uint32(0); // BillingTimeRemaining
-    packet << GetBillingPlanFlags();
-    packet << billingTimeRested;
-    uint8 exp = Expansion(); // 0 - normal, 1 - TBC, 2 - WotLK, must be set in database manually for each account
-
-    if (exp >= MAX_EXPANSIONS)
-        exp = MAX_EXPANSIONS - 1;
-
-    packet << uint8(exp);
 
     if (!shortForm)
-    {
-        packet << uint32(queuePos);                             // Queue position
-        packet << uint8(0);                                     // Realm has a free character migration - bool
-    }
+        packet.WaitInfo.emplace(WorldPackets::Auth::AuthWaitInfo{ queuePos, false });
 
-    SendPacket(&packet);
+    SendPacket(packet.Write());
 }
 
 void WorldSession::SendClientCacheVersion(uint32 version)

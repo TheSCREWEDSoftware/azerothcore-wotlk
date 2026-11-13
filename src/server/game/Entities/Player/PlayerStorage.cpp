@@ -2606,7 +2606,7 @@ void Player::SetAmmo(uint32 item)
         return;
 
     // already set
-    if (GetUInt32Value(PLAYER_AMMO_ID) == item)
+    if (GetAmmoId() == item)
         return;
 
     // check ammo
@@ -2617,14 +2617,14 @@ void Player::SetAmmo(uint32 item)
         return;
     }
 
-    SetUInt32Value(PLAYER_AMMO_ID, item);
+    SetAmmoId(item);
 
     _ApplyAmmoBonuses();
 }
 
 void Player::RemoveAmmo()
 {
-    SetUInt32Value(PLAYER_AMMO_ID, 0);
+    SetAmmoId(0);
 
     m_ammoDPS = 0.0f;
 
@@ -5148,9 +5148,9 @@ bool Player::LoadFromDB(ObjectGuid playerGuid, CharacterDatabaseQueryHolder cons
 
     SetInt32Value(PLAYER_FIELD_WATCHED_FACTION_INDEX, fields[53].Get<uint32>());
 
-    SetUInt64Value(PLAYER_FIELD_KNOWN_CURRENCIES, fields[52].Get<uint64>());
+    SetKnownCurrencies(fields[52].Get<uint64>());
 
-    SetUInt32Value(PLAYER_AMMO_ID, fields[68].Get<uint32>());
+    SetAmmoId(fields[68].Get<uint32>());
 
     // set which actionbars the client has active - DO NOT REMOVE EVER AGAIN (can be changed though, if it does change fieldwise)
     SetByteValue(PLAYER_FIELD_BYTES, 2, fields[70].Get<uint8>());
@@ -5209,8 +5209,8 @@ bool Player::LoadFromDB(ObjectGuid playerGuid, CharacterDatabaseQueryHolder cons
     SetArenaPoints(fields[44].Get<uint32>());
 
     SetHonorPoints(fields[45].Get<uint32>());
-    SetUInt32Value(PLAYER_FIELD_TODAY_CONTRIBUTION, fields[46].Get<uint32>());
-    SetUInt32Value(PLAYER_FIELD_YESTERDAY_CONTRIBUTION, fields[47].Get<uint32>());
+    SetTodayContribution(fields[46].Get<uint32>());
+    SetYesterdayContribution(fields[47].Get<uint32>());
     SetUInt32Value(PLAYER_FIELD_LIFETIME_HONORABLE_KILLS, fields[48].Get<uint32>());
     SetUInt16Value(PLAYER_FIELD_KILLS, 0, fields[49].Get<uint16>());
     SetUInt16Value(PLAYER_FIELD_KILLS, 1, fields[50].Get<uint16>());
@@ -5602,6 +5602,16 @@ bool Player::LoadFromDB(ObjectGuid playerGuid, CharacterDatabaseQueryHolder cons
         curTitle = 0;
 
     SetUInt32Value(PLAYER_CHOSEN_TITLE, curTitle);
+
+    // Cata currency storage (#312); the table is created by the characters DB update.
+    if (PreparedQueryResult currencyResult = holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_CURRENCY))
+    {
+        do
+        {
+            Field* currencyFields = currencyResult->Fetch();
+            _currencyStorage[currencyFields[0].Get<uint16>()] = currencyFields[1].Get<uint32>();
+        } while (currencyResult->NextRow());
+    }
 
     // has to be called after last Relocate() in Player::LoadFromDB
     SetFallInformation(GameTime::GetGameTime().count(), GetPositionZ());
@@ -6709,7 +6719,7 @@ void Player::SendRaidInfo()
 {
     uint32 counter = 0;
 
-    WorldPacket data(SMSG_RAID_INSTANCE_INFO, 4);
+    WorldPacket data(SMSG_INSTANCE_INFO, 4);
 
     std::size_t p_counter = data.wpos();
     data << uint32(counter);                                // placeholder
@@ -7294,6 +7304,18 @@ void Player::SaveToDB(CharacterDatabaseTransaction trans, bool create, bool logo
     _SaveGlyphs(trans);
     _SaveInstanceTimeRestrictions(trans);
     _SavePlayerSettings(trans);
+    CharacterDatabasePreparedStatement* currencyStmt =
+        CharacterDatabase.GetPreparedStatement(CHAR_DEL_CHAR_CURRENCY);
+    currencyStmt->SetData(0, GetGUID().GetCounter());
+    trans->Append(currencyStmt);
+    for (auto const& [currencyId, quantity] : _currencyStorage)
+    {
+        currencyStmt = CharacterDatabase.GetPreparedStatement(CHAR_INS_CHAR_CURRENCY);
+        currencyStmt->SetData(0, GetGUID().GetCounter());
+        currencyStmt->SetData(1, currencyId);
+        currencyStmt->SetData(2, quantity);
+        trans->Append(currencyStmt);
+    }
 
     // check if stats should only be saved on logout
     // save stats can be out of transaction
@@ -7858,7 +7880,7 @@ void Player::_SaveSkills(CharacterDatabaseTransaction trans)
             continue;
         }
 
-        uint32 valueData = GetUInt32Value(PLAYER_SKILL_VALUE_INDEX(itr->second.pos));
+        uint32 valueData = GetSkillFieldValue(PLAYER_SKILL_VALUE_INDEX(itr->second.pos));
         uint16 value = SKILL_VALUE(valueData);
         uint16 max = SKILL_MAX(valueData);
 

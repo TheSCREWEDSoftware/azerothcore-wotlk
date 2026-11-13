@@ -354,13 +354,15 @@ void Player::UpdateAttackPowerAndDamage(bool ranged)
     UnitMods unitMod = ranged ? UNIT_MOD_ATTACK_POWER_RANGED : UNIT_MOD_ATTACK_POWER;
 
     uint16 index = UNIT_FIELD_ATTACK_POWER;
-    uint16 index_mod = UNIT_FIELD_ATTACK_POWER_MODS;
+    uint16 index_mod_pos = UNIT_FIELD_ATTACK_POWER_MOD_POS;
+    uint16 index_mod_neg = UNIT_FIELD_ATTACK_POWER_MOD_NEG;
     uint16 index_mult = UNIT_FIELD_ATTACK_POWER_MULTIPLIER;
 
     if (ranged)
     {
         index = UNIT_FIELD_RANGED_ATTACK_POWER;
-        index_mod = UNIT_FIELD_RANGED_ATTACK_POWER_MODS;
+        index_mod_pos = UNIT_FIELD_RANGED_ATTACK_POWER_MOD_POS;
+        index_mod_neg = UNIT_FIELD_RANGED_ATTACK_POWER_MOD_NEG;
         index_mult = UNIT_FIELD_RANGED_ATTACK_POWER_MULTIPLIER;
 
         if (IsClass(CLASS_HUNTER, CLASS_CONTEXT_STATS))
@@ -518,7 +520,8 @@ void Player::UpdateAttackPowerAndDamage(bool ranged)
 
     sScriptMgr->OnPlayerAfterUpdateAttackPowerAndDamage(this, level, base_attPower, attPowerMod, attPowerMultiplier, ranged);
     SetInt32Value(index, (uint32)base_attPower);            //UNIT_FIELD_(RANGED)_ATTACK_POWER field
-    SetInt32Value(index_mod, (uint32)attPowerMod);          //UNIT_FIELD_(RANGED)_ATTACK_POWER_MODS field
+    SetInt32Value(index_mod_pos, uint32(attPowerMod > 0.f ? attPowerMod : 0.f));  //UNIT_FIELD_(RANGED)_ATTACK_POWER_MOD_POS field
+    SetInt32Value(index_mod_neg, uint32(attPowerMod < 0.f ? -attPowerMod : 0.f)); //UNIT_FIELD_(RANGED)_ATTACK_POWER_MOD_NEG field
     SetFloatValue(index_mult, attPowerMultiplier);          //UNIT_FIELD_(RANGED)_ATTACK_POWER_MULTIPLIER field
 
     //automatically update weapon damage after attack power modification
@@ -938,46 +941,53 @@ void Player::ApplyHealthRegenBonus(int32 amount, bool apply)
 
 void Player::UpdateManaRegen()
 {
+    uint32 index = GetPowerIndex(POWER_MANA);
+    if (index >= MAX_UNIT_POWER_FIELDS)
+        return;
+
     if (HasAuraTypeWithMiscvalue(SPELL_AURA_PREVENT_REGENERATE_POWER, POWER_MANA + 1))
     {
-        SetStatFloatValue(UNIT_FIELD_POWER_REGEN_INTERRUPTED_FLAT_MODIFIER, 0);
-        SetStatFloatValue(UNIT_FIELD_POWER_REGEN_FLAT_MODIFIER, 0);
+        SetStatFloatValue(UNIT_FIELD_POWER_REGEN_INTERRUPTED_FLAT_MODIFIER + index, 0);
+        SetStatFloatValue(UNIT_FIELD_POWER_REGEN_FLAT_MODIFIER + index, 0);
         return;
     }
 
-    float Intellect = GetStat(STAT_INTELLECT);
-    // Mana regen from spirit and intellect
-    float power_regen = std::sqrt(Intellect) * OCTRegenMPPerSpirit();
-    // Apply PCT bonus from SPELL_AURA_MOD_POWER_REGEN_PERCENT aura on spirit base regen
-    power_regen *= GetTotalAuraMultiplierByMiscValue(SPELL_AURA_MOD_POWER_REGEN_PERCENT, POWER_MANA);
+    PlayerClassLevelInfo classInfo;
+    sObjectMgr->GetPlayerClassLevelInfo(getClass(), GetLevel(), &classInfo);
 
-    // Mana regen from SPELL_AURA_MOD_POWER_REGEN aura
-    float power_regen_mp5 = (GetTotalAuraModifierByMiscValue(SPELL_AURA_MOD_POWER_REGEN, POWER_MANA) + m_baseManaRegen) / 5.0f;
+    float powerRegenMod = GetTotalAuraModifierByMiscValue(SPELL_AURA_MOD_POWER_REGEN, POWER_MANA) / 5.0f;
+    float powerRegenModPct = GetTotalAuraMultiplierByMiscValue(SPELL_AURA_MOD_POWER_REGEN_PERCENT, POWER_MANA);
 
-    // Get bonus from SPELL_AURA_MOD_MANA_REGEN_FROM_STAT aura
-    AuraEffectList const& regenAura = GetAuraEffectsByType(SPELL_AURA_MOD_MANA_REGEN_FROM_STAT);
-    for (AuraEffectList::const_iterator i = regenAura.begin(); i != regenAura.end(); ++i)
-    {
-        power_regen_mp5 += GetStat(Stats((*i)->GetMiscValue())) * (*i)->GetAmount() / 500.0f;
-    }
+    // Base mana regenerates 5% per five seconds; spirit adds the Cata GT ratio.
+    float baseRegen = classInfo.basemana / 100.0f;
+    baseRegen += powerRegenMod;
+    baseRegen += m_baseManaRegen / 5.0f;
 
-    // Set regen rate in cast state apply only on spirit based regen
+    float spiritRegen = OCTRegenMPPerSpirit();
+    if (GetStat(STAT_INTELLECT) > 0.0f)
+        spiritRegen *= std::sqrt(GetStat(STAT_INTELLECT));
+
+    baseRegen *= powerRegenModPct;
+    spiritRegen *= powerRegenModPct;
+
     int32 modManaRegenInterrupt = GetTotalAuraModifier(SPELL_AURA_MOD_MANA_REGEN_INTERRUPT);
-    if (modManaRegenInterrupt > 100)
-        modManaRegenInterrupt = 100;
-    SetStatFloatValue(UNIT_FIELD_POWER_REGEN_INTERRUPTED_FLAT_MODIFIER + AsUnderlyingType(POWER_MANA), power_regen_mp5 + CalculatePct(power_regen, modManaRegenInterrupt));
-
-    SetStatFloatValue(UNIT_FIELD_POWER_REGEN_FLAT_MODIFIER + AsUnderlyingType(POWER_MANA), power_regen_mp5 + power_regen);
+    SetStatFloatValue(UNIT_FIELD_POWER_REGEN_INTERRUPTED_FLAT_MODIFIER + index,
+        baseRegen + CalculatePct(spiritRegen, modManaRegenInterrupt));
+    SetStatFloatValue(UNIT_FIELD_POWER_REGEN_FLAT_MODIFIER + index, baseRegen + spiritRegen);
 }
 
 void Player::UpdateEnergyRegen()
 {
+    uint32 index = GetPowerIndex(POWER_ENERGY);
+    if (index >= MAX_UNIT_POWER_FIELDS)
+        return;
+
     float regenPerSecond = 10.f;   // +10 energy per second
     regenPerSecond *= GetTotalAuraMultiplierByMiscValue(SPELL_AURA_MOD_POWER_REGEN_PERCENT, POWER_ENERGY);
     regenPerSecond += static_cast<float>(GetTotalAuraModifierByMiscValue(SPELL_AURA_MOD_POWER_REGEN, POWER_ENERGY)) / static_cast<float>((5 * IN_MILLISECONDS));
 
-    SetStatFloatValue(UNIT_FIELD_POWER_REGEN_FLAT_MODIFIER + AsUnderlyingType(POWER_ENERGY), regenPerSecond - 10.f);
-    SetStatFloatValue(UNIT_FIELD_POWER_REGEN_INTERRUPTED_FLAT_MODIFIER + AsUnderlyingType(POWER_ENERGY), regenPerSecond - 10.f);
+    SetStatFloatValue(UNIT_FIELD_POWER_REGEN_FLAT_MODIFIER + index, regenPerSecond - 10.f);
+    SetStatFloatValue(UNIT_FIELD_POWER_REGEN_INTERRUPTED_FLAT_MODIFIER + index, regenPerSecond - 10.f);
 }
 
 void Player::UpdateRuneRegen(RuneType rune)
@@ -1086,13 +1096,15 @@ void Creature::UpdateAttackPowerAndDamage(bool ranged)
     UnitMods unitMod = ranged ? UNIT_MOD_ATTACK_POWER_RANGED : UNIT_MOD_ATTACK_POWER;
 
     uint16 index = UNIT_FIELD_ATTACK_POWER;
-    uint16 indexMod = UNIT_FIELD_ATTACK_POWER_MODS;
+    uint16 indexModPos = UNIT_FIELD_ATTACK_POWER_MOD_POS;
+    uint16 indexModNeg = UNIT_FIELD_ATTACK_POWER_MOD_NEG;
     uint16 indexMulti = UNIT_FIELD_ATTACK_POWER_MULTIPLIER;
 
     if (ranged)
     {
         index = UNIT_FIELD_RANGED_ATTACK_POWER;
-        indexMod = UNIT_FIELD_RANGED_ATTACK_POWER_MODS;
+        indexModPos = UNIT_FIELD_RANGED_ATTACK_POWER_MOD_POS;
+        indexModNeg = UNIT_FIELD_RANGED_ATTACK_POWER_MOD_NEG;
         indexMulti = UNIT_FIELD_RANGED_ATTACK_POWER_MULTIPLIER;
     }
 
@@ -1101,7 +1113,8 @@ void Creature::UpdateAttackPowerAndDamage(bool ranged)
     float attackPowerMultiplier = GetPctModifierValue(unitMod, TOTAL_PCT) - 1.0f;
 
     SetInt32Value(index, uint32(baseAttackPower));      // UNIT_FIELD_(RANGED)_ATTACK_POWER
-    SetInt32Value(indexMod, uint32(attackPowerMod));    // UNIT_FIELD_(RANGED)_ATTACK_POWER_MODS
+    SetInt32Value(indexModPos, uint32(attackPowerMod > 0.f ? attackPowerMod : 0.f));  // UNIT_FIELD_(RANGED)_ATTACK_POWER_MOD_POS
+    SetInt32Value(indexModNeg, uint32(attackPowerMod < 0.f ? -attackPowerMod : 0.f)); // UNIT_FIELD_(RANGED)_ATTACK_POWER_MOD_NEG
     SetFloatValue(indexMulti, attackPowerMultiplier);   // UNIT_FIELD_(RANGED)_ATTACK_POWER_MULTIPLIER
 
     // automatically update weapon damage after attack power modification
@@ -1340,8 +1353,10 @@ void Guardian::UpdateAttackPowerAndDamage(bool ranged)
 
     //UNIT_FIELD_(RANGED)_ATTACK_POWER field
     SetInt32Value(UNIT_FIELD_ATTACK_POWER, (int32)base_attPower);
-    //UNIT_FIELD_(RANGED)_ATTACK_POWER_MODS field
-    SetInt32Value(UNIT_FIELD_ATTACK_POWER_MODS, (int32)attPowerMod);
+    //UNIT_FIELD_(RANGED)_ATTACK_POWER_MOD_POS field
+    SetInt32Value(UNIT_FIELD_ATTACK_POWER_MOD_POS, int32(attPowerMod > 0.f ? attPowerMod : 0.f));
+    //UNIT_FIELD_(RANGED)_ATTACK_POWER_MOD_NEG field
+    SetInt32Value(UNIT_FIELD_ATTACK_POWER_MOD_NEG, int32(attPowerMod < 0.f ? -attPowerMod : 0.f));
     //UNIT_FIELD_(RANGED)_ATTACK_POWER_MULTIPLIER field
     SetFloatValue(UNIT_FIELD_ATTACK_POWER_MULTIPLIER, attPowerMultiplier);
 

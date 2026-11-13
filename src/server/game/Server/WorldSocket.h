@@ -19,6 +19,7 @@
 #define __WORLDSOCKET_H__
 
 #include "AuthCrypt.h"
+#include "AsyncCallbackProcessor.h"
 #include "Common.h"
 #include "MPSCQueue.h"
 #include "Socket.h"
@@ -29,28 +30,38 @@
 
 using boost::asio::ip::tcp;
 
+struct z_stream_s;
+class WorldAuthenticationHandoffTest;
+
 class EncryptableAndCompressiblePacket : public WorldPacket
 {
 public:
-    EncryptableAndCompressiblePacket(WorldPacket const& packet, bool encrypt) : WorldPacket(packet), _encrypt(encrypt)
+    EncryptableAndCompressiblePacket(WorldPacket const& packet, bool encrypt) : WorldPacket(packet), _encrypt(encrypt), _compressionStream(nullptr)
     {
         SocketQueueLink.store(nullptr, std::memory_order_relaxed);
     }
 
     bool NeedsEncryption() const { return _encrypt; }
 
-    bool NeedsCompression() const { return GetOpcode() == SMSG_UPDATE_OBJECT && size() > 100; }
+    bool NeedsCompression() const { return GetOpcode() == SMSG_UPDATE_OBJECT && size() > 0x400; }
 
-    void CompressIfNeeded();
+    void CompressIfNeeded(z_stream_s* compressionStream);
 
     std::atomic<EncryptableAndCompressiblePacket*> SocketQueueLink;
 
 private:
+    void Compress(void* dst, uint32 *dst_size, void const* src, int src_size);
+    z_stream_s* _compressionStream;
     bool _encrypt;
 };
 
 namespace WorldPackets
 {
+    namespace Auth
+    {
+        class AuthSession;
+    }
+
     class ServerPacket;
 }
 
@@ -65,10 +76,13 @@ struct ClientPktHeader
 };
 #pragma pack(pop)
 
-struct ClientAuthSession;
-
 class AC_GAME_API WorldSocket final : public Socket<WorldSocket>
 {
+    friend class WorldAuthenticationHandoffTest;
+
+    static std::string const ServerConnectionInitialize;
+    static std::string const ClientConnectionInitialize;
+
     typedef Socket<WorldSocket> BaseSocket;
 
 public:
@@ -82,6 +96,7 @@ public:
     bool Update() final;
 
     void SendPacket(WorldPacket const& packet);
+    void SendPacketAndLogOpcode(WorldPacket const& packet);
 
     void SetSendBufferSize(std::size_t sendBufferSize) { _sendBufferSize = sendBufferSize; }
 
@@ -91,7 +106,7 @@ public:
 protected:
     void OnClose() override;
     SocketReadCallbackResult ReadHandler() final;
-    bool ReadHeaderHandler();
+    bool ReadHeaderHandler(bool initialized);
 
     enum class ReadDataHandlerResult
     {
@@ -104,16 +119,16 @@ protected:
 
 private:
     void CheckIpCallback(PreparedQueryResult result);
+    void InitializeHandler(boost::system::error_code error, std::size_t transferedBytes);
 
     /// writes network.opcode log
     /// accessing WorldSession is not threadsafe, only do it when holding _worldSessionLock
     void LogOpcodeText(OpcodeClient opcode, std::unique_lock<std::mutex> const& guard) const;
 
     /// sends and logs network.opcode without accessing WorldSession
-    void SendPacketAndLogOpcode(WorldPacket const& packet);
     void HandleSendAuthSession();
     void HandleAuthSession(WorldPacket& recvPacket);
-    void HandleAuthSessionCallback(std::shared_ptr<ClientAuthSession> authSession, PreparedQueryResult result);
+    void HandleAuthSessionCallback(std::shared_ptr<WorldPackets::Auth::AuthSession> authSession, PreparedQueryResult result);
     void LoadSessionPermissionsCallback(PreparedQueryResult result);
     void SendAuthResponseError(uint8 code);
 
@@ -131,6 +146,9 @@ private:
 
     MessageBuffer _headerBuffer;
     MessageBuffer _packetBuffer;
+
+    z_stream_s* _compressionStream;
+
     MPSCQueue<EncryptableAndCompressiblePacket, &EncryptableAndCompressiblePacket::SocketQueueLink> _bufferQueue;
     std::size_t _sendBufferSize;
 

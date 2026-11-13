@@ -165,14 +165,78 @@ bool PathGenerator::CalculatePath(float x, float y, float z, float destX, float 
     G3D::Vector3 start(x, y, z);
     SetStartPosition(start);
 
+    uint32 terrainMapId = _source->GetMapId();
+    uint32 destinationTerrainMapId = terrainMapId;
+    if (std::vector<uint32> const* terrainMaps = _source->GetTerrainMapIds(); terrainMaps && !terrainMaps->empty())
+    {
+        terrainMapId = _source->GetMap()->GetTerrainNavMeshMapId(*terrainMaps, x, y);
+        destinationTerrainMapId = _source->GetMap()->GetTerrainNavMeshMapId(*terrainMaps, destX, destY);
+    }
+
+    dtNavMesh const* previousNavMesh = _navMesh;
+    MMapData& baseMmapData = _source->GetMap()->GetMapCollisionData().GetMMapData();
+    MMapData& mmapData = _source->GetMap()->GetMapCollisionData().GetMMapDataForMap(terrainMapId);
+    MMapData& destinationMmapData =
+        _source->GetMap()->GetMapCollisionData().GetMMapDataForMap(destinationTerrainMapId);
+    bool const usingChildMesh = &mmapData != &baseMmapData;
+    bool const destinationUsesChildMesh = &destinationMmapData != &baseMmapData;
+    if (usingChildMesh)
+        _source->GetMap()->GetMapCollisionData().LoadMMapTilesForMap(terrainMapId, x, y, destX, destY);
+
+    _navMesh = mmapData.GetNavMesh();
+    _navMeshQuery = mmapData.GetNavMeshQuery();
+    if (_navMesh != previousNavMesh)
+        Clear();
+
     _forceDestination = forceDest;
+
+    auto rejectTerrainPath = [&]() -> bool
+    {
+        BuildShortcut();
+
+        Unit const* unit = _source->ToUnit();
+        bool const canSwim = unit ? unit->CanSwim() : true;
+        bool const canFly = unit ? unit->CanFly() : false;
+        if (canFly || (canSwim && IsContinuousWaterPath(_startPosition, _actualEndPosition)))
+        {
+            _type = PathType(PATHFIND_NORMAL | PATHFIND_NOT_USING_PATH);
+            return true;
+        }
+
+        _type = PATHFIND_NOPATH;
+        return false;
+    };
 
     // make sure navMesh works - we can run on map w/o mmap
     // check if the start and end point have a .mmtile loaded (can we pass via not loaded tile on the way?)
     Unit const* _sourceUnit = _source->ToUnit();
-    if (!_navMesh || !_navMeshQuery || (_sourceUnit && _sourceUnit->HasUnitState(UNIT_STATE_IGNORE_PATHFINDING)) ||
-        !HaveTile(start) || !HaveTile(dest))
+    if (_sourceUnit && _sourceUnit->HasUnitState(UNIT_STATE_IGNORE_PATHFINDING))
     {
+        BuildShortcut();
+        _type = PathType(PATHFIND_NORMAL | PATHFIND_NOT_USING_PATH);
+        return true;
+    }
+
+    // Child/base terrain seams are not stitched in the generated data. Reject a path
+    // whose endpoints resolve to different terrain meshes instead of using a straight shortcut.
+    bool const childTerrainInvolved = usingChildMesh || destinationUsesChildMesh;
+    if (childTerrainInvolved && terrainMapId != destinationTerrainMapId)
+        return rejectTerrainPath();
+
+    if (!_navMesh || !_navMeshQuery)
+    {
+        BuildShortcut();
+        _type = PathType(PATHFIND_NORMAL | PATHFIND_NOT_USING_PATH);
+        return true;
+    }
+
+    if (!HaveTile(start) || !HaveTile(dest))
+    {
+        // Preserve the ordinary missing-tile shortcut on base maps; only a selected
+        // child mesh has no valid fallback for its missing tiles.
+        if (usingChildMesh)
+            return rejectTerrainPath();
+
         BuildShortcut();
         _type = PathType(PATHFIND_NORMAL | PATHFIND_NOT_USING_PATH);
         return true;
@@ -306,8 +370,8 @@ void PathGenerator::BuildPolyPath(G3D::Vector3 const& startPos, G3D::Vector3 con
     {
         bool buildShortcut = false;
 
-        auto liquidDataStart = _source->GetMap()->GetLiquidData(_source->GetPhaseMask(), startPos.x, startPos.y, startPos.z, _source->GetCollisionHeight(), {});
-        auto liquidDataEnd = _source->GetMap()->GetLiquidData(_source->GetPhaseMask(), endPos.x, endPos.y, endPos.z, _source->GetCollisionHeight(), {});
+        auto liquidDataStart = _source->GetMap()->GetLiquidData(_source->GetPhaseMask(), startPos.x, startPos.y, startPos.z, _source->GetCollisionHeight(), {}, _source->GetTerrainMapIds());
+        auto liquidDataEnd = _source->GetMap()->GetLiquidData(_source->GetPhaseMask(), endPos.x, endPos.y, endPos.z, _source->GetCollisionHeight(), {}, _source->GetTerrainMapIds());
 
         bool startUnderWaterEndInWater = liquidDataStart.Status == LIQUID_MAP_UNDER_WATER &&
                                          (liquidDataEnd.Status & MAP_LIQUID_STATUS_IN_CONTACT) != 0;
@@ -797,7 +861,7 @@ void PathGenerator::UpdateFilter()
 
 NavTerrain PathGenerator::GetNavTerrain(float x, float y, float z) const
 {
-    LiquidData const& liquidData = _source->GetMap()->GetLiquidData(_source->GetPhaseMask(), x, y, z, _source->GetCollisionHeight(), {});
+    LiquidData const& liquidData = _source->GetMap()->GetLiquidData(_source->GetPhaseMask(), x, y, z, _source->GetCollisionHeight(), {}, _source->GetTerrainMapIds());
     if (liquidData.Status == LIQUID_MAP_NO_WATER)
         return NAV_GROUND;
 
@@ -1172,7 +1236,7 @@ void PathGenerator::ShortenPathUntilDist(G3D::Vector3 const& target, float dist)
         // check if the shortened path is still in LoS with the target and it is walkable
         _source->GetHitSpherePointFor({ _pathPoints[i - 1].x, _pathPoints[i - 1].y, _pathPoints[i - 1].z + collisionHeight }, x, y, z);
         if (!_source->GetMap()->isInLineOfSight(x, y, z, _pathPoints[i - 1].x, _pathPoints[i - 1].y, _pathPoints[i - 1].z + collisionHeight,
-            _source->GetPhaseMask(), LINEOFSIGHT_ALL_CHECKS, VMAP::ModelIgnoreFlags::Nothing) || (canCheckSlope &&
+            _source->GetPhaseMask(), LINEOFSIGHT_ALL_CHECKS, VMAP::ModelIgnoreFlags::Nothing, _source->GetTerrainMapIds()) || (canCheckSlope &&
                 !IsSwimmableSegment(_source->GetPositionX(), _source->GetPositionY(), _source->GetPositionZ(), _pathPoints[i - 1].x, _pathPoints[i - 1].y, _pathPoints[i - 1].z) &&
                 !IsWalkableClimb(_source->GetPositionX(), _source->GetPositionY(), _source->GetPositionZ(), _pathPoints[i - 1].x, _pathPoints[i - 1].y, _pathPoints[i - 1].z)))
         {
@@ -1247,8 +1311,8 @@ bool PathGenerator::IsSwimmableSegment(float const* v1, float const* v2, bool ch
 bool PathGenerator::IsSwimmableSegment(float x, float y, float z, float destX, float destY, float destZ, bool checkSwim) const
 {
     Creature const* _sourceCreature = _source->ToCreature();
-    return _source->GetMap()->IsInWater(_source->GetPhaseMask(), x, y, z, _source->GetCollisionHeight()) &&
-        _source->GetMap()->IsInWater(_source->GetPhaseMask(), destX, destY, destZ, _source->GetCollisionHeight()) &&
+    return _source->GetMap()->IsInWater(_source->GetPhaseMask(), x, y, z, _source->GetCollisionHeight(), _source->GetTerrainMapIds()) &&
+        _source->GetMap()->IsInWater(_source->GetPhaseMask(), destX, destY, destZ, _source->GetCollisionHeight(), _source->GetTerrainMapIds()) &&
         (!checkSwim || !_sourceCreature || _sourceCreature->CanSwim());
 }
 
@@ -1268,4 +1332,20 @@ bool PathGenerator::IsWaterPath(Movement::PointsArray pathPoints) const
     }
 
     return waterPath;
+}
+
+bool PathGenerator::IsContinuousWaterPath(G3D::Vector3 const& start, G3D::Vector3 const& end) const
+{
+    G3D::Vector3 const delta = end - start;
+    float const distance = delta.length();
+    uint32 const steps = std::max(1u, std::min(512u, uint32(std::ceil(distance / 10.0f))));
+    for (uint32 i = 0; i <= steps; ++i)
+    {
+        G3D::Vector3 const point = start + delta * (float(i) / float(steps));
+        NavTerrain const terrain = GetNavTerrain(point.x, point.y, point.z);
+        if (terrain != NAV_MAGMA && terrain != NAV_WATER)
+            return false;
+    }
+
+    return true;
 }

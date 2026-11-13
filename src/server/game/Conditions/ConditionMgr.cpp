@@ -420,6 +420,23 @@ bool Condition::Meets(ConditionSourceInfo& sourceInfo)
         condMeets = object->GetPhaseMask() & ConditionValue1;
         break;
     }
+    case CONDITION_CATA_PHASE_ID:
+    {
+        condMeets = object->HasPhase(ConditionValue1);
+        break;
+    }
+    case CONDITION_CATA_PHASE_GROUP:
+    {
+        for (uint32 phaseId : GetPhasesForGroup(ConditionValue1))
+        {
+            if (object->HasPhase(phaseId))
+            {
+                condMeets = true;
+                break;
+            }
+        }
+        break;
+    }
     case CONDITION_TITLE:
     {
         if (Unit* unit = object->ToUnit())
@@ -760,6 +777,8 @@ uint32 Condition::GetSearcherTypeMaskForCondition()
         mask |= GRID_MAP_TYPE_MASK_ALL;
         break;
     case CONDITION_PHASEMASK:
+    case CONDITION_CATA_PHASE_ID:
+    case CONDITION_CATA_PHASE_GROUP:
         mask |= GRID_MAP_TYPE_MASK_ALL;
         break;
     case CONDITION_TITLE:
@@ -985,7 +1004,7 @@ bool ConditionMgr::CanHaveSourceGroupSet(ConditionSourceType sourceType) const
 {
     return (sourceType == CONDITION_SOURCE_TYPE_CREATURE_LOOT_TEMPLATE || sourceType == CONDITION_SOURCE_TYPE_DISENCHANT_LOOT_TEMPLATE || sourceType == CONDITION_SOURCE_TYPE_FISHING_LOOT_TEMPLATE || sourceType == CONDITION_SOURCE_TYPE_GAMEOBJECT_LOOT_TEMPLATE || sourceType == CONDITION_SOURCE_TYPE_ITEM_LOOT_TEMPLATE || sourceType == CONDITION_SOURCE_TYPE_MAIL_LOOT_TEMPLATE || sourceType == CONDITION_SOURCE_TYPE_MILLING_LOOT_TEMPLATE ||
             sourceType == CONDITION_SOURCE_TYPE_PICKPOCKETING_LOOT_TEMPLATE || sourceType == CONDITION_SOURCE_TYPE_PROSPECTING_LOOT_TEMPLATE || sourceType == CONDITION_SOURCE_TYPE_REFERENCE_LOOT_TEMPLATE || sourceType == CONDITION_SOURCE_TYPE_SKINNING_LOOT_TEMPLATE || sourceType == CONDITION_SOURCE_TYPE_SPELL_LOOT_TEMPLATE || sourceType == CONDITION_SOURCE_TYPE_GOSSIP_MENU || sourceType == CONDITION_SOURCE_TYPE_GOSSIP_MENU_OPTION || sourceType == CONDITION_SOURCE_TYPE_VEHICLE_SPELL || sourceType == CONDITION_SOURCE_TYPE_GOSSIP_HELLO ||
-            sourceType == CONDITION_SOURCE_TYPE_SPELL_IMPLICIT_TARGET || sourceType == CONDITION_SOURCE_TYPE_SPELL_CLICK_EVENT || sourceType == CONDITION_SOURCE_TYPE_SMART_EVENT || sourceType == CONDITION_SOURCE_TYPE_NPC_VENDOR || sourceType == CONDITION_SOURCE_TYPE_PLAYER_LOOT_TEMPLATE || sourceType == CONDITION_SOURCE_TYPE_OBJECT_VISIBILITY);
+            sourceType == CONDITION_SOURCE_TYPE_SPELL_IMPLICIT_TARGET || sourceType == CONDITION_SOURCE_TYPE_SPELL_CLICK_EVENT || sourceType == CONDITION_SOURCE_TYPE_SMART_EVENT || sourceType == CONDITION_SOURCE_TYPE_NPC_VENDOR || sourceType == CONDITION_SOURCE_TYPE_PLAYER_LOOT_TEMPLATE || sourceType == CONDITION_SOURCE_TYPE_OBJECT_VISIBILITY || sourceType == CONDITION_SOURCE_TYPE_PHASE);
 }
 
 bool ConditionMgr::CanHaveSourceIdSet(ConditionSourceType sourceType) const
@@ -1024,6 +1043,23 @@ ConditionList ConditionMgr::GetConditionsForSpellClickEvent(uint32 creatureId, u
             cond = (*i).second;
             LOG_DEBUG("condition", "GetConditionsForSpellClickEvent: found conditions for Vehicle entry {} spell {}", creatureId, spellId);
         }
+    }
+    return cond;
+}
+
+ConditionList ConditionMgr::GetConditionsForPhase(uint32 phaseOrGroupId, uint32 areaId) const
+{
+    ConditionList cond;
+    CreatureSpellConditionContainer::const_iterator itr = PhaseConditionStore.find(phaseOrGroupId);
+    if (itr != PhaseConditionStore.end())
+    {
+        // area-scoped conditions (SourceEntry == areaId) take precedence over any-area ones (SourceEntry == 0)
+        ConditionTypeContainer::const_iterator i = itr->second.find(areaId);
+        if (i == itr->second.end())
+            i = itr->second.find(0);
+
+        if (i != itr->second.end())
+            cond = i->second;
     }
     return cond;
 }
@@ -1313,6 +1349,9 @@ void ConditionMgr::LoadConditions(bool isReload)
             case CONDITION_SOURCE_TYPE_SPELL_LOOT_TEMPLATE:
                 valid = addToLootTemplate(cond, LootTemplates_Spell.GetLootForConditionFill(cond->SourceGroup));
                 break;
+            case CONDITION_SOURCE_TYPE_PHASE:
+                valid = addToPhases(cond);
+                break;
             case CONDITION_SOURCE_TYPE_GOSSIP_MENU:
                 valid = addToGossipMenus(cond);
                 break;
@@ -1418,6 +1457,12 @@ bool ConditionMgr::addToLootTemplate(Condition* cond, LootTemplate* loot)
 
     LOG_ERROR("sql.sql", "ConditionMgr: Item {} not found in LootTemplate {}", cond->SourceEntry, cond->SourceGroup);
     return false;
+}
+
+bool ConditionMgr::addToPhases(Condition* cond)
+{
+    PhaseConditionStore[cond->SourceGroup][cond->SourceEntry].push_back(cond);
+    return true;
 }
 
 bool ConditionMgr::addToGossipMenus(Condition* cond)
@@ -1555,12 +1600,34 @@ bool ConditionMgr::isSourceTypeValid(Condition* cond)
 
     switch (cond->SourceType)
     {
-    case CONDITION_SOURCE_TYPE_TERRAIN_SWAP:
-    case CONDITION_SOURCE_TYPE_PHASE:
     case CONDITION_SOURCE_TYPE_GRAVEYARD:
     {
         LOG_ERROR("sql.sql", "ConditionSourceType {} in `condition` table is not supported on 3.3.5a, ignoring.", uint32(cond->SourceType));
         return false;
+    }
+    case CONDITION_SOURCE_TYPE_TERRAIN_SWAP:
+    {
+        if (!sMapStore.LookupEntry(cond->SourceEntry))
+        {
+            LOG_ERROR("sql.sql", "SourceEntry {} in a TERRAIN_SWAP condition does not exist in Map.dbc, ignoring.", cond->SourceEntry);
+            return false;
+        }
+        break;
+    }
+    case CONDITION_SOURCE_TYPE_PHASE:
+    {
+        if (!cond->SourceGroup || !IsValidPhaseOrPhaseGroupId(cond->SourceGroup))
+        {
+            LOG_ERROR("sql.sql", "SourceGroup {} in `condition` table for a CONDITION_SOURCE_TYPE_PHASE must hold a valid Phase.dbc or PhaseXPhaseGroup.dbc id, ignoring.", cond->SourceGroup);
+            return false;
+        }
+
+        if (cond->SourceEntry && !sAreaTableStore.LookupEntry(cond->SourceEntry))
+        {
+            LOG_ERROR("sql.sql", "SourceEntry {} in `condition` table for CONDITION_SOURCE_TYPE_PHASE (SourceGroup {}) is not a valid area, ignoring.", cond->SourceEntry, cond->SourceGroup);
+            return false;
+        }
+        break;
     }
     case CONDITION_SOURCE_TYPE_CREATURE_LOOT_TEMPLATE:
     {
@@ -2497,6 +2564,26 @@ bool ConditionMgr::isConditionTypeValid(Condition* cond)
             LOG_ERROR("sql.sql", "Phasemask condition has useless data in value3 ({})!", cond->ConditionValue3);
         break;
     }
+    case CONDITION_CATA_PHASE_ID:
+    {
+        if (cond->ConditionValue2)
+            LOG_ERROR("sql.sql", "Cata phase condition has useless data in value2 ({})!", cond->ConditionValue2);
+        if (cond->ConditionValue3)
+            LOG_ERROR("sql.sql", "Cata phase condition has useless data in value3 ({})!", cond->ConditionValue3);
+        if (!IsValidPhaseId(cond->ConditionValue1))
+            LOG_ERROR("sql.sql", "Cata phase condition has invalid phase id {}!", cond->ConditionValue1);
+        break;
+    }
+    case CONDITION_CATA_PHASE_GROUP:
+    {
+        if (cond->ConditionValue2)
+            LOG_ERROR("sql.sql", "Cata phase group condition has useless data in value2 ({})!", cond->ConditionValue2);
+        if (cond->ConditionValue3)
+            LOG_ERROR("sql.sql", "Cata phase group condition has useless data in value3 ({})!", cond->ConditionValue3);
+        if (!IsValidPhaseGroupId(cond->ConditionValue1))
+            LOG_ERROR("sql.sql", "Cata phase group condition has invalid group id {}!", cond->ConditionValue1);
+        break;
+    }
     case CONDITION_TITLE:
     {
         CharTitlesEntry const* titleEntry = sCharTitlesStore.LookupEntry(cond->ConditionValue1);
@@ -2698,6 +2785,18 @@ void ConditionMgr::Clean()
     }
 
     SpellClickEventConditionStore.clear();
+
+    for (CreatureSpellConditionContainer::iterator itr = PhaseConditionStore.begin(); itr != PhaseConditionStore.end(); ++itr)
+    {
+        for (ConditionTypeContainer::iterator it = itr->second.begin(); it != itr->second.end(); ++it)
+        {
+            for (ConditionList::const_iterator i = it->second.begin(); i != it->second.end(); ++i) delete *i;
+            it->second.clear();
+        }
+        itr->second.clear();
+    }
+
+    PhaseConditionStore.clear();
 
     for (NpcVendorConditionContainer::iterator itr = NpcVendorConditionContainerStore.begin(); itr != NpcVendorConditionContainerStore.end(); ++itr)
     {

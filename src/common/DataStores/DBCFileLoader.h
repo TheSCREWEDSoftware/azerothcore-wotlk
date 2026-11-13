@@ -22,17 +22,21 @@
 #include "Errors.h"
 #include "Utilities/ByteConverter.h"
 
+inline constexpr uint32 DBC_LOCALE_SLOTS = 16;
+
 enum DbcFieldFormat
 {
     FT_NA = 'x',                                              //not used or unknown, 4 byte size
     FT_NA_BYTE = 'X',                                         //not used or unknown, byte
+    FT_LOCALIZED_STRING = 'S', // one locale, expanded to legacy locale slots
     FT_STRING = 's',                                          //char*
     FT_FLOAT = 'f',                                           //float
     FT_INT = 'i',                                             //uint32
     FT_BYTE = 'b',                                            //uint8
     FT_SORT = 'd',                                            //sorted by this field, field is not included
     FT_IND = 'n',                                             //the same, but parsed to data
-    FT_LOGIC = 'l'                                           //Logical (boolean)
+    FT_LOGIC = 'l',                                           //Logical (boolean)
+    FT_LONG = 'q'                                             //uint64 source column (Cata 8-byte fields); only the low 32 bits are stored
 };
 
 class DBCFileLoader

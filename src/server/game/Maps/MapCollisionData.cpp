@@ -18,6 +18,7 @@
 #include "DBCStores.h"
 #include "DetourNavMeshQuery.h"
 #include "DisableMgr.h"
+#include "GridDefines.h"
 #include "MapCollisionData.h"
 #include "MapTree.h"
 #include "ModelInstance.h"
@@ -27,6 +28,7 @@
 #include "WorldModel.h"
 
 #include <G3D/Vector3.h>
+#include <algorithm>
 
 MapCollisionData::MapCollisionData(Map const& map, Map const* parentMap) :
     _map(map), _staticVMapData(map.GetId())
@@ -66,6 +68,62 @@ int MapCollisionData::LoadMMapTile(uint32 tileX, uint32 tileY)
         return MMAP::MMAP_LOAD_RESULT_IGNORED;
 
     return MMAP::MMapMgr::LoadTile(_mmapData._navMesh.get(), _map.GetId(), tileX, tileY);
+}
+
+MMapData& MapCollisionData::GetMMapDataForMap(uint32 mapId)
+{
+    if (mapId == _map.GetId())
+        return _mmapData;
+
+    if (!DisableMgr::IsPathfindingEnabled(&_map))
+        return _mmapData;
+
+    auto itr = _terrainMMapData.find(mapId);
+    if (itr != _terrainMMapData.end())
+        return itr->second->_navMesh ? *itr->second : _mmapData;
+
+    std::unique_ptr<MMapData> data = std::make_unique<MMapData>();
+    data->_navMesh = MMAP::MMapMgr::LoadNavMesh(mapId);
+    if (!data->_navMesh)
+    {
+        // Cache the failed load; optional child mmaps must not retry disk/config access per path.
+        _terrainMMapData.emplace(mapId, std::move(data));
+        return _mmapData;
+    }
+
+    MMapData& result = *data;
+    _terrainMMapData.emplace(mapId, std::move(data));
+    return result;
+}
+
+void MapCollisionData::LoadMMapTilesForMap(uint32 mapId, float x1, float y1, float x2, float y2)
+{
+    if (mapId == _map.GetId() || !DisableMgr::IsPathfindingEnabled(&_map))
+        return;
+
+    auto itr = _terrainMMapData.find(mapId);
+    if (itr == _terrainMMapData.end() || !itr->second->_navMesh)
+        return;
+
+    GridCoord const start = Acore::ComputeGridCoord(x1, y1);
+    GridCoord const end = Acore::ComputeGridCoord(x2, y2);
+    int32 const minX = std::max<int32>(0, std::min<int32>(start.x_coord, end.x_coord) - 2);
+    int32 const maxX = std::min<int32>(MAX_NUMBER_OF_GRIDS - 1, std::max<int32>(start.x_coord, end.x_coord) + 2);
+    int32 const minY = std::max<int32>(0, std::min<int32>(start.y_coord, end.y_coord) - 2);
+    int32 const maxY = std::min<int32>(MAX_NUMBER_OF_GRIDS - 1, std::max<int32>(start.y_coord, end.y_coord) + 2);
+
+    std::unordered_set<uint32>& loaded = _terrainLoadedTiles[mapId];
+    for (int32 x = minX; x <= maxX; ++x)
+    {
+        for (int32 y = minY; y <= maxY; ++y)
+        {
+            uint32 const key = (uint32(x) << 16) | uint32(y);
+            if (!loaded.insert(key).second)
+                continue;
+
+            MMAP::MMapMgr::LoadTile(itr->second->_navMesh.get(), mapId, x, y);
+        }
+    }
 }
 
 bool StaticVMapCollisionData::isInLineOfSight(float x1, float y1, float z1, float x2, float y2, float z2, VMAP::ModelIgnoreFlags ignoreFlags) const

@@ -27,6 +27,9 @@
 #include "Guild.h"
 #include "InstanceScript.h"
 #include "Language.h"
+#include "ConditionMgr.h"
+#include "DBCStores.h"
+#include "MiscPackets.h"
 #include "OutdoorPvPMgr.h"
 #include "Pet.h"
 #include "Player.h"
@@ -38,8 +41,10 @@
 #include "Vehicle.h"
 #include "Weather.h"
 #include "WeatherMgr.h"
+#include "World.h"
 #include "WorldState.h"
 #include "WorldStatePackets.h"
+#include <algorithm>
 
 /// @todo: this import is not necessary for compilation and marked as unused by the IDE
 //  however, for some reasons removing it would cause a damn linking issue
@@ -717,7 +722,7 @@ bool Player::UpdateSkill(uint32 skill_id, uint32 step)
         return false;
 
     uint32 valueIndex = PLAYER_SKILL_VALUE_INDEX(itr->second.pos);
-    uint32 data       = GetUInt32Value(valueIndex);
+    uint32 data       = GetSkillFieldValue(valueIndex);
     uint32 value      = SKILL_VALUE(data);
     uint32 max        = SKILL_MAX(data);
 
@@ -732,7 +737,7 @@ bool Player::UpdateSkill(uint32 skill_id, uint32 step)
         if (new_value > max)
             new_value = max;
 
-        SetUInt32Value(valueIndex, MAKE_SKILL_VALUE(new_value, max));
+        SetSkillFieldValue(valueIndex, MAKE_SKILL_VALUE(new_value, max));
         if (itr->second.uState != SKILL_NEW)
             itr->second.uState = SKILL_CHANGED;
 
@@ -952,7 +957,7 @@ bool Player::UpdateSkillPro(uint16 SkillId, int32 Chance, uint32 step)
 
     uint32 valueIndex = PLAYER_SKILL_VALUE_INDEX(itr->second.pos);
 
-    uint32 data       = GetUInt32Value(valueIndex);
+    uint32 data       = GetSkillFieldValue(valueIndex);
     uint32 SkillValue = SKILL_VALUE(data);
     uint32 MaxValue   = SKILL_MAX(data);
 
@@ -974,7 +979,7 @@ bool Player::UpdateSkillPro(uint16 SkillId, int32 Chance, uint32 step)
         if (new_value > MaxValue)
             new_value = MaxValue;
 
-        SetUInt32Value(valueIndex, MAKE_SKILL_VALUE(new_value, MaxValue));
+        SetSkillFieldValue(valueIndex, MAKE_SKILL_VALUE(new_value, MaxValue));
         if (itr->second.uState != SKILL_NEW)
             itr->second.uState = SKILL_CHANGED;
 
@@ -1125,7 +1130,7 @@ void Player::UpdateSkillsForLevel()
             continue;
 
         uint32 valueIndex = PLAYER_SKILL_VALUE_INDEX(itr->second.pos);
-        uint32 data       = GetUInt32Value(valueIndex);
+        uint32 data       = GetSkillFieldValue(valueIndex);
         uint32 max        = SKILL_MAX(data);
         uint32 val        = SKILL_VALUE(data);
 
@@ -1136,7 +1141,7 @@ void Player::UpdateSkillsForLevel()
             if (alwaysMaxSkill ||
                 (rcEntry->Flags & SKILL_FLAG_ALWAYS_MAX_VALUE))
             {
-                SetUInt32Value(valueIndex,
+                SetSkillFieldValue(valueIndex,
                                MAKE_SKILL_VALUE(maxSkill, maxSkill));
                 if (itr->second.uState != SKILL_NEW)
                     itr->second.uState = SKILL_CHANGED;
@@ -1144,12 +1149,18 @@ void Player::UpdateSkillsForLevel()
             else if (max != maxconfskill) /// update max skill value if current
                                           /// max skill not maximized
             {
-                SetUInt32Value(valueIndex, MAKE_SKILL_VALUE(val, maxSkill));
+                SetSkillFieldValue(valueIndex, MAKE_SKILL_VALUE(val, maxSkill));
                 if (itr->second.uState != SKILL_NEW)
                     itr->second.uState = SKILL_CHANGED;
             }
         }
     }
+
+    // Reward spells can add skills, invalidating iterators into mSkillStatus.
+    SkillStatusMap const skills = mSkillStatus;
+    for (auto const& [skill, status] : skills)
+        if (status.uState != SKILL_DELETED)
+            learnSkillRewardedSpells(skill, GetPureSkillValue(skill));
 }
 
 void Player::UpdateSkillsToMaxSkillsForLevel()
@@ -1164,12 +1175,12 @@ void Player::UpdateSkillsToMaxSkillsForLevel()
         if (IsProfessionOrRidingSkill(pskill))
             continue;
         uint32 valueIndex = PLAYER_SKILL_VALUE_INDEX(itr->second.pos);
-        uint32 data       = GetUInt32Value(valueIndex);
+        uint32 data       = GetSkillFieldValue(valueIndex);
         uint32 max        = SKILL_MAX(data);
 
         if (max > 1)
         {
-            SetUInt32Value(valueIndex, MAKE_SKILL_VALUE(max, max));
+            SetSkillFieldValue(valueIndex, MAKE_SKILL_VALUE(max, max));
             if (itr->second.uState != SKILL_NEW)
                 itr->second.uState = SKILL_CHANGED;
         }
@@ -1216,17 +1227,16 @@ void Player::UpdateHonorFields()
         // update yesterday's contribution
         if (m_lastHonorUpdateTime >= yesterday)
         {
-            SetUInt32Value(PLAYER_FIELD_YESTERDAY_CONTRIBUTION,
-                           GetUInt32Value(PLAYER_FIELD_TODAY_CONTRIBUTION));
+            SetYesterdayContribution(GetTodayContribution());
 
             // this is the first update today, reset today's contribution
-            SetUInt32Value(PLAYER_FIELD_TODAY_CONTRIBUTION, 0);
+            SetTodayContribution(0);
             SetUInt32Value(PLAYER_FIELD_KILLS, MAKE_PAIR32(0, kills_today));
         }
         else
         {
             // no honor/kills yesterday or today, reset
-            SetUInt32Value(PLAYER_FIELD_YESTERDAY_CONTRIBUTION, 0);
+            SetYesterdayContribution(0);
             SetUInt32Value(PLAYER_FIELD_KILLS, 0);
         }
     }
@@ -1270,6 +1280,195 @@ void Player::UpdateArea(uint32 newArea)
         SetRestFlag(REST_FLAG_IN_FACTION_AREA);
     else
         RemoveRestFlag(REST_FLAG_IN_FACTION_AREA);
+
+    UpdatePhasesForArea(newArea);
+}
+
+bool Player::IsUnphased() const
+{
+    return m_phases.empty() || std::find(m_phases.begin(), m_phases.end(), DEFAULT_PHASE) != m_phases.end();
+}
+
+void Player::RefreshPhases()
+{
+    if (UpdatePhasesForArea(GetAreaId()))
+        UpdateObjectVisibility();
+}
+
+bool Player::UpdatePhasesForArea(uint32 areaId)
+{
+    std::vector<uint32> oldPhases = std::move(m_phases);
+    m_phases.clear();
+    m_phaseRefs.clear();
+
+    // Area and quest refreshes must keep phases granted by active phase auras, like the 4.3.4
+    // PhasingHandler::OnAreaChange does; otherwise UpdateArea drops them while the auras stay.
+    // Add them first so area conditions can test aura-granted phases.
+    for (AuraEffect const* aurEff : GetAuraEffectsByType(SPELL_AURA_PHASE))
+        AddPhaseToSet(uint32(aurEff->GetMiscValueB()));
+    for (AuraEffect const* aurEff : GetAuraEffectsByType(SPELL_AURA_PHASE_GROUP))
+        for (uint32 phaseId : GetPhasesForGroup(uint32(aurEff->GetMiscValueB())))
+            AddPhaseToSet(phaseId);
+
+    // phase_area rows are inherited from parent areas; a closer area that defines the same phase
+    // excludes the parent row (4.3.4 SubAreaExclusions). Resolve every definition at one level
+    // before moving up, so a group row and a direct row for the same phase both contribute their
+    // conditions.
+    struct PendingPhase
+    {
+        uint32 phaseId;
+        std::vector<ConditionList> conditionSets;
+    };
+
+    std::vector<PendingPhase> pending;
+    std::unordered_set<uint32> defined;
+    for (uint32 chainArea = areaId; chainArea;)
+    {
+        std::unordered_map<uint32, size_t> levelIndex;
+        std::vector<PendingPhase> level;
+        for (ObjectMgr::PhaseAreaData const& areaPhase : sObjectMgr->GetPhasesForArea(chainArea))
+        {
+            // Conditions can be keyed by the group or by each member phase; both must pass.
+            ConditionList groupConditions = areaPhase.phaseGroup
+                ? sConditionMgr->GetConditionsForPhase(areaPhase.phaseGroup, chainArea)
+                : ConditionList{};
+
+            auto addCandidate = [&](uint32 phaseId, bool fromGroup)
+            {
+                if (defined.count(phaseId))
+                    return;
+
+                auto [it, inserted] = levelIndex.emplace(phaseId, level.size());
+                if (inserted)
+                    level.push_back(PendingPhase{ phaseId, {} });
+
+                PendingPhase& entry = level[it->second];
+                if (fromGroup && !groupConditions.empty())
+                    entry.conditionSets.push_back(groupConditions);
+                ConditionList phaseConditions = sConditionMgr->GetConditionsForPhase(phaseId, chainArea);
+                if (!phaseConditions.empty())
+                    entry.conditionSets.push_back(std::move(phaseConditions));
+            };
+
+            if (areaPhase.phaseId)
+                addCandidate(areaPhase.phaseId, false);
+            if (areaPhase.phaseGroup)
+                for (uint32 phaseId : GetPhasesForGroup(areaPhase.phaseGroup))
+                    addCandidate(phaseId, true);
+        }
+
+        for (PendingPhase& entry : level)
+        {
+            defined.insert(entry.phaseId);
+            pending.push_back(std::move(entry));
+        }
+
+        // AreaTable.dbc field 2 is ParentAreaID (the 3.3.5a struct calls it zone).
+        AreaTableEntry const* area = sAreaTableStore.LookupEntry(chainArea);
+        chainArea = area ? area->zone : 0;
+    }
+
+    std::vector<bool> granted(pending.size(), false);
+    for (size_t pass = 0; pass < pending.size() + 1; ++pass)
+    {
+        bool changed = false;
+        for (size_t i = 0; i < pending.size(); ++i)
+        {
+            auto const& [phaseId, conditionSets] = pending[i];
+            bool meets = std::all_of(conditionSets.begin(), conditionSets.end(),
+                [this](ConditionList const& conditions)
+                {
+                    return conditions.empty() || sConditionMgr->IsObjectMeetToConditions(this, conditions);
+                });
+
+            if (meets && !granted[i])
+            {
+                AddPhaseToSet(phaseId);
+                granted[i] = true;
+                changed = true;
+            }
+            else if (!meets && granted[i])
+            {
+                RemovePhaseFromSet(phaseId);
+                granted[i] = false;
+                changed = true;
+            }
+        }
+
+        if (!changed)
+            break;
+    }
+
+    UpdateTerrainSwaps();
+
+    if (m_phases != oldPhases)
+    {
+        OnPhaseChanged();
+        return true;
+    }
+
+    return false;
+}
+
+void Player::SendPhaseShift()
+{
+    WorldPackets::Misc::PhaseShiftChange phaseShift;
+    phaseShift.Client = GetGUID();
+    phaseShift.PhaseShiftFlags = IsUnphased() ? 0x8 /*Unphased*/ : 0x0;
+    phaseShift.Phases.assign(m_phases.begin(), m_phases.end());
+    phaseShift.VisibleMapIDs.assign(m_visibleMaps.begin(), m_visibleMaps.end());
+    phaseShift.UiMapPhaseIDs.assign(m_uiMapPhases.begin(), m_uiMapPhases.end());
+    SendDirectMessage(phaseShift.Write());
+}
+
+void Player::UpdateTerrainSwaps()
+{
+    std::vector<uint32> visibleMaps;
+    std::vector<uint32> uiMapPhases;
+
+    // UI-map phases apply on every map; only the visible terrain ids are map-scoped.
+    for (auto const& [mapId, swaps] : sObjectMgr->GetTerrainSwaps())
+    {
+        for (ObjectMgr::TerrainSwapInfo const* info : swaps)
+        {
+            ConditionList conditions = sConditionMgr->GetConditionsForNotGroupedEntry(
+                CONDITION_SOURCE_TYPE_TERRAIN_SWAP, info->Id);
+            if (!conditions.empty() && !sConditionMgr->IsObjectMeetToConditions(this, conditions))
+                continue;
+
+            if (mapId == GetMapId())
+                visibleMaps.push_back(info->Id);
+            uiMapPhases.insert(uiMapPhases.end(), info->UiMapPhaseIDs.begin(), info->UiMapPhaseIDs.end());
+        }
+    }
+
+    std::sort(visibleMaps.begin(), visibleMaps.end());
+    visibleMaps.erase(std::unique(visibleMaps.begin(), visibleMaps.end()), visibleMaps.end());
+    std::sort(uiMapPhases.begin(), uiMapPhases.end());
+    uiMapPhases.erase(std::unique(uiMapPhases.begin(), uiMapPhases.end()), uiMapPhases.end());
+
+    if (visibleMaps != m_visibleMaps || uiMapPhases != m_uiMapPhases)
+    {
+        m_visibleMaps = std::move(visibleMaps);
+        m_uiMapPhases = std::move(uiMapPhases);
+        SendPhaseShift();
+
+        if (IsInWorld())
+        {
+            UpdatePositionData();
+
+            for (Unit* controlled : m_Controlled)
+                if (controlled && controlled->IsInWorld())
+                    controlled->UpdatePositionData();
+        }
+    }
+}
+
+void Player::OnPhaseChanged()
+{
+    SendPhaseShift();
+
+    WorldObject::OnPhaseChanged();
 }
 
 void Player::UpdateZone(uint32 newZone, uint32 newArea, bool force)
@@ -1630,7 +1829,9 @@ void Player::UpdateVisibilityForPlayer(bool mapChange)
         m_seer = this;
 
     Acore::VisibleNotifier notifier(*this, mapChange);
-    Cell::VisitObjects(GetSightPosition().GetPositionX(), GetSightPosition().GetPositionY(), GetMap(), notifier, GetSightRange());
+    // Search at least as far as gameobjects are sent; CanSeeOrDetect still applies the per-type range.
+    float const searchRange = std::max(GetSightRange(), World::GetMaxVisibleDistanceForGameObjects());
+    Cell::VisitObjects(GetSightPosition().GetPositionX(), GetSightPosition().GetPositionY(), GetMap(), notifier, searchRange);
     Cell::VisitFarVisibleObjects(GetSightPosition().GetPositionX(), GetSightPosition().GetPositionY(), GetMap(), notifier, VISIBILITY_DISTANCE_GIGANTIC);
     notifier.SendToSelf();
 
@@ -1774,7 +1975,7 @@ void Player::UpdateTriggerVisibility()
     if (GetObjectVisibilityContainer().GetVisibleWorldObjectsMap()->empty())
         return;
 
-    UpdateData udata;
+    UpdateData udata(GetMapId());
     DoForAllVisibleWorldObjects([this, &udata](WorldObject* worldObject)
     {
         if (worldObject->IsCreature())
@@ -1816,7 +2017,7 @@ void Player::UpdateForQuestWorldObjects()
     if (GetObjectVisibilityContainer().GetVisibleWorldObjectsMap()->empty())
         return;
 
-    UpdateData udata;
+    UpdateData udata(GetMapId());
     DoForAllVisibleWorldObjects([this, &udata](WorldObject* worldObject)
     {
         if (worldObject->IsGameObject())

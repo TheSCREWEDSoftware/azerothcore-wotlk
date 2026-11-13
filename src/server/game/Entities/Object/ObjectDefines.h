@@ -40,6 +40,7 @@
 #define DEFAULT_VISIBILITY_INSTANCE  170.0f                 // default visible distance in instances, 170 yards
 #define VISIBILITY_DIST_WINTERGRASP  175.0f
 #define DEFAULT_VISIBILITY_BGARENAS  250.0f                 // default visible distance in BG/Arenas, roughly 250 yards
+#define DEFAULT_VISIBILITY_GAMEOBJECTS 250.0f               // default distance gameobjects are created for a player (build 15595 client needs them before it walks)
 
 #define DEFAULT_WORLD_OBJECT_SIZE   0.388999998569489f      // player size, also currently used (correctly?) for any non Unit world objects
 #define DEFAULT_COMBAT_REACH        1.5f
@@ -55,6 +56,7 @@ inline uint32 PAIR64_HIPART(uint64 x);
 inline uint32 PAIR64_LOPART(uint64 x);
 inline uint16 MAKE_PAIR16(uint8 l, uint8 h);
 inline uint32 MAKE_PAIR32(uint16 l, uint16 h);
+inline uint64 MAKE_PAIR64(uint32 l, uint32 h);
 inline uint16 PAIR32_HIPART(uint32 x);
 inline uint16 PAIR32_LOPART(uint32 x);
 
@@ -88,6 +90,11 @@ uint16 MAKE_PAIR16(uint8 l, uint8 h)
 uint32 MAKE_PAIR32(uint16 l, uint16 h)
 {
     return uint32(l | (uint32(h) << 16));
+}
+
+uint64 MAKE_PAIR64(uint32 l, uint32 h)
+{
+    return uint64(l | (uint64(h) << 32));
 }
 
 uint16 PAIR32_HIPART(uint32 x)

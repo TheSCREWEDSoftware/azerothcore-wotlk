@@ -1232,9 +1232,6 @@ bool Creature::Create(ObjectGuid::LowType guidlow, Map* map, uint32 phaseMask, u
     LoadCreaturesAddon();
     LoadSparringPct();
 
-    //! Need to be called after LoadCreaturesAddon - MOVEMENTFLAG_HOVER is set there
-    m_positionZ += GetHoverHeight();
-
     LastUsedScriptID = GetScriptId();
 
     if (IsSpiritHealer() || IsSpiritGuide() || HasFlagsExtra(CREATURE_FLAG_EXTRA_GHOST_VISIBILITY))
@@ -1442,6 +1439,8 @@ void Creature::SaveToDB(uint32 mapid, uint8 spawnMask, uint32 phaseMask)
     data.id = GetEntry();
     data.mapid = mapid;
     data.phaseMask = phaseMask;
+    data.phaseId = GetSpawnPhaseId();
+    data.phaseGroup = GetSpawnPhaseGroup();
     data.displayid = displayId;
     data.equipmentId = GetCurrentEquipmentId();
     if (!GetTransport())
@@ -1488,6 +1487,8 @@ void Creature::SaveToDB(uint32 mapid, uint8 spawnMask, uint32 phaseMask)
     stmt->SetData(index++, uint16(mapid));
     stmt->SetData(index++, spawnMask);
     stmt->SetData(index++, GetPhaseMask());
+    stmt->SetData(index++, GetSpawnPhaseId());
+    stmt->SetData(index++, GetSpawnPhaseGroup());
     stmt->SetData(index++, int32(GetCurrentEquipmentId()));
     stmt->SetData(index++, GetPositionX());
     stmt->SetData(index++, GetPositionY());
@@ -1744,6 +1745,9 @@ bool Creature::LoadCreatureFromDB(ObjectGuid::LowType spawnId, Map* map, bool ad
     if (!Create(map->GenerateLowGuid<HighGuid::Unit>(), map, data->phaseMask, entry, 0, data->posX, data->posY, data->posZ, data->orientation, data))
         return false;
 
+    SetSpawnPhaseId(data->phaseId);
+    SetSpawnPhaseGroup(data->phaseGroup);
+
     //We should set first home position, because then AI calls home movement
     SetHomePosition(data->posX, data->posY, data->posZ, data->orientation);
 
@@ -1758,7 +1762,7 @@ bool Creature::LoadCreatureFromDB(ObjectGuid::LowType spawnId, Map* map, bool ad
         m_deathState = DeathState::Dead;
         if (CanFly())
         {
-            float tz = map->GetHeight(GetPhaseMask(), data->posX, data->posY, data->posZ, true, MAX_FALL_DISTANCE);
+            float tz = map->GetHeight(GetPhaseMask(), data->posX, data->posY, data->posZ, true, MAX_FALL_DISTANCE, GetTerrainMapIds());
             if (data->posZ - tz > 0.1f && Acore::IsValidMapCoord(tz))
             {
                 Relocate(data->posX, data->posY, tz);
@@ -2031,6 +2035,10 @@ void Creature::setDeathState(DeathState state, bool despawn)
         Motion_Initialize();
         LoadCreaturesAddon(true);
         LoadSparringPct();
+
+        // LoadCreaturesAddon no longer restores the hover flag, and the earlier call ran while the
+        // creature was still JustRespawned (the hover branch requires IsAlive), so reevaluate now.
+        UpdateMovementFlags();
 
         if (GetCreatureData() && GetPhaseMask() != GetCreatureData()->phaseMask)
             SetPhaseMask(GetCreatureData()->phaseMask, false);
@@ -2796,14 +2804,6 @@ bool Creature::LoadCreaturesAddon(bool reload)
         SetByteValue(UNIT_FIELD_BYTES_1, UNIT_BYTES_1_OFFSET_PET_TALENTS, 0);
         SetByteValue(UNIT_FIELD_BYTES_1, UNIT_BYTES_1_OFFSET_VIS_FLAG, uint8((cainfo->bytes1 >> 16) & 0xFF));
         SetByteValue(UNIT_FIELD_BYTES_1, UNIT_BYTES_1_OFFSET_ANIM_TIER, uint8((cainfo->bytes1 >> 24) & 0xFF));
-
-        //! Suspected correlation between UNIT_FIELD_BYTES_1, offset 3, value 0x2:
-        //! If no inhabittype_fly (if no MovementFlag_DisableGravity or MovementFlag_CanFly flag found in sniffs)
-        //! Check using InhabitType as movement flags are assigned dynamically
-        //! basing on whether the creature is in air or not
-        //! Set MovementFlag_Hover. Otherwise do nothing.
-        if (CanHover())
-            AddUnitMovementFlag(MOVEMENTFLAG_HOVER);
     }
 
     if (cainfo->bytes2 != 0)
@@ -3517,6 +3517,24 @@ float Creature::GetAggroRange(Unit const* target) const
     return (aggroRadius * aggroRate);
 }
 
+bool Creature::SetHover(bool enable, bool updateAnimTier)
+{
+    if (!Unit::SetHover(enable, updateAnimTier))
+        return false;
+
+    if (updateAnimTier && IsAlive() && !HasUnitState(UNIT_STATE_ROOT))
+    {
+        if (IsLevitating())
+            SetAnimTier(AnimTier::Fly);
+        else if (IsHovering())
+            SetAnimTier(AnimTier::Hover);
+        else
+            SetAnimTier(AnimTier::Ground);
+    }
+
+    return true;
+}
+
 void Creature::UpdateMovementFlags()
 {
     // Track where the flags were last evaluated - Creature::Update() uses this as the throttle
@@ -3537,8 +3555,7 @@ void Creature::UpdateMovementFlags()
 
     float ground = GetFloorZ();
 
-    bool canHover = CanHover();
-    bool isInAir  = (G3D::fuzzyGt(GetPositionZ(), ground + (canHover ? GetFloatValue(UNIT_FIELD_HOVERHEIGHT) : 0.0f) + GROUND_HEIGHT_TOLERANCE) || G3D::fuzzyLt(GetPositionZ(), ground - GROUND_HEIGHT_TOLERANCE)); // Can be underground too, prevent the falling
+    bool isInAir  = (G3D::fuzzyGt(GetPositionZ(), ground + GetHoverHeight() + GROUND_HEIGHT_TOLERANCE) || G3D::fuzzyLt(GetPositionZ(), ground - GROUND_HEIGHT_TOLERANCE)); // Can be underground too, prevent the falling
 
     if (GetMovementTemplate().IsFlightAllowed() && isInAir && !IsFalling())
     {

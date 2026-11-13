@@ -413,6 +413,10 @@ bool Player::CanRewardQuest(Quest const* quest, bool msg)
         }
     }
 
+    for (uint8 i = 0; i < QUEST_REQUIRED_CURRENCY_COUNT; ++i)
+        if (quest->RequiredCurrencyId[i] && !HasCurrency(quest->RequiredCurrencyId[i], quest->RequiredCurrencyCount[i]))
+            return false;
+
     // prevent receive reward with low money and GetRewOrReqMoney() < 0
     if (quest->GetRewOrReqMoney() < 0 && !HasEnoughMoney(-quest->GetRewOrReqMoney()))
         return false;
@@ -470,6 +474,9 @@ void Player::AddQuestAndCheckCompletion(Quest const* quest, Object* questGiver)
 
 bool Player::CanRewardQuest(Quest const* quest, uint32 reward, bool msg)
 {
+    if (!quest->IsValidRewardChoice(reward))
+        return false;
+
     // prevent receive reward with quest items in bank or for not completed quest
     if (!CanRewardQuest(quest, msg))
         return false;
@@ -606,6 +613,9 @@ void Player::AddQuest(Quest const* quest, Object* questGiver)
     // Xinef: area auras may change on quest accept!
     UpdateZoneDependentAuras(GetZoneId());
     UpdateAreaDependentAuras(GetAreaId());
+
+    // phase_area conditions can depend on the quest now being taken.
+    RefreshPhases();
 }
 
 void Player::CompleteQuest(uint32 quest_id)
@@ -640,6 +650,10 @@ void Player::CompleteQuest(uint32 quest_id)
     // Xinef: area auras may change on quest completion!
     UpdateZoneDependentAuras(GetZoneId());
     UpdateAreaDependentAuras(GetAreaId());
+
+    // phase_area conditions can depend on the quest now being complete.
+    RefreshPhases();
+
     AdditionalSavingAddMask(ADDITIONAL_SAVING_INVENTORY_AND_GOLD | ADDITIONAL_SAVING_QUEST_STATUS);
 
     // check if Quest Tracker is enabled
@@ -668,6 +682,10 @@ void Player::IncompleteQuest(uint32 quest_id)
         // Xinef: area auras may change on quest completion!
         UpdateZoneDependentAuras(GetZoneId());
         UpdateAreaDependentAuras(GetAreaId());
+
+        // phase_area conditions can depend on the quest becoming incomplete again.
+        RefreshPhases();
+
         AdditionalSavingAddMask(ADDITIONAL_SAVING_QUEST_STATUS);
     }
 }
@@ -700,6 +718,10 @@ void Player::RewardQuest(Quest const* quest, uint32 reward, Object* questGiver, 
                 DestroyItemCount(quest->ItemDrop[i], quest->ItemDropQuantity[i], true);
         }
     }
+
+    for (uint8 i = 0; i < QUEST_REQUIRED_CURRENCY_COUNT; ++i)
+        if (quest->RequiredCurrencyId[i])
+            ModifyCurrency(quest->RequiredCurrencyId[i], -int32(quest->RequiredCurrencyCount[i]));
 
     RemoveTimedQuest(quest_id);
 
@@ -748,6 +770,19 @@ void Player::RewardQuest(Quest const* quest, uint32 reward, Object* questGiver, 
     if (!problematicItems.empty())
     {
         SendItemRetrievalMail(problematicItems);
+    }
+
+    for (uint8 i = 0; i < QUEST_REWARD_CURRENCY_COUNT; ++i)
+    {
+        if (!quest->RewardCurrencyId[i])
+            continue;
+
+        uint32 count = quest->RewardCurrencyCount[i];
+        if (CurrencyTypesEntry const* entry = sCurrencyTypesStore.LookupEntry(quest->RewardCurrencyId[i]))
+            if (entry->UsesPrecision())
+                count *= CURRENCY_PRECISION;
+
+        ModifyCurrency(quest->RewardCurrencyId[i], int32(count), !quest->IsDFQuest());
     }
 
     RewardReputation(quest);
@@ -899,6 +934,7 @@ void Player::RewardQuest(Quest const* quest, uint32 reward, Object* questGiver, 
     // Xinef: area auras may change on quest completion!
     UpdateZoneDependentAuras(GetZoneId());
     UpdateAreaDependentAuras(GetAreaId());
+    RefreshPhases();
 
     sScriptMgr->OnPlayerCompleteQuest(this, quest);
 }
@@ -951,6 +987,9 @@ void Player::FailQuest(uint32 questId)
                 if (quest->ItemDropQuantity[i] > 0 && itemTemplate->Bonding == BIND_QUEST_ITEM)
                     DestroyItemCount(quest->ItemDrop[i], quest->ItemDropQuantity[i], true);
     }
+
+    // phase_area conditions can depend on the quest being failed.
+    RefreshPhases();
 }
 
 void Player::FailQuestsOnDeath()
@@ -2443,9 +2482,7 @@ void Player::SendQuestReward(Quest const* quest, uint32 XP)
         rewardMoney += quest->GetRewMoneyMaxLevel();
 
     questGiverQuestComplete.RewardMoney = rewardMoney;
-    questGiverQuestComplete.RewardHonor = 10 * quest->CalculateHonorGain(GetQuestLevel(quest));
     questGiverQuestComplete.RewardTalents = quest->GetBonusTalents();
-    questGiverQuestComplete.RewardArena = quest->GetRewArenaPoints();
     SendDirectMessage(questGiverQuestComplete.Write());
 }
 

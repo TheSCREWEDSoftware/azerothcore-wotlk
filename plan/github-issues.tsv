@@ -1,0 +1,38 @@
+plan	issue	state	title	url
+01	11	closed	Plan 1: conversion baseline and protocol contracts	https://github.com/trolloks/azerothcore-cata/issues/11
+02	12	closed	Plan 2: deterministic bit-buffer contract	https://github.com/trolloks/azerothcore-cata/issues/12
+03	13	closed	Plan 3: world compression stream lifetime	https://github.com/trolloks/azerothcore-cata/issues/13
+04	14	closed	Plan 4: direction-safe opcode model	https://github.com/trolloks/azerothcore-cata/issues/14
+05	15	closed	Plan 5: world authentication packet contract	https://github.com/trolloks/azerothcore-cata/issues/15
+06	16	closed	Plan 6: build 15595 authentication handoff	https://github.com/trolloks/azerothcore-cata/issues/16
+07	17	closed	Plan 7: isolated build 15595 client authentication	https://github.com/trolloks/azerothcore-cata/issues/17
+08	18	closed	Plan 8: typed empty character enumeration and stable build 15595 screen	https://github.com/trolloks/azerothcore-cata/issues/18
+09	19	closed	Plan 9: one database-backed build 15595 character	https://github.com/trolloks/azerothcore-cata/issues/19
+10	20	closed	Plan 10: select the enumerated build 15595 character	https://github.com/trolloks/azerothcore-cata/issues/20
+11	25	closed	Plan 11: build 15595 pre-map initial-packet contract	https://github.com/trolloks/azerothcore-cata/issues/25
+12	26	closed	Plan 12: build 15595 map insertion and object bootstrap	https://github.com/trolloks/azerothcore-cata/issues/26
+13	27	closed	Plan 13: build 15595 in-world control bootstrap	https://github.com/trolloks/azerothcore-cata/issues/27
+14	32	closed	Plan 14: build 15595 post-map-insertion client survival	https://github.com/trolloks/azerothcore-cata/issues/32
+15	33	closed	Plan 15: build 15595 basic movement packet contract	https://github.com/trolloks/azerothcore-cata/issues/33
+16	34	closed	Plan 16: build 15595 movement acknowledgement and speed contract	https://github.com/trolloks/azerothcore-cata/issues/34
+17	36	closed	Plan 17: Object/Unit/Player update-fields Cata conversion	https://github.com/trolloks/azerothcore-cata/issues/36
+18	37	closed	Plan 18: Item/Container/GameObject/DynamicObject/Corpse update-fields Cata conversion	https://github.com/trolloks/azerothcore-cata/issues/37
+19	40	closed	Plan 19: bit-packed movement/create block Cata conversion	https://github.com/trolloks/azerothcore-cata/issues/40
+20	41	closed	Plan 20: full opcode-table realignment to Cata 4.3.4	https://github.com/trolloks/azerothcore-cata/issues/41
+21	43	closed	Plan 21: login packet sequence parity with cata-js	https://github.com/trolloks/azerothcore-cata/issues/43
+22	52	closed	Plan 22: character creation and correct starting state	https://github.com/trolloks/azerothcore-cata/issues/52
+23	53	closed	Plan 23: on-foot movement	https://github.com/trolloks/azerothcore-cata/issues/53
+24	54	closed	Plan 24: initial phasing and visibility	https://github.com/trolloks/azerothcore-cata/issues/54
+25	55	closed	Plan 25: basic spell casting	https://github.com/trolloks/azerothcore-cata/issues/55
+26	56	closed	Plan 26: first complete quest loop	https://github.com/trolloks/azerothcore-cata/issues/56
+27	98	closed	Plan 27: basic inventory operations and item use	https://github.com/trolloks/azerothcore-cata/issues/98
+28	99	closed	Plan 28: single-player loot delivery	https://github.com/trolloks/azerothcore-cata/issues/99
+29	100	closed	Plan 29: basic melee combat and creature death	https://github.com/trolloks/azerothcore-cata/issues/100
+30	101	closed	Plan 30: player death, release, corpse recovery, and resurrection	https://github.com/trolloks/azerothcore-cata/issues/101
+31	102	open	Plan 31: first normal level-up and persisted progression	https://github.com/trolloks/azerothcore-cata/issues/102
+32	134	closed	Plan 32: reproducible Northshire collision and pathfinding	https://github.com/trolloks/azerothcore-cata/issues/134
+33	135	closed	Plan 33: native vendor buy, sell, buyback and repair	https://github.com/trolloks/azerothcore-cata/issues/135
+33a	157	closed	Plan 33 follow-up: negative native vendor cases	https://github.com/trolloks/azerothcore-cata/issues/157
+34	136	closed	Plan 34: native trainer learning and spellbook persistence	https://github.com/trolloks/azerothcore-cata/issues/136
+35	137	closed	Plan 35: first mana-class combat and resource recovery	https://github.com/trolloks/azerothcore-cata/issues/137
+36	138	closed	Plan 36: first normal kill-objective quest loop	https://github.com/trolloks/azerothcore-cata/issues/138

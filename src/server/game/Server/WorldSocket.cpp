@@ -18,6 +18,7 @@
 #include "TC9Sidecar.h"
 #include "WorldSocket.h"
 #include "AccountMgr.h"
+#include "AuthenticationPackets.h"
 #include "Config.h"
 #include "CryptoHash.h"
 #include "CryptoRandom.h"
@@ -39,6 +40,9 @@
 #include "ServerPktHeader.h"
 
 using boost::asio::ip::tcp;
+
+std::string const WorldSocket::ServerConnectionInitialize("WORLD OF WARCRAFT CONNECTION - SERVER TO CLIENT");
+std::string const WorldSocket::ClientConnectionInitialize("WORLD OF WARCRAFT CONNECTION - CLIENT TO SERVER");
 
 void compressBuff(void* dst, uint32* dst_size, void* src, int src_size)
 {
@@ -96,12 +100,13 @@ void compressBuff(void* dst, uint32* dst_size, void* src, int src_size)
     *dst_size = c_stream.total_out;
 }
 
-void EncryptableAndCompressiblePacket::CompressIfNeeded()
+void EncryptableAndCompressiblePacket::CompressIfNeeded(z_stream* compressionStream)
 {
     if (!NeedsCompression())
         return;
 
-    uint32 pSize = size();
+    LOG_INFO("network", "Compressing packet with opcode 0x{:X} and size {} bytes", GetOpcode(), size());
+    /*uint32 pSize = size();
 
     uint32 destsize = compressBound(pSize);
     ByteBuffer buf(destsize + sizeof(uint32));
@@ -115,17 +120,83 @@ void EncryptableAndCompressiblePacket::CompressIfNeeded()
     buf.resize(destsize + sizeof(uint32));
 
     ByteBuffer::operator=(std::move(buf));
-    SetOpcode(SMSG_COMPRESSED_UPDATE_OBJECT);
+
+    OpcodeServer uncompressedOpcode = OpcodeServer(GetOpcode());
+    uint32 opcode = uncompressedOpcode | AsUnderlyingType(COMPRESSED_OPCODE_MASK);
+    SetOpcode(opcode);*/
+
+    OpcodeServer uncompressedOpcode = OpcodeServer(GetOpcode());
+    if (uncompressedOpcode & AsUnderlyingType(COMPRESSED_OPCODE_MASK))
+    {
+        LOG_ERROR("network", "Packet with opcode 0x%04X is already compressed!", uncompressedOpcode);
+        return;
+    }
+
+    uint32 opcode = uncompressedOpcode | AsUnderlyingType(COMPRESSED_OPCODE_MASK);
+    uint32 size = wpos();
+    uint32 destsize = compressBound(size);
+
+    std::vector<uint8> storage(destsize);
+
+    _compressionStream = compressionStream;
+    Compress(static_cast<void*>(&storage[0]), &destsize, static_cast<void const*>(contents()), size);
+    if (destsize == 0)
+        return;
+
+    clear();
+    reserve(destsize + sizeof(uint32));
+    *this << uint32(size);
+    append(&storage[0], destsize);
+    SetOpcode(opcode);
+}
+
+void EncryptableAndCompressiblePacket::Compress(void* dst, uint32 *dst_size, void const* src, int src_size)
+{
+    _compressionStream->next_out = (Bytef*)dst;
+    _compressionStream->avail_out = *dst_size;
+    _compressionStream->next_in = (Bytef*)src;
+    _compressionStream->avail_in = (uInt)src_size;
+
+    int32 z_res = deflate(_compressionStream, Z_SYNC_FLUSH);
+    if (z_res != Z_OK)
+    {
+        LOG_ERROR("network", "Can't compress packet (zlib: deflate) Error code: %i (%s, msg: %s)", z_res, zError(z_res), _compressionStream->msg);
+        *dst_size = 0;
+        return;
+    }
+
+    if (_compressionStream->avail_in != 0)
+    {
+        LOG_ERROR("network", "Can't compress packet (zlib: deflate not greedy)");
+        *dst_size = 0;
+        return;
+    }
+
+    *dst_size -= _compressionStream->avail_out;
 }
 
 WorldSocket::WorldSocket(IoContextTcpSocket&& socket)
-    : Socket(std::move(socket)), _OverSpeedPings(0), _worldSession(nullptr), _authed(false), _sendBufferSize(4096), _loggingPackets(false)
+    : Socket(std::move(socket)), _OverSpeedPings(0), _worldSession(nullptr), _authed(false),
+      // Sessions created while PacketLogFile is configured log their packets. The file alone used
+      // to do nothing until a GM command flipped the per-session flag; that command lives in the
+      // Commands scripts, so harness runs (SCRIPTS=none) could never capture payloads. The packet
+      // log reads and caches that configuration once at startup, so this asks it instead of the
+      // config manager: no per-connection lookup, no missing-key warning per connection.
+      _compressionStream(nullptr), _sendBufferSize(4096),
+      _loggingPackets(sPacketLog->CanLogPacket())
 {
     Acore::Crypto::GetRandomBytes(_authSeed);
-    _headerBuffer.Resize(sizeof(ClientPktHeader));
+    _headerBuffer.Resize(/*sizeof(ClientPktHeader)*/ 2);
 }
 
-WorldSocket::~WorldSocket() = default;
+WorldSocket::~WorldSocket()
+{
+    if (_compressionStream)
+    {
+        deflateEnd(_compressionStream);
+        delete _compressionStream;
+    }
+}
 
 void WorldSocket::Start()
 {
@@ -159,8 +230,116 @@ void WorldSocket::CheckIpCallback(PreparedQueryResult result)
         }
     }
 
-    AsyncRead();
-    HandleSendAuthSession();
+    AsyncReadWithCallback(&WorldSocket::InitializeHandler);
+
+    MessageBuffer initializer;
+    ServerPktHeader header(ServerConnectionInitialize.size(), 0);
+    LOG_INFO("network", "WorldSocket::CheckIpCallback: Sending initializer data to client. Size: {}, Header size: {}", ServerConnectionInitialize.size(), header.getHeaderLength());
+    initializer.Write(header.header, header.getHeaderLength() - 2);
+    initializer.Write(ServerConnectionInitialize.c_str(), ServerConnectionInitialize.length());
+
+    QueuePacket(std::move(initializer));
+}
+
+void WorldSocket::InitializeHandler(boost::system::error_code error, std::size_t transferedBytes)
+{
+    if (error)
+    {
+        CloseSocket();
+        return;
+    }
+
+    GetReadBuffer().WriteCompleted(transferedBytes);
+
+    if (!IsOpen())
+        return;
+
+    MessageBuffer& packet = GetReadBuffer();
+    LOG_INFO("network", "WorldSocket::InitializeHandler: Received {} bytes of initializer data.", packet.GetActiveSize());
+    if (packet.GetActiveSize() > 0)
+    {
+        if (_headerBuffer.GetRemainingSpace() > 0)
+        {
+            LOG_INFO("network", "WorldSocket::InitializeHandler: Reading header data. Remaining payload size: {}, Active size: {}", _headerBuffer.GetRemainingSpace(), packet.GetActiveSize());
+            // need to receive the header
+            std::size_t readHeaderSize = std::min(packet.GetActiveSize(), _headerBuffer.GetRemainingSpace());
+            _headerBuffer.Write(packet.GetReadPointer(), readHeaderSize);
+            packet.ReadCompleted(readHeaderSize);
+
+            if (_headerBuffer.GetRemainingSpace() > 0)
+            {
+                // Couldn't receive the whole header this time.
+                ASSERT(packet.GetActiveSize() == 0);
+                AsyncReadWithCallback(&WorldSocket::InitializeHandler);
+                return;
+            }
+
+            // We just received nice new header
+            if (!ReadHeaderHandler(false))
+            {
+                CloseSocket();
+                return;
+            }
+        }
+
+        // We have full read header, now check the data payload
+        if (_packetBuffer.GetRemainingSpace() > 0)
+        {
+            LOG_INFO("network", "WorldSocket::InitializeHandler: Received header data, now reading initializer data. Remaining payload size: {}, Active size: {}", _packetBuffer.GetRemainingSpace(), packet.GetActiveSize());
+            // need more data in the payload
+            std::size_t readDataSize = std::min(packet.GetActiveSize(), _packetBuffer.GetRemainingSpace());
+            _packetBuffer.Write(packet.GetReadPointer(), readDataSize);
+            packet.ReadCompleted(readDataSize);
+            LOG_INFO("network", "WorldSocket::InitializeHandler: Received initializer data, remaining payload size: {}, Active size: {}", _packetBuffer.GetRemainingSpace(), packet.GetActiveSize());
+
+            if (_packetBuffer.GetRemainingSpace() > 0)
+            {
+                // Couldn't receive the whole data this time.
+                ASSERT(packet.GetActiveSize() == 0);
+                AsyncReadWithCallback(&WorldSocket::InitializeHandler);
+                return;
+            }
+        }
+
+        std::string initializer(reinterpret_cast<char const*>(_packetBuffer.GetReadPointer()), std::min(_packetBuffer.GetActiveSize(), ClientConnectionInitialize.length()));
+        LOG_INFO("network", "WorldSocket::InitializeHandler: Received initializer data: {}", initializer);
+        if (initializer != ClientConnectionInitialize)
+        {
+            CloseSocket();
+            return;
+        }
+
+        if (_compressionStream)
+        {
+            CloseSocket();
+            return;
+        }
+
+        auto compressionStream = std::make_unique<z_stream>();
+        compressionStream->zalloc = (alloc_func)nullptr;
+        compressionStream->zfree = (free_func)nullptr;
+        compressionStream->opaque = (voidpf)nullptr;
+        compressionStream->avail_in = 0;
+        compressionStream->next_in = nullptr;
+        int32 z_res = deflateInit(compressionStream.get(), sWorld->getIntConfig(CONFIG_COMPRESSION));
+        if (z_res != Z_OK)
+        {
+            LOG_ERROR("network", "Can't initialize packet compression (zlib: deflateInit) Error code: %i (%s)", z_res, zError(z_res));
+            CloseSocket();
+            return;
+        }
+        _compressionStream = compressionStream.release();
+
+        _headerBuffer.Resize(sizeof(ClientPktHeader));
+        _headerBuffer.Reset();
+        _packetBuffer.Reset();
+        LOG_INFO("network", "WorldSocket::InitializeHandler: Initialization successful, sending auth session.");
+        HandleSendAuthSession();
+        AsyncRead();
+        return;
+    }
+
+    AsyncReadWithCallback(&WorldSocket::InitializeHandler);
 }
 
 bool WorldSocket::Update()
@@ -173,10 +352,12 @@ bool WorldSocket::Update()
         std::size_t currentPacketSize;
         do
         {
-            queued->CompressIfNeeded();
+            queued->CompressIfNeeded(_compressionStream);
             ServerPktHeader header(queued->size() + 2, queued->GetOpcode());
             if (queued->NeedsEncryption())
+            {
                 _authCrypt.EncryptSend(header.header, header.getHeaderLength());
+            }
 
             currentPacketSize = queued->size() + header.getHeaderLength();
 
@@ -223,13 +404,11 @@ bool WorldSocket::Update()
 
 void WorldSocket::HandleSendAuthSession()
 {
-    WorldPacket packet(SMSG_AUTH_CHALLENGE, 40);
-    packet << uint32(1);                                    // 1...31
-    packet.append(_authSeed);
+    WorldPackets::Auth::AuthChallenge packet;
+    packet.DosChallenge = Acore::Crypto::GetRandomBytes<32>();
+    packet.Challenge = _authSeed;
 
-    packet.append(Acore::Crypto::GetRandomBytes<32>());               // new encryption seeds
-
-    SendPacketAndLogOpcode(packet);
+    SendPacketAndLogOpcode(*packet.Write());
 }
 
 void WorldSocket::OnClose()
@@ -263,7 +442,7 @@ SocketReadCallbackResult WorldSocket::ReadHandler()
             }
 
             // We just received nice new header
-            if (!ReadHeaderHandler())
+            if (!ReadHeaderHandler(true))
             {
                 CloseSocket();
                 return SocketReadCallbackResult::Stop;
@@ -304,9 +483,9 @@ SocketReadCallbackResult WorldSocket::ReadHandler()
     return SocketReadCallbackResult::KeepReading;
 }
 
-bool WorldSocket::ReadHeaderHandler()
+bool WorldSocket::ReadHeaderHandler(bool initialized)
 {
-    ASSERT(_headerBuffer.GetActiveSize() == sizeof(ClientPktHeader));
+    ASSERT(_headerBuffer.GetActiveSize() == (initialized ? sizeof(ClientPktHeader) : 2));
 
     if (_authCrypt.IsInitialized())
     {
@@ -315,9 +494,11 @@ bool WorldSocket::ReadHeaderHandler()
 
     ClientPktHeader* header = reinterpret_cast<ClientPktHeader*>(_headerBuffer.GetReadPointer());
     EndianConvertReverse(header->size);
-    EndianConvert(header->cmd);
 
-    if (!header->IsValidSize() || !header->IsValidOpcode())
+    if (initialized)
+        EndianConvert(header->cmd);
+
+    if (!header->IsValidSize() || (initialized && !header->IsValidOpcode()))
     {
         LOG_ERROR("network", "WorldSocket::ReadHeaderHandler(): client {} sent malformed packet (size: {}, cmd: {})",
             GetRemoteIpAddress().to_string(), header->size, header->cmd);
@@ -325,26 +506,13 @@ bool WorldSocket::ReadHeaderHandler()
         return false;
     }
 
+    if (initialized)
     header->size -= sizeof(header->cmd);
+
     _packetBuffer.Resize(header->size);
 
     return true;
 }
-
-struct ClientAuthSession
-{
-    uint32 BattlegroupID = 0;
-    uint32 LoginServerType = 0;
-    uint32 RealmID = 0;
-    uint32 Build = 0;
-    std::array<uint8, 4> LocalChallenge = {};
-    uint32 LoginServerID = 0;
-    uint32 RegionID = 0;
-    uint64 DosResponse = 0;
-    Acore::Crypto::SHA1::Digest Digest = {};
-    std::string Account;
-    ByteBuffer AddonInfo;
-};
 
 struct AccountInfo
 {
@@ -401,6 +569,7 @@ WorldSocket::ReadDataHandlerResult WorldSocket::ReadDataHandler()
 {
     ClientPktHeader* header = reinterpret_cast<ClientPktHeader*>(_headerBuffer.GetReadPointer());
     OpcodeClient opcode = static_cast<OpcodeClient>(header->cmd);
+    LOG_INFO("network", "WorldSocket::ReadDataHandler: Received opcode {}", uint32(opcode));
 
     WorldPacket packet(opcode, std::move(_packetBuffer));
     WorldPacket* packetToQueue;
@@ -413,6 +582,19 @@ WorldSocket::ReadDataHandlerResult WorldSocket::ReadDataHandler()
     switch (opcode)
     {
         case CMSG_PING:
+        {
+            LogOpcodeText(opcode, sessionGuard);
+            try
+            {
+                return HandlePing(packet) ? ReadDataHandlerResult::Ok : ReadDataHandlerResult::Error;
+            }
+            catch (ByteBufferException const&)
+            {
+            }
+            LOG_ERROR("network", "WorldSocket::ReadDataHandler(): client {} sent malformed CMSG_PING", GetRemoteIpAddress().to_string());
+            return ReadDataHandlerResult::Error;
+        }
+
         {
             LogOpcodeText(opcode, sessionGuard);
             try
@@ -459,6 +641,10 @@ WorldSocket::ReadDataHandlerResult WorldSocket::ReadDataHandler()
         case CMSG_TIME_SYNC_RESP:
             packetToQueue = new WorldPacket(std::move(packet), GameTime::Now());
             break;
+        // CATA OPCODES
+        case CMSG_LOG_DISCONNECT:
+            LogOpcodeText(opcode, sessionGuard);
+            return ReadDataHandlerResult::Ok;
         default:
             packetToQueue = new WorldPacket(std::move(packet));
             break;
@@ -475,7 +661,7 @@ WorldSocket::ReadDataHandlerResult WorldSocket::ReadDataHandler()
         return ReadDataHandlerResult::Error;
     }
 
-    OpcodeHandler const* handler = opcodeTable[opcode];
+    OpcodeHandler const* handler = opcodeTable.GetIncomingOpcode(packetToQueue->GetOpcode());
     if (!handler)
     {
         LOG_ERROR("network.opcode", "No defined handler for opcode {} sent by {}", GetOpcodeNameForLogging(static_cast<OpcodeClient>(packetToQueue->GetOpcode())), _worldSession->GetPlayerInfo());
@@ -499,18 +685,18 @@ void WorldSocket::LogOpcodeText(OpcodeClient opcode, std::unique_lock<std::mutex
 {
     if (!guard)
     {
-        LOG_TRACE("network.opcode", "C->S: {} {}", GetRemoteIpAddress().to_string(), GetOpcodeNameForLogging(opcode));
+        LOG_INFO("network.opcode", "C->S: {} {}", GetRemoteIpAddress().to_string(), GetOpcodeNameForLogging(opcode));
     }
     else
     {
-        LOG_TRACE("network.opcode", "C->S: {} {}", (_worldSession ? _worldSession->GetPlayerInfo() : GetRemoteIpAddress().to_string()),
+        LOG_INFO("network.opcode", "C->S: {} {}", (_worldSession ? _worldSession->GetPlayerInfo() : GetRemoteIpAddress().to_string()),
             GetOpcodeNameForLogging(opcode));
     }
 }
 
 void WorldSocket::SendPacketAndLogOpcode(WorldPacket const& packet)
 {
-    LOG_TRACE("network.opcode", "S->C: {} {}", GetRemoteIpAddress().to_string(), GetOpcodeNameForLogging(static_cast<OpcodeServer>(packet.GetOpcode())));
+    LOG_INFO("network.opcode", "S->C: {} {}", GetRemoteIpAddress().to_string(), GetOpcodeNameForLogging(static_cast<OpcodeServer>(packet.GetOpcode())));
     SendPacket(packet);
 }
 
@@ -527,21 +713,9 @@ void WorldSocket::SendPacket(WorldPacket const& packet)
 
 void WorldSocket::HandleAuthSession(WorldPacket & recvPacket)
 {
-    std::shared_ptr<ClientAuthSession> authSession = std::make_shared<ClientAuthSession>();
-
-    // Read the content of the packet
-    recvPacket >> authSession->Build;
-    recvPacket >> authSession->LoginServerID;
-    recvPacket >> authSession->Account;
-    recvPacket >> authSession->LoginServerType;
-    recvPacket.read(authSession->LocalChallenge);
-    recvPacket >> authSession->RegionID;
-    recvPacket >> authSession->BattlegroupID;
-    recvPacket >> authSession->RealmID;               // realmId from auth_database.realmlist table
-    recvPacket >> authSession->DosResponse;
-    recvPacket.read(authSession->Digest);
-    authSession->AddonInfo.resize(recvPacket.size() - recvPacket.rpos());
-    recvPacket.read(authSession->AddonInfo.contents(), authSession->AddonInfo.size()); // .contents will throw if empty, thats what we want
+    std::shared_ptr<WorldPackets::Auth::AuthSession> authSession =
+        std::make_shared<WorldPackets::Auth::AuthSession>(std::move(recvPacket));
+    authSession->Read();
 
     // Get the account information from the auth database
     LoginDatabasePreparedStatement* stmt = LoginDatabase.GetPreparedStatement(LOGIN_SEL_ACCOUNT_INFO_BY_NAME);
@@ -551,8 +725,9 @@ void WorldSocket::HandleAuthSession(WorldPacket & recvPacket)
     _queryProcessor.AddCallback(LoginDatabase.AsyncQuery(stmt).WithPreparedCallback(std::bind(&WorldSocket::HandleAuthSessionCallback, this, authSession, std::placeholders::_1)));
 }
 
-void WorldSocket::HandleAuthSessionCallback(std::shared_ptr<ClientAuthSession> authSession, PreparedQueryResult result)
+void WorldSocket::HandleAuthSessionCallback(std::shared_ptr<WorldPackets::Auth::AuthSession> authSession, PreparedQueryResult result)
 {
+    LOG_INFO("network", "WorldSocket::HandleAuthSessionCallback: Received account information for account '{}'.", authSession->Account);
     // Stop if the account is not found
     if (!result)
     {
@@ -562,6 +737,8 @@ void WorldSocket::HandleAuthSessionCallback(std::shared_ptr<ClientAuthSession> a
         DelayedCloseSocket();
         return;
     }
+
+    LOG_INFO("network", "WorldSocket::HandleAuthSessionCallback: Received account information for account '{}'.", authSession->Account);
 
     AccountInfo account(result->Fetch());
 
@@ -600,6 +777,7 @@ void WorldSocket::HandleAuthSessionCallback(std::shared_ptr<ClientAuthSession> a
     }
 
     bool wardenActive = sWorld->getBoolConfig(CONFIG_WARDEN_ENABLED);
+    LOG_INFO("network", "WorldSocket::HandleAuthSession: Client '{}' is attempting to log in from {}.", authSession->Account, address);
     if (!sToCloud9Sidecar->ClusterModeEnabled())
     {
         // Must be done before WorldSession is created
@@ -707,6 +885,7 @@ void WorldSocket::HandleAuthSessionCallback(std::shared_ptr<ClientAuthSession> a
 
     sScriptMgr->OnLastIpUpdate(account.Id, address);
 
+    LOG_DEBUG("network", "WorldSocket::HandleAuthSession: Creating session for account '{}'", authSession->Account);
     _worldSession = new WorldSession(account.Id, std::move(authSession->Account), account.Flags, shared_from_this(), account.Security,
         account.Expansion, account.MuteTime, account.Locale, account.Recruiter, account.IsRectuiter, account.Security ? true : false, account.TotalTime);
 
@@ -728,10 +907,10 @@ void WorldSocket::HandleAuthSessionCallback(std::shared_ptr<ClientAuthSession> a
 
 void WorldSocket::SendAuthResponseError(uint8 code)
 {
-    WorldPacket packet(SMSG_AUTH_RESPONSE, 1);
-    packet << uint8(code);
+    LOG_INFO("network", "WorldSocket::SendAuthResponseError: Sending Auth Response (code {}) to client {}.", code, GetRemoteIpAddress().to_string());
+    WorldPackets::Auth::AuthResponse packet(code);
 
-    SendPacketAndLogOpcode(packet);
+    SendPacketAndLogOpcode(*packet.Write());
 }
 
 bool WorldSocket::HandlePing(WorldPacket& recvPacket)

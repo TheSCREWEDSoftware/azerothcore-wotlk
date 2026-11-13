@@ -36,6 +36,8 @@ class ObjectMgr;
 #define QUEST_ITEM_OBJECTIVES_COUNT 6
 #define QUEST_SOURCE_ITEM_IDS_COUNT 4
 #define QUEST_REWARD_CHOICES_COUNT 6
+#define QUEST_REWARD_CURRENCY_COUNT 4
+#define QUEST_REQUIRED_CURRENCY_COUNT 4
 #define QUEST_REWARDS_COUNT 4
 #define QUEST_DEPLINK_COUNT 10
 #define QUEST_REPUTATIONS_COUNT 5
@@ -109,17 +111,17 @@ enum QuestStatus : uint8
 
 enum QuestGiverStatus : uint32
 {
-    DIALOG_STATUS_NONE                     = 0,
-    DIALOG_STATUS_UNAVAILABLE              = 1,
-    DIALOG_STATUS_LOW_LEVEL_AVAILABLE      = 2,
-    DIALOG_STATUS_LOW_LEVEL_REWARD_REP     = 3,
-    DIALOG_STATUS_LOW_LEVEL_AVAILABLE_REP  = 4,
-    DIALOG_STATUS_INCOMPLETE               = 5,
-    DIALOG_STATUS_REWARD_REP               = 6,
-    DIALOG_STATUS_AVAILABLE_REP            = 7,
-    DIALOG_STATUS_AVAILABLE                = 8,
-    DIALOG_STATUS_REWARD2                  = 9,             // no yellow dot on minimap
-    DIALOG_STATUS_REWARD                   = 10,            // yellow dot on minimap
+    DIALOG_STATUS_NONE                     = 0x000,
+    DIALOG_STATUS_UNAVAILABLE              = 0x002,
+    DIALOG_STATUS_LOW_LEVEL_AVAILABLE      = 0x004,
+    DIALOG_STATUS_LOW_LEVEL_REWARD_REP     = 0x008,
+    DIALOG_STATUS_LOW_LEVEL_AVAILABLE_REP  = 0x010,
+    DIALOG_STATUS_INCOMPLETE               = 0x020,
+    DIALOG_STATUS_REWARD_REP               = 0x040,
+    DIALOG_STATUS_AVAILABLE_REP            = 0x080,
+    DIALOG_STATUS_AVAILABLE                = 0x100,
+    DIALOG_STATUS_REWARD2                  = 0x200,             // no yellow dot on minimap
+    DIALOG_STATUS_REWARD                   = 0x400,            // yellow dot on minimap
 
     // Custom value meaning that script call did not return any valid quest status
     DIALOG_STATUS_SCRIPTED_NO_STATUS       = 0x1000,
@@ -210,6 +212,7 @@ class Quest
 {
     friend class ObjectMgr;
 public:
+    Quest() = default;
     Quest(Field* questRecord);
     void LoadQuestDetails(Field* fields);
     void LoadQuestRequestItems(Field* fields);
@@ -230,6 +233,14 @@ public:
     [[nodiscard]] int32  GetZoneOrSort() const { return ZoneOrSort; }
     [[nodiscard]] uint32 GetMinLevel() const { return MinLevel; }
     [[nodiscard]] uint32 GetMaxLevel() const { return MaxLevel; }
+    [[nodiscard]] uint32 GetRequiredSpell() const { return RequiredSpell; }
+    [[nodiscard]] bool HasRequiredCurrency() const
+    {
+        for (uint32 i = 0; i < QUEST_REQUIRED_CURRENCY_COUNT; ++i)
+            if (RequiredCurrencyId[i])
+                return true;
+        return false;
+    }
     [[nodiscard]] int32  GetQuestLevel() const { return Level; }
     [[nodiscard]] uint32 GetType() const { return Type; }
     [[nodiscard]] uint32 GetRequiredClasses() const { return RequiredClasses; }
@@ -300,6 +311,15 @@ public:
     std::string ObjectiveText[QUEST_OBJECTIVES_COUNT];
     uint32 RequiredItemId[QUEST_ITEM_OBJECTIVES_COUNT];
     uint32 RequiredItemCount[QUEST_ITEM_OBJECTIVES_COUNT];
+    uint32 RequiredSpell;
+    uint32 RewardCurrencyId[QUEST_REWARD_CURRENCY_COUNT];
+    uint32 RewardCurrencyCount[QUEST_REWARD_CURRENCY_COUNT];
+    uint32 RequiredCurrencyId[QUEST_REQUIRED_CURRENCY_COUNT];
+    uint32 RequiredCurrencyCount[QUEST_REQUIRED_CURRENCY_COUNT];
+    uint32 RewardReputationMask = 0;
+    uint32 SoundAccept = 0;
+    uint32 SoundTurnIn = 0;
+    uint32 RewardBonusMoney = 0;
     uint32 ItemDrop[QUEST_SOURCE_ITEM_IDS_COUNT];
     uint32 ItemDropQuantity[QUEST_SOURCE_ITEM_IDS_COUNT];
     int32  RequiredNpcOrGo[QUEST_OBJECTIVES_COUNT];   // >0 Creature <0 Gameobject
@@ -319,6 +339,7 @@ public:
     [[nodiscard]] uint32 GetReqItemsCount() const { return _reqItemsCount; }
     [[nodiscard]] uint32 GetReqCreatureOrGOcount() const { return _reqCreatureOrGOcount; }
     [[nodiscard]] uint32 GetRewChoiceItemsCount() const { return _rewChoiceItemsCount; }
+    [[nodiscard]] bool IsValidRewardChoice(uint32 reward) const;
     [[nodiscard]] uint32 GetRewItemsCount() const { return _rewItemsCount; }
 
     typedef std::vector<int32> PrevQuests;

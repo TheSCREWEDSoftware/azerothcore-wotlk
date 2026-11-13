@@ -73,7 +73,7 @@ void WorldSession::HandleQuestgiverStatusQueryOpcode(WorldPacket& recvData)
     }
 
     // inform client about status of quest
-    _player->PlayerTalkClass->SendQuestGiverStatus(uint8(questStatus), guid);
+    _player->PlayerTalkClass->SendQuestGiverStatus(questStatus, guid);
 }
 
 void WorldSession::HandleQuestgiverHelloOpcode(WorldPacket& recvData)
@@ -286,7 +286,7 @@ void WorldSession::HandleQuestgiverChooseRewardOpcode(WorldPacket& recvData)
             // Special dialog status update (client does not query this)
             if (!quest->GetQuestMethod())
             {
-                _player->PlayerTalkClass->SendQuestGiverStatus(uint8(_player->GetQuestDialogStatus(object)), guid);
+                _player->PlayerTalkClass->SendQuestGiverStatus(_player->GetQuestDialogStatus(object), guid);
             }
 
             switch (object->GetTypeId())
@@ -419,6 +419,8 @@ void WorldSession::HandleQuestLogRemoveQuest(WorldPackets::Quest::QuestLogRemove
             _player->TakeQuestSourceItem(questId, true); // remove quest src item from player
             _player->AbandonQuest(questId); // remove all quest items player received before abandoning quest.
             _player->RemoveActiveQuest(questId);
+            // Phase conditions can depend on the active quest, so refresh after the removal.
+            _player->RefreshPhases();
             _player->RemoveTimedAchievement(ACHIEVEMENT_TIMED_TYPE_QUEST, questId);
 
             sScriptMgr->OnPlayerQuestAbandon(_player, questId);
@@ -479,10 +481,12 @@ void WorldSession::HandleQuestgiverCompleteQuest(WorldPacket& recvData)
 {
     uint32 questId;
     ObjectGuid guid;
+    bool fromScript;
 
-    recvData >> guid >> questId;
+    recvData >> guid >> questId >> fromScript;
 
-    LOG_DEBUG("network", "WORLD: Received CMSG_QUESTGIVER_COMPLETE_QUEST npc {}, quest = {}", guid.ToString(), questId);
+    LOG_DEBUG("network", "WORLD: Received CMSG_QUESTGIVER_COMPLETE_QUEST npc {}, quest = {}, fromScript = {}",
+        guid.ToString(), questId, fromScript);
 
     Object* object = ObjectAccessor::GetObjectByTypeMask(*_player, guid, TYPEMASK_UNIT | TYPEMASK_GAMEOBJECT);
     if (!object || !object->hasInvolvedQuest(questId))
@@ -514,10 +518,12 @@ void WorldSession::HandleQuestgiverCompleteQuest(WorldPacket& recvData)
         }
         else
         {
-            if (quest->GetReqItemsCount())                  // some items required
-                _player->PlayerTalkClass->SendQuestGiverRequestItems(quest, guid, _player->CanRewardQuest(quest, false), false);
-            else                                            // no items required
+            // The 4.3.4 Complete Quest button has already confirmed the turn-in. Answering with the
+            // 3.3.5a requirements packet makes the client reopen the same window instead of rewarding.
+            if (_player->CanRewardQuest(quest, false))
                 _player->PlayerTalkClass->SendQuestGiverOfferReward(quest, guid, true);
+            else
+                _player->PlayerTalkClass->SendQuestGiverRequestItems(quest, guid, false, false);
         }
     }
 }

@@ -45,6 +45,7 @@
 #include "Player.h"
 #include "PlayerDump.h"
 #include "QueryHolder.h"
+#include "QueryPackets.h"
 #include "RaceMgr.h"
 #include "Realm.h"
 #include "ReputationMgr.h"
@@ -54,6 +55,7 @@
 #include "SpellAuraEffects.h"
 #include "SpellAuras.h"
 #include "StringConvert.h"
+#include "SystemPackets.h"
 #include "TC9Sidecar.h"
 #include "Tokenize.h"
 #include "Transport.h"
@@ -108,6 +110,10 @@ bool LoginQueryHolder::Initialize()
     stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_CHARACTER_REPUTATION);
     stmt->SetData(0, rawGUID);
     res &= SetPreparedQuery(PLAYER_LOGIN_QUERY_LOAD_REPUTATION, stmt);
+
+    stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_CHARACTER_CURRENCIES);
+    stmt->SetData(0, rawGUID);
+    res &= SetPreparedQuery(PLAYER_LOGIN_QUERY_LOAD_CURRENCY, stmt);
 
     stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_CHARACTER_INVENTORY);
     stmt->SetData(0, rawGUID);
@@ -218,33 +224,182 @@ bool LoginQueryHolder::Initialize()
 
 void WorldSession::HandleCharEnum(PreparedQueryResult result)
 {
-    WorldPacket data(SMSG_CHAR_ENUM, 100);                  // we guess size
-
-    uint8 num = 0;
-
-    data << num;
-
+    WorldPackets::Character::EnumCharactersResult charEnum;
+    charEnum.Success = true;
     _legitCharacters.clear();
+
     if (result)
     {
         do
         {
-            ObjectGuid guid = ObjectGuid::Create<HighGuid::Player>((*result)[0].Get<uint32>());
-            LOG_DEBUG("network.opcode", "Loading char {} from account {}.", guid.ToString(), GetAccountId());
-            if (Player::BuildEnumData(result, &data))
+            WorldPackets::Character::EnumCharactersResult::CharacterInfo charInfo;
+            Field* fields = result->Fetch();
+
+            //             0               1                2                3                 4                  5                 6               7
+            //    "SELECT characters.guid, characters.name, characters.race, characters.class, characters.gender, characters.skin, characters.face, characters.hairStyle,
+            //     8                     9                       10              11               12              13                     14                     15
+            //    characters.hairColor, characters.facialStyle, character.level, characters.zone, characters.map, characters.position_x, characters.position_y, characters.position_z,
+            //    16                    17                      18                   19                   20                     21                   22               23
+            //    guild_member.guildid, characters.playerFlags, characters.at_login, character_pet.entry, character_pet.modelid, character_pet.level, characters.equipmentCache, character_banned.guid,
+            //    24                      25
+            //    COALESCE(characters.order, 0), character_declinedname.genitive
+
+            // print all fields as flat long string
+            charInfo.Guid              = ObjectGuid::Create<HighGuid::Player>(fields[0].Get<uint32>());
+            charInfo.Name              = fields[1].Get<std::string>();
+            charInfo.RaceID            = fields[2].Get<uint8>();
+            charInfo.ClassID           = fields[3].Get<uint8>();
+            charInfo.SexID             = fields[4].Get<uint8>();
+            charInfo.SkinID            = fields[5].Get<uint8>();
+            charInfo.FaceID            = fields[6].Get<uint8>();
+            charInfo.HairStyle         = fields[7].Get<uint8>();
+            charInfo.HairColor         = fields[8].Get<uint8>();
+            charInfo.FacialHair        = fields[9].Get<uint8>();
+            charInfo.ExperienceLevel   = fields[10].Get<uint8>();
+            charInfo.MapID             = int32(fields[12].Get<uint16>());
+            charInfo.PreloadPos        = Position(fields[13].Get<float>(), fields[14].Get<float>(), fields[15].Get<float>());
+
+            if (ObjectGuid::LowType guildId = fields[16].Get<uint32>())
+                charInfo.GuildGUID = ObjectGuid::Create<HighGuid::Guild>(guildId);
+
+            PlayerInfo const* info = sObjectMgr->GetPlayerInfo(charInfo.RaceID, charInfo.ClassID);
+            if (!info)
             {
-                _legitCharacters.insert(guid);
-                ++num;
+                LOG_ERROR("entities.player", "Player {} has incorrect race/class pair. Don't build enum.", charInfo.Guid.ToString());
+                continue;
             }
+            else if (charInfo.SexID > GENDER_FEMALE)
+            {
+                LOG_ERROR("entities.player", "Player ({}) has incorrect gender ({}), Don't build enum.", charInfo.Guid.ToString(), charInfo.SexID);
+                continue;
+            }
+
+            uint32 playerFlags = fields[17].Get<uint32>();
+            uint32 atLoginFlags = fields[18].Get<uint16>();
+
+            if (playerFlags & PLAYER_FLAGS_RESTING)
+                charInfo.Flags |= CHARACTER_FLAG_RESTING;
+
+            /*if (atLoginFlags & AT_LOGIN_RESET_TALENTS)
+                charInfo->Flags |= CHARACTER_FLAG_RESET_TALENTS_ON_LOGIN;*/
+
+            if (atLoginFlags & AT_LOGIN_RESURRECT)
+                playerFlags &= ~PLAYER_FLAGS_GHOST;
+
+            if (playerFlags & PLAYER_FLAGS_GHOST)
+                charInfo.Flags |= CHARACTER_FLAG_GHOST;
+
+            if (atLoginFlags & AT_LOGIN_RENAME)
+                charInfo.Flags |= CHARACTER_FLAG_RENAME;
+
+            if (fields[23].Get<uint32>())
+                charInfo.Flags |= CHARACTER_FLAG_LOCKED_BY_BILLING;
+
+            /*if (sWorld->getBoolConfig(CONFIG_DECLINED_NAMES_USED) && !fields[22].Get<std::string>().empty())
+                charInfo->Flags |= CHARACTER_FLAG_DECLINED;*/
+
+            if (atLoginFlags & AT_LOGIN_CUSTOMIZE)
+                charInfo.Flags2 = CHAR_CUSTOMIZE_FLAG_CUSTOMIZE;
+            else if (atLoginFlags & AT_LOGIN_CHANGE_FACTION)
+                charInfo.Flags2 = CHAR_CUSTOMIZE_FLAG_FACTION;
+            else if (atLoginFlags & AT_LOGIN_CHANGE_RACE)
+                charInfo.Flags2 = CHAR_CUSTOMIZE_FLAG_RACE;
+            else
+                charInfo.Flags2 = CHAR_CUSTOMIZE_FLAG_NONE;
+
+            /*if (playerFlags & PLAYER_FLAGS_NO_XP_GAIN)
+                charInfo->Flags2 |= CHARACTER_FLAG_2_NO_XP_GAIN;
+
+            if (playerFlags & PLAYER_FLAGS_LOW_LEVEL_RAID_ENABLED)
+                charInfo->Flags2 |= CHARACTER_FLAG_2_LOW_LEVEL_RAID_ENABLED;
+
+            if (playerFlags & PLAYER_FLAGS_AUTO_DECLINE_GUILD)
+                charInfo->Flags2 |= CHARACTER_FLAG_2_AUTO_DECLINE_GUILD;*/
+
+            charInfo.FirstLogin = (atLoginFlags & AT_LOGIN_FIRST) != 0;
+            charInfo.ZoneID = charInfo.FirstLogin ? 0 : int32(fields[11].Get<uint16>()); // if first login do not show the zone
+
+            if (playerFlags & PLAYER_FLAGS_HIDE_HELM)
+                charInfo.Flags |= CHARACTER_FLAG_HIDE_HELM;
+
+            if (playerFlags & PLAYER_FLAGS_HIDE_CLOAK)
+                charInfo.Flags |= CHARACTER_FLAG_HIDE_CLOAK;
+
+            // show pet at selection character in character list only for non-ghost character
+            if (!(playerFlags & PLAYER_FLAGS_GHOST) && (charInfo.ClassID == CLASS_WARLOCK || charInfo.ClassID == CLASS_HUNTER || charInfo.ClassID == CLASS_DEATH_KNIGHT))
+            {
+                if (CreatureTemplate const* creatureInfo = sObjectMgr->GetCreatureTemplate(fields[19].Get<uint32>()))
+                {
+                    charInfo.PetCreatureDisplayID = fields[20].Get<uint32>();
+                    charInfo.PetExperienceLevel = fields[21].Get<uint16>();
+                    charInfo.PetCreatureFamilyID = creatureInfo->family;
+                }
+            }
+
+            std::vector<std::string_view> equipment = Acore::Tokenize(fields[22].Get<std::string_view>(), ' ', false);
+            charInfo.ListPosition = fields[24].Get<uint8>();
+
+            for (uint8 slot = 0; slot < INVENTORY_SLOT_BAG_END; ++slot)
+            {
+                uint32 const visualBase = slot * 2;
+                Optional<uint32> itemId;
+                if (visualBase < equipment.size())
+                    itemId = Acore::StringTo<uint32>(equipment[visualBase]);
+
+                ItemTemplate const* proto = nullptr;
+                if (itemId)
+                    proto = sObjectMgr->GetItemTemplate(*itemId);
+
+                if (!proto)
+                {
+                    if (!itemId || *itemId)
+                    {
+                        LOG_WARN("entities.player.loading", "Player %u has invalid equipment '%s' in `equipmentcache` at index %u. Skipped.",
+                            charInfo.Guid.GetCounter(), (visualBase < equipment.size()) ? std::string(equipment[visualBase]).c_str() : "<none>", visualBase);
+                    }
+                    continue;
+                }
+
+                SpellItemEnchantmentEntry const* enchant = nullptr;
+
+                Optional<uint32> enchants;
+                if ((visualBase+1) < equipment.size())
+                    enchants = Acore::StringTo<uint32>(equipment[visualBase + 1]);
+                if (!enchants)
+                {
+                    LOG_WARN("entities.player.loading", "Player %u has invalid enchantment info '%s' in `equipmentcache` at index %u. Skipped.",
+                        charInfo.Guid.GetCounter(), ((visualBase+1) < equipment.size()) ? std::string(equipment[visualBase + 1]).c_str() : "<none>", visualBase + 1);
+                    enchants = 0;
+                }
+                for (uint8 enchantSlot = PERM_ENCHANTMENT_SLOT; enchantSlot <= TEMP_ENCHANTMENT_SLOT; ++enchantSlot)
+                {
+                    // values stored in 2 uint16
+                    uint32 enchantId = 0x0000FFFF & ((*enchants) >> enchantSlot * 16);
+                    if (!enchantId)
+                        continue;
+
+                    enchant = sSpellItemEnchantmentStore.LookupEntry(enchantId);
+                    if (enchant)
+                        break;
+                }
+
+                charInfo.VisualItems[slot].InvType = proto->InventoryType;
+                charInfo.VisualItems[slot].DisplayID = proto->DisplayInfoID;
+                charInfo.VisualItems[slot].DisplayEnchantID = enchant ? enchant->aura_id : 0;
+            }
+
+            _legitCharacters.insert(charInfo.Guid);
+            LOG_INFO("network.opcode", "Enumerated account {} character {} at list position {}.",
+                GetAccountId(), charInfo.Guid.ToString(), charInfo.ListPosition);
+            charEnum.Characters.push_back(std::move(charInfo));
         } while (result->NextRow());
     }
 
-    data.put<uint8>(0, num);
-
-    SendPacket(&data);
+    LOG_INFO("network.opcode", "Account {} has {} character(s).", GetAccountId(), charEnum.Characters.size());
+    SendPacket(charEnum.Write());
 }
 
-void WorldSession::HandleCharEnumOpcode(WorldPacket& /*recvData*/)
+void WorldSession::HandleCharEnumOpcode(WorldPackets::Character::EnumCharacters& /*packet*/)
 {
     CharacterDatabasePreparedStatement* stmt = nullptr;
 
@@ -672,8 +827,9 @@ void WorldSession::HandleCharDeleteOpcode(WorldPacket& recvData)
     SendCharDelete(CHAR_DELETE_SUCCESS);
 }
 
-void WorldSession::HandlePlayerLoginOpcode(WorldPacket& recvData)
+void WorldSession::HandlePlayerLoginOpcode(WorldPackets::Character::PlayerLogin& packet)
 {
+    LOG_INFO("network.opcode", "Received CMSG_PLAYER_LOGIN for account {}.", GetAccountId());
     if (!sWorld->getBoolConfig(CONFIG_REALM_LOGIN_ENABLED))
     {
         SendCharLoginFailed(LoginFailureReason::NoWorld);
@@ -687,8 +843,9 @@ void WorldSession::HandlePlayerLoginOpcode(WorldPacket& recvData)
         return;
     }
 
-    ObjectGuid playerGuid;
-    recvData >> playerGuid;
+    LOG_INFO("network", "Account ({}) is trying to login.", GetAccountId());
+    ObjectGuid playerGuid = packet.Guid;
+    LOG_INFO("network", "Account ({}) is trying to login with character ({}).", GetAccountId(), playerGuid.ToString());
 
     // The ownership check is delegated to the gateway in cluster mode, but a
     // non-player GUID is invalid regardless of who authenticated the session.
@@ -699,7 +856,6 @@ void WorldSession::HandlePlayerLoginOpcode(WorldPacket& recvData)
         return;
     }
 
-    // pussywizard:
     if (WorldSession* sess = sWorldSessionMgr->FindOfflineSessionForCharacterGUID(playerGuid.GetCounter()))
     {
         if (sess->GetAccountId() != GetAccountId())
@@ -709,7 +865,6 @@ void WorldSession::HandlePlayerLoginOpcode(WorldPacket& recvData)
         }
     }
 
-    // pussywizard:
     if (WorldSession* sess = sWorldSessionMgr->FindOfflineSession(GetAccountId()))
     {
         Player* p = sess->GetPlayer();
@@ -796,6 +951,8 @@ void WorldSession::HandlePlayerLoginOpcode(WorldPacket& recvData)
 void WorldSession::HandlePlayerLoginFromDB(LoginQueryHolder const& holder)
 {
     m_playerLoading = true; // Set here for direct callers.
+    LOG_INFO("network.opcode", "Player login callback for account {} character {}.",
+        GetAccountId(), holder.GetGuid().ToString());
     ObjectGuid playerGuid = holder.GetGuid();
 
     Player* pCurrChar = new Player(this);
@@ -815,31 +972,12 @@ void WorldSession::HandlePlayerLoginFromDB(LoginQueryHolder const& holder)
     pCurrChar->GetMotionMaster()->Initialize();
     pCurrChar->SendDungeonDifficulty(false);
 
-    WorldPacket data(SMSG_LOGIN_VERIFY_WORLD, 20);
-    data << pCurrChar->GetMapId();
-    data << pCurrChar->GetPositionX();
-    data << pCurrChar->GetPositionY();
-    data << pCurrChar->GetPositionZ();
-    data << pCurrChar->GetOrientation();
-    SendPacket(&data);
+    LOG_INFO("network", "Account ({}) logged in with character ({}).", GetAccountId(), playerGuid.ToString());
+    LOG_INFO("network", "Character in zone {}, map {}, x {}, y {}, z {}.", pCurrChar->GetZoneId(), pCurrChar->GetMapId(), pCurrChar->GetPositionX(), pCurrChar->GetPositionY(), pCurrChar->GetPositionZ());
 
     // load player specific part before send times
     LoadAccountData(holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_ACCOUNT_DATA), PER_CHARACTER_CACHE_MASK);
     SendAccountDataTimes(PER_CHARACTER_CACHE_MASK);
-
-    data.Initialize(SMSG_FEATURE_SYSTEM_STATUS, 2);         // added in 2.2.0
-    data << uint8(2);                                       // 2 - COMPLAINT_ENABLED_WITH_AUTO_IGNORE
-    data << uint8(0);                                       // enable(1)/disable(0) voice chat interface in client
-    SendPacket(&data);
-
-    // Send MOTD
-    {
-        SendPacket(sMotdMgr->GetMotdPacket(pCurrChar->GetSession()->GetSessionDbLocaleIndex()));
-
-        // send server info
-        if (sWorld->getIntConfig(CONFIG_ENABLE_SINFO_LOGIN) == 1)
-            chH.PSendSysMessage("{}", GitRevision::GetFullVersion());
-    }
 
     if (!sToCloud9Sidecar->ClusterModeEnabled())
     {
@@ -873,13 +1011,25 @@ void WorldSession::HandlePlayerLoginFromDB(LoginQueryHolder const& holder)
         pCurrChar->SetRank(0);
     }
 
-    data.Initialize(SMSG_LEARNED_DANCE_MOVES, 4 + 4);
-    data << uint32(0);
-    data << uint32(0);
+    WorldPacket data(SMSG_LEARNED_DANCE_MOVES, 8);
+    data << uint64(0);
     SendPacket(&data);
 
-    pCurrChar->SendInitialPacketsBeforeAddToMap();
+    SendPacket(WorldPackets::Query::HotfixNotifyBlob().Write());
+    pCurrChar->SendInitialPacketsBeforeAddToMap(true);
 
+    SendPacket(sMotdMgr->GetMotdPacket(pCurrChar->GetSession()->GetSessionDbLocaleIndex()));
+    if (sWorld->getIntConfig(CONFIG_ENABLE_SINFO_LOGIN) == 1)
+        chH.PSendSysMessage("{}", GitRevision::GetFullVersion());
+
+    WorldPackets::System::FeatureSystemStatus features;
+    features.ComplaintStatus = 2;
+    features.ScrollOfResurrectionRequestsRemaining = 1;
+    features.ScrollOfResurrectionMaxRequestsPerDay = 1;
+    features.CfgRealmID = realm.Id.Realm;
+    SendPacket(features.Write());
+
+    LOG_INFO("network", "Finished sending initial packets before going to map");
     //Show cinematic at the first time that player login
     if (!pCurrChar->getCinematic())
     {
@@ -898,7 +1048,20 @@ void WorldSession::HandlePlayerLoginFromDB(LoginQueryHolder const& holder)
                 chH.PSendSysMessage("{}", newCharString);
         }
     }
+    // The client must know which map and position it is entering before it receives any
+    // object updates for that map. TrinityCore appears to send SMSG_LOGIN_VERIFY_WORLD
+    // after AddPlayerToMap, but there object updates only accumulate and are flushed at
+    // end of tick, so verify-world still reaches the wire first. AzerothCore flushes them
+    // inline during AddPlayerToMap, which inverted the order. A confirmed-working 4.3.4
+    // capture shows LOGIN_VERIFY_WORLD immediately before the first SMSG_UPDATE_OBJECT.
+    // The instance-login failure path below teleports, which sends its own verify-world
+    // for the corrected destination.
+    WorldPackets::Character::LoginVerifyWorld loginVerifyWorld;
+    loginVerifyWorld.MapID = pCurrChar->GetMapId();
+    loginVerifyWorld.Pos = pCurrChar->GetPosition();
+    SendPacket(loginVerifyWorld.Write());
 
+    LOG_INFO("network", "Adding to map");
     // Xinef: moved this from below
     ObjectAccessor::AddObject(pCurrChar);
 
@@ -906,15 +1069,23 @@ void WorldSession::HandlePlayerLoginFromDB(LoginQueryHolder const& holder)
     {
         AreaTriggerTeleport const* at = sObjectMgr->GetGoBackTrigger(pCurrChar->GetMapId());
         if (at)
+        {
+            LOG_INFO("network", "Teleport to mapId:{}, x:{}, y:{}, z:{}.", at->target_mapId, at->target_X, at->target_Y, at->target_Z);
             pCurrChar->TeleportTo(at->target_mapId, at->target_X, at->target_Y, at->target_Z, pCurrChar->GetOrientation());
+        }
         else
+        {
+            LOG_INFO("network", "Teleport to homebind location, mapId:{}, x:{}, y:{}, z:{}.", pCurrChar->m_homebindMapId, pCurrChar->m_homebindX, pCurrChar->m_homebindY, pCurrChar->m_homebindZ);
             pCurrChar->TeleportTo(pCurrChar->m_homebindMapId, pCurrChar->m_homebindX, pCurrChar->m_homebindY, pCurrChar->m_homebindZ, pCurrChar->GetOrientation());
+        }
 
         // Probably a hackfix, but currently the best workaround to prevent character names showing as Unknown after teleport out from instances at login.
         pCurrChar->GetSession()->SendNameQueryOpcode(pCurrChar->GetGUID());
     }
 
+    LOG_INFO("network", "Finished sending initial packets after going to map");
     pCurrChar->SendInitialPacketsAfterAddToMap();
+    LOG_INFO("network", "Finished object update bootstrap after adding to map");
 
     if (!sToCloud9Sidecar->ClusterModeEnabled())
     {
@@ -1123,6 +1294,7 @@ void WorldSession::HandlePlayerLoginFromDB(LoginQueryHolder const& holder)
         }
     }
 
+    LOG_INFO("network", "Finished loading character, now calling scripts and sending updates");
     sScriptMgr->OnPlayerLogin(pCurrChar);
 
     if (pCurrChar->HasAtLoginFlag(AT_LOGIN_FIRST))
@@ -1132,6 +1304,11 @@ void WorldSession::HandlePlayerLoginFromDB(LoginQueryHolder const& holder)
     }
 
     METRIC_EVENT("player_events", "Login", pCurrChar->GetName());
+}
+
+void WorldSession::HandleLoadScreenOpcode(WorldPacket& /*recvData*/)
+{
+    // TODO: Do something with this packet
 }
 
 void WorldSession::HandlePlayerLoginToCharInWorld(Player* pCurrChar)

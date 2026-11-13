@@ -28,8 +28,10 @@
 #include "Group.h"
 #include "Pet.h"
 #include "ReputationMgr.h"
+#include "ScriptDefines/PlayerScript.h"
 #include "SkillDiscovery.h"
 #include "SpellAuraEffects.h"
+#include "SpellPackets.h"
 #include "SpellScript.h"
 #include "SpellScriptLoader.h"
 #include "Unit.h"
@@ -2103,16 +2105,15 @@ class spell_pvp_trinket_wotf_shared_cd : public SpellScript
             }
             else
             {
-                WorldPacket data(SMSG_INITIAL_SPELLS, (1 + 2 + 2 + 4 + 2 + 2 + 4 + 4));
-                data << uint8(0);
-                data << uint16(0);
-                data << uint16(1);
-                data << uint32(42292); // PvP Trinket spell
-                data << uint16(0);                 // cast item id
-                data << uint16(GetSpellInfo()->GetCategory());                   // spell category
-                data << uint32(0);
-                data << uint32(GetSpellInfo()->CategoryRecoveryTime);
-                player->SendDirectMessage(&data);
+                WorldPackets::Spells::SendKnownSpells packet;
+                packet.InitialLogin = false;
+                WorldPackets::Spells::SpellHistoryEntry& entry = packet.SpellHistoryEntries.emplace_back();
+                entry.SpellID = 42292; // PvP Trinket spell
+                entry.ItemID = 0;
+                entry.Category = GetSpellInfo()->GetCategory();
+                entry.RecoveryTime = 0;
+                entry.CategoryRecoveryTime = GetSpellInfo()->CategoryRecoveryTime;
+                player->SendDirectMessage(packet.Write());
 
                 WorldPacket data2;
                 player->BuildCooldownPacket(data2, SPELL_COOLDOWN_FLAG_INCLUDE_GCD, SPELL_PVP_TRINKET, GetSpellInfo()->CategoryRecoveryTime); // PvP Trinket spell
@@ -6227,6 +6228,115 @@ class spell_gen_submerge_visual : public AuraScript
     }
 };
 
+// 67063 Throw Torch (Gilneas, Sacrifices)
+enum ThrowTorch
+{
+    CREDIT_ROUND_UP_WORGEN = 35582,
+    SPELL_THROW_TORCH      = 67063
+};
+
+class spell_gen_throw_torch : public SpellScript
+{
+    PrepareSpellScript(spell_gen_throw_torch);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_THROW_TORCH });
+    }
+
+    void HandleEffect(SpellMissInfo missInfo)
+    {
+        if (missInfo != SPELL_MISS_NONE)
+            return;
+
+        if (Player* player = GetCaster()->ToPlayer())
+            if (GetHitUnit() && !GetHitUnit()->HasAura(SPELL_THROW_TORCH))
+                player->KilledMonsterCredit(CREDIT_ROUND_UP_WORGEN);
+    }
+
+    void Register() override
+    {
+        BeforeHit += BeforeSpellHitFn(spell_gen_throw_torch::HandleEffect);
+    }
+};
+
+enum WorgenFormSpells
+{
+    SPELL_WORGEN_ALTERED_FORM = 97709
+};
+
+class spell_gen_two_forms : public SpellScript
+{
+    PrepareSpellScript(spell_gen_two_forms);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_WORGEN_ALTERED_FORM });
+    }
+
+    SpellCastResult CheckCast()
+    {
+        if (GetCaster()->IsInCombat() ||
+            GetCaster()->GetAuraEffectsByType(SPELL_AURA_WORGEN_ALTERED_FORM).size() > 1)
+        {
+            SetCustomCastResultMessage(SPELL_CUSTOM_ERROR_CANT_TRANSFORM);
+            return SPELL_FAILED_CUSTOM_ERROR;
+        }
+
+        return SPELL_CAST_OK;
+    }
+
+    void HandleTransform(SpellEffIndex effIndex)
+    {
+        PreventHitDefaultEffect(effIndex);
+        Unit* target = GetHitUnit();
+        if (target->HasAuraType(SPELL_AURA_WORGEN_ALTERED_FORM))
+            target->RemoveAurasByType(SPELL_AURA_WORGEN_ALTERED_FORM);
+        else
+            target->CastSpell(target, SPELL_WORGEN_ALTERED_FORM, CastSpellExtraArgs(true).AddSpellBP0(1));
+    }
+
+    void Register() override
+    {
+        OnCheckCast += SpellCheckCastFn(spell_gen_two_forms::CheckCast);
+        OnEffectHitTarget += SpellEffectFn(spell_gen_two_forms::HandleTransform, EFFECT_0, SPELL_EFFECT_DUMMY);
+    }
+};
+
+class spell_gen_darkflight : public SpellScript
+{
+    PrepareSpellScript(spell_gen_darkflight);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_WORGEN_ALTERED_FORM });
+    }
+
+    void TriggerTransform()
+    {
+        GetCaster()->CastSpell(GetCaster(), SPELL_WORGEN_ALTERED_FORM, true);
+    }
+
+    void Register() override
+    {
+        AfterCast += SpellCastFn(spell_gen_darkflight::TriggerTransform);
+    }
+};
+
+class player_gen_worgen_altered_form : public PlayerScript
+{
+public:
+    player_gen_worgen_altered_form() : PlayerScript("player_gen_worgen_altered_form",
+        { PLAYERHOOK_ON_PLAYER_ENTER_COMBAT }) { }
+
+    void OnPlayerEnterCombat(Player* player, Unit* /*enemy*/) override
+    {
+        // AC's combat hook replaces TC's server-only ENTER_COMBAT proc spell 97681.
+        if (player->HasAuraType(SPELL_AURA_ENABLE_ALTERED_FORM))
+            player->CastSpell(player, SPELL_WORGEN_ALTERED_FORM, true);
+    }
+};
+
 void AddSC_generic_spell_scripts()
 {
     RegisterSpellScript(spell_silithyst);
@@ -6417,4 +6527,8 @@ void AddSC_generic_spell_scripts()
     RegisterSpellScript(spell_gen_black_bow_of_the_betrayer);
     RegisterSpellScript(spell_gen_filter_party_level_80);
     RegisterSpellScript(spell_gen_submerge_visual);
+    RegisterSpellScript(spell_gen_throw_torch);
+    RegisterSpellScript(spell_gen_two_forms);
+    RegisterSpellScript(spell_gen_darkflight);
+    new player_gen_worgen_altered_form();
 }

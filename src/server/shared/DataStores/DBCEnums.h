@@ -32,7 +32,7 @@ struct DBCPosition3D
 // Client expected level limitation, like as used in DBC item max levels for "until max player level"
 // use as default max player level, must be fit max level for used client
 // also see MAX_LEVEL and STRONG_MAX_LEVEL define
-#define DEFAULT_MAX_LEVEL 80
+#define DEFAULT_MAX_LEVEL 85
 
 // client supported max level for player/pets/etc. Avoid overflow or client stability affected.
 // also see GT_MAX_LEVEL define
@@ -80,7 +80,7 @@ enum AchievementFlags
     ACHIEVEMENT_FLAG_REALM_FIRST_KILL  = 0x00000200,        //
 };
 
-#define MAX_CRITERIA_REQUIREMENTS 2
+#define MAX_CRITERIA_REQUIREMENTS 3 // Cata's AdditionalConditionType/Value columns, was 2 pre-Cata
 
 enum AchievementCriteriaCondition
 {
@@ -221,7 +221,21 @@ enum AchievementCriteriaTypes
     ACHIEVEMENT_CRITERIA_TYPE_EARN_ACHIEVEMENT_POINTS       = 115,
     ACHIEVEMENT_CRITERIA_TYPE_ROLL_DISENCHANT               = 117,
     ACHIEVEMENT_CRITERIA_TYPE_USE_LFD_TO_GROUP_WITH_PLAYERS = 119,
-    ACHIEVEMENT_CRITERIA_TYPE_TOTAL                         = 124, // 0..123 => 124 criteria types total
+    ACHIEVEMENT_CRITERIA_TYPE_SPENT_GOLD_GUILD_REPAIRS      = 124,
+    ACHIEVEMENT_CRITERIA_TYPE_REACH_GUILD_LEVEL             = 125,
+    ACHIEVEMENT_CRITERIA_TYPE_CRAFT_ITEMS_GUILD             = 126,
+    ACHIEVEMENT_CRITERIA_TYPE_CATCH_FROM_POOL               = 127,
+    ACHIEVEMENT_CRITERIA_TYPE_BUY_GUILD_BANK_SLOTS          = 128,
+    ACHIEVEMENT_CRITERIA_TYPE_EARN_GUILD_ACHIEVEMENT_POINTS = 129,
+    ACHIEVEMENT_CRITERIA_TYPE_WIN_RATED_BATTLEGROUND        = 130,
+    ACHIEVEMENT_CRITERIA_TYPE_REACH_BG_RATING               = 132,
+    ACHIEVEMENT_CRITERIA_TYPE_BUY_GUILD_TABARD              = 133,
+    ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_QUESTS_GUILD         = 134,
+    ACHIEVEMENT_CRITERIA_TYPE_HONORABLE_KILLS_GUILD         = 135,
+    ACHIEVEMENT_CRITERIA_TYPE_KILL_CREATURE_TYPE_GUILD      = 136,
+    ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_GUILD_CHALLENGE_TYPE = 138,
+    ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_GUILD_CHALLENGE      = 139,
+    ACHIEVEMENT_CRITERIA_TYPE_TOTAL                         = 151, // 0..150 => 151 criteria types total
 };
 
 enum AchievementCategory
@@ -372,6 +386,12 @@ enum ItemEnchantmentType
     ITEM_ENCHANTMENT_TYPE_TOTEM            = 6,
     ITEM_ENCHANTMENT_TYPE_USE_SPELL        = 7,
     ITEM_ENCHANTMENT_TYPE_PRISMATIC_SOCKET = 8
+};
+
+enum ItemExtendedCostFlags
+{
+    ITEM_EXT_COST_FLAG_REQUIRE_GUILD = 0x01,
+    // the season-earned currency flags (0x02-0x20) are unused until AC has a currency store
 };
 
 enum ItemLimitCategoryMode

@@ -31,7 +31,7 @@ Corpse::Corpse(CorpseType type) : WorldObject(), m_type(type)
 {
     m_objectType |= TYPEMASK_CORPSE;
     m_objectTypeId = TYPEID_CORPSE;
-    m_updateFlag = (UPDATEFLAG_LOWGUID | UPDATEFLAG_STATIONARY_POSITION | UPDATEFLAG_POSITION);
+    m_updateFlag.Stationary = true;
     m_valuesCount = CORPSE_END;
     m_time = GameTime::GetGameTime().count();
     lootRecipient = nullptr;
@@ -91,6 +91,7 @@ bool Corpse::Create(ObjectGuid::LowType guidlow, Player* owner)
 
     SetObjectScale(1);
     SetGuidValue(CORPSE_FIELD_OWNER, owner->GetGUID());
+    _guildId = owner->GetGuildId();
 
     _cellCoord = Acore::ComputeCellCoord(GetPositionX(), GetPositionY());
 
@@ -114,7 +115,7 @@ void Corpse::SaveToDB()
     stmt->SetData(7, _ConcatFields(CORPSE_FIELD_ITEM, EQUIPMENT_SLOT_END));   // itemCache
     stmt->SetData(8, GetUInt32Value(CORPSE_FIELD_BYTES_1));                   // bytes1
     stmt->SetData(9, GetUInt32Value(CORPSE_FIELD_BYTES_2));                   // bytes2
-    stmt->SetData(10, GetUInt32Value(CORPSE_FIELD_GUILD));                    // guildId
+    stmt->SetData(10, _guildId);                                            // guildId
     stmt->SetData (11, GetUInt32Value(CORPSE_FIELD_FLAGS));                    // flags
     stmt->SetData (12, GetUInt32Value(CORPSE_FIELD_DYNAMIC_FLAGS));            // dynFlags
     stmt->SetData(13, uint32(m_time));                                        // time
@@ -163,7 +164,7 @@ bool Corpse::LoadCorpseFromDB(ObjectGuid::LowType guid, Field* fields)
 
     SetUInt32Value(CORPSE_FIELD_BYTES_1, fields[7].Get<uint32>());
     SetUInt32Value(CORPSE_FIELD_BYTES_2, fields[8].Get<uint32>());
-    SetUInt32Value(CORPSE_FIELD_GUILD, fields[9].Get<uint32>());
+    _guildId = fields[9].Get<uint32>();
     SetUInt32Value(CORPSE_FIELD_FLAGS, fields[10].Get<uint8>());
     SetUInt32Value(CORPSE_FIELD_DYNAMIC_FLAGS, fields[11].Get<uint8>());
     SetGuidValue(CORPSE_FIELD_OWNER, ObjectGuid::Create<HighGuid::Player>(ownerGuid));
@@ -264,7 +265,6 @@ void Corpse::BuildValuesUpdate(uint8 updateType, ByteBuffer* data, Player* targe
         }
     }
 
-    *data << uint8(updateMask.GetBlockCount());
     updateMask.AppendToPacket(data);
     data->append(fieldBuffer);
 }

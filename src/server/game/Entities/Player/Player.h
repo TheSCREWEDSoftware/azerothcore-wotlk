@@ -41,8 +41,10 @@
 #include "TradeData.h"
 #include "Unit.h"
 #include "WorldSession.h"
+#include <array>
 #include <set>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 struct CreatureTemplate;
@@ -70,13 +72,14 @@ typedef void(*bgZoneRef)(Battleground*, WorldPackets::WorldState::InitWorldState
 
 #define PLAYER_MAX_SKILLS           127
 #define PLAYER_MAX_DAILY_QUESTS     25
-#define PLAYER_EXPLORED_ZONES_SIZE  128
+#define PLAYER_EXPLORED_ZONES_SIZE  156
 
 // corpse reclaim times
 #define DEATH_EXPIRE_STEP (5*MINUTE)
 #define MAX_DEATH_COUNT 3
 
-#define PLAYER_SKILL_INDEX(x)       (PLAYER_SKILL_INFO_1_1 + ((x)*3))
+// Preserve the skill accessor stride while storing values in Cata's six halfword arrays.
+#define PLAYER_SKILL_INDEX(x)       ((x)*3)
 #define PLAYER_SKILL_VALUE_INDEX(x) (PLAYER_SKILL_INDEX(x)+1)
 #define PLAYER_SKILL_BONUS_INDEX(x) (PLAYER_SKILL_INDEX(x)+2)
 
@@ -310,13 +313,7 @@ struct PlayerCreateInfoAction
 
 typedef std::list<PlayerCreateInfoAction> PlayerCreateInfoActions;
 
-struct PlayerCreateInfoSkill
-{
-    uint16 SkillId;
-    uint16 Rank;
-};
-
-typedef std::list<PlayerCreateInfoSkill> PlayerCreateInfoSkills;
+using PlayerCreateInfoSkills = std::vector<SkillRaceClassInfoEntry const*>;
 
 struct PlayerInfo
 {
@@ -889,6 +886,7 @@ enum PlayerLoginQueryIndex
     PLAYER_LOGIN_QUERY_LOAD_CHARACTER_SETTINGS           = 36,
     PLAYER_LOGIN_QUERY_LOAD_PET_SLOTS                    = 37,
     PLAYER_LOGIN_QUERY_LOAD_OFFLINE_ACHIEVEMENTS_UPDATES = 38,
+    PLAYER_LOGIN_QUERY_LOAD_CURRENCY                     = 39,
     MAX_PLAYER_LOGIN_QUERY
 };
 
@@ -1086,6 +1084,7 @@ class Player : public Unit, public GridObject<Player>
 {
     friend class WorldSession;
     friend class CinematicMgr;
+    friend class TestPlayer;
     friend void Item::AddToUpdateQueueOf(Player* player);
     friend void Item::RemoveFromUpdateQueueOf(Player* player);
 public:
@@ -1137,7 +1136,7 @@ public:
     [[nodiscard]] bool IsFalling() const;
     bool IsInAreaTriggerRadius(AreaTrigger const* trigger, float delta = 0.f) const;
 
-    void SendInitialPacketsBeforeAddToMap();
+    void SendInitialPacketsBeforeAddToMap(bool firstLogin = false);
     void SendInitialPacketsAfterAddToMap();
     void SendTransferAborted(uint32 mapid, TransferAbortReason reason, uint8 arg = 0);
     void SendInstanceResetWarning(uint32 mapid, Difficulty difficulty, uint32 time, bool onEnterMap);
@@ -1390,8 +1389,8 @@ public:
         return mainItem && mainItem->GetTemplate()->InventoryType == INVTYPE_2HWEAPON && !CanTitanGrip();
     }
     void SendNewItem(Item* item, uint32 count, bool received, bool created, bool broadcast = false, bool sendChatMessage = true);
-    bool BuyItemFromVendorSlot(ObjectGuid vendorguid, uint32 vendorslot, uint32 item, uint8 count, uint8 bag, uint8 slot);
-    bool _StoreOrEquipNewItem(uint32 vendorslot, uint32 item, uint8 count, uint8 bag, uint8 slot, int32 price, ItemTemplate const* pProto, Creature* pVendor, VendorItem const* crItem, bool bStore);
+    bool BuyItemFromVendorSlot(ObjectGuid vendorguid, uint32 vendorslot, uint32 item, uint32 count, uint8 bag, uint8 slot);
+    bool _StoreOrEquipNewItem(uint32 vendorslot, uint32 item, uint32 count, uint8 bag, uint8 slot, int32 price, ItemTemplate const* pProto, Creature* pVendor, VendorItem const* crItem, bool bStore);
 
     [[nodiscard]] float GetReputationPriceDiscount(Creature const* creature) const;
     [[nodiscard]] float GetReputationPriceDiscount(FactionTemplateEntry const* factionTemplate) const;
@@ -1720,7 +1719,15 @@ public:
     bool IsNeedCastPassiveSpellAtLearn(SpellInfo const* spellInfo) const;
 
     void SendProficiency(ItemClass itemClass, uint32 itemSubclassMask);
-    void SendInitialSpells();
+    void SendCurrencies() const;
+    [[nodiscard]] uint32 GetCurrency(uint32 currencyId, bool usePrecision = true) const;
+    [[nodiscard]] bool HasCurrency(uint32 currencyId, uint32 amount) const
+    {
+        return GetCurrency(currencyId, false) >= amount;
+    }
+    void ModifyCurrency(uint32 currencyId, int32 amount, bool suppressChatLog = false);
+    void SendKnownSpells(bool firstLogin = false);
+    void SendSpellModifiers() const;
     void SendLearnPacket(uint32 spellId, bool learn);
     bool addSpell(uint32 spellId, uint8 addSpecMask, bool updateActive, bool temporary = false, bool learnFromSkill = false);
     bool _addSpell(uint32 spellId, uint8 addSpecMask, bool temporary, bool learnFromSkill = false,
@@ -1730,7 +1737,7 @@ public:
     void resetSpells();
     void LearnCustomSpells();
     void LearnDefaultSkills();
-    void LearnDefaultSkill(uint32 skillId, uint16 rank);
+    void LearnDefaultSkill(SkillRaceClassInfoEntry const* skill);
     void learnQuestRewardedSpells();
     void learnQuestRewardedSpells(Quest const* quest);
     void learnSpellHighRank(uint32 spellid);
@@ -1738,7 +1745,7 @@ public:
     void SetReputation(uint32 factionentry, float value);
     [[nodiscard]] uint32 GetReputation(uint32 factionentry) const;
     std::string const& GetGuildName();
-    [[nodiscard]] uint32 GetFreeTalentPoints() const { return GetUInt32Value(PLAYER_CHARACTER_POINTS1); }
+    [[nodiscard]] uint32 GetFreeTalentPoints() const { return m_freeTalentPoints; }
     void SetFreeTalentPoints(uint32 points);
     bool resetTalents(bool noResetCost = false);
     [[nodiscard]] uint32 resetTalentsCost() const;
@@ -1774,6 +1781,7 @@ public:
     void LoadActions(PreparedQueryResult result);
     void GetTalentTreePoints(uint8 (&specPoints)[3]) const;
     [[nodiscard]] uint8 GetMostPointsTalentTree() const;
+    [[nodiscard]] uint32 GetPrimaryTalentTree(uint8 spec) const;
     bool HasTankSpec();
     bool HasMeleeSpec();
     bool HasCasterSpec();
@@ -1793,8 +1801,8 @@ public:
     }
     [[nodiscard]] uint32 GetGlyph(uint8 slot) const { return m_Glyphs[m_activeSpec][slot]; }
 
-    [[nodiscard]] uint32 GetFreePrimaryProfessionPoints() const { return GetUInt32Value(PLAYER_CHARACTER_POINTS2); }
-    void SetFreePrimaryProfessions(uint16 profs) { SetUInt32Value(PLAYER_CHARACTER_POINTS2, profs); }
+    [[nodiscard]] uint32 GetFreePrimaryProfessionPoints() const { return m_freePrimaryProfessionPoints; }
+    void SetFreePrimaryProfessions(uint16 profs) { m_freePrimaryProfessionPoints = profs; }
     void InitPrimaryProfessions();
 
     [[nodiscard]] PlayerSpellMap const& GetSpellMap() const { return m_spells; }
@@ -1866,10 +1874,13 @@ public:
         m_cinematic = cine;
     }
 
+    [[nodiscard]] uint32 GetMovie() const { return m_movie; }
+    void SetMovie(uint32 movie) { m_movie = movie; }
+
     ActionButton* addActionButton(uint8 button, uint32 action, uint8 type);
     void removeActionButton(uint8 button);
     ActionButton const* GetActionButton(uint8 button);
-    void SendInitialActionButtons() const { SendActionButtons(1); }
+    void SendInitialActionButtons() const { SendActionButtons(0); }
     void SendActionButtons(uint32 state) const;
     bool IsActionButtonDataValid(uint8 button, uint32 action, uint8 type);
 
@@ -1887,6 +1898,21 @@ public:
     void UpdateZone(uint32 newZone, uint32 newArea, bool force = false);
     void UpdateArea(uint32 newArea);
     void SetNeedZoneUpdate(bool needUpdate) { m_needZoneUpdate = needUpdate; }
+
+    // Cata phase membership (distinct from the legacy WotLK phase mask). Recomputed from
+    // `phase_area` + CONDITION_SOURCE_TYPE_PHASE conditions on every area change, so it survives
+    // logout/login via the same area recompute the login path already does.
+    // True when the player is in the default (unphased) world: no phases, or the default phase granted.
+    [[nodiscard]] bool IsUnphased() const;
+    // Recompute phases after a quest or aura change and refresh visibility when membership changed.
+    void RefreshPhases();
+    // Returns true if membership changed and a phase-shift packet was already sent.
+    bool UpdatePhasesForArea(uint32 areaId);
+    void SendPhaseShift();
+    [[nodiscard]] std::vector<uint32> const& GetVisibleMaps() const { return m_visibleMaps; }
+    void OnPhaseChanged() override;
+    // Re-evaluate the terrain swaps of the current map from their conditions.
+    void UpdateTerrainSwaps();
 
     void UpdateZoneDependentAuras(uint32 zone_id);    // zones
     void UpdateAreaDependentAuras(uint32 area_id);    // subzones
@@ -1920,14 +1946,17 @@ public:
 
     void SetInGuild(uint32 GuildId)
     {
-        SetUInt32Value(PLAYER_GUILDID, GuildId);
+        // Cata moved guild membership off a dedicated Player field and onto the base
+        // Object's OBJECT_FIELD_DATA slot, packed as an ObjectGuid(HighGuid::Guild, id)
+        // -- matches the pinned TrinityCore reference (Player::SetInGuild).
+        SetGuidValue(OBJECT_FIELD_DATA, GuildId ? ObjectGuid(HighGuid::Guild, GuildId) : ObjectGuid::Empty);
         // xinef: update global storage
         sCharacterCache->UpdateCharacterGuildId(GetGUID(), GetGuildId());
     }
     void SetRank(uint8 rankId) { SetUInt32Value(PLAYER_GUILDRANK, rankId); }
     [[nodiscard]] uint8 GetRank() const { return uint8(GetUInt32Value(PLAYER_GUILDRANK)); }
     void SetGuildIdInvited(uint32 GuildId) { m_GuildIdInvited = GuildId; }
-    [[nodiscard]] uint32 GetGuildId() const { return GetUInt32Value(PLAYER_GUILDID);  }
+    [[nodiscard]] uint32 GetGuildId() const { return GetGuidValue(OBJECT_FIELD_DATA).GetCounter(); }
     [[nodiscard]] Guild* GetGuild() const;
     uint32 GetGuildIdInvited() { return m_GuildIdInvited; }
     static void RemovePetitionsAndSigns(ObjectGuid guid, uint32 type);
@@ -2181,8 +2210,18 @@ public:
     /*********************************************************/
     void UpdateHonorFields();
     bool RewardHonor(Unit* victim, uint32 groupsize, int32 honor = -1, bool awardXP = true);
-    [[nodiscard]] uint32 GetHonorPoints() const { return GetUInt32Value(PLAYER_FIELD_HONOR_CURRENCY); }
-    [[nodiscard]] uint32 GetArenaPoints() const { return GetUInt32Value(PLAYER_FIELD_ARENA_CURRENCY); }
+    [[nodiscard]] uint32 GetHonorPoints() const { return m_honorPoints; }
+    [[nodiscard]] uint32 GetArenaPoints() const { return m_arenaPoints; }
+    [[nodiscard]] uint32 GetAmmoId() const { return m_ammoId; }
+    void SetAmmoId(uint32 item) { m_ammoId = item; }
+    [[nodiscard]] uint64 GetKnownCurrencies() const { return m_knownCurrencies; }
+    void SetKnownCurrencies(uint64 currencies) { m_knownCurrencies = currencies; }
+    void AddKnownCurrencyFlag(uint64 flag) { m_knownCurrencies |= flag; }
+    [[nodiscard]] uint32 GetTodayContribution() const { return m_todayContribution; }
+    void SetTodayContribution(uint32 value) { m_todayContribution = value; }
+    void ModifyTodayContribution(int32 value) { m_todayContribution += value; }
+    [[nodiscard]] uint32 GetYesterdayContribution() const { return m_yesterdayContribution; }
+    void SetYesterdayContribution(uint32 value) { m_yesterdayContribution = value; }
     void ModifyHonorPoints(int32 value, CharacterDatabaseTransaction trans = CharacterDatabaseTransaction(nullptr));      //! If trans is specified, honor save query will be added to trans
     void ModifyArenaPoints(int32 value, CharacterDatabaseTransaction trans = CharacterDatabaseTransaction(nullptr));      //! If trans is specified, arena point save query will be added to trans
     [[nodiscard]] uint32 GetMaxPersonalArenaRatingRequirement(uint32 minarenaslot) const;
@@ -2415,6 +2454,7 @@ public:
     void   SaveRecallPosition();
 
     void SetHomebind(WorldLocation const& loc, uint32 areaId);
+    void SendBindPointUpdate() const;
 
     // Homebind coordinates
     uint32 m_homebindMapId;
@@ -2864,6 +2904,7 @@ protected:
     uint32 m_ExtraFlags;
 
     QuestStatusMap m_QuestStatus;
+    std::unordered_map<uint32, uint32> _currencyStorage; // currency id -> quantity (4.3.4, #312)
     QuestStatusSaveMap m_QuestStatusSave;
 
     RewardedQuestSet m_RewardedQuests;
@@ -2875,6 +2916,31 @@ protected:
     uint32 m_GuildIdInvited;
     uint32 m_ArenaTeamIdInvited;
 
+    // Cata dropped PLAYER_CHARACTER_POINTS1/2, PLAYER_FIELD_HONOR_CURRENCY, and
+    // PLAYER_FIELD_ARENA_CURRENCY as Player update fields (talent points moved to a
+    // TalentMgr, honor/arena points moved to the generic currency system in real
+    // TrinityCore) -- neither conversion is in scope for Plan 17 (field-table layout
+    // only), so these keep the existing WotLK-era behavior as plain server-side state
+    // instead of update fields that no longer exist in the real protocol.
+    uint32 m_freeTalentPoints = 0;
+    uint32 m_freePrimaryProfessionPoints = 0;
+    uint32 m_honorPoints = 0;
+    uint32 m_arenaPoints = 0;
+
+    // Cata also dropped PLAYER_AMMO_ID (ranged weapons no longer consume ammo),
+    // PLAYER_FIELD_KNOWN_CURRENCIES (currencies are tracked by the currency system,
+    // not a Player field bitmask), and PLAYER_FIELD_TODAY/YESTERDAY_CONTRIBUTION
+    // (guild contribution moved to the Guild system) -- same out-of-scope-for-Plan-17
+    // reasoning as above.
+    uint32 m_ammoId = 0;
+    uint64 m_knownCurrencies = 0;
+    uint32 m_todayContribution = 0;
+    uint32 m_yesterdayContribution = 0;
+
+public:
+    [[nodiscard]] uint32 GetSkillFieldValue(uint32 index) const;
+    void SetSkillFieldValue(uint32 index, uint32 value);
+private:
     PlayerMails m_mail;
     PlayerSpellMap m_spells;
     PlayerTalentMap m_talents;
@@ -2920,6 +2986,7 @@ protected:
     JoinedChannelsList m_channels;
 
     uint8 m_cinematic;
+    uint32 m_movie;
 
     TradeData* m_trade;
 
@@ -2935,6 +3002,8 @@ protected:
     uint32 m_zoneUpdateId;
     uint32 m_zoneUpdateTimer;
     uint32 m_areaUpdateId;
+    std::vector<uint32> m_visibleMaps;   // active terrain swap map ids
+    std::vector<uint32> m_uiMapPhases;   // UI world-map areas of the active swaps
 
     uint32 m_deathTimer;
     time_t m_deathExpireTime;

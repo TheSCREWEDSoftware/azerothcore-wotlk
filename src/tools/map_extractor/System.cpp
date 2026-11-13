@@ -17,6 +17,7 @@
 
 #define _CRT_SECURE_NO_DEPRECATE
 
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <deque>
@@ -57,6 +58,14 @@
 #define OPEN_FLAGS (O_RDONLY | O_BINARY)
 #endif
 extern ArchiveSet gOpenArchives;
+
+// The extractor tools never start the server logger (LOG_* needs sLog->Initialize()), so this
+// diagnostic goes to stdout through the project string helper instead of printf specifiers.
+static void PrintMessage(std::string const& message)
+{
+    fputs(message.c_str(), stdout);
+    fputc('\n', stdout);
+}
 
 // cppcheck-suppress ctuOneDefinitionRuleViolation
 typedef struct
@@ -99,18 +108,16 @@ float CONF_float_to_int16_limit = 2048.0f;   // Max accuracy = val/65536
 float CONF_flat_height_delta_limit = 0.005f; // If max - min less this value - surface is flat
 float CONF_flat_liquid_delta_limit = 0.001f; // If max - min less this value - liquid surface is flat
 
-// List MPQ for extract from
+// List MPQ for extract from. world.MPQ is the base archive; the rest are applied as
+// patches on top of it (matching the real Cata client's archive layout).
 char const* CONF_mpq_list[] =
 {
-    "common.MPQ",
-    "common-2.MPQ",
-    "lichking.MPQ",
-    "expansion.MPQ",
-    "patch.MPQ",
-    "patch-2.MPQ",
-    "patch-3.MPQ",
-    "patch-4.MPQ",
-    "patch-5.MPQ",
+    "world.MPQ",
+    "art.MPQ",
+    "world2.MPQ",
+    "expansion1.MPQ",
+    "expansion2.MPQ",
+    "expansion3.MPQ",
 };
 
 static char const* const langs[] = {"enGB", "enUS", "deDE", "esES", "frFR", "koKR", "zhCN", "zhTW", "enCN", "enTW", "esMX", "ruRU" };
@@ -317,7 +324,7 @@ void ReadLiquidTypeTableDBC()
 
 // Map file format data
 static char const* MAP_MAGIC         = "MAPS";
-static uint32 const MAP_VERSION_MAGIC = 9;
+static uint32 const MAP_VERSION_MAGIC = 10;
 static char const* MAP_AREA_MAGIC    = "AREA";
 static char const* MAP_HEIGHT_MAGIC  = "MHGT";
 static char const* MAP_LIQUID_MAGIC  = "MLIQ";
@@ -418,10 +425,10 @@ bool ConvertADT(std::string const& inputPath, std::string const& outputPath, int
     if (!adt.loadFile(inputPath))
         return false;
 
-    adt_MCIN* cells = adt.a_grid->getMCIN();
-    if (!cells)
+    if (adt.cellsFound != ADT_CELLS_PER_GRID * ADT_CELLS_PER_GRID)
     {
-        printf("Can't find cells in '%s'\n", inputPath.c_str());
+        PrintMessage(Acore::StringFormat("Incomplete cell set in '{}' ({} of {} cells)", inputPath,
+            adt.cellsFound, ADT_CELLS_PER_GRID * ADT_CELLS_PER_GRID));
         return false;
     }
 
@@ -440,7 +447,7 @@ bool ConvertADT(std::string const& inputPath, std::string const& outputPath, int
     // Get area flags data
     for (int i = 0; i < ADT_CELLS_PER_GRID; i++)
         for (int j = 0; j < ADT_CELLS_PER_GRID; j++)
-            area_ids[i][j] = cells->getMCNK(i, j)->areaid;
+            area_ids[i][j] = adt.getMCNK(i, j)->areaid;
 
     //============================================
     // Try pack area data
@@ -483,7 +490,7 @@ bool ConvertADT(std::string const& inputPath, std::string const& outputPath, int
     {
         for (int j = 0; j < ADT_CELLS_PER_GRID; j++)
         {
-            adt_MCNK* cell = cells->getMCNK(i, j);
+            adt_MCNK* cell = adt.getMCNK(i, j);
             if (!cell)
                 continue;
             // Height values for triangles stored in order:
@@ -668,7 +675,7 @@ bool ConvertADT(std::string const& inputPath, std::string const& outputPath, int
     {
         for (int j = 0; j < ADT_CELLS_PER_GRID; j++)
         {
-            adt_MCNK* cell = cells->getMCNK(i, j);
+            adt_MCNK* cell = adt.getMCNK(i, j);
             if (!cell)
                 continue;
 
@@ -884,7 +891,7 @@ bool ConvertADT(std::string const& inputPath, std::string const& outputPath, int
     {
         for (int j = 0; j < ADT_CELLS_PER_GRID; ++j)
         {
-            adt_MCNK* cell = cells->getMCNK(i, j);
+            adt_MCNK* cell = adt.getMCNK(i, j);
             if (!cell)
                 continue;
             holes[i][j] = cell->holes;
@@ -1041,13 +1048,15 @@ void ExtractDBCFiles(int locale, bool basicLocale)
 
     std::set<std::string> dbcfiles;
 
-    // get DBC file list
+    // get DBC/DB2 file list. DB2 files are only raw-extracted here (no native
+    // DB2/hotfix parser exists yet); parsing is left to downstream tooling.
     for (auto & gOpenArchive : gOpenArchives)
     {
         vector<string> files;
         gOpenArchive->GetFileListTo(files);
         for (auto & file : files)
-            if (file.rfind(".dbc") == file.length() - strlen(".dbc"))
+            if (file.rfind(".dbc") == file.length() - strlen(".dbc") ||
+                file.rfind(".db2") == file.length() - strlen(".db2"))
                 dbcfiles.insert(file);
     }
 
@@ -1082,7 +1091,7 @@ void ExtractDBCFiles(int locale, bool basicLocale)
         if (ExtractFile(dbcfile.c_str(), filename))
             ++count;
     }
-    printf("Extracted %u DBC files\n\n", count);
+    printf("Extracted %u DBC/DB2 files\n\n", count);
 }
 
 void ExtractCameraFiles(int locale, bool basicLocale)
@@ -1146,8 +1155,11 @@ void LoadLocaleMPQFiles(int const locale)
     char filename[512];
 
     sprintf(filename, "%s/Data/%s/locale-%s.MPQ", input_path, langs[locale], langs[locale]);
-    new MPQArchive(filename);
+    MPQArchive* base = new MPQArchive(filename);
+    if (!base->mpq_a)
+        return;
 
+    // WotLK-style full-replacement patches, applied oldest to newest
     for (int i = 1; i <= 9; ++i)
     {
         char ext[3] = "";
@@ -1156,20 +1168,76 @@ void LoadLocaleMPQFiles(int const locale)
 
         sprintf(filename, "%s/Data/%s/patch-%s%s.MPQ", input_path, langs[locale], langs[locale], ext);
         if (FileExists(filename))
-            new MPQArchive(filename);
+            base->ApplyPatch(filename);
     }
+
+    // Cataclysm-style incremental binary-diff patches (wow-update-<locale>-<build>.MPQ),
+    // discovered on disk and applied in ascending build order so StormLib can reconstruct
+    // the patched files correctly.
+    std::string dataDir = std::string(input_path) + "/Data/" + langs[locale];
+    std::string prefix = std::string("wow-update-") + langs[locale] + "-";
+    std::vector<std::pair<uint32, std::string>> updates;
+
+    if (std::filesystem::exists(dataDir))
+    {
+        for (auto const& entry : std::filesystem::directory_iterator(dataDir))
+        {
+            std::string name = entry.path().filename().string();
+            if (name.rfind(prefix, 0) != 0 || name.rfind(".MPQ") != name.size() - 4)
+                continue;
+
+            std::string buildStr = name.substr(prefix.size(), name.size() - prefix.size() - 4);
+            if (!buildStr.empty() && std::all_of(buildStr.begin(), buildStr.end(), [](unsigned char c) { return std::isdigit(c); }))
+                updates.emplace_back(static_cast<uint32>(std::stoul(buildStr)), entry.path().string());
+        }
+    }
+
+    std::sort(updates.begin(), updates.end());
+    for (auto const& update : updates)
+        base->ApplyPatch(update.second.c_str());
 }
 
 void LoadCommonMPQFiles()
 {
     char filename[512];
+
+    sprintf(filename, "%s/Data/%s", input_path, CONF_mpq_list[0]);
+    MPQArchive* base = new MPQArchive(filename);
+    if (!base->mpq_a)
+        return;
+
     int count = sizeof(CONF_mpq_list) / sizeof(char*);
-    for (int i = 0; i < count; ++i)
+    for (int i = 1; i < count; ++i)
     {
         sprintf(filename, "%s/Data/%s", input_path, CONF_mpq_list[i]);
         if (FileExists(filename))
-            new MPQArchive(filename);
+            base->ApplyPatch(filename);
     }
+
+    // Cataclysm-style incremental binary-diff patches (wow-update-base-<build>.MPQ),
+    // discovered on disk and applied in ascending build order so StormLib can reconstruct
+    // the patched files correctly (mirrors LoadLocaleMPQFiles's discovery logic).
+    std::string dataDir = std::string(input_path) + "/Data";
+    std::string prefix = "wow-update-base-";
+    std::vector<std::pair<uint32, std::string>> updates;
+
+    if (std::filesystem::exists(dataDir))
+    {
+        for (auto const& entry : std::filesystem::directory_iterator(dataDir))
+        {
+            std::string name = entry.path().filename().string();
+            if (name.rfind(prefix, 0) != 0 || name.rfind(".MPQ") != name.size() - 4)
+                continue;
+
+            std::string buildStr = name.substr(prefix.size(), name.size() - prefix.size() - 4);
+            if (!buildStr.empty() && std::all_of(buildStr.begin(), buildStr.end(), [](unsigned char c) { return std::isdigit(c); }))
+                updates.emplace_back(static_cast<uint32>(std::stoul(buildStr)), entry.path().string());
+        }
+    }
+
+    std::sort(updates.begin(), updates.end());
+    for (auto const& update : updates)
+        base->ApplyPatch(update.second.c_str());
 }
 
 inline void CloseMPQFiles()
@@ -1198,6 +1266,7 @@ int main(int argc, char* arg[])
 
             //Open MPQs
             LoadLocaleMPQFiles(i);
+            LoadCommonMPQFiles();
 
             if ((CONF_extract & EXTRACT_DBC) == 0)
             {

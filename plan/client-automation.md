@@ -1,0 +1,844 @@
+# Real-client automation: how the working design works
+
+Reference for `run --auto-login` in `apps/cata/run_real_client_authentication.py`. This
+describes focus acquisition and input delivery for the isolated client. Successful login and
+character selection do not prove that the world loading screen has dismissed.
+
+## Human in-world testing (policy from 2026-10-22)
+
+The harness automates only launching the isolated client and getting a character into the world.
+**In-world testing is done by a human; agents never script in-world input or claim an in-world
+acceptance result.** Scripted in-world scenarios (movement, combat, casting, vendor, trainer,
+quests, level-up, geometry) cost far more agent time than they returned and are retired; their
+`--mode` values are no longer accepted. The sections below that describe them are historical.
+
+Human sign-off is **not** a merge or closure gate (policy revised 2026-10-28). Land a change on its
+deterministic checks (importer gates, load diff, tests, review) and pick the in-world pass up when
+the issue is revisited; a finding becomes a new issue.
+
+- Reach the world with `--mode map-insertion-object-bootstrap` (seeded character) or
+  `--mode character-creation` (client-created character), then `run --auto-login --hand-off`.
+  `--hand-off` leaves the client in-world after the automated milestone; closing the client (or
+  Ctrl-C) ends the run and the normal teardown stops the owned servers.
+- Agents may prepare the stack and state what is worth checking in-world, but do not wait for an
+  in-world pass to land a change. Do not drive in-world input, add new in-world automation, or
+  claim an in-world acceptance result.
+- When the client is exercised, the human remains the acceptance judge; server logs and packet
+  captures are supporting evidence.
+- Deterministic checks (unit/codec tests, `apps/cata` checkers) still run as before.
+
+## Build and run budget
+
+Default to one server build and one isolated client acceptance run per completed change. Finish
+local packet checks before launching the client, then reuse the same binaries. Do not require two
+fresh generations automatically. Repeat only when a failure or relevant change requires new
+evidence, and state what the repeat will verify. Retry transient failures in the existing generation
+as described below. Earlier plans' two-generation requirements are historical, not the default for
+new work.
+
+The disposable MySQL container starts with `--skip-log-bin`: acceptance runs do not need replication
+or point-in-time recovery logs. InnoDB commit flushing remains enabled. Restore the existing SQL
+cache into a fresh owned volume and verify the fixture as usual. Measure database restore separately
+from preflight and Wine startup when investigating `prepare` performance.
+
+## Window discovery
+
+`owned_wow_window()` scans `wmctrl -lpGx` for a window whose PID is in the generation's own
+tracked wine PIDs **and** whose title is exactly `World of Warcraft`. Both halves matter:
+
+- Matching on PID keeps the automation from ever driving a window this run does not own —
+  including the user's own applications on the same display.
+- The client is launched via a launcher process and re-execs, so the PID set is refreshed on
+  every poll (`add_processes(... find_wine_processes(...))`) rather than captured once. A
+  window that appears late, under a PID that did not exist at launch, is still recognised.
+
+`focus_owned_window()` rediscovers the window and its live owned PIDs every 0.25s. Discovery
+and activation share a 90s budget at startup and a 30s budget before later input. A replaced
+window is rediscovered within the same attempt.
+
+## Focus acquisition — the important part
+
+**Do not use `XSetInputFocus`.** Measured live: an explicit `XSetInputFocus` that bypasses
+the window manager's activation protocol — especially when repeated once per field click —
+makes the client tear down its window and never recreate it. The most likely cause is DXVK
+treating that as an unexpected focus-loss/gain pattern and resetting the device. This
+manifested as the window simply vanishing mid-login, and it cost a lot of time to diagnose.
+
+The working combination is:
+
+1. Discover the current owned WoW window and read `_NET_ACTIVE_WINDOW` using `xprop`.
+2. If it is not active, request activation with `wmctrl -i -a <window_id>`.
+3. Continue polling until the same owned window stays active for at least 0.5s, or the
+   shared deadline expires. All commands use the generation's `DISPLAY` and `XAUTHORITY`.
+
+Verification is not optional. `wmctrl -a` is asynchronous and returns before the WM has actually
+activated the window; without reading the property back, the automation races ahead and types
+into whatever currently holds focus. Verifying through the WM's own bookkeeping is what makes
+this deterministic.
+
+## Driving the login — keyboard, not clicks
+
+Once focus is verified, the login is driven **by keyboard** (`Tab`/`Return`) rather than by
+clicking each field. Every click is a potential re-activation, and re-activating per field is
+exactly the pattern that triggered the window teardown above. `client_login_points()` still
+derives field coordinates as fractions of live window geometry (0.506 across; 0.536 / 0.623 /
+0.752 down) so they survive a resized or repositioned window, but clicking is kept to the
+minimum needed. Focus and geometry are reacquired after the movie wait, immediately before
+the account-field click. The login path checks `_NET_ACTIVE_WINDOW` again before every mouse
+or keyboard input and aborts if focus is lost. Character selection uses the same focus wait;
+it no longer calls `XSetInputFocus` or relies on a one-second sleep after activation.
+
+Keys are synthesised with `XTest` (`xtest.fake_input`), with `Shift_L` held for alphabetic
+characters so the canonical uppercase synthetic credentials are entered correctly, and a 50ms
+gap between characters. Coordinates are always computed from the window's *current* geometry
+immediately before use, never cached from discovery time.
+
+## Intro movie handling
+
+A fresh Wine prefix boots into the 4.3.4 intro cinematic, which swallows input. The isolated
+config sets both `movie` and `playIntroMovie` to `0`, but the automation still defends against
+it: it tracks the owned `MovieProxy.exe` process and repeatedly sends `Escape` while that
+process exists, with a 30s no-movie deadline and a 240s overall deadline. Credentials are only
+entered once the movie is gone. Typing into the login UI while the cinematic is still active
+was a real observed failure.
+
+## Safety properties worth preserving
+
+- **Never type without verified focus.** The focus check is a precondition, not a formality.
+  An earlier ad-hoc harness typed blind and sent live credentials into an unrelated window on
+  the same display. Anything driving real input must verify ownership immediately before each
+  input burst, and abort rather than guess.
+- **Only ever drive run-owned windows.** The PID-set check is the guard for this.
+- **Prefer the WM's protocol over direct X calls.** See focus acquisition above.
+
+## Evidence capture
+
+Each run captures `window.xwd` (a raw X window dump) plus `window.xprop` into
+`evidence/raw/`. The `.xwd` can be decoded without any external tool — parse the big-endian
+header for width/height/`bytes_per_line`/`ncolors`, skip `header_size + ncolors * 12`, then
+reorder BGRX to RGB.
+
+### `window.xwd` does NOT contain the client's rendering — do not draw conclusions from it
+
+**The pixels in `window.xwd` are not WoW's.** `xprop` correctly identifies the window (right
+PID, `WM_NAME = World of Warcraft`, right 1800x1042 geometry) and the dump has that geometry,
+but the *content* is whatever was in the screen framebuffer underneath — in practice one of
+the user's terminals. The client renders through DXVK, and a Vulkan swapchain cannot be read
+back by `XGetImage`/`xwd`; X has no backing store for it.
+
+The proof is decisive and cost nothing to obtain:
+
+```
+md5sum generation-*/evidence/raw/window.xwd | awk '{print $1}' | sort | uniq -c | sort -rn
+     28 fa666c87577c64e834f029c6135795a5
+     20 f9775d8eaa52a354363c079dace7250b
+```
+
+28 runs produced *byte-identical* dumps, and another 20 produced a different byte-identical
+dump — across generations whose outcomes ranged from auth failure to full world entry. A real
+screenshot of a live 3D client cannot repeat byte-for-byte.
+
+Consequences:
+
+- Any earlier claim that the loading bar was measured at "90%" or "99%" from this file is an
+  artifact. That framing is **not evidence-backed** and should not be used to direct
+  debugging.
+- Use the server log to establish protocol progress. It does not establish what the client
+  rendered. Record direct visual confirmation separately; missing `CMSG_TIME_SYNC_RESP` alone
+  does not prove the loading screen is still visible.
+- A desktop screenshot can work even when `xwd` fails. On this desktop, `gnome-screenshot -w`
+  captured the actual client after `focus_owned_window()` verified and activated its owned
+  window. Run it with the generation's `DISPLAY` and `XAUTHORITY` immediately after that
+  check; otherwise it captures whichever application is active. Native client screenshots
+  are another option, but sending `Print` alone did not produce a file in these runs.
+
+## Tools and settings a run depends on
+
+Everything below is read out of `run_real_client_authentication.py`, not remembered. If a run
+fails to even start, check this list before anything else — the failures it causes look like
+unrelated client bugs.
+
+### External binaries invoked
+
+| Tool | Used for |
+| --- | --- |
+| `docker` | one MySQL container per generation (`acore-cata-plan13-<hash>-g<N>-mysql`) |
+| `mysql` | schema creation, realmlist seeding, migration application |
+| `wine` | launching the client through the GE-Proton runner |
+| `wmctrl` | window discovery (`-lpGx`) and activation (`-i -a`) |
+| `xprop` | reading `_NET_ACTIVE_WINDOW` back to verify focus |
+| `xwd` | window dump into `evidence/raw/window.xwd` |
+
+Automatic input requires the installed `python3-xlib` package for XTest keyboard and mouse
+events. `xdotool` is not used.
+
+### Wine environment
+
+```
+WINEPREFIX        = <generation>/wine-prefix   (isolated per generation, never the user's)
+WINEARCH          = win64
+WINEDLLOVERRIDES  = d3d9=n,b                   (native d3d9 -> DXVK)
+WINEDEBUG         = +seh
+DISPLAY           = :0                         (--display)
+XAUTHORITY        = /home/trolloks/.Xauthority (--xauthority)
+```
+
+Runner: `--wine-runner /home/trolloks/.var/app/com.usebottles.bottles/data/bottles/runners/ge-proton11-1/files`.
+DXVK comes from the personal bottle passed via `--personal-bottle`; the prefix is isolated but
+seeded from it, so the bottle must still exist.
+
+### Client configuration written by `prepare`
+
+`WTF/Config.wtf` is rewritten wholesale:
+
+```
+SET locale "enUS"        SET realmlist "127.0.0.1"   SET patchlist "127.0.0.1"
+SET readTOS "1"          SET readEULA "1"
+SET movie "0"            SET playIntroMovie "0"      SET accounttype "CT"
+SET gxWindow "1"         SET gxMaximize "0"
+```
+
+`gxWindow "1"` / `gxMaximize "0"` are load-bearing: a fullscreen or maximised client cannot be
+activated reliably by `wmctrl`, and `window.xwd` of a fullscreen window is useless for
+measuring the loading bar. `movie`/`playIntroMovie` are belt-and-braces alongside the
+`MovieProxy.exe` Escape loop.
+
+`Data/enUS/realmlist.wtf` is also written (`set realmlist 127.0.0.1`); the client reads
+whichever it finds first, so both are set.
+
+### Server data staged by `prepare`, and `--geometry`
+
+`prepare` copies `dbc/` and `maps/` from `--data-root` into the run's `DataDir`, verifying each
+against a content hash recorded at preflight. The accepted modes then run with `MoveMaps.Enable=0`,
+`vmap.enableLOS=0` and `vmap.enableHeight=0`, because nothing used to extract `vmaps/` or `mmaps/`.
+
+`prepare --geometry` closes that path: it requires a non-empty `vmaps/` and `mmaps/` under
+`--data-root`, stages them with the same content-hash check, and writes those three settings as `1`.
+Point `--data-root` at the extraction root — the directory holding `dbc/`, `maps/`, `vmaps/` and
+`mmaps/` — and make sure it is one this tree's tools produced: the pinned reference tree's data
+directory is in TrinityCore's `ModelSpawn` layout (`uint8` flags) while this server reads `uint32`, so
+the two sets cannot be swapped. `python3 apps/cata/check_collision_geometry.py --data-root <root>`
+reports that, along with missing, truncated, misnamed or unloadable artifacts — a declared map
+section outside the file, a missing `{id}.vmtree`, a spawn whose model has no `.vmo`, or an unusable
+Detour payload — before a run starts. Add `--los-pair` to derive the frozen scenario's blocked and
+clear line-of-sight pair from the pinned obstacle's triangles, with the blocking triangle and the
+eye height the run has to reproduce, and `--chase` to derive the route around that obstacle from the
+tile's own polygon graph under the walker's own filter: both walkable polygons, the route, the blocked
+line walked portal by portal as a raycast does (which must not reach the goal), and the rejected
+unreachable polygon and off-tile point. Without the flag
+nothing changes, so geometry-free modes keep their accepted behaviour.
+
+The sets have to match the server's own naming, which is not uniform: for map 0 the server asks for
+`000.vmtree`, `000_32_48.vmtile` (grid 48,32 — the vmap tile name is `<tileY>_<tileX>`), `000.mmap`
+and `0004832.mmtile`. A partially extracted tree therefore fails per tile at load rather than at
+staging, which is why the staging check only proves the sets are complete, not that they are
+readable for a given grid.
+
+A generation remembers how it was prepared, so switching geometry is not idempotent: re-running
+`prepare --geometry` against an already-prepared geometry-free generation is rejected, as is a
+geometry-enabled generation whose `vmaps`/`mmaps` content changed. Switch by resetting the
+generation or using a new manifest; identical repeated prepares still return harmlessly.
+
+### Run parameters that matter
+
+`--auto-login --stability-seconds 8 --timeout 110`. `--timeout` limits the observation loop
+after automatic login. In post-marker modes, `--stability-seconds` is the hold time after the
+mode's protocol marker. `observed` means the loop finished, including timeout; it does not
+prove world entry. The `finally` block closes the owned client and servers even after a
+successful run. For a longer interactive observation, increase both limits.
+
+`--mode map-insertion-object-bootstrap` seeds a character and stops at world entry; add
+`run --hand-off` to keep the client open for the human tester. The in-world modes described below
+are retired (see "Human in-world testing").
+
+`--mode run-speed-change` also seeds a saved Sprint aura in the disposable character database.
+Its synthetic 60-second duration lets normal aura expiry restore run speed after world entry.
+Acceptance requires a sent speed change and a matching accepted acknowledgement after the first
+heartbeat, followed by a stable hold. Use `--stability-seconds 30 --timeout 180` for this mode.
+The fixture checks Sprint's effect against the current server DBC before preparation. It does
+not modify the source DBC or claim that 60 seconds is Sprint's retail duration.
+
+`--mode basic-spell-cast` (Plan 25, issue #85) seeds the fixture character with a known
+spell (Evocation, id 12051) via `character_spell`/`character_action` directly — the fixture
+never goes through real character creation, so it has no class/race starting spells to rely
+on (see the note above: `Player::Create()`, and therefore `CharStartOutfit.dbc`, is only
+exercised by `character-creation` mode). Once in world control, the harness presses `1`
+(action button 0's default keybind) to cast it; acceptance requires an observed
+`SMSG_SPELL_GO` after the in-world-control marker. Fireball (id 133) was tried first since it
+has a nonzero cast time, but it is enemy-targeted: generation 5 showed zero
+`CMSG_CAST_SPELL`/`SMSG_CAST_FAILED` packets after the marker, because the client refuses to
+send an enemy-targeted cast with no target selected — the fixture spawns with no target, and
+this harness only presses one key, it does not tab-target a hostile. Evocation is self-only
+(no target needed) and free (0 mana), and channeled with a real duration, so the round trip
+still exercises `SMSG_SPELL_START` (channel begin) as well as `SMSG_SPELL_GO`, not just an
+instant-cast fire-and-forget. Evocation still failed on generation 5 for a second reason: the
+shared fixture (`populated_character_seed_sql`) is a Human Warrior, and
+`Player::_LoadSpells`/`CheckSkillLearnedBySpell` deletes any learned spell whose skill line
+doesn't match the character's race/class at every login, gated by
+`CONFIG_VALIDATE_SKILL_LEARNED_BY_SPELLS` (confirmed via `WorldServer.log`: `"has spell (12051)
+that teach skill (237) which is invalid for the race/class combination (Race: 1, Class: 1).
+Will be deleted."`) — `character_spell`/`character_action` were empty by the time the client
+logged in, so the action bar had nothing bound to button 0. `basic_spell_cast_seed_sql` now
+also switches this fixture's `characters.class` to Mage (8) so Evocation's skill line is
+legitimate and survives login. Issue #85 additionally asks for a target-targeted spell cast and
+cast-time cancellation — those need a live, in-range hostile target near the fixture's spawn
+point and are not yet covered by this mode.
+
+Issue #85's invalid-cast negative case is deferred to issue #89. The real client rejects no-target,
+friendly-target, dead-target, out-of-range, and unlearned-spell attempts locally without sending
+`CMSG_CAST_SPELL`. The remaining known path uses the `.cast` GM command, which requires working
+4.3.4 chat opcodes.
+
+`--mode target-targeted-spell-cast` (Plan 25, issue #85) covers the remaining two acceptance
+items: a target-targeted spell cast that lands, and cast-time cancellation. Grants Fireball (id
+133, same spell used above — enemy-only-targeted, with a real, non-zero cast time, unlike
+Evocation) via the same seeding approach. Generation 17 first tried pinning the nearby Rabbit
+(guid 79947, stationary via `wander_distance`/`MovementType`) as the target, but that produced
+zero `CMSG_CAST_SPELL`/`SMSG_CAST_FAILED`/`SMSG_SPELL_GO` packets after the marker: the Rabbit's
+faction (31, a critter faction) isn't hostile, so "target nearest enemy" never selects it and the
+enemy-only Fireball hotkey silently enters targeting-reticle mode instead of casting. Every
+creature actually spawned near `CHARACTER_POSITION` is either friendly (trainers, a deputy NPC) or a non-hostile
+critter, so generation 18 tried inserting a fresh entry-2673 Target Dummy (faction 14,
+hostile-to-all; `npc_target_dummy`) instead — but that also produced zero `SMSG_CAST_FAILED` after
+the marker: that AI's `Reset()` schedules a `KillSelf()` 15s after every spawn (`npcs_special.cpp`),
+since it's meant for a dummy a player summons, not a static DB spawn, so by the time the harness
+logs in and reaches the cast sequence it's already dead and un-Tab-targetable. The fix instead
+inserts a fresh entry-2809 Boar (same faction 14, no `ScriptName`/special AI, so no lifespan limit)
+a few yards from the fixture's spawn point. Automation originally pressed `1` to start the cast,
+then `Escape` (the client's built-in cancel-current-cast behavior) partway through the cast time to
+produce `SMSG_CAST_FAILED`, then `1` again to let the cast complete for `SMSG_SPELL_GO`. Generation
+19 showed that doesn't hold up live: WorldServer.log had exactly one `CMSG_CAST_SPELL` total and
+zero `SMSG_CAST_FAILED`, and a live-observed run confirmed `Escape` opened the game menu instead of
+cancelling. The fix keeps Escape but uses short key taps. The shared movement-oriented helper held
+each key for 0.6 seconds and waited 0.4 seconds after release, so the original Escape arrived after rank-1
+Fireball had completed and opened the menu. With 0.05-second holds and gaps, the real client sends
+`CMSG_CAST_SPELL`, `CMSG_CANCEL_CAST`, receives `SMSG_CAST_FAILED`, then sends a fresh
+`CMSG_CAST_SPELL` that completes with `SMSG_SPELL_GO`. Movement modes retain their existing timing.
+The mode also captures focused-window screenshots before targeting, after targeting, after cancel,
+and after the completing recast. Acceptance requires both server markers after the in-world-control
+marker. Generation 22 passed with one Fireball action binding, stock Boar health, one
+`CMSG_CANCEL_CAST`, one `SMSG_CAST_FAILED`, and the completing `SMSG_SPELL_GO`. Its screenshots show
+the first-time combat tutorial remained open throughout, confirming it does not block these keyboard
+bindings and needs no click workaround.
+
+Issue #85's remaining checklist item audits aura, cooldown, and failure packets reached by these
+cast paths against the pinned TrinityCore reference (`c699217775d9`). `SMSG_CAST_FAILED`
+(`Spell::WriteCastResultInfo`) and `SMSG_SPELL_COOLDOWN`/`SMSG_COOLDOWN_EVENT`
+(`Unit::BuildCooldownPacket`) are byte-for-byte identical to TC's layout, including the
+no-extra-fields case for `SPELL_FAILED_INTERRUPTED` that the cast-time cancellation above
+produces. `SMSG_AURA_UPDATE` (`AuraApplication::BuildUpdatePacket`) still uses AC's pre-refactor
+plain-field layout rather than TC's newer typed `WorldPackets::Spells::AuraUpdate` class, but this
+is the same aura-application path already exercised and visually confirmed correct against the
+real client by the run-speed-change and #37 ground-spell-tick acceptance work; Evocation and
+Fireball add no new risk here, and both runs rendered auras/damage correctly with zero
+`ByteBufferException`s in `WorldServer.log`. No protocol bugs found in this packet family.
+
+Issue #85's invalid-target negative case (deferred above, pending #89) is now exercised, but not via
+the `.cast` GM command: the fixture account has no RBAC/GM grant, and the issue text calls for the
+action bar specifically. `--mode invalid-target-spell-cast` (Plan 25) instead self-targets via the
+client-local `/target <name>` slash command (resolves against the client's own object cache, needs
+no server permission, still sends a genuine `CMSG_SET_SELECTION`) and then presses the same
+enemy-only Fireball hotkey used above. Generation 1 showed the original hypothesis was wrong: this
+never reaches `Spell::prepare()`/`CheckCast()` on the server at all. The 4.3.4 client already knows
+the spell's implicit-target type and the current target's reaction from local data, so it
+pre-validates the friend/foe mismatch client-side — red "Invalid target" text and a flashing action
+button, zero `CMSG_CAST_SPELL` in WorldServer.log, same as the no-target/dead-target/out-of-range
+cases already documented above. The negative-case evidence is therefore the combination of a real
+`CMSG_SET_SELECTION` reaching the server (proving the automation actually ran) with zero
+`CMSG_CAST_SPELL`/`SMSG_SPELL_GO`/`SMSG_CAST_FAILED` afterward (proving the client, not the server,
+rejected the cast). Generation 2 passed on this basis (`invalid_target_spell_cast_sequence_count:
+1`, `spell_cast_marker_count: 0`, `cast_failed_marker_count: 0`), with screenshots confirming the
+on-screen "Invalid target" flash. This closes out issue #85's real-client acceptance checklist.
+
+`--mode mage-negative` (Plan 35, issue #137) completes the cast-failure matrix on the same
+natively created level-1 Human Mage. One session walks five refusals: self-target (client-local,
+no request), Escape-cancel (`CMSG_CANCEL_CAST` then `SMSG_CAST_FAILED` 42), Fireball pressed inside
+Arcane Intellect's shared cooldown, a 50-yard far dummy (Fireball's range is 40), and a one-health Adder
+killed then re-targeted (client-local dead-target refusal). Arcane Intellect (1459) is seeded as a
+custom starting spell, enabled with `PlayerStart.CustomSpells`, and placed on action bar button 2
+(the level-1 mage auto-learns only Fireball from its skill line, and the stock Frost Armor 168 is
+absent from the server's Cata `Spell.dbc`); it is instant and starts the shared cooldown. The 4.3.4
+client queued a press made near the cooldown's end in the live run, so the predicate accepts either
+an immediate local refusal (or 69) or a queued cast whose completion lies outside the window and
+pays the full 9 mana. Fireball's own 1.5 s cast time equals
+the 1.5 s GCD, so pressing Fireball after *its own* completion can never hit the GCD. Mana
+regeneration is set to 0.0001 (`Rate.Mana`) for this mode so a regeneration tick cannot land
+between a cost and its completion and mask the exact 9. The mode then drains the durable dummy
+to below Fireball's 9 mana and presses once more. A refusal passes only with its expected path (no
+cast request, or a matching `SMSG_CAST_FAILED` result) and no `SMSG_SPELL_GO`; every accepted
+Fireball must cost exactly 9 mana, and the last successful drain cast must start in the 9..17 band.
+The seed sets `curhealth` explicitly because the `creature` spawn default is 1, which is what killed
+the follow-up dummy after its first cast.
+
+## GM commands for setup
+
+A scenario usually reaches its starting state faster with GM commands than by seeding SQL directly:
+spawn/`.npc add`, `.tele`, `.additem`, `.learn`, `.modify`, reputation and flag changes, and so on.
+Use them for *setup only* — the asserted behaviour must still run through the normal player path
+(see the AC-vs-TC precedence rule in `.agents/docs/cataclysm-conversion-goal.md`). The harness
+fixture account has no RBAC/GM grant by default (see the `.cast` notes above), so a GM-enabled setup
+step needs its own account with the required security level written into the generation. Full
+command list: https://www.azerothcore.org/wiki/gm-commands (runtime source of truth: the world DB
+`command` table).
+
+## The exact harness invocation
+
+Recovering these arguments from scratch is slow and they are not stored anywhere the
+`reset` command preserves (`generation.json` is removed by `reset`). Recorded here so a
+future run does not have to reconstruct them:
+
+```bash
+cd /mnt/e1384d9e-bede-40dd-8b1c-be0beb488490/Fun/azerothcore-cata
+M="/mnt/e1384d9e-bede-40dd-8b1c-be0beb488490/Fun/.plan11-runs/auth-15595/manifest.json"
+
+# Build once when authorized; reuse these binaries for subsequent prepare/run operations.
+# The binaries must report the current HEAD. Rebuild if their recorded revision is stale.
+cmake --build var/build-plan7 --target revision.h worldserver authserver -j "$(nproc)"
+
+python3 apps/cata/run_real_client_authentication.py reset --manifest "$M"
+python3 apps/cata/run_real_client_authentication.py prepare --manifest "$M" \
+  --authserver  "$PWD/var/build-plan7/src/server/apps/authserver" \
+  --worldserver "$PWD/var/build-plan7/src/server/apps/worldserver" \
+  --unit-tests  "$PWD/var/build-plan7/src/test/unit_tests" \
+  --client-root "/mnt/f79365ff-6a68-45da-925e-b9ddc6d5da6c/Blizzard Games/Battle.NET/drive_c/Games/Cataclysm-4.3.4.15595-enUS-x64" \
+  --data-root   "/mnt/f79365ff-6a68-45da-925e-b9ddc6d5da6c/Fun/TrinityCore/TrinityCore/data" \
+  --server-dbc-root "$PWD/var/extractors/dbc-out3/dbc" \
+  --wine-runner "/home/trolloks/.var/app/com.usebottles.bottles/data/bottles/runners/ge-proton11-6/files" \
+  --personal-bottle "/mnt/f79365ff-6a68-45da-925e-b9ddc6d5da6c/Blizzard Games/Battle.NET" \
+  --migration "$PWD/data/sql/updates/pending_db_auth/rev_1786964293354831242.sql" \
+  --display ":0" --xauthority "/home/trolloks/.Xauthority" \
+  --mode map-insertion-object-bootstrap
+python3 apps/cata/run_real_client_authentication.py run --manifest "$M" \
+  --auto-login --stability-seconds 8 --timeout 110 --hand-off
+```
+
+`var/build-plan7` is the build tree the harness uses — not `var/build`, which is not
+configured, nor `var/build-mysql-isolated`, which has no CMake cache.
+
+## Retrying a failed run — do not reset and re-prepare
+
+`run` also accepts an `observed` or `accepted` generation for another observation. It archives
+the previous generation record, server logs, raw evidence, and client Logs/Errors under
+`generation-N/previous-runs/` before clearing the current run's evidence. Reuse the same
+generation when the binaries and scenario inputs are unchanged; a new observation does not
+require another database restore, data copy, or Wine-prefix initialization.
+
+The default in-world-control input is three forward taps followed by the requested stability
+hold. Use `--stability-seconds 5` for the shortest supported hold. Login waits three seconds
+for a possible intro movie after acquiring the owned window; an observed movie retains its
+Escape handling and overall timeout. An inconclusive observation can be verified again with
+`--confirm-expected-screen` after actual visual confirmation, without launching the client again.
+
+`prepare` prints elapsed times for preflight, database readiness, file readiness, and completion.
+Database-cache restores group inserts between the dump's table locks and end with an explicit
+commit. Pending updates execute their SQL and bookkeeping in one MySQL invocation per file.
+Cache hashes, input-copy checks, and database durability settings remain enforced.
+
+For the pinned Plan 24 single-phase scenario, set `ISSUE97=1` for both `prepare` and `run`
+with `--mode in-world-control-bootstrap` at preparation. The scenario walks across the area
+9/12 boundary, logs out and in at both stops, and attempts normal NPC/chest interactions.
+Use `--timeout 150 --stability-seconds 5` for the run; the timeout includes both normal logout
+timers. It requires packet logging in the diagnostic server binary and `PacketLogFile` in the
+owned world configuration. The chest click is calibrated for the fixture and default camera;
+inspect the owned-window screenshots if either changes. The generic Plan 13 verifier checks
+bootstrap and isolation, while the phase capture requires separate inspection as documented
+in [the acceptance record](phase-97-client-acceptance.md).
+
+`run` accepts a generation already in `failed`/`inconclusive` state: it clears the raw
+evidence and client `Logs`, flips the state back to `prepared`, and proceeds. So a run that
+died on a transient environmental failure is retried by re-issuing the *same* `run` command
+and nothing else.
+
+`prepare` takes several minutes even with the database cache restored. Resetting and
+re-preparing after a transient run failure throws that time away for no benefit.
+
+### Fixed startup focus race, 2026-09-08
+
+The old login path discovered one window and then allowed only five seconds for activation.
+Generation 78 reproduced two focus failures before a third attempt passed. A traced run with
+the fix measured a longer activation gap:
+
+| Event | Seconds after run start |
+| --- | ---: |
+| Owned WoW window first discovered | 30.623 |
+| WM still reports `_NET_ACTIVE_WINDOW = 0x0` | 36.126 |
+| WM reports the owned window active | 36.527 |
+
+That 5.904s gap exceeds the old deadline. The shared wait now covers discovery and stable
+activation, so this delay is handled inside one attempt. Login also rechecks focus after
+the movie wait; a focus check performed before that wait cannot authorize later typing.
+
+Three consecutive runs with the fix authenticated and sent `CMSG_PLAYER_LOGIN` without a
+focus failure. The third also confirmed that X input focus matched the owned window. None
+sent `CMSG_TIME_SYNC_RESP`, so this evidence proves input delivery, not completed world
+loading. These were retries of generation 78 using existing binaries, first with a 110s
+observation period and then twice with 30s. Raw focus evidence is local at
+`/tmp/cata-focus-trace.log` and is not a committed fixture.
+
+Run the deterministic regression check with:
+
+```bash
+python3 apps/cata/test_real_client_focus.py
+python3 apps/cata/run_real_client_authentication.py self-check
+```
+
+The focus check covers an eight-second activation delay, a replaced client window, correct
+display propagation, an unrelated window remaining focused until timeout, and focus loss
+between acquisition and input. No real input is sent by that check. If a real run exhausts
+its new deadline, inspect the reported owned and active window IDs before retrying; never
+bypass ownership or focus verification.
+
+### Visually confirmed world entry with a diagnostic packet filter, 2026-09-08
+
+The user confirmed "we were in!" during generation 78's `drop-extras` relay run with
+`--auto-login --stability-seconds 8 --timeout 60`. The run ended in `observed` without a
+recorded failure, and the harness cleaned up the client and servers. A repeat with both
+limits set to 1800s confirmed world entry followed by a disconnect before the timer expired.
+The client returned to login while the server remained running. World entry is visually
+confirmed, but a stable session is not. The server log still contained no `CMSG_TIME_SYNC_RESP`.
+
+The guide was the sibling `cata-js` implementation and its successful `server.log` packet
+trace. A loopback relay filtered these server opcodes, which were absent from that reference
+startup sequence:
+
+```text
+SMSG_POWER_UPDATE                 SMSG_CRITERIA_UPDATE
+SMSG_MOVE_SET_ACTIVE_MOVER         SMSG_CONTACT_LIST
+SMSG_SET_FORCED_REACTIONS          SMSG_AURA_UPDATE_ALL
+SMSG_MOVE_UNSET_CAN_FLY            MSG_SET_DUNGEON_DIFFICULTY
+SMSG_WEATHER                      SMSG_QUESTGIVER_STATUS_MULTIPLE
+```
+
+The relay preserved forwarded packet bodies and compression, and re-encrypted outgoing
+headers to account for dropped packets. An earlier valid passthrough run reproduced the
+failure to enter world. This filter was a diagnostic workaround. The final test below
+isolated the aura-flag width and retained every outgoing packet. Do not remove all these
+packets from the server as a permanent fix.
+
+Local evidence is preserved in `/tmp/cata-success-drop-extras/`, including the user's
+observation, relay packet decisions, and server/client logs. The diagnostic relay is
+`/tmp/cata-login-proxy.py`; neither it nor those temporary artifacts are committed fixtures.
+This comparison led to the narrowed correction below. Keep raw authentication logs out of
+committed documentation.
+
+### Disconnect after world entry: missing guild opcodes, 2026-09-08
+
+The successful cata-js trace contains two startup requests missing from this fork's opcode
+table. `WorldSocket::ReadDataHandler()` returns `Error` for an unregistered opcode, and its
+caller closes the connection. The real client hit these consecutively:
+
+| Request | Build 15595 opcode | Correction |
+| --- | --- | --- |
+| Guild-bank withdrawal limit | `0x1225` | Bind the existing guild query handler to the Cata request opcode |
+| Guild achievement tracking | `0x1027` | Register as unhandled while guild achievement tracking remains unimplemented |
+
+The withdrawal-limit response also has its own Cata opcode, `0x5DB4`, and an eight-byte
+signed amount. The old bidirectional `0x03FE` definition and four-byte amount are WotLK layouts.
+These values agree with cata-js and pinned TrinityCore commit
+`c699217775d90794158422387b07a917e161b582`.
+
+A relay test routed `0x1225` to the existing handler and ignored `0x1027`, with the outgoing
+`drop-extras` filter retained. It produced a real screenshot of Cataplan in Northshire and
+11 matched time-sync exchanges without an unknown-opcode disconnect. Evidence is local at
+`/tmp/cata-success-guild-opcodes/`. Restoring all outgoing packets reproduced the loading
+screen even with both incoming corrections. The guild fixes address the disconnect; the
+outgoing aura-flag correction below completes the verified world-entry path.
+
+Two debugger samples showed the world loop and map worker waiting normally, disproving the
+earlier persistent-busy-loop hypothesis. In this environment, attaching GDB to an existing
+server failed, but launching the owned binary as GDB's child worked without rebuilding.
+
+### Resolved loading-screen hang: aura flags, 2026-09-08
+
+`AuraApplication::BuildUpdatePacket()` wrote aura flags as `uint8`, but build 15595 reads
+`uint16`. This shifted the caster level, stack count, and optional fields in every populated
+NPC aura record. The shared writer now emits `uint16`, fixing both initial aura lists and
+later aura updates. Pinned TrinityCore's `AuraDataInfo` serializer confirms the two-byte field.
+
+The final real-client test corrected that exact width and the two guild requests in the
+loopback relay. It retained every outgoing packet, including the previously filtered power,
+flight, weather, difficulty, quest-status, and aura packets. It showed Cataplan and nearby
+NPCs in Northshire, with 10 time-sync requests and 10 replies, no unknown-opcode disconnects,
+and no relay errors. Seventy aura packets passed through the corrected serializer.
+
+![Build 15595 client in Northshire after the aura and guild-opcode corrections](evidence/2026-09-08-world-entry.png)
+
+This is the stopping point for getting in-game. The C++ changes and a guild opcode/response
+regression check are committed for the next build; no rebuild or new C++ test execution was
+performed in this session. The live proof used existing binaries with the exact wire
+corrections applied by the diagnostic relay. It does not satisfy Plan 13's separate
+requirement for two fresh generations, and does not claim movement, combat, or quest support.
+Local raw evidence and the relay are preserved in `/tmp/cata-success-aura-and-guild/`.
+
+The focus regression check and runner self-check pass. SQL style checks pass. The C++ style
+check reports only three pre-existing repeated blank lines in `UpdateFields.h`, also present
+in the starting commit; the changed files introduce no reported style violations.
+
+### Walk/run toggle is a protected action; heartbeats stop while idle, 2026-09-21
+
+Issue #96 needed the harness to drive the real client's walk/run toggle. The commonly
+assumed name, `ToggleWalking()`, is `nil` in build 15595; a live `/script print(...)` probe
+confirmed the real function is `ToggleRun()`. Calling it via `/script ToggleRun()` is
+rejected outright with "A macro script has been blocked from an action only available to
+the Blizzard UI" — this is a protected action, not a taint error, and no `/script` call can
+invoke it regardless of taint state.
+
+The workaround is to drive it the way a real player would: `SetBinding("N","TOGGLERUN")`
+followed by `SaveBindings(GetCurrentBindingSet())` (an ordinary, unprotected config setter)
+binds the toggle to a key via `/script`, then the harness presses that real key. This
+reaches the toggle through the normal secure keybind input path.
+
+Typing that Lua literal exposed two more keysym gaps in `automate_key_sequence()`, beyond
+the parens-drop quirk already documented in `x_keysym_name`/`SHIFTED_KEYSYM_NAMES`: comma
+has no keysym named `","` (it is `"comma"`), and `'"'` needs the shifted `"apostrophe"` key.
+Both silently drop the keystroke instead of erroring, so a typed string that looks right in
+the source can still arrive at the client missing characters — verify new typed literals in
+an isolated target window (e.g. a `wmctrl`-addressable terminal or Tk entry box) before
+spending a real-client run on them.
+
+Separately, real-client evidence showed `MSG_MOVE_HEARTBEAT` is sent only while a movement
+flag is actively engaged, never while idle — zero heartbeats were observed for 12+ seconds
+after a real stop, confirmed against an archived `ground-movement` generation log with the
+same pattern. `ground_movement_is_stable_after_final_stop()` previously required at least
+one post-stop heartbeat to pass, which real client behavior can never satisfy; it now treats
+an empty post-stop heartbeat list as vacuously stable and only fails on a heartbeat that
+actually drifted from the final stop position. This also unblocks `ground-movement-mode` and
+`jump-fall-land-mode`, which shared the same unsatisfiable check.
+
+A geometry-enabled run shows a second real-client behaviour in the same family. With `MoveMaps`
+and vmap height enabled the client settles once onto the ground shortly after world entry — the
+2026-10-16 Plan 32 generation landed from the fixture's stored `z` to the terrain height and
+emitted its own `MSG_MOVE_FALL_LAND` after the in-world control marker, before the automation
+pressed anything. `jump_fall_land_action_pair()` and the `walk_run_mode_switch` check already drop
+that landing by taking only their trailing action window; the `ground-movement` check now excuses
+exactly the one marker-adjacent `MSG_MOVE_FALL_LAND` (`ground_movement_action_samples()`) and still
+requires the exact 12-opcode list, all six directional pairs and the post-stop stability, so a
+landing anywhere else stays a failure. The raw sequence remains in the evidence unchanged.
+
+`--mode plan32-geometry` carries the Plan 32 pinned stages, one stage per generation selected by
+`PLAN32_STAGE` (`blocked`, `clear`, `chase` or `relog`; prepare validates it, freezes it into the
+generation's `inputs` together with that stage's seeds, and run reads the frozen value and refuses
+a conflicting environment — a retry also re-seeds the character row, so it restarts from the
+pinned point). Every casting stage seeds the fixture at artifact-derived coordinates and targets it
+once by its unique name through the client-local `/target` macro. The LOS stages cast Fireball
+twice uncancelled; the chase stage casts once to aggro, then runs a pinned two-leg corner while the
+followed fixture must path around the same wall to melee range; the relog stage casts nothing — an
+engaged fixture would hold the character in combat and the client refuses to log out in combat — so
+it walks the clear stage's pinned route, stops, types `/logout` and enters the world again from the
+character screen. Verify reads the packet capture
+(`packets.pkt`, staged for this mode's generations) instead of opcode names: every cast must name
+spell 133 at the agreed selection with the stage's own counters, each request's client counter
+must come back on its own outcome (the wire carries `CMSG_CANCEL_CAST`, so a cancel between the
+two fails the run), blocked requires two `SMSG_CAST_FAILED` with result 49 and no `SPELL_GO`,
+clear and chase require a player-cast `SPELL_GO` and no failure. Identity binds to the agreed
+selection plus the fixture's own create block: its entry field, its `HIGHGUID_UNIT` bits and its
+position must agree with the seeded spawn, the position read along the fixture's own spline
+packets at each cast's arrival tick (a fixture walking when the cast lands sits between the
+start and the advertised destination, and a fixture that never moved, as in the blocked stage,
+keeps its spawn). Two further conditions the mode rests on: the run must have used the copies
+staged for it (`paths.data`, the trees `prepare` hash-verified and pointed the server's `DataDir`
+at — their hashes are recomputed when the verdict is computed, the config must still point there,
+`MoveMaps.Enable`, `vmap.enableLOS` and `vmap.enableHeight` must be set, and its `VMap support
+included. LineOfSight:true` startup line must be present, as must a terrain height under every
+accepted movement sample within 2 m), and every cast's ray, re-derived from those vmaps between
+the two units' cast-time positions at eye height and again at a low point on the fixture, must
+break on the pinned obstacle for the blocked stage and be whole for the clear and chase stages.
+The chase stage additionally requires the staged mmap to route the fixture from its spawn to the
+player's end point with a real detour around that obstacle, and reads the detour the fixture
+itself showed only where it actually executed it: from the client's own `MSG_MOVE_START_FORWARD`
+(run leg) onward, each spline cut at the tick the next packet for that mover arrived (a repath
+supersedes the old forecast) and at the capture's end, so a repeated straight replan cannot
+manufacture a detour and an advertised destination nobody reached cannot stand in for arrival.
+What survives is a timeline in packet order: a walk leg per straight segment and a hold wherever
+no spline runs — to the next packet for the mover, and to the capture's end after the last. The
+player's own `MSG_MOVE_STOP_STRAFE` is where the run leg ends, so until that tick nothing can be
+called the arrival — an approach spline overlapping the run and ending near the player's end point
+is not the chase reaching it — and from that tick the arrival is the first moment the timeline
+stands within range of that end point, solved on the walk leg that enters the range (a pass that
+only grazes it counts, dated where it touches) or read off the hold it stood on, so neither the
+walk home after the victim drops is measured as the chase nor an in-range swing is discarded for
+landing before the next vertex. A hold lasts only to the next packet for the mover: where that
+packet puts the mover somewhere else, one later in the same millisecond has already moved it, and
+only the capture's packet order says whether a stop at that tick still caught the old position
+rather than an arrival the run never made. A spline resuming more than 2 m from where the previous
+one was cut is a discontinuity, recorded and failed rather than smoothed over as long as the
+trimmed observation still contains it, and a swing proves melee range only when it lands after
+both the arrival and the player's stop.
+The
+relog stage's own requirement is persistence, and it reads the run's log in order: the walk must
+have ended in an accepted stop before the server completed the logout, the client must have sent its
+second login, and the first accepted movement after that login must be a world-entry landing
+agreeing with the stop within 0.5 m while both stay at least 1 m from the seeded login point — so
+the position the client arrived at is the row the server saved at logout, and a landing inside the
+first session can never stand in for it. Exactly one `SMSG_LOGOUT_COMPLETE` and two
+`CMSG_PLAYER_LOGIN` requests are required. The server's time-sync liveness line is deliberately not
+used for this: `MovementHandler` logs it only while a session's clock-delta queue is empty, so the
+second login of an already-in-world character need not produce one.
+Two facts this mode depends on: grid loading creates units with server-assigned map-local lows
+(keeping the DB guid only as spawnId), so identity binds to the agreed selection plus a
+seed-uniqueness gate rather than a precomputed GUID; and `WorldSocket` enables per-session packet
+logging whenever `PacketLogFile` is configured (previously a dead key without a GM command this
+`SCRIPTS=none` build does not have; empty by default, and read from the packet log's own cached
+setting rather than the config manager on every connection).
+
+## Plan 33 vendor round trip (`--mode vendor-trade`)
+
+One generation drives the whole native vendor surface through the real client's own UI: name-target
+Godric Rothgar (entry 1213, spawn guid 79952, `vendor|repair`), interact through a `/script
+SetBinding("G","INTERACTTARGET")` keybind, take whichever of the gossip frame or the vendor window the
+interaction produces (the gossip option is clicked only when the vendor did not open directly), buy
+his MuID 8 row (Small Shield 17184), right-click a seeded bracer (2384) in the backpack to sell it,
+buy it back from the merchant frame's buyback page, repair a seeded equipped vest (2379, seeded at
+5/55 durability) through the frame's repair-all anvil, then `/logout` so the character row is saved
+before the harness stops the servers. `prepare` places the fixture 2.8 yd from the NPC; `run`
+seeds 5 gold and both items (`vendor_trade_seed_sql`) before every attempt, so a retry starts from
+the intended state.
+
+Every step waits for the opcode the server logs for that action (`SMSG_GOSSIP_MESSAGE` or
+`SMSG_VENDOR_INVENTORY`, `SMSG_BUY_ITEM`, `CMSG_SELL_ITEM`, `CMSG_BUYBACK_ITEM`, `CMSG_REPAIR_ITEM`,
+`SMSG_LOGOUT_COMPLETE`), so a missed click fails in the automation with the screenshot taken just
+before it as calibration evidence: `vendor-before-target.png`, `vendor-after-target.png`,
+`vendor-gossip.png`, `vendor-open.png`, `vendor-after-buy.png`, `vendor-backpack.png`,
+`vendor-after-sell.png`, `vendor-buyback-tab.png`, `vendor-after-buyback.png`,
+`vendor-purchase-tab.png`, `vendor-after-repair.png`, `vendor-after-logout.png`.
+Each wait's packet target is captured *before* the input is sent, so a response that arrives
+before the input helper returns still counts; logout gets its own 45 s deadline because an
+ordinary fixture outside a resting area waits the full logout timer.
+
+The click positions are window fractions derived from the 4.3.4 `MerchantFrame.xml` and calibrated on
+the 1800x1042 reference window. The frame anchors at `UIParent`'s top-left minus 104 y; its item grid
+is **two columns of six** cells, 165x52 design px each, filled left to right and top to bottom, so
+MuID 8 sits in the right column's fourth row (`VENDOR_TRADE_ITEM_GRID_ORIGIN`/`_COLUMN_WIDTH`/
+`_HEIGHT`; a single-column model buys the wrong item). The buyback page fills the same twelve grid
+cells with the recent sales and hides the single recent-sale control
+(`MerchantFrame_UpdateBuybackInfo`), so the newest sale is grid cell 1 and any click on that cell
+calls `BuybackItem`; the buyback page itself is tab 2 at the frame's bottom-left
+(`VENDOR_TRADE_BUYBACK_TAB`), the purchase tab is tab 1 beside it (`VENDOR_TRADE_PURCHASE_TAB`,
+reselected after the buyback because the buyback page hides both repair buttons), and repair-all is
+the anvil button at the frame's bottom-left (`VENDOR_TRADE_REPAIR_BUTTON`). The gossip
+option's row is DB-defined (`VENDOR_TRADE_GOSSIP_OPTION_ORIGIN`/`_HEIGHT`/`_ROW`). All of these are
+`shortcut: default UI scale and layout; recalibrate them from the run's own screenshots after
+changing either.` Right-click buys and sells because that is the UI path a player uses, not a
+scripted request.
+
+Verification (`verify`) requires the six request/result markers above, no `SMSG_BUY_FAILED`, and the
+character row after the logout to show the bought shield owned, the sold bracer back in a backpack
+slot (23-38, not a buyback slot), the vest repaired to its 55 durability, and money above zero but
+below the seeded 5 gold. Because opcode names cannot identify an item, the mode also enables
+`PacketLogFile` and reads the requests' payloads: the sale's item counter must be the seeded
+bracer's GUID and the buyback's slot must be 74 (`BUYBACK_SLOT_START`, where the first sale lands),
+so an untouched bracer sitting in its seeded slot cannot stand in for the round trip.
+
+Run with `--stability-seconds 8 --timeout 180`; the round trip takes about 90 s after the in-world
+marker (the accepted run logged the marker at 12:59:23, the purchase at 12:59:59, the repair at
+13:00:23 and the logout at 13:00:49).
+
+## Plan 33 rejection cases (`--mode vendor-negative`)
+
+One generation per case, selected by `VENDOR_CASE` at prepare and frozen into the generation inputs (the
+Plan 32 `PLAN32_STAGE` pattern): a retry re-seeds that case's state and `run` refuses an environment naming
+another case.
+
+| case | seed | action | pass condition |
+| --- | --- | --- | --- |
+| `no-money` | money 0 | buy MuID 8 | nothing granted or charged, money stays 0 |
+| `full-bags` | money 50000, all 16 backpack slots filled | buy MuID 8 | nothing granted or charged, money stays 50000 |
+| `repeat-buy` | money 50000 | buy MuID 8 twice | two charges/grants: two `SMSG_BUY_ITEM`, money 49932 |
+
+In the accepted runs this client sent `CMSG_BUY_ITEM` even when it could not afford the item or store it, so
+the server's refusals are what the checks saw, and the verifier requires them: exactly one request plus the
+case's own result code — `SMSG_BUY_FAILED` reason 2 (`BUY_ERR_NOT_ENOUGHT_MONEY`) for `no-money`, or
+`SMSG_INVENTORY_CHANGE_FAILURE` reason 50 (`EQUIP_ERR_INVENTORY_FULL`) for `full-bags` — with the complete
+saved inventory compared against the seed (so a missed click, an unrelated refusal or a lost filler item
+cannot pass). `repeat-buy` requires two requests, two results, and exactly two shields in slots 23-24 with
+money 49932.
+The automation logs out at the end so the saved character row can be checked, which also produces the second
+character enumeration vendor modes already allow. Screenshots: `negative-<case>-after-buy.png` and
+`negative-<case>-after-logout.png`; run with `--stability-seconds 8 --timeout 180`.
+
+Pending native attempts (player actions or state, not forged packets): a dead or out-of-range vendor, and
+selling a non-empty bag (the AC handler guards that path at `ItemHandler.cpp:618`); the refusing layer is to
+be established the same way it was for the buy cases. Parse/unit-level only, because the native client cannot
+encode them: invalid vendor/slot/type/count fields and a foreign-owned item — these are not faked by injecting
+packets. Exhausted stock and an extended-cost row with a currency requirement are the next native candidates
+(they need the vendor-list payload decoded and an `ItemExtendedCost.dbc` row with a currency).
+
+## Plan 34 trainer learning (`--mode trainer-learn`)
+
+Opens **Llane Beshere** (creature 911, spawn guid 79964, trainer table id **2**, Class/Warrior) in
+Northshire, clicks his gossip option "I require warrior training." (he gives no quests, so it is the first
+row), buys **Battle Shout** (spell 6673; 10 copper base in `trainer_spell`, 9 after the reputation
+discount) from the trainer frame, opens the spellbook, casts
+it by name and logs out. The seed is 5 gold with `character_spell`/`character_action` cleared, so a retry
+starts unknown and cannot pass as "already learned".
+
+Every step waits for the opcode the server logs for it (`SMSG_GOSSIP_MESSAGE` or `SMSG_TRAINER_LIST`,
+`SMSG_TRAINER_BUY_SUCCEEDED`, `CMSG_CAST_SPELL` + `SMSG_SPELL_GO`, `SMSG_LOGOUT_COMPLETE`). Verification
+decodes the run's own packet capture: the list, the buy and the success must name the same runtime NPC
+(creature entry 911) and trainer id 2, the list must carry Battle Shout as available (state 1) at the pinned
+9-copper discounted price with at least one unavailable row, `SMSG_LEARNED_SPELL` must name 6673 exactly once,
+the cast must be the fixture player's own counter matched by a `SMSG_SPELL_GO` with no matching
+`SMSG_CAST_FAILED`, and the saved row must show the spell learned with money reduced by exactly that price
+(the fixture's 10-copper base cost and the reputation discount produce 9, so a free-training regression
+fails).
+Screenshots: `trainer-before-target.png`, `trainer-after-target.png`, `trainer-gossip.png`, `trainer-open.png`,
+`trainer-after-buy.png`, `trainer-spellbook.png`, `trainer-after-cast.png`, `trainer-after-logout.png`. Click
+fractions are calibration constants, like the vendor mode's, evidenced by those screenshots.
+
+Not yet covered here: an in-run relog (persistence is checked from the stored row after logout), action-bar
+placement (casting by name proves the learned spell is usable), and the negative cases (mismatched trainer id,
+spell not offered, insufficient money, unmet level/skill, repeat purchase). The parse-level boundary case is
+`NPCPacketsTest.TrainerBuySpellRejectsMissingTrainerId`; the server-side refusals that a native client can
+reach are a follow-up batch.
+
+## Building before a run
+
+`prepare` refuses binaries whose `--version` does not report the current HEAD, so a build is
+required first. Two things about `var/build-plan7` that will otherwise cost time:
+
+- Its CMake cache points `MYSQL_INCLUDE_DIR`/`MYSQL_LIBRARY` at `/tmp/mysql-dev`, a staging
+  tree that does not survive a reboot. Repopulate it without root via
+  `apt-get download libmysqlclient-dev libmysqlclient21` and `dpkg-deb -x` into
+  `/tmp/mysql-dev`. MariaDB's headers (`/usr/include/mariadb`) are *not* a substitute — they
+  lack `mysql_ssl_mode` and `mysql_stmt_bind_named_param`, and linking against them trips the
+  `ACE00046` client/compile version assertion at startup.
+- If the host has the real MySQL client development files installed (2026-10-16: `libmysqlclient-dev`
+  8.0.46), point the cache at them instead of building a staging tree — verified working:
+  `cmake -S . -B var/build-plan7 -DMYSQL_CONFIG=/usr/bin/mysql_config
+  -DMYSQL_INCLUDE_DIR=/usr/include/mysql -DMYSQL_LIBRARY=/usr/lib/x86_64-linux-gnu/libmysqlclient.so`.
+  The host `mysql` client binary being MariaDB's is irrelevant; only the headers and library are
+  compiled and linked against. Keep `/usr/include/mysql` as the include root — it is the layout that
+  makes `mysql_com.h`'s `"mysql/udf_registration_types.h"` include resolve, so the self-referential
+  symlink below is only needed for a hand-built staging tree.
+- `mysql_com.h` includes `"mysql/udf_registration_types.h"`, so the include root needs a
+  self-referential `mysql -> .` symlink inside it.
+
+## `.go`/teleport acknowledgement and post-teleport input
+
+The Cata client's `MSG_MOVE_TELEPORT_ACK` is **ack index, move time, then a bit-packed mover GUID**
+(`ReadTeleportAck` in `MovementPackets.cpp`); the old WotLK packed-guid-first read produced a
+different GUID, the server rejected the ACK, and the player stayed at the old position while the
+client's camp grid was never sent — the symptom is "the teleport ran but no creatures/objects
+appear". `CMSG_MOVE_TIME_SKIPPED` likewise is **time first, then the bit-packed GUID**, and its
+relay writes time then the packed GUID. Unit tests
+`MovementPacketsTest.ReadsCataTeleportAcknowledgment` and
+`ReadsAndWritesCataMoveTimeSkipped` pin the captured 4.3.4 bytes.
+
+After the teleport, wait for the client's **loading screen to show and hide**
+(`CMSG_LOADING_SCREEN_NOTIFY`, two notifications after the command) and for the destination
+`SMSG_UPDATE_OBJECT` before sending any key. Typing during that window turns `/targetexact` and
+`/script` text into ordinary game keybinds and opens character/spellbook/quest/bag frames; it can
+also lose the owned window. For a fresh native character, mark the account's tutorials seen
+(`account_tutorial` all `0xFFFFFFFF`) and `cinematic=1`; the "click Attack" tutorial otherwise
+swallows the first input exactly like a loading stall. Verified in Plan 36 after the ACK fix: the
+character landed beside spawn 80024 and the Kobold Vermin were visible and fightable.
+
+## Reading opcodes back out of a run
+
+`GetOpcodeNameForLogging` emits a bracketed form, so grep for the bracket or you will get
+no matches and wrongly conclude nothing was logged:
+
+```bash
+G=$(ls -d /mnt/e1384d9e-bede-40dd-8b1c-be0beb488490/Fun/.plan11-runs/auth-15595/generation-* | sort -V | tail -1)
+grep -oE "\[(CMSG|MSG)_[A-Z_0-9]+" "$G/logs/WorldServer.log" | sort | uniq -c | sort -rn
+```

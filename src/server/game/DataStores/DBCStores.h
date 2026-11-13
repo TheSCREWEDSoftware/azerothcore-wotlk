@@ -23,6 +23,7 @@
 #include "DBCStructure.h"
 #include <list>
 #include <unordered_map>
+#include <vector>
 #include <unordered_set>
 
 typedef std::list<uint32> SimpleFactionsList;
@@ -58,10 +59,20 @@ uint32 const* /*[MAX_TALENT_TABS]*/ GetTalentTabPages(uint8 cls);
 
 uint32 GetLiquidFlags(uint32 liquidType);
 
+// Expands a Phase.dbc id or a PhaseXPhaseGroup.dbc group id into its member phase ids.
+// A plain phase id (not a group) expands to itself.
+std::vector<uint32> GetPhasesForGroup(uint32 phaseOrGroupId);
+
+// True if phaseOrGroupId identifies a real Phase.dbc entry or PhaseXPhaseGroup.dbc group.
+bool IsValidPhaseOrPhaseGroupId(uint32 phaseOrGroupId);
+bool IsValidPhaseId(uint32 phaseId);
+bool IsValidPhaseGroupId(uint32 phaseGroupId);
+
 PvPDifficultyEntry const* GetBattlegroundBracketByLevel(uint32 mapid, uint32 level);
 PvPDifficultyEntry const* GetBattlegroundBracketById(uint32 mapid, BattlegroundBracketId id);
 
 CharStartOutfitEntry const* GetCharStartOutfitEntry(uint8 race, uint8 class_, uint8 gender);
+uint32 GetPowerIndexByClass(uint32 power, uint32 classId);
 
 LFGDungeonEntry const* GetLFGDungeon(uint32 mapId, Difficulty difficulty);
 LFGDungeonEntry const* GetZoneLFGDungeonEntry(std::string const& zoneName, LocaleConstant locale);
@@ -91,6 +102,7 @@ extern DBCStorage <CharStartOutfitEntry>         sCharStartOutfitStore;
 extern DBCStorage <CharSectionsEntry>            sCharSectionsStore;
 extern DBCStorage <CharTitlesEntry>              sCharTitlesStore;
 extern DBCStorage <ChrClassesEntry>              sChrClassesStore;
+extern DBCStorage <ChrPowerTypesEntry>           sChrPowerTypesStore;
 extern DBCStorage <ChrRacesEntry>                sChrRacesStore;
 extern DBCStorage <CinematicCameraEntry>         sCinematicCameraStore;
 extern DBCStorage <CinematicSequencesEntry>      sCinematicSequencesStore;
@@ -148,6 +160,8 @@ extern DBCStorage <MovieEntry>                   sMovieStore;
 extern DBCStorage <NamesReservedEntry>           sNamesReservedStore;
 extern DBCStorage <NamesProfanityEntry>          sNamesProfanityStore;
 extern DBCStorage <OverrideSpellDataEntry>       sOverrideSpellDataStore;
+extern DBCStorage <PhaseEntry>                   sPhaseStore;
+extern DBCStorage <PhaseGroupEntry>              sPhaseGroupStore;
 extern DBCStorage <PowerDisplayEntry>            sPowerDisplayStore;
 extern DBCStorage <QuestSortEntry>               sQuestSortStore;
 extern DBCStorage <QuestXPEntry>                 sQuestXPStore;
@@ -158,6 +172,7 @@ extern DBCStorage <ScalingStatValuesEntry>       sScalingStatValuesStore;
 extern DBCStorage <SkillLineEntry>               sSkillLineStore;
 extern DBCStorage <SkillLineAbilityEntry>        sSkillLineAbilityStore;
 extern SkillLineAbilityIndexBySkillLine          sSkillLineAbilityIndexBySkillLine;
+extern DBCStorage <SkillRaceClassInfoEntry>      sSkillRaceClassInfoStore;
 extern DBCStorage <SkillTiersEntry>              sSkillTiersStore;
 extern DBCStorage <SoundEntriesEntry>            sSoundEntriesStore;
 extern DBCStorage <SpellCastTimesEntry>          sSpellCastTimesStore;
@@ -175,6 +190,22 @@ extern DBCStorage <SpellRangeEntry>              sSpellRangeStore;
 extern DBCStorage <SpellRuneCostEntry>           sSpellRuneCostStore;
 extern DBCStorage <SpellShapeshiftFormEntry>     sSpellShapeshiftFormStore;
 extern DBCStorage <SpellEntry>                   sSpellStore;
+extern DBCStorage<SpellEffectEntry> sSpellEffectStore;
+extern DBCStorage<SpellAuraOptionsEntry> sSpellAuraOptionsStore;
+extern DBCStorage<SpellAuraRestrictionsEntry> sSpellAuraRestrictionsStore;
+extern DBCStorage<SpellCastingRequirementsEntry> sSpellCastingRequirementsStore;
+extern DBCStorage<SpellCategoriesEntry> sSpellCategoriesStore;
+extern DBCStorage<SpellClassOptionsEntry> sSpellClassOptionsStore;
+extern DBCStorage<SpellCooldownsEntry> sSpellCooldownsStore;
+extern DBCStorage<SpellEquippedItemsEntry> sSpellEquippedItemsStore;
+extern DBCStorage<SpellInterruptsEntry> sSpellInterruptsStore;
+extern DBCStorage<SpellLevelsEntry> sSpellLevelsStore;
+extern DBCStorage<SpellPowerEntry> sSpellPowerStore;
+extern DBCStorage<SpellReagentsEntry> sSpellReagentsStore;
+extern DBCStorage<SpellScalingEntry> sSpellScalingStore;
+extern DBCStorage<SpellShapeshiftEntry> sSpellShapeshiftStore;
+extern DBCStorage<SpellTargetRestrictionsEntry> sSpellTargetRestrictionsStore;
+extern DBCStorage<SpellTotemsEntry> sSpellTotemsStore;
 extern DBCStorage <SpellVisualEntry>             sSpellVisualStore;
 extern DBCStorage <StableSlotPricesEntry>        sStableSlotPricesStore;
 extern DBCStorage <SummonPropertiesEntry>        sSummonPropertiesStore;

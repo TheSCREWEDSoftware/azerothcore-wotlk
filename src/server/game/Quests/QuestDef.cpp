@@ -21,8 +21,38 @@
 #include "Player.h"
 #include "World.h"
 
+bool Quest::IsValidRewardChoice(uint32 reward) const
+{
+    if (reward >= QUEST_REWARD_CHOICES_COUNT)
+        return false;
+
+    if (RewardChoiceItemId[reward])
+        return true;
+
+    for (uint32 item : RewardChoiceItemId)
+        if (item)
+            return false;
+
+    return reward == 0;
+}
+
 Quest::Quest(Field* questRecord)
 {
+    RewardReputationMask = questRecord[104].Get<uint32>();
+    SoundAccept = questRecord[105].Get<uint32>();
+    SoundTurnIn = questRecord[106].Get<uint32>();
+    RewardBonusMoney = questRecord[107].Get<uint32>();
+    RequiredSpell = questRecord[108].Get<uint32>();
+    for (uint32 i = 0; i < QUEST_REWARD_CURRENCY_COUNT; ++i)
+    {
+        RewardCurrencyId[i] = questRecord[109 + i * 2].Get<uint32>();
+        RewardCurrencyCount[i] = questRecord[110 + i * 2].Get<uint32>();
+    }
+    for (uint32 i = 0; i < QUEST_REQUIRED_CURRENCY_COUNT; ++i)
+    {
+        RequiredCurrencyId[i] = questRecord[117 + i * 2].Get<uint32>();
+        RequiredCurrencyCount[i] = questRecord[118 + i * 2].Get<uint32>();
+    }
     EmoteOnIncomplete = 0;
     EmoteOnComplete = 0;
     _reqItemsCount = 0;
@@ -309,7 +339,9 @@ uint32 Quest::CalculateHonorGain(uint8 level) const
 
     uint32 honor = 0;
 
-    if (GetRewHonorAddition() > 0 || GetRewHonorMultiplier() > 0.0f)
+    // TeamContributionPoints.dbc was removed in the real Cata client (matches upstream TC,
+    // which also drops this calculation for build 15595 onward).
+    /*if (GetRewHonorAddition() > 0 || GetRewHonorMultiplier() > 0.0f)
     {
         // values stored from 0.. for 1...
         TeamContributionPointsEntry const* tc = sTeamContributionPointsStore.LookupEntry(level);
@@ -320,7 +352,7 @@ uint32 Quest::CalculateHonorGain(uint8 level) const
         // Xinef: exactly this is calculated above, however with higher precision...
         //honor += Acore::Honor::hk_honor_at_level(level, GetRewHonorMultiplier());
         honor += GetRewHonorAddition();
-    }
+    }*/
 
     return honor;
 }
@@ -352,7 +384,7 @@ void Quest::InitializeQueryData()
     else
         queryData << int32(GetRewOrReqMoney());           // reward money (below max lvl)
 
-    queryData << uint32(GetRewMoneyMaxLevel());           // used in XP calculation at client
+    queryData << RewardBonusMoney;
     queryData << uint32(GetRewSpell());                   // reward spell, this spell will display (icon) (casted if RewSpellCast == 0)
     queryData << int32(GetRewSpellCast());                // casted spell
 
@@ -360,12 +392,15 @@ void Quest::InitializeQueryData()
     queryData << uint32(GetRewHonorAddition());
     queryData << float(GetRewHonorMultiplier());
     queryData << uint32(GetSrcItemId());                  // source item id
-    queryData << uint32(GetFlags() & 0xFFFF);             // quest flags
+    queryData << uint32(GetFlags());             // quest flags
+    queryData << uint32(0);                              // MinimapTargetMark
     queryData << uint32(GetCharTitleId());                // CharTitleId, new 2.4.0, player gets this title (id from CharTitles)
     queryData << uint32(GetPlayersSlain());               // players slain
     queryData << uint32(GetBonusTalents());               // bonus talents
     queryData << uint32(GetRewArenaPoints());             // bonus arena points
-    queryData << uint32(0);                                      // review rep show mask
+    queryData << uint32(0) << uint32(0);                  // RewardSkillLineID, RewardNumSkillUps
+    queryData << RewardReputationMask;
+    queryData << uint32(0) << uint32(0);                  // PortraitGiver, PortraitTurnIn
 
     if (HasFlag(QUEST_FLAGS_HIDDEN_REWARDS))
     {
@@ -417,7 +452,7 @@ void Quest::InitializeQueryData()
 
         queryData << uint32(RequiredNpcOrGoCount[i]);
         queryData << uint32(ItemDrop[i]);
-        queryData << uint32(0);                                  // req source count?
+        queryData << uint32(ItemDropQuantity[i]);
     }
 
     for (uint32 i = 0; i < QUEST_ITEM_OBJECTIVES_COUNT; ++i)
@@ -426,6 +461,13 @@ void Quest::InitializeQueryData()
         queryData << uint32(RequiredItemCount[i]);
     }
 
+    queryData << GetRequiredSpell();
     for (uint32 i = 0; i < QUEST_OBJECTIVES_COUNT; ++i)
         queryData << ObjectiveText[i];
+    for (uint32 i = 0; i < QUEST_REWARD_CURRENCY_COUNT; ++i)
+        queryData << RewardCurrencyId[i] << RewardCurrencyCount[i];
+    for (uint32 i = 0; i < QUEST_REQUIRED_CURRENCY_COUNT; ++i)
+        queryData << RequiredCurrencyId[i] << RequiredCurrencyCount[i];
+    queryData << std::string() << std::string() << std::string() << std::string();
+    queryData << SoundAccept << SoundTurnIn;
 }

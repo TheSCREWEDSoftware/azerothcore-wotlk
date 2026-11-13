@@ -67,7 +67,13 @@ CMakeLists.txt.user
 .claude/settings.local.json
 .claude/plans/**
 .claude/.cc-writes/
+.claude/.headroom_wrap_*
 CLAUDE.local.md
+
+#
+# Serena
+#
+.serena/
 
 #
 # IDE & other software
@@ -132,3 +138,6 @@ e2e/local/**
 !e2e/local/README.md
 e2e/go.work
 e2e/go.work.sum
+
+# graphify knowledge graph (local, regenerable, ~100 MB)
+graphify-out/

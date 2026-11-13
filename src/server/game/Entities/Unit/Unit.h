@@ -34,6 +34,7 @@
 #include <array>
 #include <boost/container/flat_map.hpp>
 #include <functional>
+#include <optional>
 #include <utility>
 
 #define WORLD_TRIGGER   12999
@@ -652,18 +653,18 @@ enum class SpeedOpcodeIndex : uint32
     MAX
 };
 
-typedef const Opcodes SpeedOpcodePair[static_cast<size_t>(SpeedOpcodeIndex::MAX)];
+typedef const OpcodeServer SpeedOpcodePair[static_cast<size_t>(SpeedOpcodeIndex::MAX)];
 SpeedOpcodePair SetSpeed2Opc_table[MAX_MOVE_TYPE] =
 {
-    {SMSG_FORCE_WALK_SPEED_CHANGE,        SMSG_SPLINE_SET_WALK_SPEED,           MSG_MOVE_SET_WALK_SPEED},
-    {SMSG_FORCE_RUN_SPEED_CHANGE,         SMSG_SPLINE_SET_RUN_SPEED,            MSG_MOVE_SET_RUN_SPEED},
-    {SMSG_FORCE_RUN_BACK_SPEED_CHANGE,    SMSG_SPLINE_SET_RUN_BACK_SPEED,       MSG_MOVE_SET_RUN_BACK_SPEED},
-    {SMSG_FORCE_SWIM_SPEED_CHANGE,        SMSG_SPLINE_SET_SWIM_SPEED,           MSG_MOVE_SET_SWIM_SPEED},
-    {SMSG_FORCE_SWIM_BACK_SPEED_CHANGE,   SMSG_SPLINE_SET_SWIM_BACK_SPEED,      MSG_MOVE_SET_SWIM_BACK_SPEED},
-    {SMSG_FORCE_TURN_RATE_CHANGE,         SMSG_SPLINE_SET_TURN_RATE,            MSG_MOVE_SET_TURN_RATE},
-    {SMSG_FORCE_FLIGHT_SPEED_CHANGE,      SMSG_SPLINE_SET_FLIGHT_SPEED,         MSG_MOVE_SET_FLIGHT_SPEED},
-    {SMSG_FORCE_FLIGHT_BACK_SPEED_CHANGE, SMSG_SPLINE_SET_FLIGHT_BACK_SPEED,    MSG_MOVE_SET_FLIGHT_BACK_SPEED},
-    {SMSG_FORCE_PITCH_RATE_CHANGE,        SMSG_SPLINE_SET_PITCH_RATE,           MSG_MOVE_SET_PITCH_RATE},
+    {SMSG_FORCE_WALK_SPEED_CHANGE,        SMSG_SPLINE_SET_WALK_SPEED,           MSG_MOVE_SET_WALK_SPEED_SERVER},
+    {SMSG_MOVE_SET_RUN_SPEED,             SMSG_SPLINE_SET_RUN_SPEED,            SMSG_MOVE_UPDATE_RUN_SPEED},
+    {SMSG_FORCE_RUN_BACK_SPEED_CHANGE,    SMSG_SPLINE_SET_RUN_BACK_SPEED,       MSG_MOVE_SET_RUN_BACK_SPEED_SERVER},
+    {SMSG_FORCE_SWIM_SPEED_CHANGE,        SMSG_SPLINE_SET_SWIM_SPEED,           MSG_MOVE_SET_SWIM_SPEED_SERVER},
+    {SMSG_FORCE_SWIM_BACK_SPEED_CHANGE,   SMSG_SPLINE_SET_SWIM_BACK_SPEED,      MSG_MOVE_SET_SWIM_BACK_SPEED_SERVER},
+    {SMSG_FORCE_TURN_RATE_CHANGE,         SMSG_SPLINE_SET_TURN_RATE,            MSG_MOVE_SET_TURN_RATE_SERVER},
+    {SMSG_FORCE_FLIGHT_SPEED_CHANGE,      SMSG_SPLINE_SET_FLIGHT_SPEED,         MSG_MOVE_SET_FLIGHT_SPEED_SERVER},
+    {SMSG_FORCE_FLIGHT_BACK_SPEED_CHANGE, SMSG_SPLINE_SET_FLIGHT_BACK_SPEED,    MSG_MOVE_SET_FLIGHT_BACK_SPEED_SERVER},
+    {SMSG_FORCE_PITCH_RATE_CHANGE,        SMSG_SPLINE_SET_PITCH_RATE,           MSG_MOVE_SET_PITCH_RATE_SERVER},
 };
 
 class Unit : public WorldObject
@@ -790,7 +791,7 @@ public:
     inline bool IsCrowdControlled() const { return HasFlag(UNIT_FIELD_FLAGS, (UNIT_FLAG_CONFUSED | UNIT_FLAG_FLEEING | UNIT_FLAG_STUNNED)); }
     inline bool IsImmobilizedState() const { return HasUnitState(UNIT_STATE_ROOT | UNIT_STATE_STUNNED); }
 
-    void SetAnimTier(AnimTier animTier);
+    void SetAnimTier(AnimTier animTier, bool notifyClient = true);
 
     /*********************************************************/
     /***           UNIT TYPES, CLASSES, RACES...           ***/
@@ -1146,8 +1147,10 @@ public:
     [[nodiscard]] virtual bool HasActivePowerType(Powers power) { return getPowerType() == power; }
     [[nodiscard]] Powers GetPowerTypeByAuraGroup(UnitMods unitMod) const;
 
-    [[nodiscard]] uint32 GetPower(Powers power) const { return GetUInt32Value(static_cast<uint16>(UNIT_FIELD_POWER1) + power); }
-    [[nodiscard]] uint32 GetMaxPower(Powers power) const { return GetUInt32Value(static_cast<uint16>(UNIT_FIELD_MAXPOWER1) + power); }
+    static constexpr uint8 MAX_UNIT_POWER_FIELDS = 5;
+    [[nodiscard]] uint32 GetPowerIndex(Powers power) const;
+    [[nodiscard]] uint32 GetPower(Powers power) const;
+    [[nodiscard]] uint32 GetMaxPower(Powers power) const;
     [[nodiscard]] float GetPowerPct(Powers power) const { return GetMaxPower(power) ? 100.f * GetPower(power) / GetMaxPower(power) : 0.0f; }
     [[nodiscard]] uint32 GetCreatePowers(Powers power) const;
 
@@ -1758,10 +1761,17 @@ public:
     void SetSpeedRate(UnitMoveType mtype, float rate) { m_speed_rate[mtype] = rate; }
     void SendSpeedToController(UnitMoveType mtype, Player* target) const;
 
+    struct PendingRunSpeedChange
+    {
+        uint32 Counter;
+        float Speed;
+    };
+    mutable std::optional<PendingRunSpeedChange> m_pendingRunSpeedChange;
+
     void propagateSpeedChange() { GetMotionMaster()->propagateSpeedChange(); }
 
-    void SendMonsterMove(float NewPosX, float NewPosY, float NewPosZ, uint32 TransitTime, SplineFlags sf = SPLINEFLAG_WALK_MODE); // pussywizard: need to just send packet, with no movement/spline
     void MonsterMoveWithSpeed(float x, float y, float z, float speed); // Not to be used outside of cinematics
+    [[nodiscard]] bool IsSplineEnabled() const;
 
     virtual bool SetWalk(bool enable);
     void SetDisableGravity(bool disable);
@@ -1769,7 +1779,10 @@ public:
     void SetCanFly(bool enable);
     void SetWaterWalking(bool enable);
     void SetFeatherFall(bool enable);
-    void SetHover(bool enable);
+    virtual bool SetHover(bool enable, bool updateAnimTier = true);
+    void SendHoverUpdate(bool enable);
+    void SetPlayHoverAnim(bool enable, bool sendUpdate = true);
+    [[nodiscard]] bool IsPlayingHoverAnim() const { return m_updateFlag.PlayerHoverAnim; }
 
     MotionMaster* GetMotionMaster() { return i_motionMaster; }
     [[nodiscard]] MotionMaster const* GetMotionMaster() const { return i_motionMaster; }

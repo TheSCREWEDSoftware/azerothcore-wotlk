@@ -509,9 +509,139 @@ private:
     uint32 _path;
 };
 
+enum ElwynnBattleWorg
+{
+    NPC_STORMWIND_INFANTRY = 49869,
+    NPC_BROTHER_PAXTON     = 951,
+
+    EVENT_ASK_FOR_HELP     = 1,
+    EVENT_HEAL_INFANTRY    = 3,   // pinned TC values (2 is the unused selection event)
+
+    SAY_ASK_FOR_HELP       = 0,
+    SAY_HEAL_INFANTRY      = 0,
+
+    SPELL_PRAYER_OF_HEALING = 93091,
+    SPELL_RENEW             = 93094,
+    SPELL_FLASH_HEAL        = 17843
+};
+
+// Ported from TrinityCore 4.3.4 (pinned c6992177) zone_elwynn_forest.cpp (#331).
+struct npc_stormwind_infantry : public ScriptedAI
+{
+    npc_stormwind_infantry(Creature* creature) : ScriptedAI(creature) { }
+
+    void Reset() override
+    {
+        _events.Reset();
+        _events.ScheduleEvent(EVENT_ASK_FOR_HELP, Seconds(urand(1, 10) * 10));
+    }
+
+    void UpdateAI(uint32 diff) override
+    {
+        // No UpdateVictim() here on purpose: the worg's AttackStart assigns the target.
+        _events.Update(diff);
+
+        while (uint32 eventId = _events.ExecuteEvent())
+        {
+            switch (eventId)
+            {
+                case EVENT_ASK_FOR_HELP:
+                    Talk(SAY_ASK_FOR_HELP);
+                    _events.ScheduleEvent(EVENT_ASK_FOR_HELP, Seconds(urand(3, 10) * 10));
+                    _events.ScheduleEvent(EVENT_HEAL_INFANTRY, 2s);
+                    break;
+                case EVENT_HEAL_INFANTRY:
+                    if (Creature* paxton = me->FindNearestCreature(NPC_BROTHER_PAXTON, 30.0f, true))
+                    {
+                        if (!paxton->HasUnitState(UNIT_STATE_CASTING))
+                        {
+                            paxton->AI()->Talk(SAY_HEAL_INFANTRY, me);
+                            if (me->GetHealthPct() <= 85)
+                            {
+                                paxton->StopMoving();
+                                switch (urand(0, 2))
+                                {
+                                    case 0: // Prayer of Healing
+                                        paxton->CastSpell(paxton, SPELL_PRAYER_OF_HEALING);
+                                        break;
+                                    case 1: // Renew
+                                        paxton->SetFacingToObject(me);
+                                        paxton->CastSpell(me, SPELL_RENEW);
+                                        break;
+                                    case 2: // Flash Heal
+                                        paxton->SetFacingToObject(me);
+                                        paxton->CastSpell(me, SPELL_FLASH_HEAL);
+                                        break;
+                                    default:
+                                        break;
+                                }
+                            }
+                        }
+                    }
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        DoMeleeAttackIfReady();
+    }
+
+private:
+    EventMap _events;
+};
+
+// Ported from TrinityCore 4.3.4 (pinned c6992177) zone_elwynn_forest.cpp (#211).
+struct npc_blackrock_battle_worg : public ScriptedAI
+{
+    npc_blackrock_battle_worg(Creature* creature) : ScriptedAI(creature), _isAttackingInfantry(false) { }
+
+    void Reset() override
+    {
+        me->m_Events.AddEventAtOffset([this]
+        {
+            if (Creature* infantry = me->FindNearestCreature(NPC_STORMWIND_INFANTRY, 5.0f, true))
+            {
+                _isAttackingInfantry = true;
+                _infantryGUID = infantry->GetGUID();
+                AttackStart(infantry);
+
+                if (infantry->IsAIEnabled)
+                    infantry->AI()->AttackStart(me);
+            }
+        }, 1s);
+    }
+
+    void JustDied(Unit* /*killer*/) override
+    {
+        if (Creature* infantry = ObjectAccessor::GetCreature(*me, _infantryGUID))
+            infantry->AI()->EnterEvadeMode();
+    }
+
+    void DamageTaken(Unit* attacker, uint32& /*damage*/, DamageEffectType /*damagetype*/, SpellSchoolMask /*damageSchoolMask*/) override
+    {
+        if (attacker && attacker->GetEntry() != NPC_STORMWIND_INFANTRY)
+            _isAttackingInfantry = false;
+    }
+
+    void UpdateAI(uint32 /*diff*/) override
+    {
+        if (!_isAttackingInfantry && !UpdateVictim())
+            return;
+
+        DoMeleeAttackIfReady();
+    }
+
+private:
+    ObjectGuid _infantryGUID;
+    bool _isAttackingInfantry;
+};
+
 void AddSC_elwynn_forest()
 {
     RegisterCreatureAI(npc_cameron);
     RegisterCreatureAI(npc_supervisor_raelen);
     RegisterCreatureAI(npc_eastvale_peasent);
+    RegisterCreatureAI(npc_stormwind_infantry);
+    RegisterCreatureAI(npc_blackrock_battle_worg);
 }

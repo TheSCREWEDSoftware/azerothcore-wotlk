@@ -20,6 +20,7 @@
 #include "DBCFileLoader.h"
 #include "DBCfmt.h"
 #include "Errors.h"
+#include "ItemTemplate.h"
 #include "LFGMgr.h"
 #include "Log.h"
 #include "SharedDefines.h"
@@ -36,6 +37,7 @@ DBCStorage <AreaGroupEntry> sAreaGroupStore(AreaGroupEntryfmt);
 DBCStorage <AreaPOIEntry> sAreaPOIStore(AreaPOIEntryfmt);
 
 static WMOAreaInfoByTripple sWMOAreaInfoByTripple;
+static std::unordered_map<uint32 /*phaseOrGroupId*/, std::vector<uint32> /*memberPhaseIds*/> sPhasesByGroup;
 
 DBCStorage <AchievementEntry> sAchievementStore(Achievementfmt);
 DBCStorage <AchievementCategoryEntry> sAchievementCategoryStore(AchievementCategoryfmt);
@@ -52,6 +54,7 @@ DBCStorage <CharSectionsEntry> sCharSectionsStore(CharSectionsEntryfmt);
 DBCStorage <CharTitlesEntry> sCharTitlesStore(CharTitlesEntryfmt);
 DBCStorage <ChatChannelsEntry> sChatChannelsStore(ChatChannelsEntryfmt);
 DBCStorage <ChrClassesEntry> sChrClassesStore(ChrClassesEntryfmt);
+DBCStorage <ChrPowerTypesEntry> sChrPowerTypesStore(ChrClassesXPowerTypesfmt);
 DBCStorage <ChrRacesEntry> sChrRacesStore(ChrRacesEntryfmt);
 DBCStorage <CinematicCameraEntry> sCinematicCameraStore(CinematicCameraEntryfmt);
 DBCStorage <CinematicSequencesEntry> sCinematicSequencesStore(CinematicSequencesEntryfmt);
@@ -131,6 +134,8 @@ DBCStorage <NamesProfanityEntry> sNamesProfanityStore(NamesProfanityfmt);
 
 DBCStorage <OverrideSpellDataEntry> sOverrideSpellDataStore(OverrideSpellDatafmt);
 
+DBCStorage <PhaseEntry> sPhaseStore(Phasefmt);
+DBCStorage <PhaseGroupEntry> sPhaseGroupStore(PhaseGroupfmt);
 DBCStorage <PowerDisplayEntry> sPowerDisplayStore(PowerDisplayfmt);
 DBCStorage <PvPDifficultyEntry> sPvPDifficultyStore(PvPDifficultyfmt);
 
@@ -153,6 +158,22 @@ DBCStorage <SoundEntriesEntry> sSoundEntriesStore(SoundEntriesfmt);
 DBCStorage <SpellItemEnchantmentEntry> sSpellItemEnchantmentStore(SpellItemEnchantmentfmt);
 DBCStorage <SpellItemEnchantmentConditionEntry> sSpellItemEnchantmentConditionStore(SpellItemEnchantmentConditionfmt);
 DBCStorage <SpellEntry> sSpellStore(SpellEntryfmt);
+DBCStorage<SpellEffectEntry> sSpellEffectStore(SpellEffectEntryfmt);
+DBCStorage<SpellAuraOptionsEntry> sSpellAuraOptionsStore(SpellAuraOptionsEntryfmt);
+DBCStorage<SpellAuraRestrictionsEntry> sSpellAuraRestrictionsStore(SpellAuraRestrictionsEntryfmt);
+DBCStorage<SpellCastingRequirementsEntry> sSpellCastingRequirementsStore(SpellCastingRequirementsEntryfmt);
+DBCStorage<SpellCategoriesEntry> sSpellCategoriesStore(SpellCategoriesEntryfmt);
+DBCStorage<SpellClassOptionsEntry> sSpellClassOptionsStore(SpellClassOptionsEntryfmt);
+DBCStorage<SpellCooldownsEntry> sSpellCooldownsStore(SpellCooldownsEntryfmt);
+DBCStorage<SpellEquippedItemsEntry> sSpellEquippedItemsStore(SpellEquippedItemsEntryfmt);
+DBCStorage<SpellInterruptsEntry> sSpellInterruptsStore(SpellInterruptsEntryfmt);
+DBCStorage<SpellLevelsEntry> sSpellLevelsStore(SpellLevelsEntryfmt);
+DBCStorage<SpellPowerEntry> sSpellPowerStore(SpellPowerEntryfmt);
+DBCStorage<SpellReagentsEntry> sSpellReagentsStore(SpellReagentsEntryfmt);
+DBCStorage<SpellScalingEntry> sSpellScalingStore(SpellScalingEntryfmt);
+DBCStorage<SpellShapeshiftEntry> sSpellShapeshiftStore(SpellShapeshiftEntryfmt);
+DBCStorage<SpellTargetRestrictionsEntry> sSpellTargetRestrictionsStore(SpellTargetRestrictionsEntryfmt);
+DBCStorage<SpellTotemsEntry> sSpellTotemsStore(SpellTotemsEntryfmt);
 SpellCategoryStore sSpellsByCategoryStore;
 PetFamilySpellsStore sPetFamilySpellsStore;
 
@@ -292,6 +313,7 @@ void LoadDBCStores(std::string const& dataPath)
     LOAD_DBC(sCharTitlesStore,                      "CharTitles.dbc",                       "chartitles_dbc");
     LOAD_DBC(sChatChannelsStore,                    "ChatChannels.dbc",                     "chatchannels_dbc");
     LOAD_DBC(sChrClassesStore,                      "ChrClasses.dbc",                       "chrclasses_dbc");
+    LOAD_DBC(sChrPowerTypesStore,                   "ChrClassesXPowerTypes.dbc",            nullptr);
     LOAD_DBC(sChrRacesStore,                        "ChrRaces.dbc",                         "chrraces_dbc");
     LOAD_DBC(sCinematicCameraStore,                 "CinematicCamera.dbc",                  "cinematiccamera_dbc");
     LOAD_DBC(sCinematicSequencesStore,              "CinematicSequences.dbc",               "cinematicsequences_dbc");
@@ -324,16 +346,17 @@ void LoadDBCStores(std::string const& dataPath)
     LOAD_GT_DBC(sGtChanceToSpellCritStore,          "gtChanceToSpellCrit.dbc",              "gtchancetospellcrit_dbc");
     LOAD_GT_DBC(sGtNPCManaCostScalerStore,          "gtNPCManaCostScaler.dbc",              "gtnpcmanacostscaler_dbc");
     LOAD_DBC(sGtOCTClassCombatRatingScalarStore,    "gtOCTClassCombatRatingScalar.dbc",     "gtoctclasscombatratingscalar_dbc");
-    LOAD_GT_DBC(sGtOCTRegenHPStore,                 "gtOCTRegenHP.dbc",                     "gtoctregenhp_dbc");
-    //LOAD_DBC(sGtOCTRegenMPStore,                  "gtOCTRegenMP.dbc",                     "gtoctregenmp_dbc");       -- not used currently
-    LOAD_GT_DBC(sGtRegenHPPerSptStore,              "gtRegenHPPerSpt.dbc",                  "gtregenhpperspt_dbc");
+    // Cataclysm does not use the legacy health-regeneration stores.
+    //LOAD_GT_DBC(sGtOCTRegenHPStore,                "gtOCTRegenHP.dbc",                     "gtoctregenhp_dbc");
+    //LOAD_DBC(sGtOCTRegenMPStore,                  "gtOCTRegenMP.dbc",                     "gtoctregenmp_dbc");
+    //LOAD_GT_DBC(sGtRegenHPPerSptStore,             "gtRegenHPPerSpt.dbc",                  "gtregenhpperspt_dbc");
     LOAD_GT_DBC(sGtRegenMPPerSptStore,              "gtRegenMPPerSpt.dbc",                  "gtregenmpperspt_dbc");
     LOAD_DBC(sHolidaysStore,                        "Holidays.dbc",                         "holidays_dbc");
-    LOAD_DBC(sItemStore,                            "Item.dbc",                             "item_dbc");
+    LOAD_DBC(sItemStore,                            "Item.db2",                             "item_dbc"); // Cata: Item.dbc replaced by WDB2-format Item.db2 (rich per-item fields moved to Item-sparse.db2, unused here)
     LOAD_DBC(sItemBagFamilyStore,                   "ItemBagFamily.dbc",                    "itembagfamily_dbc");
     LOAD_DBC(sItemDisplayInfoStore,                 "ItemDisplayInfo.dbc",                  "itemdisplayinfo_dbc");
     //LOAD_DBC(sItemCondExtCostsStore,              "ItemCondExtCosts.dbc",                 "itemcondextcosts_dbc");
-    LOAD_DBC(sItemExtendedCostStore,                "ItemExtendedCost.dbc",                 "itemextendedcost_dbc");
+    LOAD_DBC(sItemExtendedCostStore,                "ItemExtendedCost.db2",                 "itemextendedcost_dbc"); // Cata: ItemExtendedCost.dbc replaced by WDB2-format ItemExtendedCost.db2
     LOAD_DBC(sItemLimitCategoryStore,               "ItemLimitCategory.dbc",                "itemlimitcategory_dbc");
     LOAD_DBC(sItemRandomPropertiesStore,            "ItemRandomProperties.dbc",             "itemrandomproperties_dbc");
     LOAD_DBC(sItemRandomSuffixStore,                "ItemRandomSuffix.dbc",                 "itemrandomsuffix_dbc");
@@ -349,6 +372,8 @@ void LoadDBCStores(std::string const& dataPath)
     LOAD_DBC(sNamesReservedStore,                   "NamesReserved.dbc",                    "namesreserved_dbc");
     LOAD_DBC(sNamesProfanityStore,                  "NamesProfanity.dbc",                   "namesprofanity_dbc");
     LOAD_DBC(sOverrideSpellDataStore,               "OverrideSpellData.dbc",                "overridespelldata_dbc");
+    LOAD_DBC(sPhaseStore,                           "Phase.dbc",                             nullptr);
+    LOAD_DBC(sPhaseGroupStore,                      "PhaseXPhaseGroup.dbc",                  nullptr);
     LOAD_DBC(sPowerDisplayStore,                    "PowerDisplay.dbc",                     "powerdisplay_dbc");
     LOAD_DBC(sPvPDifficultyStore,                   "PvpDifficulty.dbc",                    "pvpdifficulty_dbc");
     LOAD_DBC(sQuestXPStore,                         "QuestXP.dbc",                          "questxp_dbc");
@@ -357,32 +382,48 @@ void LoadDBCStores(std::string const& dataPath)
     LOAD_DBC(sRandomPropertiesPointsStore,          "RandPropPoints.dbc",                   "randproppoints_dbc");
     LOAD_DBC(sScalingStatDistributionStore,         "ScalingStatDistribution.dbc",          "scalingstatdistribution_dbc");
     LOAD_DBC(sScalingStatValuesStore,               "ScalingStatValues.dbc",                "scalingstatvalues_dbc");
-    LOAD_DBC(sSkillLineStore,                       "SkillLine.dbc",                        "skillline_dbc");
-    LOAD_DBC(sSkillLineAbilityStore,                "SkillLineAbility.dbc",                 "skilllineability_dbc");
-    LOAD_DBC(sSkillRaceClassInfoStore,              "SkillRaceClassInfo.dbc",               "skillraceclassinfo_dbc");
-    LOAD_DBC(sSkillTiersStore,                      "SkillTiers.dbc",                       "skilltiers_dbc");
+    LOAD_DBC(sSkillLineStore,                       "SkillLine.dbc",                        nullptr);
+    LOAD_DBC(sSkillLineAbilityStore,                "SkillLineAbility.dbc",                 nullptr);
+    LOAD_DBC(sSkillRaceClassInfoStore,              "SkillRaceClassInfo.dbc",               nullptr);
+    LOAD_DBC(sSkillTiersStore,                      "SkillTiers.dbc",                       nullptr);
     LOAD_DBC(sSoundEntriesStore,                    "SoundEntries.dbc",                     "soundentries_dbc");
-    LOAD_DBC(sSpellStore,                           "Spell.dbc",                            "spell_dbc");
-    LOAD_DBC(sSpellCastTimesStore,                  "SpellCastTimes.dbc",                   "spellcasttimes_dbc");
-    LOAD_DBC(sSpellCategoryStore,                   "SpellCategory.dbc",                    "spellcategory_dbc");
+    LOAD_DBC(sSpellStore,                           "Spell.dbc",                            nullptr);
+    LOAD_DBC(sSpellEffectStore, "SpellEffect.dbc", nullptr);
+    LOAD_DBC(sSpellAuraOptionsStore, "SpellAuraOptions.dbc", nullptr);
+    LOAD_DBC(sSpellAuraRestrictionsStore, "SpellAuraRestrictions.dbc", nullptr);
+    LOAD_DBC(sSpellCastingRequirementsStore, "SpellCastingRequirements.dbc", nullptr);
+    LOAD_DBC(sSpellCategoriesStore, "SpellCategories.dbc", nullptr);
+    LOAD_DBC(sSpellClassOptionsStore, "SpellClassOptions.dbc", nullptr);
+    LOAD_DBC(sSpellCooldownsStore, "SpellCooldowns.dbc", nullptr);
+    LOAD_DBC(sSpellEquippedItemsStore, "SpellEquippedItems.dbc", nullptr);
+    LOAD_DBC(sSpellInterruptsStore, "SpellInterrupts.dbc", nullptr);
+    LOAD_DBC(sSpellLevelsStore, "SpellLevels.dbc", nullptr);
+    LOAD_DBC(sSpellPowerStore, "SpellPower.dbc", nullptr);
+    LOAD_DBC(sSpellReagentsStore, "SpellReagents.dbc", nullptr);
+    LOAD_DBC(sSpellScalingStore, "SpellScaling.dbc", nullptr);
+    LOAD_DBC(sSpellShapeshiftStore, "SpellShapeshift.dbc", nullptr);
+    LOAD_DBC(sSpellTargetRestrictionsStore, "SpellTargetRestrictions.dbc", nullptr);
+    LOAD_DBC(sSpellTotemsStore, "SpellTotems.dbc", nullptr);
+    LOAD_DBC(sSpellCastTimesStore,                  "SpellCastTimes.dbc",                   nullptr);
+    LOAD_DBC(sSpellCategoryStore,                   "SpellCategory.dbc",                    nullptr);
     LOAD_DBC(sSpellDifficultyStore,                 "SpellDifficulty.dbc",                  "spelldifficulty_dbc");
-    LOAD_DBC(sSpellDurationStore,                   "SpellDuration.dbc",                    "spellduration_dbc");
-    LOAD_DBC(sSpellFocusObjectStore,                "SpellFocusObject.dbc",                 "spellfocusobject_dbc");
+    LOAD_DBC(sSpellDurationStore,                   "SpellDuration.dbc",                    nullptr);
+    LOAD_DBC(sSpellFocusObjectStore,                "SpellFocusObject.dbc",                 nullptr);
     LOAD_DBC(sSpellItemEnchantmentStore,            "SpellItemEnchantment.dbc",             "spellitemenchantment_dbc");
     LOAD_DBC(sSpellItemEnchantmentConditionStore,   "SpellItemEnchantmentCondition.dbc",    "spellitemenchantmentcondition_dbc");
-    LOAD_DBC(sSpellRadiusStore,                     "SpellRadius.dbc",                      "spellradius_dbc");
-    LOAD_DBC(sSpellRangeStore,                      "SpellRange.dbc",                       "spellrange_dbc");
-    LOAD_DBC(sSpellRuneCostStore,                   "SpellRuneCost.dbc",                    "spellrunecost_dbc");
-    LOAD_DBC(sSpellShapeshiftFormStore,             "SpellShapeshiftForm.dbc",              "spellshapeshiftform_dbc");
+    LOAD_DBC(sSpellRadiusStore,                     "SpellRadius.dbc",                      nullptr);
+    LOAD_DBC(sSpellRangeStore,                      "SpellRange.dbc",                       nullptr);
+    LOAD_DBC(sSpellRuneCostStore,                   "SpellRuneCost.dbc",                    nullptr);
+    LOAD_DBC(sSpellShapeshiftFormStore,             "SpellShapeshiftForm.dbc",              nullptr);
     LOAD_DBC(sSpellVisualStore,                     "SpellVisual.dbc",                      "spellvisual_dbc");
-    LOAD_DBC(sStableSlotPricesStore,                "StableSlotPrices.dbc",                 "stableslotprices_dbc");
+    //LOAD_DBC(sStableSlotPricesStore,              "StableSlotPrices.dbc",                 "stableslotprices_dbc"); -- removed in real Cata client (matches upstream TC, which also drops this load and its only consumer, buying additional stable slots); HandleBuyStableSlot is disabled below to match
     LOAD_DBC(sSummonPropertiesStore,                "SummonProperties.dbc",                 "summonproperties_dbc");
     LOAD_DBC(sTalentStore,                          "Talent.dbc",                           "talent_dbc");
     LOAD_DBC(sTalentTabStore,                       "TalentTab.dbc",                        "talenttab_dbc");
     LOAD_DBC(sTaxiNodesStore,                       "TaxiNodes.dbc",                        "taxinodes_dbc");
     LOAD_DBC(sTaxiPathStore,                        "TaxiPath.dbc",                         "taxipath_dbc");
     LOAD_DBC(sTaxiPathNodeStore,                    "TaxiPathNode.dbc",                     "taxipathnode_dbc");
-    LOAD_DBC(sTeamContributionPointsStore,          "TeamContributionPoints.dbc",           "teamcontributionpoints_dbc");
+    //LOAD_DBC(sTeamContributionPointsStore,        "TeamContributionPoints.dbc",           "teamcontributionpoints_dbc"); -- removed in real Cata client (matches upstream TC, which also drops this load); only caller (Quest::CalculateHonorGain) is disabled below to match
     LOAD_DBC(sTotemCategoryStore,                   "TotemCategory.dbc",                    "totemcategory_dbc");
     LOAD_DBC(sTransportAnimationStore,              "TransportAnimation.dbc",               "transportanimation_dbc");
     LOAD_DBC(sTransportRotationStore,               "TransportRotation.dbc",                "transportrotation_dbc");
@@ -394,6 +435,9 @@ void LoadDBCStores(std::string const& dataPath)
 
 #undef LOAD_DBC
 #undef LOAD_GT_DBC
+
+    sSpellStore.LoadFromDB("spell_cata_dbc", SpellEntryfmt);
+    sSpellEffectStore.LoadFromDB("spelleffect_dbc", SpellEffectEntryfmt);
 
     for (CharStartOutfitEntry const* outfit : sCharStartOutfitStore)
         sCharStartOutfitMap[outfit->Race | (outfit->Class << 8) | (outfit->Gender << 16)] = outfit;
@@ -433,9 +477,10 @@ void LoadDBCStores(std::string const& dataPath)
         if (entry->bracketId > MAX_BATTLEGROUND_BRACKETS)
             ASSERT(false && "Need update MAX_BATTLEGROUND_BRACKETS by DBC data");
 
-    for (auto i : sSpellStore)
-        if (i->Category)
-            sSpellsByCategoryStore[i->Category].emplace(false, i->Id);
+    for (SpellEntry const* spell : sSpellStore)
+        if (SpellCategoriesEntry const* categories = sSpellCategoriesStore.LookupEntry(spell->CategoriesID))
+            if (categories->Category)
+                sSpellsByCategoryStore[categories->Category].emplace(false, spell->Id);
 
     for (SkillRaceClassInfoEntry const* entry : sSkillRaceClassInfoStore)
     {
@@ -457,7 +502,8 @@ void LoadDBCStores(std::string const& dataPath)
                     continue;
                 }
 
-                if (spellEntry->SpellLevel)
+                SpellLevelsEntry const* levels = sSpellLevelsStore.LookupEntry(spellEntry->LevelsID);
+                if (levels && levels->SpellLevel)
                 {
                     continue;
                 }
@@ -569,10 +615,9 @@ void LoadDBCStores(std::string const& dataPath)
     // include existed nodes that have at least single not spell base (scripted) path
     {
         std::set<uint32> spellPaths;
-        for (SpellEntry const* sInfo : sSpellStore)
-            for (uint8 j = 0; j < MAX_SPELL_EFFECTS; ++j)
-                if (sInfo->Effect[j] == SPELL_EFFECT_SEND_TAXI)
-                    spellPaths.insert(sInfo->EffectMiscValue[j]);
+        for (SpellEffectEntry const* effect : sSpellEffectStore)
+            if (effect->Effect == SPELL_EFFECT_SEND_TAXI)
+                spellPaths.insert(effect->EffectMiscValue);
 
         sTaxiNodesMask.fill(0);
         sOldContinentsNodesMask.fill(0);
@@ -607,6 +652,9 @@ void LoadDBCStores(std::string const& dataPath)
             // valid taxi network node
             uint8  field   = (uint8)((i - 1) / 32);
             uint32 submask = 1 << ((i - 1) % 32);
+            if (field >= TaxiMaskSize)
+                continue;
+
             sTaxiNodesMask[field] |= submask;
 
             if (node->MountCreatureID[0] && node->MountCreatureID[0] != 32981)
@@ -636,6 +684,9 @@ void LoadDBCStores(std::string const& dataPath)
 
     for (WMOAreaTableEntry const* entry : sWMOAreaTableStore)
         sWMOAreaInfoByTripple[WMOAreaTableKey(entry->rootId, entry->adtId, entry->groupId)] = entry;
+
+    for (PhaseGroupEntry const* group : sPhaseGroupStore)
+        sPhasesByGroup[group->PhaseGroupID].push_back(group->PhaseID);
 
     // error checks
     if (bad_dbc_files.size() >= DBCFileCount)
@@ -700,6 +751,136 @@ TalentSpellPos const* GetTalentSpellPos(uint32 spellId)
     return &itr->second;
 }
 
+// Cata replaced WotLK's ScalingStatValue-bitmask lookup with a direct per-inventoryType/
+// per-subclass model; ported from TrinityCore-Cata (Shauren, "Core/Items: Updated scaling item
+// stat calculations"). Lives here rather than inline in DBCStructure.h because it switches on
+// InventoryType/ItemSubclassWeapon, which are game-layer enums the shared header can't depend on.
+uint32 ScalingStatValuesEntry::GetStatMultiplier(uint32 inventoryType) const
+{
+    switch (inventoryType)
+    {
+        case INVTYPE_NON_EQUIP:
+        case INVTYPE_BODY:
+        case INVTYPE_BAG:
+        case INVTYPE_TABARD:
+        case INVTYPE_AMMO:
+        case INVTYPE_QUIVER:
+            return 0;
+        case INVTYPE_HEAD:
+        case INVTYPE_CHEST:
+        case INVTYPE_LEGS:
+        case INVTYPE_2HWEAPON:
+        case INVTYPE_ROBE:
+            return statMultiplier[0];
+        case INVTYPE_SHOULDERS:
+        case INVTYPE_WAIST:
+        case INVTYPE_FEET:
+        case INVTYPE_HANDS:
+        case INVTYPE_TRINKET:
+            return statMultiplier[1];
+        case INVTYPE_NECK:
+        case INVTYPE_WRISTS:
+        case INVTYPE_FINGER:
+        case INVTYPE_SHIELD:
+        case INVTYPE_CLOAK:
+        case INVTYPE_HOLDABLE:
+            return statMultiplier[2];
+        case INVTYPE_RANGED:
+        case INVTYPE_THROWN:
+        case INVTYPE_RANGEDRIGHT:
+        case INVTYPE_RELIC:
+            return statMultiplier[3];
+        case INVTYPE_WEAPON:
+        case INVTYPE_WEAPONMAINHAND:
+        case INVTYPE_WEAPONOFFHAND:
+            return statMultiplier[4];
+        default:
+            return 0;
+    }
+}
+
+uint32 ScalingStatValuesEntry::GetArmor(uint32 inventoryType, uint32 armorType) const
+{
+    if (inventoryType > INVTYPE_ROBE || armorType >= 4)
+        return 0;
+
+    switch (inventoryType)
+    {
+        case INVTYPE_SHOULDERS:
+            return armor[0][armorType];
+        case INVTYPE_CHEST:
+        case INVTYPE_ROBE:
+            return armor[1][armorType];
+        case INVTYPE_HEAD:
+            return armor[2][armorType];
+        case INVTYPE_LEGS:
+            return armor[3][armorType];
+        case INVTYPE_FEET:
+            return armor[4][armorType];
+        case INVTYPE_WAIST:
+            return armor[5][armorType];
+        case INVTYPE_HANDS:
+            return armor[6][armorType];
+        case INVTYPE_WRISTS:
+            return armor[7][armorType];
+        case INVTYPE_CLOAK:
+            return cloakArmor;
+        default:
+            return 0;
+    }
+}
+
+uint32 ScalingStatValuesEntry::GetDPSAndDamageMultiplier(uint32 subClass, bool isCasterWeapon, float* damageMultiplier) const
+{
+    if (!isCasterWeapon)
+    {
+        switch (subClass)
+        {
+            case ITEM_SUBCLASS_WEAPON_AXE:
+            case ITEM_SUBCLASS_WEAPON_MACE:
+            case ITEM_SUBCLASS_WEAPON_SWORD:
+            case ITEM_SUBCLASS_WEAPON_DAGGER:
+            case ITEM_SUBCLASS_WEAPON_THROWN:
+                *damageMultiplier = 0.3f;
+                return dpsMod[0];
+            case ITEM_SUBCLASS_WEAPON_AXE2:
+            case ITEM_SUBCLASS_WEAPON_MACE2:
+            case ITEM_SUBCLASS_WEAPON_POLEARM:
+            case ITEM_SUBCLASS_WEAPON_SWORD2:
+            case ITEM_SUBCLASS_WEAPON_STAFF:
+            case ITEM_SUBCLASS_WEAPON_FISHING_POLE:
+                *damageMultiplier = 0.2f;
+                return dpsMod[1];
+            case ITEM_SUBCLASS_WEAPON_BOW:
+            case ITEM_SUBCLASS_WEAPON_GUN:
+            case ITEM_SUBCLASS_WEAPON_CROSSBOW:
+                *damageMultiplier = 0.3f;
+                return dpsMod[4];
+            default:
+                break;
+        }
+    }
+    else if (subClass <= ITEM_SUBCLASS_WEAPON_WAND)
+    {
+        uint32 mask = 1 << subClass;
+        if (mask & 0x562) // two-handed weapons
+        {
+            *damageMultiplier = 0.2f;
+            return dpsMod[3];
+        }
+
+        if (mask & (1 << ITEM_SUBCLASS_WEAPON_WAND))
+        {
+            *damageMultiplier = 0.3f;
+            return dpsMod[5];
+        }
+
+        *damageMultiplier = 0.3f;
+        return dpsMod[2];
+    }
+    return 0;
+}
+
 uint32 GetTalentSpellCost(uint32 spellId)
 {
     if (TalentSpellPos const* pos = GetTalentSpellPos(spellId))
@@ -715,6 +896,30 @@ WMOAreaTableEntry const* GetWMOAreaTableEntryByTripple(int32 rootid, int32 adtid
         return i->second;
 
     return nullptr;
+}
+
+std::vector<uint32> GetPhasesForGroup(uint32 phaseOrGroupId)
+{
+    auto itr = sPhasesByGroup.find(phaseOrGroupId);
+    if (itr != sPhasesByGroup.end())
+        return itr->second;
+
+    return { phaseOrGroupId };
+}
+
+bool IsValidPhaseOrPhaseGroupId(uint32 phaseOrGroupId)
+{
+    return sPhaseStore.LookupEntry(phaseOrGroupId) || sPhasesByGroup.find(phaseOrGroupId) != sPhasesByGroup.end();
+}
+
+bool IsValidPhaseId(uint32 phaseId)
+{
+    return sPhaseStore.LookupEntry(phaseId) != nullptr;
+}
+
+bool IsValidPhaseGroupId(uint32 phaseGroupId)
+{
+    return sPhasesByGroup.find(phaseGroupId) != sPhasesByGroup.end();
 }
 
 uint32 GetVirtualMapForMapAndZone(uint32 mapid, uint32 zoneId)
@@ -854,6 +1059,23 @@ uint32 GetLiquidFlags(uint32 liquidType)
         return 1 << liq->Type;
 
     return 0;
+}
+
+uint32 GetPowerIndexByClass(uint32 power, uint32 classId)
+{
+    uint32 index = 0;
+    for (ChrPowerTypesEntry const* entry : sChrPowerTypesStore)
+    {
+        if (entry->ClassID != classId)
+            continue;
+
+        if (entry->PowerType == power)
+            return index;
+
+        ++index;
+    }
+
+    return MAX_POWERS;
 }
 
 CharStartOutfitEntry const* GetCharStartOutfitEntry(uint8 race, uint8 class_, uint8 gender)

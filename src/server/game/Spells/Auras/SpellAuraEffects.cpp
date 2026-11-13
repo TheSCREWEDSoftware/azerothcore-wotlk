@@ -379,6 +379,48 @@ pAuraEffectHandler AuraEffectHandler[TOTAL_AURAS] =
     &AuraEffect::HandlePreventResurrection,                       //314 SPELL_AURA_PREVENT_RESURRECTION todo
     &AuraEffect::HandleNoImmediateEffect,                         //315 SPELL_AURA_UNDERWATER_WALKING todo
     &AuraEffect::HandleNoImmediateEffect,                         //316 SPELL_AURA_PERIODIC_HASTE implemented in AuraEffect::CalculatePeriodic
+    &AuraEffect::HandleNoImmediateEffect,                         //317 SPELL_AURA_MOD_SPELL_POWER_PCT (excluded)
+    &AuraEffect::HandleNULL,                                      //318 SPELL_AURA_MASTERY
+    &AuraEffect::HandleModMeleeSpeedPct,                          //319 SPELL_AURA_MOD_MELEE_HASTE_3
+    &AuraEffect::HandleAuraModRangedHaste,                        //320 SPELL_AURA_MOD_RANGED_HASTE_2
+    &AuraEffect::HandleNULL,                                      //321 SPELL_AURA_MOD_NO_ACTIONS
+    &AuraEffect::HandleNULL,                                      //322 SPELL_AURA_INTERFERE_TARGETTING
+    &AuraEffect::HandleUnused,                                    //323 unused (4.3.4)
+    &AuraEffect::HandleNULL,                                      //324 SPELL_AURA_324
+    &AuraEffect::HandleUnused,                                    //325 unused (4.3.4)
+    &AuraEffect::HandlePhaseGroup,                                //326 SPELL_AURA_PHASE_GROUP
+    &AuraEffect::HandleNULL,                                      //327 excluded
+    &AuraEffect::HandleNULL,                                      //328 excluded
+    &AuraEffect::HandleNULL,                                      //329 excluded
+    &AuraEffect::HandleNULL,                                      //330 excluded
+    &AuraEffect::HandleNULL,                                      //331 excluded
+    &AuraEffect::HandleNULL,                                      //332 excluded
+    &AuraEffect::HandleNULL,                                      //333 excluded
+    &AuraEffect::HandleNULL,                                      //334 excluded
+    &AuraEffect::HandleNULL,                                      //335 excluded
+    &AuraEffect::HandleNULL,                                      //336 excluded
+    &AuraEffect::HandleNULL,                                      //337 excluded
+    &AuraEffect::HandleNULL,                                      //338 excluded
+    &AuraEffect::HandleNULL,                                      //339 excluded
+    &AuraEffect::HandleNULL,                                      //340 excluded
+    &AuraEffect::HandleNULL,                                      //341 excluded
+    &AuraEffect::HandleNULL,                                      //342 excluded
+    &AuraEffect::HandleNULL,                                      //343 excluded
+    &AuraEffect::HandleNULL,                                      //344 excluded
+    &AuraEffect::HandleNULL,                                      //345 excluded
+    &AuraEffect::HandleNULL,                                      //346 excluded
+    &AuraEffect::HandleNULL,                                      //347 excluded
+    &AuraEffect::HandleNULL,                                      //348 excluded
+    &AuraEffect::HandleNULL,                                      //349 excluded
+    &AuraEffect::HandleNULL,                                      //350 excluded
+    &AuraEffect::HandleNULL,                                      //351 excluded
+    &AuraEffect::HandleNULL,                                      //352 SPELL_AURA_ENABLE_ALTERED_FORM
+    &AuraEffect::HandleNULL,                                      //353 excluded
+    &AuraEffect::HandleNULL,                                      //354 excluded
+    &AuraEffect::HandleNULL,                                      //355 excluded
+    &AuraEffect::HandleNULL,                                      //356 excluded
+    &AuraEffect::HandleNULL,                                      //357 excluded
+    &AuraEffect::HandleNULL,                                      //358 SPELL_AURA_WORGEN_ALTERED_FORM
 };
 
 AuraEffect::AuraEffect(Aura* base, uint8 effIndex, int32* baseAmount, Unit* caster):
@@ -1952,34 +1994,16 @@ void AuraEffect::HandlePhase(AuraApplication const* aurApp, uint8 mode, bool app
         return;
 
     Unit* target = aurApp->GetTarget();
-
-    // no-phase is also phase state so same code for apply and remove
-    uint32 newPhase = target->GetPhaseByAuras();
-
     if (Player* player = target->ToPlayer())
     {
-        if (!newPhase)
-            newPhase = PHASEMASK_NORMAL;
-
-        // do not change phase to GM with all phases enabled
-        if (player->IsGameMaster())
-            newPhase = PHASEMASK_ANYWHERE;
-
-        player->SetPhaseMask(newPhase, false);
-        player->GetSession()->SendSetPhaseShift(newPhase);
+        // Auras are registered before this handler runs, so the refresh sees the new state and
+        // can re-evaluate area phases conditioned on aura-granted phases.
+        player->RefreshPhases();
     }
+    else if (apply)
+        target->AddPhase(uint32(GetMiscValueB()));
     else
-    {
-        if (!newPhase)
-        {
-            newPhase = PHASEMASK_NORMAL;
-            if (Creature* creature = target->ToCreature())
-                if (CreatureData const* data = sObjectMgr->GetCreatureData(creature->GetSpawnId()))
-                    newPhase = data->phaseMask;
-        }
-
-        target->SetPhaseMask(newPhase, false);
-    }
+        target->RemovePhase(uint32(GetMiscValueB()));
 
     // call functions which may have additional effects after chainging state of unit
     // phase auras normally not expected at BG but anyway better check
@@ -1988,18 +2012,20 @@ void AuraEffect::HandlePhase(AuraApplication const* aurApp, uint8 mode, bool app
         // drop flag at invisibiliy in bg
         target->RemoveAurasWithInterruptFlags(AURA_INTERRUPT_FLAG_IMMUNE_OR_LOST_SELECTION);
     }
+}
 
-    // need triggering visibility update base at phase update of not GM invisible (other GMs anyway see in any phases)
-    if (target->IsVisible())
-    {
-        if (!target->GetMap()->Instanceable())
-        {
-            target->UpdateObjectVisibility(false);
-            target->m_last_notify_position.Relocate(-5000.0f, -5000.0f, -5000.0f);
-        }
-        else
-            target->UpdateObjectVisibility();
-    }
+void AuraEffect::HandlePhaseGroup(AuraApplication const* aurApp, uint8 mode, bool apply) const
+{
+    if (!(mode & AURA_EFFECT_HANDLE_REAL))
+        return;
+
+    Unit* target = aurApp->GetTarget();
+    if (Player* player = target->ToPlayer())
+        player->RefreshPhases();
+    else if (apply)
+        target->AddPhaseGroup(uint32(GetMiscValueB()));
+    else
+        target->RemovePhaseGroup(uint32(GetMiscValueB()));
 }
 
 /**********************/
@@ -5946,9 +5972,9 @@ void AuraEffect::HandleAuraSetVehicle(AuraApplication const* aurApp, uint8 mode,
     else if (target->GetVehicleKit())
         target->RemoveVehicleKit();
 
-    WorldPacket data(SMSG_PLAYER_VEHICLE_DATA, target->GetPackGUID().size() + 4);
+    WorldPacket data(SMSG_SET_VEHICLE_REC_ID, target->GetPackGUID().size() + 4);
     data << target->GetPackGUID();
-    data << uint32(apply ? vehicleId : 0);
+    data << int32(apply ? vehicleId : 0);
     target->SendMessageToSet(&data, true);
 
     if (apply)

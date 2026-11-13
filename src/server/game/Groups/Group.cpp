@@ -550,7 +550,7 @@ bool Group::AddMember(Player* player, uint8 roles /* = 0 */)
             // Broadcast new player group member fields to rest of the group
             player->SetFieldNotifyFlag(UF_FLAG_PARTY_MEMBER);
 
-            UpdateData groupData;
+            UpdateData groupData(player->GetMapId());
             WorldPacket groupDataPacket;
 
             // Broadcast group members' fields to player
@@ -572,7 +572,7 @@ bool Group::AddMember(Player* player, uint8 roles /* = 0 */)
 
                     if (itrMember->HaveAtClient(player))
                     {
-                        UpdateData newData;
+                        UpdateData newData(itrMember->GetMapId());
                         WorldPacket newDataPacket;
                         player->BuildValuesUpdateBlockForPlayer(&newData, itrMember);
                         if (newData.HasData())
