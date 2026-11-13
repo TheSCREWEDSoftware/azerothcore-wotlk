@@ -3223,6 +3223,7 @@ void Map::UpdateEncounterState(EncounterCreditType type, uint32 creditEntry, Uni
     }
 
     uint32 dungeonId = 0;
+    uint32 lastEncounterId = 0;
     bool updated = false;
 
     for (DungeonEncounterList::const_iterator itr = encounters->begin(); itr != encounters->end(); ++itr)
@@ -3242,6 +3243,7 @@ void Map::UpdateEncounterState(EncounterCreditType type, uint32 creditEntry, Uni
             if (encounter->lastEncounterDungeon)
             {
                 dungeonId = encounter->lastEncounterDungeon;
+                lastEncounterId = encounter->dbcEntry->id;
                 break;
             }
         }
@@ -3300,7 +3302,11 @@ void Map::UpdateEncounterState(EncounterCreditType type, uint32 creditEntry, Uni
                     continue;
 
                 if (Guild* guild = sGuildMgr->GetGuildById(guildId))
+                {
                     guild->CompleteChallenge(IsNonRaidDungeon() ? GUILD_CHALLENGE_TYPE_DUNGEON : GUILD_CHALLENGE_TYPE_RAID, creditPlayerByGuild[guildId]);
+                    if (IsRaid())
+                        guild->AddGuildNews(GUILD_NEWS_DUNGEON_ENCOUNTER, ObjectGuid::Empty, 0, lastEncounterId);
+                }
             }
         }
 

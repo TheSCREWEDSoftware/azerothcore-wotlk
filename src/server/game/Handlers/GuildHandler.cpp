@@ -519,3 +519,15 @@ void WorldSession::HandleGuildQueryRecipesOpcode(WorldPackets::Guild::GuildQuery
     if (Guild* guild = GetPlayer()->GetGuild())
         guild->SendKnownRecipes(GetPlayer());
 }
+
+void WorldSession::HandleGuildQueryNewsOpcode(WorldPackets::Guild::GuildQueryNews& /*packet*/)
+{
+    if (Guild* guild = GetPlayer()->GetGuild())
+        guild->SendNewsUpdate(this);
+}
+
+void WorldSession::HandleGuildNewsUpdateStickyOpcode(WorldPackets::Guild::GuildNewsUpdateSticky& packet)
+{
+    if (Guild* guild = GetPlayer()->GetGuild())
+        guild->HandleNewsSetSticky(this, uint32(packet.NewsID), packet.Sticky);
+}

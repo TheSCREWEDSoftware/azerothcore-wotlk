@@ -31,6 +31,7 @@
 #include "GossipDef.h"
 #include "GridNotifiers.h"
 #include "Group.h"
+#include "Guild.h"
 #include "InstanceScript.h"
 #include "Language.h"
 #include "Log.h"
@@ -1863,6 +1864,10 @@ void Spell::DoCreateItem(uint8 /*effIndex*/, uint32 itemId)
 
         // send info to the client
         player->SendNewItem(pItem, addNumber, true, SelfCast);
+
+        if (Guild::IsNewsworthyItem(pProto))
+            if (Guild* guild = player->GetGuild())
+                guild->AddGuildNews(GUILD_NEWS_ITEM_CRAFTED, player->GetGUID(), 0, pProto->ItemId);
 
         sScriptMgr->OnPlayerCreateItem(player, pItem, addNumber);
 

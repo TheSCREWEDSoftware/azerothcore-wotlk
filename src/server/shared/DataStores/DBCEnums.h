@@ -78,6 +78,8 @@ enum AchievementFlags
     ACHIEVEMENT_FLAG_BAR               = 0x00000080,        // Show as progress bar (value / max vale) depend from other flag (by def use last criteria value)
     ACHIEVEMENT_FLAG_REALM_FIRST_REACH = 0x00000100,        //
     ACHIEVEMENT_FLAG_REALM_FIRST_KILL  = 0x00000200,        //
+    ACHIEVEMENT_FLAG_SHOW_IN_GUILD_NEWS   = 0x00001000,     // Shows in guild news
+    ACHIEVEMENT_FLAG_SHOW_IN_GUILD_HEADER = 0x00002000,     // Shows in guild news header
 };
 
 #define MAX_CRITERIA_REQUIREMENTS 3 // Cata's AdditionalConditionType/Value columns, was 2 pre-Cata

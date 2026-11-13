@@ -27,6 +27,7 @@
 #include <unordered_map>
 
 class Item;
+struct ItemTemplate;
 
 namespace WorldPackets
 {
@@ -34,6 +35,7 @@ namespace WorldPackets
     {
         class GuildBankLogQueryResults;
         class GuildEventLogQueryResults;
+        class GuildNews;
         class SaveGuildEmblem;
     }
 }
@@ -235,6 +237,25 @@ enum GuildEventLogTypes
     GUILD_EVENT_LOG_UNINVITE_PLAYER     = 5,
     GUILD_EVENT_LOG_LEAVE_GUILD         = 6
 };
+
+enum GuildNewsType : uint8
+{
+    GUILD_NEWS_GUILD_ACHIEVEMENT        = 0,
+    GUILD_NEWS_PLAYER_ACHIEVEMENT       = 1,
+    GUILD_NEWS_DUNGEON_ENCOUNTER        = 2,
+    GUILD_NEWS_ITEM_LOOTED              = 3,
+    GUILD_NEWS_ITEM_CRAFTED             = 4,
+    GUILD_NEWS_ITEM_PURCHASED           = 5,
+    GUILD_NEWS_LEVEL_UP                 = 6
+};
+
+enum GuildNewsFlags : uint32
+{
+    GUILD_NEWS_FLAG_STICKY              = 0x1
+};
+
+// Lowest epic item level that shows up in guild news, per expansion
+std::array<uint32, 4> constexpr MinNewsItemLevel = { 61, 90, 200, 353 };
 
 enum GuildEmblemError
 {
@@ -540,6 +561,41 @@ private:
         uint8  m_destTabId;
     };
 
+    // News log entry
+    class NewsLogEntry : public LogEntry
+    {
+    public:
+        NewsLogEntry(uint32 guildId, ObjectGuid::LowType guid, GuildNewsType type, ObjectGuid playerGuid, uint32 flags, uint32 value) :
+            LogEntry(guildId, guid), m_type(type), m_playerGuid(playerGuid), m_flags(flags), m_value(value) { }
+
+        NewsLogEntry(uint32 guildId, ObjectGuid::LowType guid, time_t timestamp, GuildNewsType type, ObjectGuid playerGuid, uint32 flags, uint32 value) :
+            LogEntry(guildId, guid, timestamp), m_type(type), m_playerGuid(playerGuid), m_flags(flags), m_value(value) { }
+
+        ~NewsLogEntry() override { }
+
+        GuildNewsType GetType() const { return m_type; }
+        ObjectGuid GetPlayerGuid() const { return m_playerGuid; }
+        uint32 GetValue() const { return m_value; }
+        uint32 GetFlags() const { return m_flags; }
+
+        void SetSticky(bool sticky)
+        {
+            if (sticky)
+                m_flags |= GUILD_NEWS_FLAG_STICKY;
+            else
+                m_flags &= ~GUILD_NEWS_FLAG_STICKY;
+        }
+
+        void SaveToDB(CharacterDatabaseTransaction trans) const override;
+        void WritePacket(WorldPackets::Guild::GuildNews& packet) const;
+
+    private:
+        GuildNewsType m_type;
+        ObjectGuid m_playerGuid;
+        uint32 m_flags;
+        uint32 m_value;
+    };
+
     // Class encapsulating work with events collection
     template <typename Entry>
     class LogHolder
@@ -771,6 +827,13 @@ public:
     void GiveReputation(uint32 rep, Player* source);
     void SendGuildReputationWeeklyCap(WorldSession* session, uint32 reputation) const;
 
+    // Cata guild news
+    static bool IsNewsworthyItem(ItemTemplate const* proto);
+    void AddGuildNews(GuildNewsType type, ObjectGuid playerGuid, uint32 flags, uint32 value);
+    void SendNewsUpdate(WorldSession* session);
+    void HandleNewsSetSticky(WorldSession* session, uint32 newsId, bool sticky);
+    void ClearExpiredNews();
+
     // Handle client commands
     void HandleRoster(WorldSession* session);
     void HandleQuery(WorldSession* session);
@@ -827,6 +890,7 @@ public:
     void LoadBankRightFromDB(Field* fields);
     void LoadBankTabFromDB(Field* fields);
     bool LoadBankEventLogFromDB(Field* fields);
+    void LoadNewsLogFromDB(Field* fields);
     bool LoadBankItemFromDB(Field* fields);
     bool Validate();
 
@@ -906,6 +970,7 @@ protected:
     // These are actually ordered lists. The first element is the oldest entry.
     LogHolder<EventLogEntry> m_eventLog;
     std::array<LogHolder<BankEventLogEntry>, GUILD_BANK_MAX_TABS + 1> m_bankEventLog = {};
+    LogHolder<NewsLogEntry> m_newsLog;
 
 private:
     inline uint8 _GetRanksSize() const { return uint8(m_ranks.size()); }

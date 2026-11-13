@@ -11196,7 +11196,16 @@ bool Player::BuyItemFromVendorSlot(ObjectGuid vendorguid, uint32 vendorslot, uin
         return false;
     }
 
-    return crItem->maxcount != 0;
+    if (crItem->maxcount != 0) // bought a limited item
+    {
+        if (Guild::IsNewsworthyItem(pProto))
+            if (Guild* guild = GetGuild())
+                guild->AddGuildNews(GUILD_NEWS_ITEM_PURCHASED, GetGUID(), 0, item);
+
+        return true;
+    }
+
+    return false;
 }
 
 uint32 Player::GetMaxPersonalArenaRatingRequirement(uint32 minarenaslot) const
@@ -14123,6 +14132,12 @@ LootItem* Player::StoreLootItem(uint8 lootSlot, Loot* loot, InventoryResult& msg
             item->is_looted = true;
 
         --loot->unlootedCount;
+
+        // Permanent items only, which skips e.g. the Kael'thas legendaries
+        if (ItemTemplate const* proto = sObjectMgr->GetItemTemplate(item->itemid))
+            if (!proto->Duration && Guild::IsNewsworthyItem(proto))
+                if (Guild* guild = GetGuild())
+                    guild->AddGuildNews(GUILD_NEWS_ITEM_LOOTED, GetGUID(), 0, item->itemid);
 
         SendNewItem(newitem, uint32(item->count), false, false, true);
         UpdateLootAchievements(item, loot);

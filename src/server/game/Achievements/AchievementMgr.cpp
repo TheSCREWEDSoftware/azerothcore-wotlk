@@ -2303,6 +2303,10 @@ void AchievementMgr::CompletedAchievement(AchievementEntry const* achievement)
 
     LOG_DEBUG("achievement", "AchievementMgr::CompletedAchievement({})", achievement->ID);
 
+    if (achievement->flags & ACHIEVEMENT_FLAG_SHOW_IN_GUILD_NEWS)
+        if (Guild* guild = _player->GetGuild())
+            guild->AddGuildNews(GUILD_NEWS_PLAYER_ACHIEVEMENT, _player->GetGUID(), achievement->flags & ACHIEVEMENT_FLAG_SHOW_IN_GUILD_HEADER, achievement->ID);
+
     SendAchievementEarned(achievement);
     CompletedAchievementData& ca = _completedAchievements[achievement->ID];
     ca.date = GameTime::GetGameTime().count();

@@ -861,6 +861,49 @@ namespace WorldPackets
 
             std::vector<GuildRecipesData> Recipes;
         };
+
+        class GuildQueryNews final : public ClientPacket
+        {
+        public:
+            GuildQueryNews(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_QUERY_NEWS, std::move(packet)) { }
+
+            void Read() override;
+
+            uint32 GuildID = 0;
+        };
+
+        class GuildNewsUpdateSticky final : public ClientPacket
+        {
+        public:
+            GuildNewsUpdateSticky(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_NEWS_UPDATE_STICKY, std::move(packet)) { }
+
+            void Read() override;
+
+            ObjectGuid GuildGUID;
+            int32 NewsID = 0;
+            bool Sticky = false;
+        };
+
+        struct GuildNewsEvent
+        {
+            int32 Id = 0;
+            int32 Type = 0;
+            int32 Flags = 0;
+            uint32 CompletedDate = 0;
+            std::array<int32, 2> Data = { };
+            ObjectGuid MemberGuid;
+            std::vector<ObjectGuid> MemberList;
+        };
+
+        class GuildNews final : public ServerPacket
+        {
+        public:
+            GuildNews() : ServerPacket(SMSG_GUILD_NEWS, 25) { }
+
+            WorldPacket const* Write() override;
+
+            std::vector<GuildNewsEvent> NewsEvents;
+        };
     }
 }
 

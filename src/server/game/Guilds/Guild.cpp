@@ -139,7 +139,9 @@ void Guild::SendSaveEmblemResult(WorldSession* session, GuildEmblemError errCode
 // LogHolder
 template <typename Entry>
 Guild::LogHolder<Entry>::LogHolder()
-        : m_maxRecords(sWorld->getIntConfig(std::is_same_v<Entry, BankEventLogEntry> ? CONFIG_GUILD_BANK_EVENT_LOG_COUNT : CONFIG_GUILD_EVENT_LOG_COUNT)), m_nextGUID(uint32(GUILD_EVENT_LOG_GUID_UNDEFINED))
+        : m_maxRecords(sWorld->getIntConfig(
+            std::is_same_v<Entry, BankEventLogEntry> ? CONFIG_GUILD_BANK_EVENT_LOG_COUNT :
+            std::is_same_v<Entry, NewsLogEntry> ? CONFIG_GUILD_NEWS_LOG_COUNT : CONFIG_GUILD_EVENT_LOG_COUNT)), m_nextGUID(uint32(GUILD_EVENT_LOG_GUID_UNDEFINED))
 { }
 
 template <typename Entry> template <typename... Ts>
@@ -212,6 +214,32 @@ void Guild::EventLogEntry::WritePacket(WorldPackets::Guild::GuildEventLogQueryRe
     eventEntry.TransactionDate = uint32(GameTime::GetGameTime().count() - m_timestamp);
     eventEntry.RankID = uint8(m_newRank);
     packet.Entry.push_back(eventEntry);
+}
+
+// NewsLogEntry
+void Guild::NewsLogEntry::SaveToDB(CharacterDatabaseTransaction trans) const
+{
+    uint8 index = 0;
+    CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_REP_GUILD_NEWS);
+    stmt->SetData(  index, m_guildId);
+    stmt->SetData(++index, m_guid);
+    stmt->SetData(++index, uint8(m_type));
+    stmt->SetData(++index, m_playerGuid.GetCounter());
+    stmt->SetData(++index, m_flags);
+    stmt->SetData(++index, m_value);
+    stmt->SetData(++index, uint32(m_timestamp));
+    CharacterDatabase.ExecuteOrAppend(trans, stmt);
+}
+
+void Guild::NewsLogEntry::WritePacket(WorldPackets::Guild::GuildNews& packet) const
+{
+    WorldPackets::Guild::GuildNewsEvent& newsEvent = packet.NewsEvents.emplace_back();
+    newsEvent.Id = int32(m_guid);
+    newsEvent.MemberGuid = m_playerGuid;
+    newsEvent.CompletedDate = uint32(m_timestamp);
+    newsEvent.Flags = int32(m_flags);
+    newsEvent.Type = int32(m_type);
+    newsEvent.Data[0] = int32(m_value);
 }
 
 // BankEventLogEntry
@@ -1265,6 +1293,10 @@ void Guild::Disband()
     stmt->SetData(0, m_id);
     trans->Append(stmt);
 
+    stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_GUILD_NEWSLOGS);
+    stmt->SetData(0, m_id);
+    trans->Append(stmt);
+
     CharacterDatabase.CommitTransaction(trans);
 
     // Wipe any Guild Finder recruitment settings/pending applications for this guild - it no
@@ -2314,6 +2346,21 @@ bool Guild::LoadEventLogFromDB(Field* fields)
         return true;
     }
     return false;
+}
+
+void Guild::LoadNewsLogFromDB(Field* fields)
+{
+    if (!m_newsLog.CanInsert())
+        return;
+
+    m_newsLog.LoadEvent(
+        m_id,                                                           // guild id
+        fields[1].Get<uint32>(),                                        // guid
+        time_t(fields[6].Get<uint32>()),                                // timestamp
+        GuildNewsType(fields[2].Get<uint8>()),                          // type
+        ObjectGuid::Create<HighGuid::Player>(fields[3].Get<uint32>()),  // player guid
+        fields[4].Get<uint32>(),                                        // flags
+        fields[5].Get<uint32>());                                       // value
 }
 
 bool Guild::LoadBankEventLogFromDB(Field* fields)
@@ -3424,6 +3471,8 @@ void Guild::GiveXP(uint32 xp, Player* source, bool rewardedByChallenge)
             _experience -= sGuildMgr->GetXPForGuildLevel(GetLevel());
             ++_level;
 
+            AddGuildNews(GUILD_NEWS_LEVEL_UP, ObjectGuid::Empty, 0, _level);
+
             // Notify all online members that the guild level changed
             for (auto const& [guid, member] : m_members)
                 if (Player* player = member.FindPlayer())
@@ -3570,4 +3619,71 @@ void Guild::HandleGuildRequestChallengeUpdate(WorldSession* session) const
     }
 
     session->SendPacket(update.Write());
+}
+
+bool Guild::IsNewsworthyItem(ItemTemplate const* proto)
+{
+    if (!proto)
+        return false;
+
+    // Legendaries always make the news, epics only from the current expansion's item level range
+    if (proto->Quality > ITEM_QUALITY_EPIC)
+        return true;
+
+    uint32 expansion = std::min<uint32>(sWorld->getIntConfig(CONFIG_EXPANSION), MinNewsItemLevel.size() - 1);
+    return proto->Quality == ITEM_QUALITY_EPIC && proto->ItemLevel >= MinNewsItemLevel[expansion];
+}
+
+void Guild::AddGuildNews(GuildNewsType type, ObjectGuid playerGuid, uint32 flags, uint32 value)
+{
+    CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
+    m_newsLog.AddEvent(trans, m_id, m_newsLog.GetNextGUID(), type, playerGuid, flags, value);
+    CharacterDatabase.CommitTransaction(trans);
+
+    WorldPackets::Guild::GuildNews newsPacket;
+    m_newsLog.GetGuildLog().back().WritePacket(newsPacket);
+    BroadcastPacket(newsPacket.Write());
+}
+
+void Guild::SendNewsUpdate(WorldSession* session)
+{
+    std::list<NewsLogEntry> const& logs = m_newsLog.GetGuildLog();
+
+    WorldPackets::Guild::GuildNews packet;
+    packet.NewsEvents.reserve(logs.size());
+
+    // Entries older than a week are skipped here and purged at the daily guild reset
+    uint64 weeklyMinTime = uint64(GameTime::GetGameTime().count() - WEEK);
+    for (NewsLogEntry const& entry : logs)
+        if (entry.GetTimestamp() >= weeklyMinTime)
+            entry.WritePacket(packet);
+
+    session->SendPacket(packet.Write());
+    LOG_DEBUG("guild", "SMSG_GUILD_NEWS [{}]", session->GetPlayerInfo());
+}
+
+void Guild::HandleNewsSetSticky(WorldSession* session, uint32 newsId, bool sticky)
+{
+    std::list<NewsLogEntry>& logs = m_newsLog.GetGuildLog();
+    auto itr = std::find_if(logs.begin(), logs.end(), [newsId](NewsLogEntry const& entry) { return entry.GetGUID() == newsId; });
+    if (itr == logs.end())
+    {
+        LOG_DEBUG("guild", "HandleNewsSetSticky: [{}] requested unknown newsId {} - Sticky: {}", session->GetPlayerInfo(), newsId, sticky);
+        return;
+    }
+
+    itr->SetSticky(sticky);
+    itr->SaveToDB(nullptr);
+
+    LOG_DEBUG("guild", "HandleNewsSetSticky: [{}] changed newsId {} sticky to {}", session->GetPlayerInfo(), newsId, sticky);
+
+    WorldPackets::Guild::GuildNews newsPacket;
+    itr->WritePacket(newsPacket);
+    session->SendPacket(newsPacket.Write());
+}
+
+void Guild::ClearExpiredNews()
+{
+    uint64 minTime = uint64(GameTime::GetGameTime().count() - WEEK);
+    m_newsLog.GetGuildLog().remove_if([minTime](NewsLogEntry const& entry) { return entry.GetTimestamp() < minTime; });
 }

@@ -20,6 +20,7 @@
 #include "Common.h"
 #include "DatabaseEnv.h"
 #include "DBCStores.h"
+#include "GameTime.h"
 #include "Log.h"
 #include "ObjectMgr.h"
 #include "SharedDefines.h"
@@ -323,6 +324,41 @@ void GuildMgr::LoadGuilds()
         }
     }
 
+    // 6b. Load all guild news
+    LOG_INFO("server.loading", "Loading Guild News...");
+    {
+        uint32 oldMSTime = getMSTime();
+
+        // Remove news entries that exceed the number of allowed entries per guild
+        CharacterDatabase.DirectExecute("DELETE FROM guild_newslog WHERE LogGuid >= {}", sWorld->getIntConfig(CONFIG_GUILD_NEWS_LOG_COUNT));
+
+        //          0        1        2          3           4      5      6
+        QueryResult result = CharacterDatabase.Query("SELECT guildid, LogGuid, EventType, PlayerGuid, Flags, Value, TimeStamp FROM guild_newslog ORDER BY TimeStamp DESC, LogGuid DESC");
+
+        if (!result)
+        {
+            LOG_WARN("server.loading", ">> Loaded 0 guild news. DB table `guild_newslog` is empty.");
+            LOG_INFO("server.loading", " ");
+        }
+        else
+        {
+            uint32 count = 0;
+            do
+            {
+                Field* fields = result->Fetch();
+                uint32 guildId = fields[0].Get<uint32>();
+
+                if (Guild* guild = GetGuildById(guildId))
+                    guild->LoadNewsLogFromDB(fields);
+
+                ++count;
+            } while (result->NextRow());
+
+            LOG_INFO("server.loading", ">> Loaded {} guild news in {} ms", count, GetMSTimeDiffToNow(oldMSTime));
+            LOG_INFO("server.loading", " ");
+        }
+    }
+
     // 7. Load all guild bank tabs
     LOG_INFO("server.loading", "Loading Guild Bank Tabs...");
     {
@@ -420,6 +456,20 @@ void GuildMgr::ResetTimes(bool weekly)
             guild->ResetTimes(weekly);
 
     CharacterDatabase.DirectExecute("TRUNCATE guild_member_withdraw");
+
+    ClearExpiredGuildNews();
+}
+
+void GuildMgr::ClearExpiredGuildNews()
+{
+    // Guild news is only shown for a week
+    CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_GUILD_NEWS_EXPIRED);
+    stmt->SetData(0, uint32(GameTime::GetGameTime().count() - WEEK));
+    CharacterDatabase.Execute(stmt);
+
+    for (auto const& [guildId, guild] : GuildStore)
+        if (guild)
+            guild->ClearExpiredNews();
 }
 
 uint64 GuildMgr::GetXPForGuildLevel(uint8 level) const

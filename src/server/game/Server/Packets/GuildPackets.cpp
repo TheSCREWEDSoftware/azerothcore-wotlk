@@ -949,3 +949,101 @@ WorldPacket const* WorldPackets::Guild::GuildKnownRecipes::Write()
 
     return &_worldPacket;
 }
+
+void WorldPackets::Guild::GuildQueryNews::Read()
+{
+    _worldPacket >> GuildID;
+}
+
+void WorldPackets::Guild::GuildNewsUpdateSticky::Read()
+{
+    _worldPacket >> NewsID;
+
+    GuildGUID[2] = _worldPacket.ReadBit();
+    GuildGUID[4] = _worldPacket.ReadBit();
+    GuildGUID[3] = _worldPacket.ReadBit();
+    GuildGUID[0] = _worldPacket.ReadBit();
+    Sticky = _worldPacket.ReadBit();
+    GuildGUID[6] = _worldPacket.ReadBit();
+    GuildGUID[7] = _worldPacket.ReadBit();
+    GuildGUID[1] = _worldPacket.ReadBit();
+    GuildGUID[5] = _worldPacket.ReadBit();
+
+    _worldPacket.ReadByteSeq(GuildGUID[6]);
+    _worldPacket.ReadByteSeq(GuildGUID[2]);
+    _worldPacket.ReadByteSeq(GuildGUID[1]);
+    _worldPacket.ReadByteSeq(GuildGUID[0]);
+    _worldPacket.ReadByteSeq(GuildGUID[5]);
+    _worldPacket.ReadByteSeq(GuildGUID[3]);
+    _worldPacket.ReadByteSeq(GuildGUID[7]);
+    _worldPacket.ReadByteSeq(GuildGUID[4]);
+}
+
+WorldPacket const* WorldPackets::Guild::GuildNews::Write()
+{
+    _worldPacket.WriteBits(NewsEvents.size(), 21);
+
+    for (GuildNewsEvent const& newsEvent : NewsEvents)
+    {
+        _worldPacket.WriteBits(newsEvent.MemberList.size(), 26);
+        _worldPacket.WriteBit(newsEvent.MemberGuid[7]);
+
+        for (ObjectGuid const& memberGuid : newsEvent.MemberList)
+        {
+            _worldPacket.WriteBit(memberGuid[7]);
+            _worldPacket.WriteBit(memberGuid[1]);
+            _worldPacket.WriteBit(memberGuid[5]);
+            _worldPacket.WriteBit(memberGuid[3]);
+            _worldPacket.WriteBit(memberGuid[4]);
+            _worldPacket.WriteBit(memberGuid[6]);
+            _worldPacket.WriteBit(memberGuid[0]);
+            _worldPacket.WriteBit(memberGuid[2]);
+        }
+
+        _worldPacket.WriteBit(newsEvent.MemberGuid[0]);
+        _worldPacket.WriteBit(newsEvent.MemberGuid[6]);
+        _worldPacket.WriteBit(newsEvent.MemberGuid[5]);
+        _worldPacket.WriteBit(newsEvent.MemberGuid[4]);
+        _worldPacket.WriteBit(newsEvent.MemberGuid[3]);
+        _worldPacket.WriteBit(newsEvent.MemberGuid[1]);
+        _worldPacket.WriteBit(newsEvent.MemberGuid[2]);
+    }
+
+    _worldPacket.FlushBits();
+
+    for (GuildNewsEvent const& newsEvent : NewsEvents)
+    {
+        for (ObjectGuid const& memberGuid : newsEvent.MemberList)
+        {
+            _worldPacket.WriteByteSeq(memberGuid[0]);
+            _worldPacket.WriteByteSeq(memberGuid[1]);
+            _worldPacket.WriteByteSeq(memberGuid[4]);
+            _worldPacket.WriteByteSeq(memberGuid[7]);
+            _worldPacket.WriteByteSeq(memberGuid[5]);
+            _worldPacket.WriteByteSeq(memberGuid[6]);
+            _worldPacket.WriteByteSeq(memberGuid[3]);
+            _worldPacket.WriteByteSeq(memberGuid[2]);
+        }
+
+        _worldPacket.WriteByteSeq(newsEvent.MemberGuid[5]);
+
+        _worldPacket << uint32(newsEvent.Flags);
+
+        for (int32 data : newsEvent.Data)
+            _worldPacket << int32(data);
+
+        _worldPacket.WriteByteSeq(newsEvent.MemberGuid[7]);
+        _worldPacket.WriteByteSeq(newsEvent.MemberGuid[6]);
+        _worldPacket.WriteByteSeq(newsEvent.MemberGuid[2]);
+        _worldPacket.WriteByteSeq(newsEvent.MemberGuid[3]);
+        _worldPacket.WriteByteSeq(newsEvent.MemberGuid[0]);
+        _worldPacket.WriteByteSeq(newsEvent.MemberGuid[4]);
+        _worldPacket.WriteByteSeq(newsEvent.MemberGuid[1]);
+
+        _worldPacket << int32(newsEvent.Id);
+        _worldPacket << int32(newsEvent.Type);
+        _worldPacket.AppendPackedTime(newsEvent.CompletedDate);
+    }
+
+    return &_worldPacket;
+}

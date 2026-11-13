@@ -244,6 +244,7 @@ void OpcodeTable::Initialize()
     /*0x34A3*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GUILD_PERMISSIONS_QUERY_RESULTS,                    STATUS_NEVER);
     /*0x10B2*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GUILD_EVENT_LOG_QUERY_RESULTS,                      STATUS_NEVER);
     /*0x30B4*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GUILD_RANKS,                                        STATUS_NEVER);
+    /*0x35A7*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GUILD_NEWS,                                         STATUS_NEVER);
     /*0x1CB2*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_LF_GUILD_RECRUIT_LIST_UPDATED,                      STATUS_NEVER);
     /*0x35B7*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_LF_GUILD_POST_UPDATED,                              STATUS_NEVER);
     /*0x1CA5*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_LF_GUILD_MEMBERSHIP_LIST_UPDATED,                   STATUS_NEVER);
@@ -828,6 +829,8 @@ void OpcodeTable::Initialize()
     /*0x1026*/ DEFINE_HANDLER(CMSG_GUILD_QUERY_RANKS,                                                STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildQueryRanksOpcode              );
     /*0x3032*/ DEFINE_HANDLER(CMSG_GUILD_ASSIGN_MEMBER_RANK,                                         STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildAssignRankOpcode              );
     /*0x1221*/ DEFINE_HANDLER(CMSG_GUILD_SWITCH_RANK,                                                STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildSwitchRankOpcode              );
+    /*0x3223*/ DEFINE_HANDLER(CMSG_GUILD_NEWS_UPDATE_STICKY,                                         STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildNewsUpdateStickyOpcode        );
+    /*0x3020*/ DEFINE_HANDLER(CMSG_GUILD_QUERY_NEWS,                                                 STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildQueryNewsOpcode               );
     /*0x0448*/ DEFINE_HANDLER(CMSG_LF_GUILD_SET_GUILD_POST,                                          STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildFinderSetGuildPostOpcode      );
     /*0x3027*/ DEFINE_HANDLER(CMSG_LF_GUILD_REMOVE_RECRUIT,                                          STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildFinderRemoveRecruitOpcode     );
     /*0x3237*/ DEFINE_HANDLER(CMSG_LF_GUILD_POST_REQUEST,                                            STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildFinderPostRequestOpcode       );

@@ -74,6 +74,7 @@ public:
     void SetNextGuildId(uint32 Id) { NextGuildId = Id; }
 
     void ResetTimes(bool weekly = false);
+    void ClearExpiredGuildNews();
 
     // Cata guild leveling
     uint64 GetXPForGuildLevel(uint8 level) const;
