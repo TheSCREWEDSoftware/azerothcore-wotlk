@@ -2986,6 +2986,14 @@ float SpellInfo::GetSpellScalingMultiplier(int32 level, bool isPowerCostRelated 
     return scalingMultiplier;
 }
 
+float SpellInfo::CalculateScaledCoefficient(Unit const* caster, float coefficient) const
+{
+    if (coefficient == 0.0f || !caster || !ScalingEntry || !ScalingEntry->Class)
+        return coefficient;
+
+    return coefficient * GetSpellScalingMultiplier(int32(caster->GetLevel()));
+}
+
 float SpellInfo::GetSpellScalingValue(int32 level) const
 {
     if (!ScalingEntry || !ScalingEntry->Class || level <= 0 || level > GT_MAX_LEVEL)
