@@ -408,8 +408,12 @@ enum ItemEnchantmentType
 
 enum ItemExtendedCostFlags
 {
-    ITEM_EXT_COST_FLAG_REQUIRE_GUILD = 0x01,
-    // the season-earned currency flags (0x02-0x20) are unused until AC has a currency store
+    ITEM_EXT_COST_FLAG_REQUIRE_GUILD                = 0x01,
+    ITEM_EXT_COST_CURRENCY_REQ_IS_SEASON_EARNED_1   = 0x02, // currency i requirement is shifted by i
+    ITEM_EXT_COST_CURRENCY_REQ_IS_SEASON_EARNED_2   = 0x04,
+    ITEM_EXT_COST_CURRENCY_REQ_IS_SEASON_EARNED_3   = 0x08,
+    ITEM_EXT_COST_CURRENCY_REQ_IS_SEASON_EARNED_4   = 0x10,
+    ITEM_EXT_COST_CURRENCY_REQ_IS_SEASON_EARNED_5   = 0x20
 };
 
 enum ItemLimitCategoryMode

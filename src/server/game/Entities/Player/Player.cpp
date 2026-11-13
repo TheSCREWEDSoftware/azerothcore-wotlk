@@ -11116,6 +11116,11 @@ inline bool Player::_StoreOrEquipNewItem(uint32 vendorslot, uint32 item, uint32 
             if (iece->reqitem[i])
                 DestroyItemCount(iece->reqitem[i], (iece->reqitemcount[i] * stacks), true);
         }
+
+        // Season-earned requirements are only checked, not spent
+        for (uint8 i = 0; i < MAX_ITEM_EXTENDED_COST_CURRENCIES; ++i)
+            if (iece->reqcurrency[i] && !(iece->requirementflags & (ITEM_EXT_COST_CURRENCY_REQ_IS_SEASON_EARNED_1 << i)))
+                ModifyCurrency(iece->reqcurrency[i], -int32(iece->reqcurrencycount[i] * stacks), true, true);
     }
 
     sScriptMgr->OnPlayerBeforeStoreOrEquipNewItem(this, vendorslot, item, count, bag, slot, pProto, pVendor, crItem, bStore);
@@ -11309,14 +11314,34 @@ bool Player::BuyItemFromVendorSlot(ObjectGuid vendorguid, uint32 vendorslot, uin
             }
         }
 
-        // 4.x extended costs can also charge currencies, which AC has no storage to spend from yet, so such
-        // a row is refused instead of granting the item for free
+        // currency price; a season-earned requirement checks the tracked (season) total instead of spending
         for (uint8 i = 0; i < MAX_ITEM_EXTENDED_COST_CURRENCIES; ++i)
         {
-            if (iece->reqcurrency[i])
+            if (!iece->reqcurrency[i])
+                continue;
+
+            CurrencyTypesEntry const* currency = sCurrencyTypesStore.LookupEntry(iece->reqcurrency[i]);
+            if (!currency)
             {
-                LOG_ERROR("entities.player", "Item {} extended cost {} requires currency {}, which is not supported",
-                    pProto->ItemId, crItem->ExtendedCost, iece->reqcurrency[i]);
+                SendBuyError(BUY_ERR_CANT_FIND_ITEM, creature, item, 0);
+                return false;
+            }
+
+            if (iece->requirementflags & (ITEM_EXT_COST_CURRENCY_REQ_IS_SEASON_EARNED_1 << i))
+            {
+                auto itr = _currencyStorage.find(currency->ID);
+                if (itr == _currencyStorage.end() || itr->second.TrackedQuantity < iece->reqcurrencycount[i])
+                {
+                    SendEquipError(EQUIP_ERR_VENDOR_MISSING_TURNINS, nullptr, nullptr);
+                    return false;
+                }
+
+                continue;
+            }
+
+            uint64 const total = uint64(iece->reqcurrencycount[i]) * stacks;
+            if (total > std::numeric_limits<uint32>::max() || !HasCurrency(currency->ID, uint32(total)))
+            {
                 SendEquipError(EQUIP_ERR_VENDOR_MISSING_TURNINS, nullptr, nullptr);
                 return false;
             }
@@ -11342,12 +11367,8 @@ bool Player::BuyItemFromVendorSlot(ObjectGuid vendorguid, uint32 vendorslot, uin
             return false;
         }
 
-        // AC has no guild level (guilds gain levels in 4.x, which this core does not model), so a row
-        // that requires one is refused instead of granting the item without it
-        if (iece->reqguildlevel)
+        if (iece->reqguildlevel && GetGuildLevel() < iece->reqguildlevel)
         {
-            LOG_ERROR("entities.player", "Item {} extended cost {} requires guild level {}, which this core does not track",
-                pProto->ItemId, crItem->ExtendedCost, iece->reqguildlevel);
             SendEquipError(EQUIP_ERR_VENDOR_MISSING_TURNINS, nullptr, nullptr);
             return false;
         }
