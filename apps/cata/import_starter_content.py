@@ -112,10 +112,18 @@ def spell_effects(dbc_dir, creature_effects=(28,)):
     return summoned, triggers
 
 
+def mysql_command(container, user, password, *args, program="mysql", stdin=False):
+    """mysql argv for the disposable container, or for a local server when container is "local"."""
+    credentials = [f"-u{user}"] + ([f"-p{password}"] if password else [])
+    if container == "local":
+        # MariaDB resolves a multi-table DELETE alias only with a default database selected
+        return [program, *credentials, "--max_allowed_packet=1G", *(["--database=mysql"] if not stdin else []), *args]
+    return ["docker", "exec", *(["-i"] if stdin else []), container, program, *credentials, *args]
+
+
 def run(container, user, password, sql):
     result = subprocess.run(
-        ["docker", "exec", container, "mysql", f"-u{user}", f"-p{password}", "--default-character-set=utf8mb4",
-         "-N", "-B", "-e", sql],
+        mysql_command(container, user, password, "--default-character-set=utf8mb4", "-N", "-B", "-e", sql),
         capture_output=True, text=True, encoding="utf-8", check=False,
     )
     if result.returncode:
