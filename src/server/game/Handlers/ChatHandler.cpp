@@ -917,18 +917,49 @@ namespace Acore
         SendTextEmoteBuilder(Player const& player, uint32 emoteId, uint32 soundIndex, Unit const* target)
             : i_player(player), i_emoteId(emoteId), i_soundIndex(soundIndex), i_target(target) {}
 
-        void operator()(WorldPacket& data, LocaleConstant loc_idx)
+        // 5.4.8 18414, from Project SkyFire (EmoteChatBuilder)
+        void operator()(WorldPacket& data, LocaleConstant /*loc_idx*/)
         {
-            std::string const name(i_target
-                ? (i_target->IsPet() ? i_target->GetName() : i_target->GetNameForLocaleIdx(loc_idx))
-                : "");
+            ObjectGuid const playerGuid = i_player.GetGUID();
+            ObjectGuid const targetGuid = i_target ? i_target->GetGUID() : ObjectGuid::Empty;
 
-            data.Initialize(SMSG_TEXT_EMOTE, 20 + name.size() + 1);
-            data << i_player.GetGUID();
+            data.Initialize(SMSG_TEXT_EMOTE, 2 * (8 + 1) + 4 + 4);
+            data.WriteBit(playerGuid[1]);
+            data.WriteBit(targetGuid[7]);
+            data.WriteBit(playerGuid[6]);
+            data.WriteBit(targetGuid[5]);
+            data.WriteBit(playerGuid[3]);
+            data.WriteBit(targetGuid[6]);
+            data.WriteBit(targetGuid[2]);
+            data.WriteBit(playerGuid[7]);
+            data.WriteBit(targetGuid[0]);
+            data.WriteBit(targetGuid[1]);
+            data.WriteBit(playerGuid[4]);
+            data.WriteBit(playerGuid[2]);
+            data.WriteBit(targetGuid[3]);
+            data.WriteBit(targetGuid[4]);
+            data.WriteBit(playerGuid[0]);
+            data.WriteBit(playerGuid[5]);
+            data.FlushBits();
+
+            data.WriteByteSeq(targetGuid[2]);
+            data.WriteByteSeq(targetGuid[1]);
+            data.WriteByteSeq(playerGuid[7]);
+            data.WriteByteSeq(playerGuid[4]);
+            data.WriteByteSeq(targetGuid[7]);
+            data.WriteByteSeq(playerGuid[5]);
+            data.WriteByteSeq(playerGuid[2]);
             data << uint32(i_emoteId);
+            data.WriteByteSeq(playerGuid[6]);
+            data.WriteByteSeq(targetGuid[0]);
+            data.WriteByteSeq(playerGuid[3]);
+            data.WriteByteSeq(playerGuid[1]);
+            data.WriteByteSeq(targetGuid[6]);
+            data.WriteByteSeq(playerGuid[0]);
+            data.WriteByteSeq(targetGuid[3]);
+            data.WriteByteSeq(targetGuid[5]);
+            data.WriteByteSeq(targetGuid[4]);
             data << uint32(i_soundIndex);
-            data << uint32(name.size() + 1);
-            data << name;
         }
 
     private:
@@ -1014,7 +1045,7 @@ void WorldSession::HandleTextEmoteOpcode(WorldPacket& recvData)
         ((Creature*)unit)->AI()->ReceiveEmote(GetPlayer(), text_emote);
 }
 
-// 4.3.4: CMSG_SEND_TEXT_EMOTE (0x2E24), ported from TrinityCore's 4.3.4 handler.
+// 5.4.8 18414: CMSG_SEND_TEXT_EMOTE, from Project SkyFire (WorldSession::HandleTextEmoteOpcode)
 void WorldSession::HandleSendTextEmoteOpcode(WorldPacket& recvData)
 {
     uint32 emoteId;
@@ -1022,7 +1053,10 @@ void WorldSession::HandleSendTextEmoteOpcode(WorldPacket& recvData)
     ObjectGuid targetGuid;
     recvData >> emoteId;
     recvData >> soundIndex;
-    recvData >> targetGuid;
+    for (uint8 index : { 6, 7, 3, 2, 0, 5, 1, 4 })
+        targetGuid[index] = recvData.ReadBit();
+    for (uint8 index : { 0, 5, 1, 4, 2, 3, 7, 6 })
+        recvData.ReadByteSeq(targetGuid[index]);
 
     if (!GetPlayer()->IsAlive())
         return;
@@ -1085,23 +1119,10 @@ void WorldSession::HandleChatIgnoredOpcode(WorldPacket& recvData)
     uint8 unk;
 
     recvData >> unk;                                       // probably related to spam reporting
-    iguid[5] = recvData.ReadBit();
-    iguid[2] = recvData.ReadBit();
-    iguid[6] = recvData.ReadBit();
-    iguid[4] = recvData.ReadBit();
-    iguid[7] = recvData.ReadBit();
-    iguid[0] = recvData.ReadBit();
-    iguid[1] = recvData.ReadBit();
-    iguid[3] = recvData.ReadBit();
-
-    recvData.ReadByteSeq(iguid[0]);
-    recvData.ReadByteSeq(iguid[6]);
-    recvData.ReadByteSeq(iguid[5]);
-    recvData.ReadByteSeq(iguid[1]);
-    recvData.ReadByteSeq(iguid[4]);
-    recvData.ReadByteSeq(iguid[3]);
-    recvData.ReadByteSeq(iguid[7]);
-    recvData.ReadByteSeq(iguid[2]);
+    for (uint8 index : { 5, 0, 1, 3, 6, 7, 4, 2 })
+        iguid[index] = recvData.ReadBit();
+    for (uint8 index : { 2, 0, 3, 4, 7, 6, 1, 5 })
+        recvData.ReadByteSeq(iguid[index]);
 
     Player* player = ObjectAccessor::FindConnectedPlayer(iguid);
     if (!player)
@@ -1122,15 +1143,19 @@ void WorldSession::HandleChannelDeclineInvite(WorldPacket& recvPacket)
 
 void WorldSession::SendPlayerNotFoundNotice(std::string const& name)
 {
-    WorldPacket data(SMSG_CHAT_PLAYER_NOT_FOUND, name.size() + 1);
-    data << name;
+    WorldPacket data(SMSG_CHAT_PLAYER_NOT_FOUND, name.size() + 2);
+    data.WriteBits(name.size(), 9);
+    data.FlushBits();
+    data.WriteString(name);
     SendPacket(&data);
 }
 
 void WorldSession::SendPlayerAmbiguousNotice(std::string const& name)
 {
-    WorldPacket data(SMSG_CHAT_PLAYER_AMBIGUOUS, name.size() + 1);
-    data << name;
+    WorldPacket data(SMSG_CHAT_PLAYER_AMBIGUOUS, name.size() + 2);
+    data.WriteBits(name.size(), 9);
+    data.FlushBits();
+    data.WriteString(name);
     SendPacket(&data);
 }
 
