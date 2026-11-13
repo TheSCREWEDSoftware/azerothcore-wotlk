@@ -10325,35 +10325,19 @@ WorldPackets::Movement::GetSpellCastMovementSequence()
 
 WorldPacket const* WorldPackets::Movement::MoveKnockBack::Write()
 {
-    _worldPacket.WriteBit(MoverGUID[0]);
-    _worldPacket.WriteBit(MoverGUID[3]);
-    _worldPacket.WriteBit(MoverGUID[6]);
-    _worldPacket.WriteBit(MoverGUID[7]);
-    _worldPacket.WriteBit(MoverGUID[2]);
-    _worldPacket.WriteBit(MoverGUID[5]);
-    _worldPacket.WriteBit(MoverGUID[1]);
-    _worldPacket.WriteBit(MoverGUID[4]);
-    _worldPacket.FlushBits();
-
-    _worldPacket.WriteByteSeq(MoverGUID[1]);
-
-    _worldPacket << float(DirectionY);
-    _worldPacket << uint32(SequenceIndex);
-
-    _worldPacket.WriteByteSeq(MoverGUID[6]);
-    _worldPacket.WriteByteSeq(MoverGUID[7]);
-
+    // 5.4.8 layout, from Project SkyFire (Unit::SendMoveKnockBack)
     _worldPacket << float(HorzSpeed);
-
-    _worldPacket.WriteByteSeq(MoverGUID[4]);
-    _worldPacket.WriteByteSeq(MoverGUID[5]);
-    _worldPacket.WriteByteSeq(MoverGUID[3]);
-
+    _worldPacket << float(DirectionY);
     _worldPacket << float(VertSpeed);
+    _worldPacket << uint32(SequenceIndex);
     _worldPacket << float(DirectionX);
 
-    _worldPacket.WriteByteSeq(MoverGUID[2]);
-    _worldPacket.WriteByteSeq(MoverGUID[0]);
+    for (uint8 index : { 2, 0, 7, 1, 4, 6, 5, 3 })
+        _worldPacket.WriteBit(MoverGUID[index]);
+    _worldPacket.FlushBits();
+
+    for (uint8 index : { 6, 0, 7, 5, 4, 3, 1, 2 })
+        _worldPacket.WriteByteSeq(MoverGUID[index]);
 
     return &_worldPacket;
 }
