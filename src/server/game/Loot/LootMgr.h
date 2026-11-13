@@ -306,12 +306,9 @@ public:
 //=====================================================
 struct LootView;
 
-ByteBuffer& operator<<(ByteBuffer& b, LootItem const& li);
-ByteBuffer& operator<<(ByteBuffer& b, LootView const& lv);
-
 struct Loot
 {
-    friend ByteBuffer& operator<<(ByteBuffer& b, LootView const& lv);
+    friend struct LootView;
 
     [[nodiscard]] QuestItemMap const& GetPlayerQuestItems() const { return PlayerQuestItems; }
     [[nodiscard]] QuestItemMap const& GetPlayerFFAItems() const { return PlayerFFAItems; }
@@ -408,6 +405,19 @@ struct LootView
     PermissionTypes permission;
     LootView(Loot& _loot, Player* _viewer, PermissionTypes _permission = ALL_PERMISSION)
         : loot(_loot), viewer(_viewer), permission(_permission) {}
+
+    struct Entry
+    {
+        uint8 Slot;
+        LootItem const* Item;
+        uint8 SlotType;
+    };
+
+    // the items this viewer is shown, with the client slot and the slot type
+    [[nodiscard]] std::vector<Entry> GetEntries() const;
+
+    // 5.4.8 18414 SMSG_LOOT_RESPONSE body, from Project SkyFire
+    void Write(ObjectGuid guid, ObjectGuid lootGuid, uint8 lootType, ByteBuffer& data) const;
 };
 
 extern LootStore LootTemplates_Creature;

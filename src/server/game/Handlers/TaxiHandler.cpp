@@ -28,8 +28,22 @@ void WorldSession::HandleTaxiNodeStatusQueryOpcode(WorldPacket& recvData)
 {
     ObjectGuid guid;
 
-    recvData >> guid;
+    // 5.4.8 18414, from Project SkyFire
+    recvData.ReadGuidMask(guid, { 0, 1, 6, 4, 5, 2, 3, 7 });
+    recvData.ReadGuidBytes(guid, { 4, 1, 5, 0, 2, 7, 6, 3 });
     SendTaxiStatus(guid);
+}
+
+WorldPacket WorldSession::BuildTaxiNodeStatus(ObjectGuid guid, bool known)
+{
+    // 5.4.8 18414, from Project SkyFire; status 1 = learned, 2 = not learned yet
+    WorldPacket data(SMSG_TAXINODE_STATUS, 9);
+    data.WriteGuidMask(guid, { 6, 2, 7, 5, 4, 1 });
+    data.WriteBits(known ? 1 : 2, 2);
+    data.WriteGuidMask(guid, { 3, 0 });
+    data.FlushBits();
+    data.WriteGuidBytes(guid, { 0, 5, 2, 1, 4, 6, 7, 3 });
+    return data;
 }
 
 void WorldSession::SendTaxiStatus(ObjectGuid guid)
@@ -50,9 +64,7 @@ void WorldSession::SendTaxiStatus(ObjectGuid guid)
         return;
     }
 
-    WorldPacket data(SMSG_TAXINODE_STATUS, 9);
-    data << guid;
-    data << uint8(player->m_taxi.IsTaximaskNodeKnown(nearest) ? 1 : 0);
+    WorldPacket data = BuildTaxiNodeStatus(guid, player->m_taxi.IsTaximaskNodeKnown(nearest));
     SendPacket(&data);
     LOG_DEBUG("network", "WORLD: Sent SMSG_TAXINODE_STATUS");
 }
@@ -60,7 +72,9 @@ void WorldSession::SendTaxiStatus(ObjectGuid guid)
 void WorldSession::HandleTaxiQueryAvailableNodes(WorldPacket& recvData)
 {
     ObjectGuid guid;
-    recvData >> guid;
+    // 5.4.8 18414, from Project SkyFire
+    recvData.ReadGuidMask(guid, { 7, 1, 0, 4, 2, 5, 6, 3 });
+    recvData.ReadGuidBytes(guid, { 0, 3, 7, 5, 2, 6, 4, 1 });
 
     // cheating checks
     Creature* unit = GetPlayer()->GetNPCIfCanInteractWith(guid, UNIT_NPC_FLAG_FLIGHTMASTER);
@@ -95,10 +109,17 @@ void WorldSession::SendTaxiMenu(Creature* unit)
 
     LOG_DEBUG("network", "WORLD: CMSG_TAXINODE_STATUS_QUERY {} ", curloc);
 
-    WorldPacket data(SMSG_SHOWTAXINODES, (4 + 8 + 4 + 8 * 4));
-    data << uint32(1);
-    data << unit->GetGUID();
+    // 5.4.8 18414, from Project SkyFire
+    ObjectGuid guid = unit->GetGUID();
+    WorldPacket data(SMSG_SHOWTAXINODES, 1 + 8 + 4 + 4 + TaxiMaskClientBytes);
+    data.WriteBit(true);                                    // has window info
+    data.WriteGuidMask(guid, { 3, 0, 4, 2, 1, 7, 6, 5 });
+    data.WriteBits(TaxiMaskClientBytes, 24);
+    data.FlushBits();
+
+    data.WriteGuidBytes(guid, { 0, 3 });
     data << uint32(curloc);
+    data.WriteGuidBytes(guid, { 5, 2, 6, 1, 7, 4 });
     GetPlayer()->m_taxi.AppendTaximaskTo(data, GetPlayer()->isTaxiCheater());
     SendPacket(&data);
 
@@ -138,9 +159,7 @@ bool WorldSession::SendLearnNewTaxiNode(Creature* unit)
         WorldPacket msg(SMSG_NEW_TAXI_PATH, 0);
         SendPacket(&msg);
 
-        WorldPacket update(SMSG_TAXINODE_STATUS, 9);
-        update << unit->GetGUID();
-        update << uint8(1);
+        WorldPacket update = BuildTaxiNodeStatus(unit->GetGUID(), true);
         SendPacket(&update);
 
         sScriptMgr->OnPlayerLearnTaxiNode(GetPlayer(), curloc);
@@ -167,7 +186,17 @@ void WorldSession::HandleActivateTaxiExpressOpcode(WorldPacket& recvData)
     ObjectGuid guid;
     uint32 node_count;
 
-    recvData >> guid >> node_count;
+    // 5.4.8 18414, from Project SkyFire; the nodes sit between the GUID bytes
+    recvData.ReadGuidMask(guid, { 6, 7 });
+    node_count = recvData.ReadBits(22);
+    recvData.ReadGuidMask(guid, { 2, 0, 4, 3, 1, 5 });
+    recvData.ReadGuidBytes(guid, { 2, 7, 1 });
+
+    std::vector<uint32> requestedNodes;
+    for (uint32 i = 0; i < node_count; ++i)
+        requestedNodes.push_back(recvData.read<uint32>());
+
+    recvData.ReadGuidBytes(guid, { 0, 5, 3, 6, 4 });
 
     Creature* npc = GetPlayer()->GetNPCIfCanInteractWith(guid, UNIT_NPC_FLAG_FLIGHTMASTER);
     if (!npc)
@@ -178,15 +207,11 @@ void WorldSession::HandleActivateTaxiExpressOpcode(WorldPacket& recvData)
     }
     std::vector<uint32> nodes;
 
-    for (uint32 i = 0; i < node_count; ++i)
+    for (uint32 node : requestedNodes)
     {
-        uint32 node;
-        recvData >> node;
-
         if (!GetPlayer()->m_taxi.IsTaximaskNodeKnown(node) && !GetPlayer()->isTaxiCheater())
         {
             SendActivateTaxiReply(ERR_TAXINOTVISITED);
-            recvData.rfinish();
             return;
         }
 
@@ -275,7 +300,10 @@ void WorldSession::HandleActivateTaxiOpcode(WorldPacket& recvData)
     std::vector<uint32> nodes;
     nodes.resize(2);
     GetPlayer()->SetCanTeleport(true);
-    recvData >> guid >> nodes[0] >> nodes[1];
+    // 5.4.8 18414, from Project SkyFire
+    recvData >> nodes[1] >> nodes[0];
+    recvData.ReadGuidMask(guid, { 4, 0, 1, 2, 5, 6, 7, 3 });
+    recvData.ReadGuidBytes(guid, { 1, 0, 6, 5, 2, 4, 3, 7 });
     LOG_DEBUG("network", "WORLD: Received CMSG_ACTIVATETAXI from {} to {}", nodes[0], nodes[1]);
     Creature* npc = GetPlayer()->GetNPCIfCanInteractWith(guid, UNIT_NPC_FLAG_FLIGHTMASTER);
     if (!npc)
@@ -300,8 +328,10 @@ void WorldSession::HandleActivateTaxiOpcode(WorldPacket& recvData)
 void WorldSession::SendActivateTaxiReply(ActivateTaxiReply reply)
 {
     GetPlayer()->SetCanTeleport(true);
-    WorldPacket data(SMSG_ACTIVATETAXIREPLY, 4);
-    data << uint32(reply);
+    // 5.4.8 18414, from Project SkyFire
+    WorldPacket data(SMSG_ACTIVATETAXIREPLY, 1);
+    data.WriteBits(reply, 4);
+    data.FlushBits();
     SendPacket(&data);
 
     LOG_DEBUG("network", "WORLD: Sent SMSG_ACTIVATETAXIREPLY");

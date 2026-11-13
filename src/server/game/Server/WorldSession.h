@@ -699,6 +699,7 @@ public:
 
     //Taxi
     void SendTaxiStatus(ObjectGuid guid);
+    static WorldPacket BuildTaxiNodeStatus(ObjectGuid guid, bool known);
     void SendTaxiMenu(Creature* unit);
     void SendDoFlight(uint32 mountDisplayId, uint32 path, uint32 pathNode = 0);
     bool SendLearnNewTaxiNode(Creature* unit);
@@ -821,6 +822,7 @@ public:                                                 // opcodes handlers
 
     void HandleRepopRequestOpcode(WorldPacket& recvPacket);
     void HandleAutostoreLootItemOpcode(WorldPacket& recvPacket);
+    void AutoStoreLootItem(uint8 lootSlot);
     void HandleLootMoneyOpcode(WorldPacket& recvPacket);
     void HandleLootOpcode(WorldPacket& recvPacket);
     void HandleLootReleaseOpcode(WorldPacket& recvPacket);

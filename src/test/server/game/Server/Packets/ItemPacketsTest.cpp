@@ -226,29 +226,97 @@ TEST_F(ItemInventoryTest, ForeignBoundItemCannotBeUsedOrStored)
     EXPECT_EQ(_player->GetItemCount(1), 0u);
 }
 
-TEST(LootViewTest, NoPermissionIncludesBothCounts)
+namespace
 {
-    Loot loot(123);
-    ByteBuffer response;
-    response << LootView(loot, nullptr, NONE_PERMISSION);
-    ASSERT_EQ(response.size(), 6u);
-    EXPECT_EQ(response.read<uint32>(), 0u);
-    EXPECT_EQ(response.read<uint8>(), 0);
-    EXPECT_EQ(response.read<uint8>(), 0);
+    // reads the 5.4.8 SMSG_LOOT_RESPONSE header up to the item bits; AC sends the object's GUID as the loot GUID
+    uint32 ReadLootResponseHeader(ByteBuffer& response, ObjectGuid& guid, ObjectGuid& lootGuid, bool& hasGold)
+    {
+        EXPECT_TRUE(response.ReadBit());                // no failure reason
+        EXPECT_FALSE(response.ReadBit());               // no acquire reason
+        response.ReadGuidMask(guid, { 4 });
+        EXPECT_EQ(response.ReadBits(20), 0u);           // currencies
+        response.ReadGuidMask(lootGuid, { 2, 3, 7, 1 });
+        response.ReadGuidMask(guid, { 6, 7 });
+        hasGold = !response.ReadBit();
+        EXPECT_TRUE(response.ReadBit());                // personal looting
+        EXPECT_TRUE(response.ReadBit());                // no failure reason
+        EXPECT_FALSE(response.ReadBit());               // not AoE looting
+        response.ReadGuidMask(guid, { 5 });
+        response.ReadGuidMask(lootGuid, { 6 });
+        uint32 itemCount = response.ReadBits(19);
+        response.ReadGuidMask(lootGuid, { 0 });
+        return itemCount;
+    }
+
+    void ReadLootResponseTrailer(ByteBuffer& response, ObjectGuid& guid, ObjectGuid& lootGuid, bool hasGold, uint32 gold, uint8 lootType)
+    {
+        response.ReadGuidBytes(lootGuid, { 2 });
+        if (hasGold)
+        {
+            EXPECT_EQ(response.read<uint32>(), gold);
+        }
+        response.ReadGuidBytes(lootGuid, { 7 });
+        response.ReadGuidBytes(guid, { 5 });
+        response.ReadGuidBytes(lootGuid, { 3, 4 });
+        EXPECT_EQ(response.read<uint8>(), lootType);
+        response.ReadGuidBytes(guid, { 4 });
+        response.ReadGuidBytes(lootGuid, { 5 });
+        response.ReadGuidBytes(guid, { 2, 3 });
+        response.ReadGuidBytes(lootGuid, { 1 });
+        response.ReadGuidBytes(guid, { 0 });
+        response.ReadGuidBytes(lootGuid, { 0 });
+        response.ReadGuidBytes(guid, { 6, 7, 1 });
+        response.ReadGuidBytes(lootGuid, { 6 });
+    }
+
+    void ReadLootResponseMiddleBits(ByteBuffer& response, ObjectGuid& guid, ObjectGuid& lootGuid)
+    {
+        response.ReadGuidMask(guid, { 1, 0 });
+        response.ReadGuidMask(lootGuid, { 5 });
+        response.ReadGuidMask(guid, { 3 });
+        response.ReadGuidMask(lootGuid, { 4 });
+        EXPECT_FALSE(response.ReadBit());               // no loot method and threshold
+        response.ReadGuidMask(guid, { 2 });
+        response.ReadBits(8);
+        response.ReadBits(2);
+    }
 }
 
-TEST_F(ItemInventoryTest, EmptyLootViewIncludesCurrencyCount)
+TEST(LootViewTest, NoPermissionSendsAnEmptyWindow)
 {
     Loot loot(123);
+    ObjectGuid source = ObjectGuid::Create<HighGuid::Unit>(911, 79964);
     ByteBuffer response;
-    response << LootView(loot, _player);
-    ASSERT_EQ(response.size(), 6u);
-    EXPECT_EQ(response.read<uint32>(), 123u);
-    EXPECT_EQ(response.read<uint8>(), 0);
-    EXPECT_EQ(response.read<uint8>(), 0);
+    LootView(loot, nullptr, NONE_PERMISSION).Write(source, source, LOOT_NONE, response);
+
+    ObjectGuid guid, lootGuid;
+    bool hasGold = true;
+    EXPECT_EQ(ReadLootResponseHeader(response, guid, lootGuid, hasGold), 0u);
+    EXPECT_FALSE(hasGold);
+    ReadLootResponseMiddleBits(response, guid, lootGuid);
+    ReadLootResponseTrailer(response, guid, lootGuid, hasGold, 0, LOOT_NONE);
+    EXPECT_EQ(guid, source);
+    EXPECT_EQ(lootGuid, source);
+    EXPECT_EQ(response.rpos(), response.size());
 }
 
-TEST_F(ItemInventoryTest, LootItemFollowsBothCounts)
+TEST_F(ItemInventoryTest, EmptyLootViewSendsGold)
+{
+    Loot loot(123);
+    ObjectGuid source = ObjectGuid::Create<HighGuid::Unit>(911, 79964);
+    ByteBuffer response;
+    LootView(loot, _player).Write(source, source, LOOT_CORPSE, response);
+
+    ObjectGuid guid, lootGuid;
+    bool hasGold = false;
+    EXPECT_EQ(ReadLootResponseHeader(response, guid, lootGuid, hasGold), 0u);
+    EXPECT_TRUE(hasGold);
+    ReadLootResponseMiddleBits(response, guid, lootGuid);
+    ReadLootResponseTrailer(response, guid, lootGuid, hasGold, 123, LOOT_CORPSE);
+    EXPECT_EQ(response.rpos(), response.size());
+}
+
+TEST_F(ItemInventoryTest, LootItemIsWrittenAfterTheBits)
 {
     _template.DisplayInfoID = 123;
     Loot loot(42);
@@ -256,19 +324,29 @@ TEST_F(ItemInventoryTest, LootItemFollowsBothCounts)
     item.itemid = 1;
     item.count = 3;
     loot.items.push_back(item);
+    ObjectGuid source = ObjectGuid::Create<HighGuid::Unit>(911, 79964);
     ByteBuffer response;
-    response << LootView(loot, _player);
-    ASSERT_EQ(response.size(), 28u);
-    EXPECT_EQ(response.read<uint32>(), 42u);
-    EXPECT_EQ(response.read<uint8>(), 1);
-    EXPECT_EQ(response.read<uint8>(), 0);
-    EXPECT_EQ(response.read<uint8>(), 0);
-    EXPECT_EQ(response.read<uint32>(), 1u);
-    EXPECT_EQ(response.read<uint32>(), 3u);
-    EXPECT_EQ(response.read<uint32>(), 123u);
-    EXPECT_EQ(response.read<uint32>(), 0u);
-    EXPECT_EQ(response.read<int32>(), 0);
-    EXPECT_EQ(response.read<uint8>(), LOOT_SLOT_TYPE_ALLOW_LOOT);
+    LootView(loot, _player).Write(source, source, LOOT_CORPSE, response);
+
+    ObjectGuid guid, lootGuid;
+    bool hasGold = false;
+    ASSERT_EQ(ReadLootResponseHeader(response, guid, lootGuid, hasGold), 1u);
+    EXPECT_EQ(response.ReadBits(3), uint32(LOOT_SLOT_TYPE_ALLOW_LOOT));
+    EXPECT_FALSE(response.ReadBit());
+    EXPECT_TRUE(response.ReadBit());
+    EXPECT_FALSE(response.ReadBit());
+    EXPECT_EQ(response.ReadBits(2), 3u);
+    ReadLootResponseMiddleBits(response, guid, lootGuid);
+
+    EXPECT_EQ(response.read<uint32>(), 0u);             // random suffix
+    EXPECT_EQ(response.read<uint32>(), 3u);             // count
+    EXPECT_EQ(response.read<uint32>(), 1u);             // item
+    EXPECT_EQ(response.read<uint32>(), 4u);             // bonus data size
+    EXPECT_EQ(response.read<uint32>(), 0u);             // bonus data
+    EXPECT_EQ(response.read<int32>(), 0);               // random property
+    EXPECT_EQ(response.read<uint8>(), 0);               // slot
+    EXPECT_EQ(response.read<uint32>(), 123u);           // display id
+    ReadLootResponseTrailer(response, guid, lootGuid, hasGold, 42, LOOT_CORPSE);
     EXPECT_EQ(response.rpos(), response.size());
 }
 
@@ -375,10 +453,9 @@ TEST_F(ItemInventoryTest, ForeignAndRepeatedReleaseCannotChangeLootState)
     EXPECT_EQ(_player->GetMoney(), 0u);
 }
 
-TEST(LootViewTest, CataNotificationOpcodes)
+TEST(LootViewTest, Uses548NotificationOpcodes)
 {
-    EXPECT_EQ(uint16(SMSG_LOOT_RELEASE_RESPONSE), 0x6D25);
-    EXPECT_EQ(uint16(SMSG_LOOT_CLEAR_MONEY), 0x2B37);
-    EXPECT_EQ(uint16(SMSG_LOOT_RESPONSE), 0x4C16);
-    EXPECT_EQ(uint16(CMSG_AUTOSTORE_LOOT_ITEM), 0x0E34);
+    EXPECT_EQ(uint16(SMSG_LOOT_RELEASE_RESPONSE), 0x123F);
+    EXPECT_EQ(uint16(SMSG_LOOT_CLEAR_MONEY), 0x1632);
+    EXPECT_EQ(uint16(SMSG_LOOT_RESPONSE), 0x128A);
 }

@@ -2645,7 +2645,8 @@ typedef std::map<uint32, TaxiPathSetForSource> TaxiPathSetBySource;
 typedef std::vector<TaxiPathNodeEntry const*> TaxiPathNodeList;
 typedef std::vector<TaxiPathNodeList> TaxiPathNodesByPath;
 
-static constexpr std::size_t TaxiMaskSize = 29; // Cata 4.3.4 TaxiNodes.dbc max ID is 907, needing ceil(907/32) = 29 uint32 slots (WotLK's 14 only covered 448)
+static constexpr std::size_t TaxiMaskSize = 41; // 5.4.8 sends a 162 byte (1296 node) mask, ceil(1296/32) = 41 uint32 slots
+static constexpr std::size_t TaxiMaskClientBytes = 162; // 5.4.8 18414, from Project SkyFire
 typedef std::array<uint32, TaxiMaskSize> TaxiMask;
 
 #endif

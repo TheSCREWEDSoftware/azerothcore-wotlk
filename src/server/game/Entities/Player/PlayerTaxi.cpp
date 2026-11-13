@@ -115,16 +115,10 @@ bool PlayerTaxi::LoadTaxiMask(std::string_view data)
 
 void PlayerTaxi::AppendTaximaskTo(ByteBuffer& data, bool all)
 {
-    if (all)
-    {
-        for (uint8 i = 0; i < TaxiMaskSize; i++)
-            data << uint32(sTaxiNodesMask[i]);              // all existed nodes
-    }
-    else
-    {
-        for (uint8 i = 0; i < TaxiMaskSize; i++)
-            data << uint32(m_taximask[i]);                  // known nodes
-    }
+    // 5.4.8 sends the mask byte by byte, the count goes in SMSG_SHOW_TAXI_NODES' bits
+    TaxiMask const& mask = all ? sTaxiNodesMask : m_taximask; // all existing nodes or the known ones
+    for (std::size_t i = 0; i < TaxiMaskClientBytes; ++i)
+        data << uint8(mask[i / 4] >> ((i % 4) * 8));
 }
 
 bool PlayerTaxi::LoadTaxiDestinationsFromString(std::string const& values, TeamId teamId)

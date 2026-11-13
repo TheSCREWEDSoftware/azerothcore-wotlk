@@ -157,6 +157,7 @@ public:
     void targetObjectBuildLink();
 
     ObjectGuid itemGUID;
+    ObjectGuid lootedGUID;                              // 5.4.8 names a roll by the looted object and the slot
     uint32 itemid;
     int32  itemRandomPropId;
     uint32 itemRandomSuffix;
@@ -326,6 +327,8 @@ public:
     void NeedBeforeGreed(Loot* loot, WorldObject* pLootedObject);
     void MasterLoot(Loot* loot, WorldObject* pLootedObject);
     Rolls::iterator GetRoll(ObjectGuid Guid);
+    Roll* GetRoll(ObjectGuid lootedGuid, uint8 itemSlot);
+    static WorldPacket BuildLootStartRoll(uint32 countDown, uint32 mapId, Roll const& r, uint8 voteMask);
     void CountTheRoll(Rolls::iterator roll);
     bool CountRollVote(ObjectGuid playerGUID, ObjectGuid Guid, uint8 Choise);
     void EndRoll(Loot* loot);

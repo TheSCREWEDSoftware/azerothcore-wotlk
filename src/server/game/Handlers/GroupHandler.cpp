@@ -511,10 +511,15 @@ void WorldSession::HandleGroupDisbandOpcode(WorldPacket& /*recvData*/)
 
 void WorldSession::HandleLootMethodOpcode(WorldPacket& recvData)
 {
-    uint32 lootMethod;
+    uint8 lootMethod;
     ObjectGuid lootMaster;
     uint32 lootThreshold;
-    recvData >> lootMethod >> lootMaster >> lootThreshold;
+    // 5.4.8 18414, from Project SkyFire
+    recvData.read_skip<uint8>();       // party index
+    recvData >> lootMethod;
+    recvData >> lootThreshold;
+    recvData.ReadGuidMask(lootMaster, { 7, 1, 2, 0, 4, 5, 6, 3 });
+    recvData.ReadGuidBytes(lootMaster, { 7, 1, 3, 4, 6, 5, 0, 2 });
 
     Group* group = GetPlayer()->GetGroup();
     if (!group)
@@ -545,11 +550,13 @@ void WorldSession::HandleLootMethodOpcode(WorldPacket& recvData)
 void WorldSession::HandleLootRoll(WorldPacket& recvData)
 {
     ObjectGuid guid;
-    uint32 itemSlot;
-    uint8  rollType;
-    recvData >> guid;                  // guid of the item rolled
+    uint8 itemSlot;
+    uint8 rollType;
+    // 5.4.8 18414, from Project SkyFire; the GUID is the loot GUID
     recvData >> itemSlot;
     recvData >> rollType;              // 0: pass, 1: need, 2: greed
+    recvData.ReadGuidMask(guid, { 7, 1, 2, 0, 6, 3, 4, 5 });
+    recvData.ReadGuidBytes(guid, { 0, 2, 7, 3, 1, 5, 4, 6 });
 
     Group* group = GetPlayer()->GetGroup();
     if (!group)
@@ -561,7 +568,11 @@ void WorldSession::HandleLootRoll(WorldPacket& recvData)
         rollType = ROLL_PASS;
     }
 
-    group->CountRollVote(GetPlayer()->GetGUID(), guid, rollType);
+    Roll* roll = group->GetRoll(guid, itemSlot);
+    if (!roll)
+        return;
+
+    group->CountRollVote(GetPlayer()->GetGUID(), roll->itemGUID, rollType);
 
     switch (rollType)
     {
@@ -874,8 +885,7 @@ void WorldSession::HandleRequestRaidInfoOpcode(WorldPacket& /*recvData*/)
 
 void WorldSession::HandleOptOutOfLootOpcode(WorldPacket& recvData)
 {
-    uint32 passOnLoot;
-    recvData >> passOnLoot; // 1 always pass, 0 do not pass
+    bool passOnLoot = recvData.ReadBit(); // 1 always pass, 0 do not pass
 
     if (!GetPlayer())
         return;

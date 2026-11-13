@@ -35,12 +35,28 @@
 void WorldSession::HandleAutostoreLootItemOpcode(WorldPacket& recvData)
 {
     LOG_DEBUG("network", "WORLD: CMSG_AUTOSTORE_LOOT_ITEM");
+
+    // 5.4.8 18414, from Project SkyFire: a list of loot GUID and slot pairs (AoE looting). AC loots
+    // one object at a time and uses its GUID as the loot GUID, other entries are ignored.
+    uint32 count = recvData.ReadBits(23);
+    std::vector<ObjectGuid> guids(count);
+    for (ObjectGuid& guid : guids)
+        recvData.ReadGuidMask(guid, { 2, 7, 0, 6, 5, 3, 1, 4 });
+
+    for (ObjectGuid& guid : guids)
+    {
+        recvData.ReadGuidBytes(guid, { 0, 4, 1, 7, 6, 5, 3, 2 });
+        uint8 lootSlot = recvData.read<uint8>();
+        if (guid == GetPlayer()->GetLootGUID())
+            AutoStoreLootItem(lootSlot);
+    }
+}
+
+void WorldSession::AutoStoreLootItem(uint8 lootSlot)
+{
     Player* player = GetPlayer();
     ObjectGuid lguid = player->GetLootGUID();
     Loot* loot = nullptr;
-    uint8 lootSlot = 0;
-
-    recvData >> lootSlot;
 
     // full CAIS restriction blocks item pickup from every loot source (GO/gather/item/corpse),
     // not just the creature-corpse window guarded in HandleLootOpcode
@@ -236,9 +252,11 @@ void WorldSession::HandleLootMoneyOpcode(WorldPacket& /*recvData*/)
                 (*i)->ModifyMoney(finalGold);
                 (*i)->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_LOOT_MONEY, finalGold);
 
+                // 5.4.8 18414, from Project SkyFire
                 WorldPacket data(SMSG_LOOT_MONEY_NOTIFY, 4 + 1);
+                data.WriteBit(playersNear.size() <= 1);            // Controls the text displayed in chat. 0 is "Your share is..." and 1 is "You loot..."
+                data.FlushBits();
                 data << uint32(finalGold);
-                data << uint8(playersNear.size() > 1 ? 0 : 1);     // Controls the text displayed in chat. 0 is "Your share is..." and 1 is "You loot..."
                 (*i)->SendDirectMessage(&data);
             }
         }
@@ -263,9 +281,11 @@ void WorldSession::HandleLootMoneyOpcode(WorldPacket& /*recvData*/)
                 player->ModifyMoney(finalGold);
                 player->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_LOOT_MONEY, finalGold);
 
+                // 5.4.8 18414, from Project SkyFire
                 WorldPacket data(SMSG_LOOT_MONEY_NOTIFY, 4 + 1);
+                data.WriteBit(true);   // "You loot..."
+                data.FlushBits();
                 data << uint32(finalGold);
-                data << uint8(1);   // "You loot..."
                 SendPacket(&data);
             }
         }
@@ -291,7 +311,9 @@ void WorldSession::HandleLootOpcode(WorldPacket& recvData)
     LOG_DEBUG("network", "WORLD: CMSG_LOOT");
 
     ObjectGuid guid;
-    recvData >> guid;
+    // 5.4.8 18414, from Project SkyFire
+    recvData.ReadGuidMask(guid, { 4, 5, 2, 7, 0, 1, 3, 6 });
+    recvData.ReadGuidBytes(guid, { 3, 5, 0, 6, 4, 1, 7, 2 });
 
     Player* player = GetPlayer();
 
@@ -319,7 +341,9 @@ void WorldSession::HandleLootReleaseOpcode(WorldPacket& recvData)
     // cheaters can modify lguid to prevent correct apply loot release code and re-loot
     // use internal stored guid
     ObjectGuid guid;
-    recvData >> guid;
+    // 5.4.8 18414, from Project SkyFire
+    recvData.ReadGuidMask(guid, { 7, 4, 2, 3, 0, 5, 6, 1 });
+    recvData.ReadGuidBytes(guid, { 0, 6, 4, 2, 5, 3, 7, 1 });
 
     if (ObjectGuid lguid = GetPlayer()->GetLootGUID())
         if (lguid == guid)

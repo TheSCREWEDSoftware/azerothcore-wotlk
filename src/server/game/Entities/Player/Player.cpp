@@ -8060,8 +8060,32 @@ void Player::RemovedInsignia(Player* looterPlr)
 
 void Player::SendLootRelease(ObjectGuid guid)
 {
-    WorldPacket data(SMSG_LOOT_RELEASE_RESPONSE, (8 + 1));
-    data << guid << uint8(1);
+    // 5.4.8 18414, from Project SkyFire; AC uses the looted object's GUID as the loot GUID
+    ObjectGuid lootGuid = guid;
+    WorldPacket data(SMSG_LOOT_RELEASE_RESPONSE, 18);
+    data.WriteGuidMask(lootGuid, { 0, 7, 5 });
+    data.WriteGuidMask(guid, { 0 });
+    data.WriteGuidMask(lootGuid, { 4, 6 });
+    data.WriteGuidMask(guid, { 1 });
+    data.WriteGuidMask(lootGuid, { 2 });
+    data.WriteGuidMask(guid, { 5 });
+    data.WriteGuidMask(lootGuid, { 3 });
+    data.WriteGuidMask(guid, { 3, 2, 4 });
+    data.WriteGuidMask(lootGuid, { 1 });
+    data.WriteGuidMask(guid, { 6, 7 });
+    data.FlushBits();
+
+    data.WriteGuidBytes(guid, { 1 });
+    data.WriteGuidBytes(lootGuid, { 1 });
+    data.WriteGuidBytes(guid, { 2, 5 });
+    data.WriteGuidBytes(lootGuid, { 5, 7, 3 });
+    data.WriteGuidBytes(guid, { 0 });
+    data.WriteGuidBytes(lootGuid, { 2, 0 });
+    data.WriteGuidBytes(guid, { 3, 6 });
+    data.WriteGuidBytes(lootGuid, { 6 });
+    data.WriteGuidBytes(guid, { 4 });
+    data.WriteGuidBytes(lootGuid, { 4 });
+    data.WriteGuidBytes(guid, { 7 });
     SendDirectMessage(&data);
 }
 
@@ -8458,9 +8482,7 @@ void Player::SendLoot(ObjectGuid guid, LootType loot_type)
         sScriptMgr->OnPlayerBeforeSendLoot(this, guid, loot);
 
         WorldPacket data(SMSG_LOOT_RESPONSE, (9 + 50));         // we guess size
-        data << guid;
-        data << uint8(loot_type);
-        data << LootView(*loot, this, permission);
+        LootView(*loot, this, permission).Write(guid, guid, uint8(loot_type), data);
 
         SendDirectMessage(&data);
 
@@ -8476,23 +8498,48 @@ void Player::SendLoot(ObjectGuid guid, LootType loot_type)
 
 void Player::SendLootError(ObjectGuid guid, LootError error)
 {
-    WorldPacket data(SMSG_LOOT_RESPONSE, 10);
-    data << guid;
-    data << uint8(LOOT_NONE);
-    data << uint8(error);
+    // 5.4.8 carries no failure reason in the layout SkyFire sends, the client gets an empty window
+    LOG_DEBUG("loot", "Player::SendLootError: {} for {}", uint32(error), guid.ToString());
+    Loot emptyLoot;
+    WorldPacket data(SMSG_LOOT_RESPONSE, 20);
+    LootView(emptyLoot, this, NONE_PERMISSION).Write(guid, guid, uint8(LOOT_NONE), data);
     SendDirectMessage(&data);
 }
 
 void Player::SendNotifyLootMoneyRemoved()
 {
-    WorldPacket data(SMSG_LOOT_CLEAR_MONEY, 0);
+    // 5.4.8 18414, from Project SkyFire
+    ObjectGuid guid = GetLootGUID();
+    WorldPacket data(SMSG_LOOT_CLEAR_MONEY, 9);
+    data.WriteGuidMask(guid, { 6, 0, 4, 1, 3, 5, 2, 7 });
+    data.FlushBits();
+    data.WriteGuidBytes(guid, { 0, 4, 2, 7, 1, 5, 3, 6 });
     SendDirectMessage(&data);
 }
 
 void Player::SendNotifyLootItemRemoved(uint8 lootSlot)
 {
-    WorldPacket data(SMSG_LOOT_REMOVED, 1);
+    // 5.4.8 18414, from Project SkyFire; AC uses the looted object's GUID as the loot GUID
+    ObjectGuid guid = GetLootGUID();
+    ObjectGuid lootGuid = guid;
+    WorldPacket data(SMSG_LOOT_REMOVED, 19);
+    data.WriteGuidMask(guid, { 7, 0, 2 });
+    data.WriteGuidMask(lootGuid, { 0, 1, 2, 7, 6, 5 });
+    data.WriteGuidMask(guid, { 1, 5, 6 });
+    data.WriteGuidMask(lootGuid, { 3, 4 });
+    data.WriteGuidMask(guid, { 3, 4 });
+    data.FlushBits();
+
+    data.WriteGuidBytes(lootGuid, { 1 });
+    data.WriteGuidBytes(guid, { 7 });
+    data.WriteGuidBytes(lootGuid, { 7, 0 });
+    data.WriteGuidBytes(guid, { 6, 2 });
+    data.WriteGuidBytes(lootGuid, { 5, 3, 2 });
+    data.WriteGuidBytes(guid, { 0, 5, 1 });
     data << uint8(lootSlot);
+    data.WriteGuidBytes(lootGuid, { 6 });
+    data.WriteGuidBytes(guid, { 3, 4 });
+    data.WriteGuidBytes(lootGuid, { 4 });
     SendDirectMessage(&data);
 }
 
@@ -11045,9 +11092,7 @@ void Player::SendTaxiNodeStatusMultiple()
         if (!nearestNode)
             return;
 
-        WorldPacket data(SMSG_TAXINODE_STATUS, 9);
-        data << creature->GetGUID();
-        data << uint8(m_taxi.IsTaximaskNodeKnown(nearestNode) ? 1 : 0);
+        WorldPacket data = WorldSession::BuildTaxiNodeStatus(creature->GetGUID(), m_taxi.IsTaximaskNodeKnown(nearestNode));
         SendDirectMessage(&data);
     });
 }
