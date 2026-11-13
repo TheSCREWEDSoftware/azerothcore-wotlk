@@ -101,6 +101,7 @@ char constexpr MailTemplateEntryfmt[] = "nxS";
 char constexpr MapEntryfmt[] = "nxiixxSixxxxiffxixix";
 char constexpr MapDifficultyEntryfmt[] = "diisiix";
 char constexpr MovieEntryfmt[] = "nxxx";
+char constexpr NameGenfmt[] = "dsii";
 char constexpr NamesReservedfmt[] = "xsx";
 char constexpr NamesProfanityfmt[] = "xsx";
 char constexpr NumTalentsAtLevelfmt[] = "df";

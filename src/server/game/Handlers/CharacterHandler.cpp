@@ -2931,3 +2931,31 @@ void WorldSession::HandleReorderCharacters(WorldPacket& recvData)
 
     CharacterDatabase.CommitTransaction(trans);
 }
+
+void WorldSession::HandleRandomizeCharNameOpcode(WorldPacket& recvData)
+{
+    uint8 race;
+    uint8 gender;
+    recvData >> race >> gender;
+
+    if (!sChrRacesStore.LookupEntry(race))
+    {
+        LOG_ERROR("network", "Invalid race ({}) sent by accountId: {}", race, GetAccountId());
+        return;
+    }
+
+    if (!Player::IsValidGender(gender))
+    {
+        LOG_ERROR("network", "Invalid gender ({}) sent by accountId: {}", gender, GetAccountId());
+        return;
+    }
+
+    std::string const name = GetRandomCharacterName(race, gender);
+
+    WorldPacket data(SMSG_GENERATE_RANDOM_CHARACTER_NAME_RESULT, 2 + name.size());
+    data.WriteBit(!name.empty());
+    data.WriteBits(name.size(), 7);
+    data.FlushBits();
+    data.WriteString(name);
+    SendPacket(&data);
+}

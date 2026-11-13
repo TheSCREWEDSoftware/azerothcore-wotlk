@@ -141,6 +141,8 @@ MapDifficultyMap sMapDifficultyMap;
 DBCStorage <MovieEntry> sMovieStore(MovieEntryfmt);
 
 DBCStorage <NamesReservedEntry> sNamesReservedStore(NamesReservedfmt);
+
+static std::unordered_map<uint8 /*race*/, std::array<std::vector<std::string>, 2 /*gender*/>> sNameGenMap;
 DBCStorage <NamesProfanityEntry> sNamesProfanityStore(NamesProfanityfmt);
 DBCStorage <NumTalentsAtLevelEntry> sNumTalentsAtLevelStore(NumTalentsAtLevelfmt);
 
@@ -399,6 +401,14 @@ void LoadDBCStores(std::string const& dataPath)
     LOAD_DBC(sMapDifficultyStore,                   "MapDifficulty.dbc",                    "mapdifficulty_dbc");
     LOAD_DBC(sMovieStore,                           "Movie.dbc",                            "movie_dbc");
     LOAD_DBC(sNamesReservedStore,                   "NamesReserved.dbc",                    "namesreserved_dbc");
+    {
+        // only kept as a lookup by race and gender
+        DBCStorage<NameGenEntry> nameGenStore(NameGenfmt);
+        LOAD_DBC(nameGenStore,                      "NameGen.dbc",                          nullptr);
+        for (NameGenEntry const* entry : nameGenStore)
+            if (entry->Sex < 2)
+                sNameGenMap[uint8(entry->RaceID)][entry->Sex].emplace_back(entry->Name);
+    }
     LOAD_DBC(sNamesProfanityStore,                  "NamesProfanity.dbc",                   "namesprofanity_dbc");
     LOAD_DBC(sNumTalentsAtLevelStore,               "NumTalentsAtLevel.dbc",                 nullptr);
     LOAD_DBC(sOverrideSpellDataStore,               "OverrideSpellData.dbc",                "overridespelldata_dbc");
@@ -1213,4 +1223,13 @@ std::vector<SkillLineAbilityEntry const*> const& GetSkillLineAbilitiesBySkillLin
         return emptyVector;
     }
     return it->second;
+}
+
+std::string GetRandomCharacterName(uint8 race, uint8 gender)
+{
+    auto itr = sNameGenMap.find(race);
+    if (itr == sNameGenMap.end() || gender >= itr->second.size() || itr->second[gender].empty())
+        return {};
+
+    return Acore::Containers::SelectRandomContainerElement(itr->second[gender]);
 }

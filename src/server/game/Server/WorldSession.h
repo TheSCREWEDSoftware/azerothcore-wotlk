@@ -767,6 +767,7 @@ public:                                                 // opcodes handlers
 
     void HandleCharEnumOpcode(WorldPackets::Character::EnumCharacters& packet);
     void HandleReorderCharacters(WorldPacket& recvData);
+    void HandleRandomizeCharNameOpcode(WorldPacket& recvData);
     void HandleCharDeleteOpcode(WorldPacket& recvPacket);
     void HandleCharCreateOpcode(WorldPacket& recvPacket);
     void HandleLoadScreenOpcode(WorldPacket& recvPacket);

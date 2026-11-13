@@ -28,6 +28,7 @@
 /// Lists of opcodes by wire direction
 enum OpcodeClient : uint16
 {
+    CMSG_GENERATE_RANDOM_CHARACTER_NAME             = 0x2413,
     CMSG_ROLE_POLL_BEGIN                            = 0x0430,
     CMSG_SET_CURRENCY_FLAGS                         = 0x7306,
     CMSG_REORDER_CHARACTERS                         = 0x0593,
@@ -811,6 +812,7 @@ enum OpcodeClient : uint16
 
 enum OpcodeServer : uint16
 {
+    SMSG_GENERATE_RANDOM_CHARACTER_NAME_RESULT      = 0x38B1,
     SMSG_ROLE_POLL_BEGIN                            = 0x70B0,
     SMSG_INSPECT_RATED_BG_STATS                     = 0x19A5,
     SMSG_INSPECT_HONOR_STATS                        = 0x79A5,

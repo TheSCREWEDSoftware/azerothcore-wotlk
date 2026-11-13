@@ -1558,6 +1558,14 @@ struct MovieEntry
     //uint32      volume                                    // 2 always 100
 };
 
+struct NameGenEntry
+{
+    //uint32  ID;                                           // 0
+    char const* Name;                                       // 1
+    uint32  RaceID;                                         // 2
+    uint32  Sex;                                            // 3
+};
+
 struct NamesReservedEntry
 {
     //uint32         ID;                                    // 0
