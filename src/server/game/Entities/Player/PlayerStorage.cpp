@@ -6933,12 +6933,21 @@ void Player::SendRaidInfo()
             {
                 InstanceSave* save = itr->second.save;
                 time_t resetTime = itr->second.extended ? save->GetExtendedResetTime() : save->GetResetTime();
+
+                // 4.3.4 sends heroic raids as their normal size plus a heroic flag
+                Difficulty difficulty = save->GetDifficulty();
+                bool heroic = difficulty == RAID_DIFFICULTY_10MAN_HEROIC || difficulty == RAID_DIFFICULTY_25MAN_HEROIC;
+                if (heroic)
+                    difficulty = difficulty == RAID_DIFFICULTY_10MAN_HEROIC ? RAID_DIFFICULTY_10MAN_NORMAL : RAID_DIFFICULTY_25MAN_NORMAL;
+
                 data << uint32(save->GetMapId());           // map id
-                data << uint32(save->GetDifficulty());      // difficulty
-                data << ObjectGuid::Create<HighGuid::Instance>(save->GetInstanceId()); // instance id
-                data << uint8(1);                           // expired = 0
-                data << uint8(itr->second.extended ? 1 : 0);// extended = 1
+                data << uint32(difficulty);                 // difficulty
+                data << uint32(heroic);                     // heroic
+                data << uint64(save->GetInstanceId());      // instance id
+                data << uint8(1);                           // locked
+                data << uint8(itr->second.extended ? 1 : 0);// extended
                 data << uint32(resetTime >= now ? resetTime - now : 0); // reset time
+                data << uint32(save->GetCompletedEncounterMask());
                 ++counter;
             }
         }
