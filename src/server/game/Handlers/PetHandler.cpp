@@ -894,7 +894,7 @@ void WorldSession::HandlePetRename(WorldPacket& recvData)
     PetNameInvalidReason res = ObjectMgr::CheckPetName(name);
     if (res != PET_NAME_SUCCESS)
     {
-        SendPetNameInvalid(res, name, nullptr);
+        SendPetNameInvalid(res, name, nullptr, petNumber);
         return;
     }
 
@@ -915,7 +915,7 @@ void WorldSession::HandlePetRename(WorldPacket& recvData)
         Utf8toWStr(name, wname);
         if (!ObjectMgr::CheckDeclinedNames(wname, declinedname))
         {
-            SendPetNameInvalid(PET_NAME_DECLENSION_DOESNT_MATCH_BASE_NAME, name, &declinedname);
+            SendPetNameInvalid(PET_NAME_DECLENSION_DOESNT_MATCH_BASE_NAME, name, &declinedname, petNumber);
             return;
         }
     }
@@ -1131,19 +1131,28 @@ void WorldSession::HandlePetCastSpellOpcode(WorldPacket& recvPacket)
         caster->AddUnitState(UNIT_STATE_FOLLOW);
 }
 
-void WorldSession::SendPetNameInvalid(uint32 error, std::string const& name, DeclinedName* declinedName)
+// 5.4.8 18414, from Project SkyFire
+void WorldSession::SendPetNameInvalid(uint32 error, std::string const& name, DeclinedName* declinedName, uint32 petNumber)
 {
-    WorldPacket data(SMSG_PET_NAME_INVALID, 4 + name.size() + 1 + 1);
-    data << uint32(error);
-    data << name;
+    WorldPacket data(SMSG_PET_NAME_INVALID, 2 + 4 + name.size() + 1 + 4);
+    data.WriteBit(true);                                    // has pet number
+    data.WriteBits(name.size(), 8);
+    data.WriteBit(declinedName != nullptr);
+    data.FlushBits();
+
     if (declinedName)
     {
-        data << uint8(1);
         for (uint32 i = 0; i < MAX_DECLINED_NAME_CASES; ++i)
-            data << declinedName->name[i];
+            data.WriteBits(declinedName->name[i].size(), 7);
+        data.FlushBits();
+
+        for (uint32 i = 0; i < MAX_DECLINED_NAME_CASES; ++i)
+            data.WriteString(declinedName->name[i]);
     }
-    else
-        data << uint8(0);
+
+    data.WriteString(name);
+    data << uint8(error);
+    data << uint32(petNumber);
     SendPacket(&data);
 }
 

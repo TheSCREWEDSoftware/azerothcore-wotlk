@@ -4132,55 +4132,78 @@ void Player::RemoveItemFromBuyBackSlot(uint32 slot, bool del)
 void Player::SendEquipError(InventoryResult msg, Item* pItem, Item* pItem2, uint32 itemid)
 {
     LOG_DEBUG("network", "WORLD: Sent SMSG_INVENTORY_CHANGE_FAILURE ({})", msg);
-    WorldPacket data(SMSG_INVENTORY_CHANGE_FAILURE, (msg == EQUIP_ERR_CANT_EQUIP_LEVEL_I ? 22 : 18));
+    // 5.4.8 18414, from Project SkyFire
+    ObjectGuid itemGuid = pItem ? pItem->GetGUID() : ObjectGuid::Empty;
+    ObjectGuid itemGuid2 = pItem2 ? pItem2->GetGUID() : ObjectGuid::Empty;
+    WorldPacket data(SMSG_INVENTORY_CHANGE_FAILURE, 2 + 8 + 8 + 1 + 1 + 4 + 4 + 2);
+    data.WriteGuidMask(itemGuid2, { 4 });
+    data.WriteGuidMask(itemGuid, { 3 });
+    data.WriteGuidMask(itemGuid2, { 6, 2 });
+    data.WriteGuidMask(itemGuid, { 4 });
+    data.WriteGuidMask(itemGuid2, { 5 });
+    data.WriteGuidMask(itemGuid, { 1, 6 });
+    data.WriteGuidMask(itemGuid2, { 0, 3, 1 });
+    data.WriteGuidMask(itemGuid, { 2, 0, 5, 7 });
+    data.WriteGuidMask(itemGuid2, { 7 });
+    data.FlushBits();
+    data.WriteGuidBytes(itemGuid2, { 0 });
+    data << uint8(0);                                       // bag type subclass, used with EQUIP_ERR_EVENT_AUTOEQUIP_BIND_CONFIRM and EQUIP_ERR_ITEM_DOESNT_GO_INTO_BAG2
+    data.WriteGuidBytes(itemGuid2, { 6 });
+    data.WriteGuidBytes(itemGuid, { 4, 0, 7, 3 });
+    data.WriteGuidBytes(itemGuid2, { 1, 5 });
+    data.WriteGuidBytes(itemGuid, { 5 });
+    data.WriteGuidBytes(itemGuid2, { 7, 2 });
+    data.WriteGuidBytes(itemGuid, { 1, 6, 2 });
+    data.WriteGuidBytes(itemGuid2, { 3, 4 });
     data << uint8(msg);
 
-    if (msg != EQUIP_ERR_OK)
+    switch (msg)
     {
-        data << (pItem ? pItem->GetGUID() : ObjectGuid::Empty);
-        data << (pItem2 ? pItem2->GetGUID() : ObjectGuid::Empty);
-        data << uint8(0);                                   // bag type subclass, used with EQUIP_ERR_EVENT_AUTOEQUIP_BIND_CONFIRM and EQUIP_ERR_ITEM_DOESNT_GO_INTO_BAG2
-
-        switch (msg)
+        case EQUIP_ERR_ITEM_MAX_LIMIT_CATEGORY_COUNT_EXCEEDED:
+        case EQUIP_ERR_ITEM_MAX_LIMIT_CATEGORY_SOCKETED_EXCEEDED:
+        case EQUIP_ERR_ITEM_MAX_LIMIT_CATEGORY_EQUIPPED_EXCEEDED:
         {
-            case EQUIP_ERR_CANT_EQUIP_LEVEL_I:
-            case EQUIP_ERR_PURCHASE_LEVEL_TOO_LOW:
-            {
-                ItemTemplate const* proto = pItem ? pItem->GetTemplate() : sObjectMgr->GetItemTemplate(itemid);
-                data << uint32(proto ? proto->RequiredLevel : 0);
-                break;
-            }
-            case EQUIP_ERR_EVENT_AUTOEQUIP_BIND_CONFIRM:    // no idea about this one...
-            {
-                data << ObjectGuid::Empty;  // item guid
-                data << uint32(0);          // slot
-                data << ObjectGuid::Empty;  // container
-                break;
-            }
-            case EQUIP_ERR_ITEM_MAX_LIMIT_CATEGORY_COUNT_EXCEEDED:
-            case EQUIP_ERR_ITEM_MAX_LIMIT_CATEGORY_SOCKETED_EXCEEDED:
-            case EQUIP_ERR_ITEM_MAX_LIMIT_CATEGORY_EQUIPPED_EXCEEDED:
-            {
-                ItemTemplate const* proto = pItem ? pItem->GetTemplate() : sObjectMgr->GetItemTemplate(itemid);
-                data << uint32(proto ? proto->ItemLimitCategory : 0);
-                break;
-            }
-            default:
-                break;
+            ItemTemplate const* proto = pItem ? pItem->GetTemplate() : sObjectMgr->GetItemTemplate(itemid);
+            data << uint32(proto ? proto->ItemLimitCategory : 0);
+            break;
         }
+        case EQUIP_ERR_EVENT_AUTOEQUIP_BIND_CONFIRM:            // no idea about this one...
+            data << uint32(0);                                  // slot
+            break;
+        case EQUIP_ERR_CANT_EQUIP_LEVEL_I:
+        case EQUIP_ERR_PURCHASE_LEVEL_TOO_LOW:
+        {
+            ItemTemplate const* proto = pItem ? pItem->GetTemplate() : sObjectMgr->GetItemTemplate(itemid);
+            data << uint32(proto ? proto->RequiredLevel : 0);
+            break;
+        }
+        default:
+            break;
     }
+
+    if (msg == EQUIP_ERR_EVENT_AUTOEQUIP_BIND_CONFIRM)
+    {
+        data.WriteBits(0, 8);                                   // container guid mask
+        data.WriteBits(0, 8);                                   // item guid mask
+        data.FlushBits();
+    }
+
     SendDirectMessage(&data);
 }
 
 void Player::SendBuyError(BuyResult msg, Creature* creature, uint32 item, uint32 param)
 {
     LOG_DEBUG("network", "WORLD: Sent SMSG_BUY_FAILED");
-    WorldPacket data(SMSG_BUY_FAILED, (8 + 4 + 4 + 1));
-    data << (creature ? creature->GetGUID() : ObjectGuid::Empty);
-    data << uint32(item);
-    if (param > 0)
-        data << uint32(param);
+    // 5.4.8 18414, from Project SkyFire (no extra parameter)
+    (void)param;
+    ObjectGuid vendorGuid = creature ? creature->GetGUID() : ObjectGuid::Empty;
+    WorldPacket data(SMSG_BUY_FAILED, 1 + 8 + 1 + 4);
+    data.WriteGuidMask(vendorGuid, { 6, 3, 1, 2, 4, 5, 0, 7 });
+    data.FlushBits();
     data << uint8(msg);
+    data.WriteGuidBytes(vendorGuid, { 2, 7 });
+    data << uint32(item);
+    data.WriteGuidBytes(vendorGuid, { 4, 5, 1, 3, 6, 0 });
     SendDirectMessage(&data);
 }
 
@@ -6944,8 +6967,10 @@ void Player::BindToInstance()
     if (!mapSave) //it seems sometimes mapSave is nullptr, but I did not check why
         return;
 
-    WorldPacket data(SMSG_INSTANCE_SAVE_CREATED, 4);
-    data << uint32(0);
+    // 5.4.8 18414, from Project SkyFire
+    WorldPacket data(SMSG_INSTANCE_SAVE_CREATED, 1);
+    data.WriteBit(IsGameMaster());
+    data.FlushBits();
     SendDirectMessage(&data);
     sInstanceSaveMgr->PlayerBindToInstance(this->GetGUID(), mapSave, true, this);
 }

@@ -180,16 +180,16 @@ void ReputationMgr::SendState(FactionState const* faction)
 {
     uint32 count = 1;
 
-    WorldPacket data(SMSG_SET_FACTION_STANDING, 17);
-    data << float(0);
-    data << uint8(_sendFactionIncreased);
+    // 5.4.8 18414, from Project SkyFire
+    WorldPacket data(SMSG_SET_FACTION_STANDING, 3 + 8 + 4 + 4);
+    std::size_t countPos = data.bitwpos() + 1;              // after the faction increased bit
+    data.WriteBit(_sendFactionIncreased);
+    data.WriteBits(count, 21);
+    data.FlushBits();
     _sendFactionIncreased = false; // Reset
 
-    std::size_t p_count = data.wpos();
-    data << uint32(count);
-
-    data << uint32(faction->ReputationListID);
     data << uint32(faction->Standing);
+    data << uint32(faction->ReputationListID);
 
     for (FactionStateList::iterator itr = _factions.begin(); itr != _factions.end(); ++itr)
     {
@@ -198,14 +198,16 @@ void ReputationMgr::SendState(FactionState const* faction)
             itr->second.needSend = false;
             if (itr->second.ReputationListID != faction->ReputationListID)
             {
-                data << uint32(itr->second.ReputationListID);
                 data << uint32(itr->second.Standing);
+                data << uint32(itr->second.ReputationListID);
                 ++count;
             }
         }
     }
 
-    data.put<uint32>(p_count, count);
+    data << float(0);                                       // refer-a-friend bonus
+    data << float(0);                                       // account bonus
+    data.PutBits(countPos, count, 21);
     _player->SendDirectMessage(&data);
 }
 

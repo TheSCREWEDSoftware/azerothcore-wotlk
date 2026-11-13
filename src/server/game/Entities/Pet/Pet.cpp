@@ -405,14 +405,11 @@ bool Pet::LoadPetFromDB(Player* owner, uint32 petEntry, uint32 petnumber, bool c
     /// @todo pets should be summoned from real cast instead of just faking it?
     if (petInfo->CreatedBySpellId && spellInfo && (spellInfo->CategoryRecoveryTime > 0 || spellInfo->RecoveryTime > 0))
     {
-        WorldPacket data(SMSG_SPELL_GO, (8 + 8 + 4 + 4 + 2));
-        data << owner->GetPackGUID();
-        data << owner->GetPackGUID();
-        data << uint8(0);
-        data << uint32(petInfo->CreatedBySpellId);
-        data << uint32(256); // CAST_FLAG_UNKNOWN3
-        data << uint32(0);
-        owner->SendMessageToSet(&data, true);
+        // 5.4.8: the WotLK fake SMSG_SPELL_GO does not fit the 5.4.8 layout, so the owner gets the
+        // summon spell's cooldown directly
+        WorldPacket data;
+        owner->BuildCooldownPacket(data, 0, petInfo->CreatedBySpellId, std::max(spellInfo->RecoveryTime, spellInfo->CategoryRecoveryTime));
+        owner->SendDirectMessage(&data);
     }
 
     owner->SetMinion(this, true);

@@ -624,10 +624,7 @@ public:
                         Creature* cannon = (*itr)->ToCreature();
                         cannon->CastSpell(cannon, SPELL_EJECT_ALL_PASSENGERS, true);
 
-                        WorldPacket data(SMSG_SET_VEHICLE_REC_ID, cannon->GetPackGUID().size() + 4);
-                        data << cannon->GetPackGUID();
-                        data << int32(0);
-                        cannon->SendMessageToSet(&data, true);
+                        cannon->SendSetVehicleRecId(0);
 
                         cannon->RemoveVehicleKit();
                     }
@@ -2269,9 +2266,14 @@ class spell_igb_overheat_aura : public AuraScript
             {
                 if (Player* player = passenger->ToPlayer())
                 {
-                    WorldPacket data(SMSG_CLIENT_CONTROL_UPDATE, GetUnitOwner()->GetPackGUID().size() + 1);
-                    data << GetUnitOwner()->GetPackGUID();
-                    data << uint8(value);
+                    // 5.4.8 18414, from Project SkyFire
+                    ObjectGuid ownerGuid = GetUnitOwner()->GetGUID();
+                    WorldPacket data(SMSG_CLIENT_CONTROL_UPDATE, 1 + 8);
+                    data.WriteGuidMask(ownerGuid, { 2, 7 });
+                    data.WriteBit(value != 0);
+                    data.WriteGuidMask(ownerGuid, { 0, 3, 6, 5, 1, 4 });
+                    data.FlushBits();
+                    data.WriteGuidBytes(ownerGuid, { 1, 5, 7, 4, 2, 6, 3, 0 });
                     player->SendDirectMessage(&data);
                 }
             }

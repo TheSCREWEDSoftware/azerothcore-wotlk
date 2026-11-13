@@ -1368,20 +1368,19 @@ void WorldSession::HandlePlayerLoginToCharInWorld(Player* pCurrChar)
 
     pCurrChar->SendDungeonDifficulty(false);
 
-    WorldPacket data(SMSG_LOGIN_VERIFY_WORLD, 20);
-    data << pCurrChar->GetMapId();
-    data << pCurrChar->GetPositionX();
-    data << pCurrChar->GetPositionY();
-    data << pCurrChar->GetPositionZ();
-    data << pCurrChar->GetOrientation();
-    SendPacket(&data);
+    WorldPackets::Character::LoginVerifyWorld loginVerifyWorld;
+    loginVerifyWorld.MapID = pCurrChar->GetMapId();
+    loginVerifyWorld.Pos = pCurrChar->GetPosition();
+    SendPacket(loginVerifyWorld.Write());
 
     SendAccountDataTimes(PER_CHARACTER_CACHE_MASK);
 
-    data.Initialize(SMSG_FEATURE_SYSTEM_STATUS, 2);         // added in 2.2.0
-    data << uint8(2);                                       // unknown value
-    data << uint8(0);                                       // enable(1)/disable(0) voice chat interface in client
-    SendPacket(&data);
+    WorldPackets::System::FeatureSystemStatus features;
+    features.ComplaintStatus = 2;
+    features.ScrollOfResurrectionRequestsRemaining = 1;
+    features.ScrollOfResurrectionMaxRequestsPerDay = 1;
+    features.CfgRealmID = realm.Id.Realm;
+    SendPacket(features.Write());
 
     // Send MOTD
     {
@@ -1394,9 +1393,8 @@ void WorldSession::HandlePlayerLoginToCharInWorld(Player* pCurrChar)
         LOG_DEBUG("network.opcode", "WORLD: Sent server info");
     }
 
-    data.Initialize(SMSG_LEARNED_DANCE_MOVES, 4 + 4);
-    data << uint32(0);
-    data << uint32(0);
+    WorldPacket data(SMSG_LEARNED_DANCE_MOVES, 8);
+    data << uint64(0);
     SendPacket(&data);
 
     // Xinef: fix possible problem with flag UNIT_FLAG_STUNNED added during logout
@@ -1431,39 +1429,7 @@ void WorldSession::HandlePlayerLoginToCharInWorld(Player* pCurrChar)
     pCurrChar->SetInGameTime(GameTime::GetGameTimeMS().count());
 
     // Xinef: we need to resend all spell mods
-    for (uint16 Opcode = SMSG_SET_FLAT_SPELL_MODIFIER; Opcode <= SMSG_SET_PCT_SPELL_MODIFIER; ++Opcode) // PCT = FLAT+1
-    {
-        uint32 modType = (Opcode == SMSG_SET_FLAT_SPELL_MODIFIER) ? SPELLMOD_FLAT : SPELLMOD_PCT;
-        for (uint32 opType = SPELLMOD_DAMAGE; opType < MAX_SPELLMOD; ++opType)
-        {
-            int32 i = 0;
-            flag96 _mask = 0;
-            SpellModContainer const& spellMods = pCurrChar->GetSpellModList(opType);
-            if (spellMods.empty())
-                continue;
-
-            for (int32 eff = 0; eff < 96; ++eff)
-            {
-                if (eff != 0 && eff % 32 == 0)
-                    _mask[i++] = 0;
-
-                _mask[i] = uint32(1) << (eff - (32 * i));
-                int32 val = 0;
-                for (auto const& spellMod : spellMods)
-                    if (spellMod->type == modType && spellMod->mask & _mask)
-                        val += spellMod->value;
-
-                if (val == 0)
-                    continue;
-
-                WorldPacket data(Opcode, (1 + 1 + 4));
-                data << uint8(eff);
-                data << uint8(opType);
-                data << int32(val);
-                SendPacket(&data);
-            }
-        }
-    }
+    pCurrChar->SendSpellModifiers();
 
     if (Group* group = pCurrChar->GetGroup())
         group->SendUpdate();

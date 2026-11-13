@@ -1331,9 +1331,10 @@ void WorldSession::ReadAddonsInfo(ByteBuffer& data)
 
                 addonInfo >> enabled >> crc >> unk1;
 
-                LOG_DEBUG("network", "ADDON: Name: {}, Enabled: 0x{:x}, CRC: 0x{:x}, Unknown2: 0x{:x}", addonName, enabled, crc, unk1);
+                LOG_DEBUG("network", "ADDON: Name: {}, UsePubKey: 0x{:x}, CRC: 0x{:x}, UrlFile: 0x{:x}", addonName, enabled, crc, unk1);
 
-                AddonInfo addon(addonName, enabled, crc, 2, true);
+                // 5.4.8 18414, from Project SkyFire: the byte is "uses public key", the addon is enabled
+                AddonInfo addon(addonName, true, crc, 2, enabled != 0);
 
                 SavedAddon const* savedAddon = AddonMgr::GetAddonInfo(addonName);
                 if (savedAddon)
@@ -1397,47 +1398,70 @@ void WorldSession::SendAddonsInfo()
         0x0D, 0x36, 0xEA, 0x01, 0xE0, 0xAA, 0x91, 0x20, 0x54, 0xF0, 0x72, 0xD8, 0x1E, 0xC7, 0x89, 0xD2
     };
 
-    WorldPacket data(SMSG_ADDON_INFO, 4);
-
-    for (AddonsList::iterator itr = m_addonsList.begin(); itr != m_addonsList.end(); ++itr)
+    // 5.4.8 18414, from Project SkyFire
+    uint8 pubKeyOrder[256] =
     {
-        data << uint8(itr->State);
+        0x05, 0xB0, 0x94, 0x2B, 0x1C, 0x87, 0x40, 0x08, 0xA0, 0x91, 0xE2, 0x77, 0xB5, 0xC0, 0xF0, 0x48,
+        0xF3, 0xD4, 0xD1, 0xAC, 0x15, 0xED, 0x55, 0x0A, 0x4B, 0x75, 0xF4, 0x52, 0x18, 0x14, 0x12, 0x4C,
+        0x43, 0x39, 0x9D, 0x3B, 0xC6, 0x5A, 0x16, 0x06, 0x31, 0x0C, 0x5F, 0xC1, 0x76, 0x5E, 0x28, 0x62,
+        0xFF, 0xA9, 0xD6, 0x53, 0x80, 0xDB, 0x49, 0xF7, 0x84, 0xCA, 0xDA, 0x9A, 0x70, 0x83, 0xB1, 0x6F,
+        0x90, 0x38, 0x27, 0x98, 0x30, 0x3F, 0x19, 0x72, 0x26, 0x54, 0x63, 0xA5, 0x7E, 0x22, 0x45, 0xB7,
+        0xB9, 0x34, 0x67, 0x24, 0xE9, 0x03, 0x2F, 0x8D, 0xA2, 0xE8, 0xC2, 0xFD, 0x74, 0x1B, 0x50, 0x2E,
+        0x59, 0x6B, 0xBD, 0x0E, 0xE1, 0xA7, 0x8C, 0xFA, 0xBC, 0x11, 0x1D, 0x89, 0x85, 0x4A, 0xB2, 0x3E,
+        0xEC, 0x1F, 0x65, 0x09, 0xA4, 0xC8, 0x88, 0x9F, 0xC5, 0xD8, 0xF6, 0x86, 0x00, 0x61, 0xEA, 0xA6,
+        0xCC, 0x41, 0x3C, 0xDF, 0x7A, 0x02, 0x04, 0xEF, 0xF9, 0x1E, 0xFC, 0xD3, 0x7C, 0x1A, 0x17, 0xA1,
+        0x5C, 0x8A, 0x25, 0xE3, 0x78, 0x99, 0x73, 0x97, 0xFE, 0xAD, 0xAF, 0x6C, 0x82, 0xFB, 0xAA, 0x9E,
+        0x0B, 0xF5, 0xBE, 0x68, 0xD9, 0x07, 0x4E, 0xE7, 0x9B, 0xAB, 0x37, 0x51, 0x8F, 0xCE, 0x46, 0x9C,
+        0x58, 0x2D, 0xC9, 0xB6, 0xB4, 0x10, 0xD7, 0xE6, 0x32, 0x95, 0xCB, 0xA8, 0xDC, 0xBB, 0x29, 0x3D,
+        0xEE, 0xD0, 0xE0, 0x6A, 0xCD, 0xDE, 0x2A, 0x44, 0x7F, 0xD2, 0x4D, 0x81, 0xD5, 0x0F, 0x66, 0x92,
+        0x36, 0x23, 0x5B, 0x13, 0xC7, 0x20, 0x8B, 0x96, 0xC4, 0x7D, 0x35, 0x64, 0x71, 0x6E, 0x47, 0xBF,
+        0x3A, 0xF2, 0xF8, 0x0D, 0xB8, 0xA3, 0x93, 0x4F, 0x5D, 0xE5, 0xE4, 0xBA, 0xCF, 0x01, 0x42, 0x21,
+        0x79, 0x60, 0x7B, 0xB3, 0xEB, 0xF1, 0x6D, 0x8E, 0x2C, 0x56, 0xC3, 0xAE, 0x57, 0x69, 0x33, 0xDD,
+    };
 
-        uint8 crcpub = itr->UsePublicKeyOrCRC;
-        data << uint8(crcpub);
-        if (crcpub)
+    auto shouldSendPublicKey = [](AddonInfo const& addon)
+    {
+        // Refresh built-in addon keys so stale client-side .pub files self-heal.
+        return !addon.UsePublicKeyOrCRC || addon.Name.compare(0, 9, "Blizzard_") == 0;
+    };
+
+    AddonMgr::BannedAddonList const* bannedAddons = AddonMgr::GetBannedAddons();
+
+    WorldPacket data(SMSG_ADDON_INFO, 6 + m_addonsList.size() * (256 + 6) + bannedAddons->size() * 44);
+    data.WriteBits(bannedAddons->size(), 18);
+    data.WriteBits(m_addonsList.size(), 23);
+    for (AddonInfo const& addon : m_addonsList)
+    {
+        data.WriteBit(false);                               // has URL
+        data.WriteBit(addon.Enabled);
+        data.WriteBit(shouldSendPublicKey(addon));
+    }
+    data.FlushBits();
+
+    for (AddonInfo const& addon : m_addonsList)
+    {
+        if (shouldSendPublicKey(addon))
+            for (uint32 i = 0; i < 256; ++i)
+                data << uint8(addonPublicKey[pubKeyOrder[i]]);
+
+        if (addon.Enabled)
         {
-            uint8 usepk = (itr->CRC != STANDARD_ADDON_CRC); // If addon is Standard addon CRC
-            data << uint8(usepk);
-            if (usepk)                                      // if CRC is wrong, add public key (client need it)
-            {
-                LOG_DEBUG("network", "ADDON: CRC (0x{:x}) for addon {} is wrong (does not match expected 0x{:x}), sending pubkey", itr->CRC, itr->Name, STANDARD_ADDON_CRC);
-                data.append(addonPublicKey, sizeof(addonPublicKey));
-            }
-
-            data << uint32(0);                              /// @todo: Find out the meaning of this.
+            data << uint8(addon.Enabled);
+            data << uint32(0);
         }
 
-        uint8 unk3 = 0;                                     // 0 is sent here
-        data << uint8(unk3);
-        if (unk3)
-        {
-            // String, length 256 (null terminated)
-            data << uint8(0);
-        }
+        data << uint8(addon.State);
     }
 
     m_addonsList.clear();
 
-    AddonMgr::BannedAddonList const* bannedAddons = AddonMgr::GetBannedAddons();
-    data << uint32(bannedAddons->size());
     for (AddonMgr::BannedAddonList::const_iterator itr = bannedAddons->begin(); itr != bannedAddons->end(); ++itr)
     {
         data << uint32(itr->Id);
-        data.append(itr->NameMD5);
-        data.append(itr->VersionMD5);
+        data << uint32(1);                                  // IsBanned
+        for (uint32 i = 0; i < 8; ++i)
+            data << uint32(0);                              // name and version MD5 (SkyFire sends zeros)
         data << uint32(itr->Timestamp);
-        data << uint32(1);  // IsBanned
     }
 
     SendPacket(&data);

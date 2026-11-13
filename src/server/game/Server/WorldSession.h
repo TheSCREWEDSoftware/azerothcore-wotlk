@@ -541,7 +541,7 @@ public:
     bool ProcessMovementInfo(MovementInfo& movementInfo, Unit* mover, Player* plrMover, WorldPacket& recvData);
 
     void SendPacket(WorldPacket const* packet);
-    void SendPetNameInvalid(uint32 error, std::string const& name, DeclinedName* declinedName);
+    void SendPetNameInvalid(uint32 error, std::string const& name, DeclinedName* declinedName, uint32 petNumber = 0);
     void SendPartyResult(PartyOperation operation, std::string const& member, PartyResult res, uint32 val = 0);
 
     void SendAreaTriggerMessage(std::string_view str);

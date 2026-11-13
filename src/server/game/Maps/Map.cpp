@@ -2367,10 +2367,13 @@ bool InstanceMap::AddPlayerToMap(Player* player)
 
         if (!playerBind->perm && !mapSave->CanReset() && group && !group->isLFGGroup() && !group->IsLfgRandomInstance())
         {
-            WorldPacket data(SMSG_INSTANCE_LOCK_WARNING_QUERY, 9);
+            // 5.4.8 18414, from Project SkyFire
+            WorldPacket data(SMSG_INSTANCE_LOCK_WARNING_QUERY, 4 + 4 + 1);
             data << uint32(60000);
             data << uint32(instance_data ? instance_data->GetCompletedEncounterMask() : 0);
-            data << uint8(0);
+            data.WriteBit(false);                       // extending
+            data.WriteBit(false);                       // warning only
+            data.FlushBits();
             player->SendDirectMessage(&data);
             player->SetPendingBind(mapSave->GetInstanceId(), 60000);
         }
@@ -2542,8 +2545,10 @@ void InstanceMap::PermBindAllPlayers()
 
         if (!bind || !bind->perm)
         {
-            WorldPacket data(SMSG_INSTANCE_SAVE_CREATED, 4);
-            data << uint32(0);
+            // 5.4.8 18414, from Project SkyFire
+            WorldPacket data(SMSG_INSTANCE_SAVE_CREATED, 1);
+            data.WriteBit(player->IsGameMaster());
+            data.FlushBits();
             player->SendDirectMessage(&data);
             sInstanceSaveMgr->PlayerBindToInstance(player->GetGUID(), save, true, player);
         }
@@ -3590,7 +3595,11 @@ void Map::PlayDirectSoundToMap(uint32 soundId, uint32 zoneId)
     Map::PlayerList const& players = GetPlayers();
     if (!players.IsEmpty())
     {
-        WorldPacket data(SMSG_PLAY_SOUND, 4);
+        // 5.4.8 18414, from Project SkyFire
+        ObjectGuid sourceGuid;
+        WorldPacket data(SMSG_PLAY_SOUND, 1 + 4);
+        data.WriteGuidMask(sourceGuid, { 0, 1, 2, 3, 4, 5, 6, 7 });
+        data.FlushBits();
         data << uint32(soundId);
 
         for (Map::PlayerList::const_iterator itr = players.begin(); itr != players.end(); ++itr)

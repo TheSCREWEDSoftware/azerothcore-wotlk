@@ -1258,14 +1258,11 @@ private:
             player->RemoveVehicleKit();
         }
 
-        WorldPacket data(SMSG_SET_VEHICLE_REC_ID, player->GetPackGUID().size() + 4);
-        data << player->GetPackGUID();
-        data << int32(apply ? VEHICLE_SNOBOLD_CARRIER : 0);
-        player->SendMessageToSet(&data, true);
+        player->SendSetVehicleRecId(apply ? VEHICLE_SNOBOLD_CARRIER : 0);
 
         if (apply)
         {
-            data.Initialize(SMSG_ON_CANCEL_EXPECTED_RIDE_VEHICLE_AURA, 0);
+            WorldPacket data(SMSG_ON_CANCEL_EXPECTED_RIDE_VEHICLE_AURA, 0);
             player->SendDirectMessage(&data);
         }
     }

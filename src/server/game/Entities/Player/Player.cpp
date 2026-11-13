@@ -2370,20 +2370,23 @@ void Player::RemoveFromGroup(Group* group, ObjectGuid guid, RemoveMethod method 
 
 void Player::SendLogXPGain(uint32 GivenXP, Unit* victim, uint32 BonusXP, bool recruitAFriend, float group_rate)
 {
-    // 4.3.4 SMSG_LOG_XP_GAIN: guid, original XP, reason byte, then amount and group bonus only
-    // for a kill, then the recruit-a-friend bonus type (pin Player.cpp/GiveXP).
-    WorldPacket data(SMSG_LOG_XPGAIN, 22);
-    data << (victim ? victim->GetGUID() : ObjectGuid::Empty);   // guid
-    data << uint32(GivenXP + BonusXP);                          // given experience
-    data << uint8(victim ? 0 : 1);                              // 00-kill_xp type, 01-non_kill_xp type
-
-    if (victim)
-    {
-        data << uint32(GivenXP);                            // experience without bonus
-        data << float(group_rate);                          // 1 - none 0 - 100% group bonus output
-    }
-
+    // 5.4.8 18414, from Project SkyFire
+    ObjectGuid victimGuid = victim ? victim->GetGUID() : ObjectGuid::Empty;
+    WorldPacket data(SMSG_LOG_XPGAIN, 2 + 8 + 1 + 4 + 4 + 4);
+    data.WriteBit(!victim);                                 // no original (unbonused) experience
+    data.WriteGuidMask(victimGuid, { 1, 2, 7, 4, 3 });
+    data.WriteBit(false);                                   // no group bonus
+    data.WriteGuidMask(victimGuid, { 0, 5, 6 });
+    data.WriteBit(false);                                   // unknown
+    data.FlushBits();
+    data.WriteGuidBytes(victimGuid, { 4, 2 });
     data << uint8(recruitAFriend ? 1 : 0);                  // does the GivenXP include a RaF bonus?
+    data << float(victim ? group_rate : 1.0f);              // 1 - none 0 - 100% group bonus output
+    data.WriteGuidBytes(victimGuid, { 7, 1, 3, 6 });
+    data << uint32(GivenXP + BonusXP);                      // given experience
+    if (victim)
+        data << uint32(GivenXP);                            // experience without bonus
+    data.WriteGuidBytes(victimGuid, { 0, 5 });
     SendDirectMessage(&data);
 }
 
@@ -3091,14 +3094,20 @@ void Player::SendLearnPacket(uint32 spellId, bool learn)
 {
     if (learn)
     {
-        WorldPacket data(SMSG_LEARNED_SPELL, 6);
+        // 5.4.8 18414, from Project SkyFire
+        WorldPacket data(SMSG_LEARNED_SPELL, 3 + 4);
+        data.WriteBits(1, 22);                      // spell count
+        data.WriteBit(false);                       // suppress messaging (keeps the client from adding the spell to the action bar)
+        data.FlushBits();
         data << uint32(spellId);
-        data << uint16(0);
         SendDirectMessage(&data);
     }
     else
     {
-        WorldPacket data(SMSG_REMOVED_SPELL, 4);
+        // 5.4.8 18414, from Project SkyFire
+        WorldPacket data(SMSG_REMOVED_SPELL, 3 + 4);
+        data.WriteBits(1, 22);                      // spell count
+        data.FlushBits();
         data << uint32(spellId);
         SendDirectMessage(&data);
     }
@@ -3133,7 +3142,11 @@ bool Player::addSpell(uint32 spellId, uint8 addSpecMask, bool updateActive, bool
 
                     if (IsInWorld())
                     {
-                        WorldPacket data(SMSG_SUPERCEDED_SPELL, 4 + 4);
+                        // 5.4.8 18414, from Project SkyFire: one count per spell list
+                        WorldPacket data(SMSG_SUPERCEDED_SPELL, 6 + 4 + 4);
+                        data.WriteBits(1, 22);
+                        data.WriteBits(1, 22);
+                        data.FlushBits();
                         data << uint32(nextSpellInfo->Id);
                         data << uint32(spellInfo->Id);
                         SendDirectMessage(&data);
@@ -6705,8 +6718,10 @@ void Player::DuelComplete(DuelCompleteType type)
 
     LOG_DEBUG("entities.unit", "Player::DuelComplete: Player '{}' ({}), Opponent: '{}' ({})", GetName(), GetGUID().ToString(), opponent->GetName(), opponent->GetGUID().ToString());
 
-    WorldPacket data(SMSG_DUEL_COMPLETE, (1));
-    data << uint8((type != DUEL_INTERRUPTED) ? 1 : 0);
+    // 5.4.8 18414, from Project SkyFire
+    WorldPacket data(SMSG_DUEL_COMPLETE, 1);
+    data.WriteBit(type != DUEL_INTERRUPTED);
+    data.FlushBits();
     SendDirectMessage(&data);
     if (opponent->GetSession())
     {
@@ -6715,10 +6730,16 @@ void Player::DuelComplete(DuelCompleteType type)
 
     if (type != DUEL_INTERRUPTED)
     {
-        data.Initialize(SMSG_DUEL_WINNER, (1 + 20)); // we guess size
-        data << uint8(type == DUEL_WON ? 0 : 1);     // 0 = just won; 1 = fled
-        data << opponent->GetName();
-        data << GetName();
+        // 5.4.8 18414, from Project SkyFire
+        data.Initialize(SMSG_DUEL_WINNER, 2 + 4 + 4 + opponent->GetName().size() + GetName().size());
+        data.WriteBit(type != DUEL_WON);             // 0 = just won; 1 = fled
+        data.WriteBits(opponent->GetName().size(), 6);
+        data.WriteBits(GetName().size(), 6);
+        data.FlushBits();
+        data << uint32(realm.Id.Realm);              // opponent's realm
+        data.WriteString(opponent->GetName());
+        data << uint32(realm.Id.Realm);              // winner's realm
+        data.WriteString(GetName());
         SendMessageToSet(&data, true);
     }
 
@@ -12487,10 +12508,14 @@ void Player::SendTransferAborted(uint32 mapid, TransferAbortReason reason, uint8
 {
     // 4.3.4 always sends the argument; only expansion, difficulty, unique message and
     // instance lock reasons give it a meaning
-    WorldPacket data(SMSG_TRANSFER_ABORTED, 4 + 2);
+    // 5.4.8 18414, from Project SkyFire
+    WorldPacket data(SMSG_TRANSFER_ABORTED, 1 + 1 + 4);
+    data.WriteBit(!arg);
+    data.WriteBits(uint8(reason), 5);                     // transfer abort reason
+    data.FlushBits();
+    if (arg)
+        data << uint8(arg);
     data << uint32(mapid);
-    data << uint8(reason);                                 // transfer abort reason
-    data << uint8(arg);
     SendDirectMessage(&data);
 }
 
@@ -12516,16 +12541,16 @@ void Player::SendInstanceResetWarning(uint32 mapid, Difficulty difficulty, uint3
     else
         type = RAID_INSTANCE_WARNING_MIN_SOON;
 
-    WorldPacket data(SMSG_RAID_INSTANCE_MESSAGE, 4 + 4 + 4 + 4);
-    data << uint32(type);
+    // 5.4.8 18414, from Project SkyFire
+    bool welcome = type == RAID_INSTANCE_WELCOME;
+    WorldPacket data(SMSG_RAID_INSTANCE_MESSAGE, 1 + 4 + 1 + 4 + 4);
+    data.WriteBit(welcome && bind && bind->extended);       // is extended, ignored if not locked
+    data.WriteBit(welcome && bind && bind->perm);           // is locked
+    data.FlushBits();
     data << uint32(mapid);
-    data << uint32(difficulty);                             // difficulty
+    data << uint8(type);
     data << uint32(time);
-    if (type == RAID_INSTANCE_WELCOME)
-    {
-        data << uint8(bind && bind->extended);              // is extended, ignored if not locked
-        data << uint8(bind && bind->perm);                  // is locked
-    }
+    data << uint32(difficulty);
     SendDirectMessage(&data);
 }
 
@@ -13870,8 +13895,12 @@ int32 Player::CalculateCorpseReclaimDelay(bool load)
 
 void Player::SendCorpseReclaimDelay(uint32 delay)
 {
-    WorldPacket data(SMSG_CORPSE_RECLAIM_DELAY, 4);
-    data << uint32(delay);
+    // 5.4.8 18414, from Project SkyFire
+    WorldPacket data(SMSG_CORPSE_RECLAIM_DELAY, 1 + 4);
+    data.WriteBit(delay == 0);
+    data.FlushBits();
+    if (delay)
+        data << uint32(delay);
     SendDirectMessage(&data);
 }
 
@@ -14329,12 +14358,14 @@ void Player::ConvertRune(uint8 index, RuneType newType)
 
 void Player::ResyncRunes(uint8 count)
 {
-    WorldPacket data(SMSG_RESYNC_RUNES, 4 + count * 2);
-    data << uint32(count);
+    // 5.4.8 18414, from Project SkyFire
+    WorldPacket data(SMSG_RESYNC_RUNES, 3 + count * 2);
+    data.WriteBits(count, 23);
+    data.FlushBits();
     for (uint32 i = 0; i < count; ++i)
     {
-        data << uint8(GetCurrentRune(i));                   // rune type
         data << uint8(255 - (GetRuneCooldown(i) * 51));     // passed cooldown time (0-255)
+        data << uint8(GetCurrentRune(i));                   // rune type
     }
     SendDirectMessage(&data);
 }
