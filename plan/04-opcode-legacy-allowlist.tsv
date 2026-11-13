@@ -200,7 +200,6 @@ c2s	MSG_GM_GEARRATING	#168	WotLK-only opcode with no 4.3.4 counterpart in the pi
 c2s	MSG_GM_RESETINSTANCELIMIT	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
 c2s	MSG_INSPECT_HONOR_STATS	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
 c2s	MSG_MOVE_FEATHER_FALL	#186	movement packet layout is ported with the movement work
-c2s	MSG_MOVE_KNOCK_BACK	#186	movement packet layout is ported with the movement work
 c2s	MSG_MOVE_ROOT	#186	movement packet layout is ported with the movement work
 c2s	MSG_MOVE_SET_FLIGHT_BACK_SPEED_CHEAT	#168	WotLK-only debug or cheat handler; no 4.3.4 opcode
 c2s	MSG_MOVE_SET_PITCH_RATE_CHEAT	#168	WotLK-only debug or cheat handler; no 4.3.4 opcode
@@ -221,7 +220,6 @@ s2c	MSG_BATTLEGROUND_PLAYER_POSITIONS	#182	grouping and social packets are porte
 s2c	MSG_INSPECT_HONOR_STATS	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
 s2c	MSG_MOVE_GRAVITY_CHNG	#186	movement packet layout is ported with the movement work
 s2c	MSG_MOVE_HOVER	#186	movement packet layout is ported with the movement work
-s2c	MSG_MOVE_KNOCK_BACK	#186	movement packet layout is ported with the movement work
 s2c	MSG_MOVE_ROOT	#186	movement packet layout is ported with the movement work
 s2c	MSG_MOVE_UNROOT	#186	movement packet layout is ported with the movement work
 s2c	SMSG_AFK_MONITOR_INFO_RESPONSE	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin

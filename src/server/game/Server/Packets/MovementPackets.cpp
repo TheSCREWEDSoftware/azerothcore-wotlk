@@ -4301,6 +4301,139 @@ namespace
         MSEEnd,
     };
 
+    MovementStatusElements const MovementKnockBackAck[] =
+    {
+        MSEPositionY,
+        MSEPositionZ,
+        MSECounter,
+        MSEPositionX,
+        MSEHasGuidByte6,
+        MSEHasOrientation,
+        MSEHasPitch,
+        MSEHasSplineElevation,
+        MSEHasGuidByte3,
+        MSEHasGuidByte4,
+        MSEHasGuidByte1,
+        MSEHasGuidByte2,
+        MSEHasSpline,
+        MSEHasGuidByte7,
+        MSEZeroBit,
+        MSEHasMovementFlags2,
+        MSEHasTimestamp,
+        MSEHasGuidByte0,
+        MSEHasMovementFlags,
+        MSEHasTransportData,
+        MSEHasGuidByte5,
+        MSEHasFallData,
+        MSEMovementFlags,
+        MSEHasTransportGuidByte4,
+        MSEHasTransportGuidByte1,
+        MSEHasTransportTime2,
+        MSEHasTransportGuidByte0,
+        MSEHasVehicleId,
+        MSEHasTransportGuidByte6,
+        MSEHasTransportGuidByte2,
+        MSEHasTransportGuidByte3,
+        MSEHasTransportGuidByte5,
+        MSEHasTransportGuidByte7,
+        MSEMovementFlags2,
+        MSEHasFallDirection,
+        MSEGuidByte4,
+        MSEGuidByte5,
+        MSEGuidByte1,
+        MSEGuidByte6,
+        MSEGuidByte0,
+        MSEGuidByte3,
+        MSEGuidByte2,
+        MSEGuidByte7,
+        MSEFallSinAngle,
+        MSEFallHorizontalSpeed,
+        MSEFallCosAngle,
+        MSEFallTime,
+        MSEFallVerticalSpeed,
+        MSETimestamp,
+        MSETransportPositionY,
+        MSETransportGuidByte4,
+        MSETransportTime2,
+        MSETransportGuidByte7,
+        MSETransportOrientation,
+        MSETransportGuidByte6,
+        MSETransportTime,
+        MSETransportGuidByte3,
+        MSETransportGuidByte1,
+        MSETransportVehicleId,
+        MSETransportGuidByte2,
+        MSETransportPositionZ,
+        MSETransportGuidByte0,
+        MSETransportGuidByte5,
+        MSETransportPositionX,
+        MSETransportSeat,
+        MSEPitch,
+        MSESplineElevation,
+        MSEOrientation,
+        MSEEnd,
+    };
+
+    MovementStatusElements const MovementUpdateKnockBack[] =
+    {
+        MSEZeroBit,
+        MSEHasGuidByte4,
+        MSEHasMovementFlags,
+        MSEHasGuidByte1,
+        MSEHasGuidByte0,
+        MSEHasGuidByte3,
+        MSEHasGuidByte2,
+        MSEHasGuidByte7,
+        MSEHasTransportGuidByte7,
+        MSEHasTransportGuidByte5,
+        MSEHasTransportGuidByte1,
+        MSEHasTransportGuidByte6,
+        MSEHasTransportGuidByte2,
+        MSEHasTransportGuidByte4,
+        MSEHasTransportGuidByte0,
+        MSEHasTransportGuidByte3,
+        MSEHasGuidByte5,
+        MSEHasGuidByte6,
+        MSEMovementFlags,
+        MSEHasFallDirection,
+        MSEHasOrientation,
+        MSEFlushBits,
+        MSEOrientation,
+        MSEFallSinAngle,
+        MSEFallHorizontalSpeed,
+        MSEFallCosAngle,
+        MSEFallTime,
+        MSEFallVerticalSpeed,
+        MSEGuidByte3,
+        MSETransportGuidByte5,
+        MSETransportGuidByte7,
+        MSETransportSeat,
+        MSETransportGuidByte3,
+        MSETransportGuidByte6,
+        MSETransportPositionZ,
+        MSETransportGuidByte1,
+        MSETransportPositionY,
+        MSETransportPositionX,
+        MSETransportGuidByte2,
+        MSETransportGuidByte0,
+        MSETransportOrientation,
+        MSETransportTime,
+        MSETransportGuidByte4,
+        MSEPitch,
+        MSEPositionZ,
+        MSETimestamp,
+        MSEPositionX,
+        MSEGuidByte4,
+        MSEGuidByte6,
+        MSEGuidByte7,
+        MSEGuidByte2,
+        MSEGuidByte1,
+        MSEPositionY,
+        MSEGuidByte0,
+        MSEGuidByte5,
+        MSEEnd,
+    };
+
     MovementStatusElements const MovementSetCollisionHeightAck[] =
     {
         MSEExtraElement,
@@ -4674,6 +4807,52 @@ WorldPackets::Movement::GetCollisionHeightSequence(uint16 opcode)
         case CMSG_MOVE_SET_COLLISION_HEIGHT_ACK: return MovementSetCollisionHeightAck;
         default: return nullptr;
     }
+}
+
+WorldPackets::Movement::MovementStatusElements const*
+WorldPackets::Movement::GetKnockBackSequence(uint16 opcode)
+{
+    switch (opcode)
+    {
+        case CMSG_MOVE_KNOCK_BACK_ACK: return MovementKnockBackAck;
+        case SMSG_MOVE_UPDATE_KNOCK_BACK: return MovementUpdateKnockBack;
+        default: return nullptr;
+    }
+}
+
+WorldPacket const* WorldPackets::Movement::MoveKnockBack::Write()
+{
+    _worldPacket.WriteBit(MoverGUID[0]);
+    _worldPacket.WriteBit(MoverGUID[3]);
+    _worldPacket.WriteBit(MoverGUID[6]);
+    _worldPacket.WriteBit(MoverGUID[7]);
+    _worldPacket.WriteBit(MoverGUID[2]);
+    _worldPacket.WriteBit(MoverGUID[5]);
+    _worldPacket.WriteBit(MoverGUID[1]);
+    _worldPacket.WriteBit(MoverGUID[4]);
+    _worldPacket.FlushBits();
+
+    _worldPacket.WriteByteSeq(MoverGUID[1]);
+
+    _worldPacket << float(DirectionY);
+    _worldPacket << uint32(SequenceIndex);
+
+    _worldPacket.WriteByteSeq(MoverGUID[6]);
+    _worldPacket.WriteByteSeq(MoverGUID[7]);
+
+    _worldPacket << float(HorzSpeed);
+
+    _worldPacket.WriteByteSeq(MoverGUID[4]);
+    _worldPacket.WriteByteSeq(MoverGUID[5]);
+    _worldPacket.WriteByteSeq(MoverGUID[3]);
+
+    _worldPacket << float(VertSpeed);
+    _worldPacket << float(DirectionX);
+
+    _worldPacket.WriteByteSeq(MoverGUID[2]);
+    _worldPacket.WriteByteSeq(MoverGUID[0]);
+
+    return &_worldPacket;
 }
 
 void WorldPackets::Movement::WriteGroundMovement(WorldPacket& packet, MovementInfo const& info,

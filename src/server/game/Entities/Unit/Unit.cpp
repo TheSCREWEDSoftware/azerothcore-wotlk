@@ -15197,15 +15197,14 @@ void Unit::KnockbackFrom(float x, float y, float speedXY, float speedZ)
         float vcos, vsin;
         GetSinCos(x, y, vsin, vcos);
 
-        WorldPacket data(SMSG_MOVE_KNOCK_BACK, (8 + 4 + 4 + 4 + 4 + 4));
-        data << GetPackGUID();
-        data << player->GetSession()->GetOrderCounter();        // movement counter
-        data << float(vcos);                                    // x direction
-        data << float(vsin);                                    // y direction
-        data << float(speedXY);                                 // Horizontal speed
-        data << float(-speedZ);                                 // Z Movement speed (vertical)
-
-        player->SendDirectMessage(&data);
+        WorldPackets::Movement::MoveKnockBack packet;
+        packet.MoverGUID = GetGUID();
+        packet.SequenceIndex = player->GetSession()->GetOrderCounter();
+        packet.DirectionX = vcos;
+        packet.DirectionY = vsin;
+        packet.HorzSpeed = speedXY;
+        packet.VertSpeed = -speedZ;
+        player->SendDirectMessage(packet.Write());
         player->GetSession()->IncrementOrderCounter();
 
         player->SetCanKnockback(true);
@@ -15292,15 +15291,13 @@ void Unit::JumpTo(float speedXY, float speedZ, bool forward)
         float vcos = cos(angle + GetOrientation());
         float vsin = std::sin(angle + GetOrientation());
 
-        WorldPacket data(SMSG_MOVE_KNOCK_BACK, (8 + 4 + 4 + 4 + 4 + 4));
-        data << GetPackGUID();
-        data << uint32(0);                                      // Sequence
-        data << float(vcos);                                    // x direction
-        data << float(vsin);                                    // y direction
-        data << float(speedXY);                                 // Horizontal speed
-        data << float(-speedZ);                                 // Z Movement speed (vertical)
-
-        ToPlayer()->SendDirectMessage(&data);
+        WorldPackets::Movement::MoveKnockBack packet;
+        packet.MoverGUID = GetGUID();
+        packet.DirectionX = vcos;
+        packet.DirectionY = vsin;
+        packet.HorzSpeed = speedXY;
+        packet.VertSpeed = -speedZ;
+        ToPlayer()->SendDirectMessage(packet.Write());
     }
 }
 

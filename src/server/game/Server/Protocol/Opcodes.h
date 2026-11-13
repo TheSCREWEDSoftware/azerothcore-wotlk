@@ -234,7 +234,6 @@ enum OpcodeClient : uint16
     MSG_MOVE_UNROOT                                 = 0x0ED,
     MSG_MOVE_HEARTBEAT                              = 0x3914,
     CMSG_MOVE_KNOCK_BACK_ACK                        = 0x721C,
-    MSG_MOVE_KNOCK_BACK                             = 0x0F1,
     CMSG_MOVE_HOVER_ACK                             = 0x3318,
     CMSG_TRIGGER_CINEMATIC_CHEAT                    = 0x0000,
     CMSG_OPENING_CINEMATIC                          = 0x0A16,
@@ -809,6 +808,7 @@ enum OpcodeClient : uint16
 
 enum OpcodeServer : uint16
 {
+    SMSG_MOVE_UPDATE_KNOCK_BACK                     = 0x3DB2,
     SMSG_PLAY_SPELL_VISUAL_KIT                      = 0x55A5,
     SMSG_SUMMON_RAID_MEMBER_VALIDATE_FAILED         = 0x18B6,
     SMSG_ROLE_CHANGED_INFORM                        = 0x39A6,
@@ -1540,8 +1540,6 @@ inline constexpr OpcodeServer MSG_MOVE_UNROOT_SERVER =
     static_cast<OpcodeServer>(MSG_MOVE_UNROOT);
 inline constexpr OpcodeServer MSG_MOVE_HEARTBEAT_SERVER =
     static_cast<OpcodeServer>(MSG_MOVE_HEARTBEAT);
-inline constexpr OpcodeServer MSG_MOVE_KNOCK_BACK_SERVER =
-    static_cast<OpcodeServer>(MSG_MOVE_KNOCK_BACK);
 inline constexpr OpcodeClient MSG_MOVE_HOVER_CLIENT =
     static_cast<OpcodeClient>(MSG_MOVE_HOVER);
 inline constexpr OpcodeServer MSG_CHANNEL_START_SERVER =

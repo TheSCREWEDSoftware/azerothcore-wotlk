@@ -972,24 +972,19 @@ void WorldSession::HandleMoveKnockBackAck(WorldPacket& recvData)
 
     Unit* mover = _player->m_mover;
 
-    ObjectGuid guid;
-    recvData >> guid.ReadAsPacked();
+    MovementInfo movementInfo;
+    WorldPackets::Movement::ReadGroundMovement(recvData, movementInfo,
+        WorldPackets::Movement::GetKnockBackSequence(CMSG_MOVE_KNOCK_BACK_ACK));
 
     // pussywizard: typical check for incomming movement packets
-    if (!mover || !mover->IsInWorld() || mover->IsDuringRemoveFromWorld() || guid != mover->GetGUID())
+    if (!mover || !mover->IsInWorld() || mover->IsDuringRemoveFromWorld() || movementInfo.guid != mover->GetGUID())
     {
         recvData.rfinish(); // prevent warnings spam
         return;
     }
 
-    recvData.read_skip<uint32>();                          // unk
-
-    MovementInfo movementInfo;
-    movementInfo.guid = guid;
-    ReadMovementInfo(recvData, &movementInfo);
-
     // Relocate the mover to the acknowledged position. Otherwise the server (and the
-    // MSG_MOVE_KNOCK_BACK broadcast below) keeps using the pre-knockback position until
+    // SMSG_MOVE_UPDATE_KNOCK_BACK broadcast below) keeps using the pre-knockback position until
     // the next regular movement packet arrives, desyncing the unit for nearby clients
     if (!ProcessMovementInfo(movementInfo, mover, mover->ToPlayer(), recvData))
     {
@@ -1000,15 +995,11 @@ void WorldSession::HandleMoveKnockBackAck(WorldPacket& recvData)
     if (mover->IsPlayer() && static_cast<Player*>(mover)->IsFreeFlying())
         mover->SetCanFly(true);
 
-    WorldPacket data(MSG_MOVE_KNOCK_BACK, 66);
-    WriteMovementInfo(&data, &movementInfo);
     _player->SetCanTeleport(true);
-    // knockback specific info
-    data << movementInfo.jump.sinAngle;
-    data << movementInfo.jump.cosAngle;
-    data << movementInfo.jump.xyspeed;
-    data << movementInfo.jump.zspeed;
 
+    WorldPacket data(SMSG_MOVE_UPDATE_KNOCK_BACK, 66);
+    WorldPackets::Movement::WriteGroundMovement(data, movementInfo,
+        WorldPackets::Movement::GetKnockBackSequence(SMSG_MOVE_UPDATE_KNOCK_BACK));
     _player->SendMessageToSet(&data, false);
 }
 

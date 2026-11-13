@@ -136,6 +136,7 @@ namespace WorldPackets
         // Move type for a CMSG_MOVE_FORCE_*_CHANGE_ACK opcode, MAX_MOVE_TYPE if it is not one
         uint8 GetSpeedChangeAckMoveType(uint16 opcode);
         MovementStatusElements const* GetCollisionHeightSequence(uint16 opcode);
+        MovementStatusElements const* GetKnockBackSequence(uint16 opcode);
         MovementStatusElements const* GetMovementFlagSequence(uint16 opcode);
         void WriteTeleport(WorldPacket& packet, ObjectGuid guid, uint32 counter, Position const& pos,
             ObjectGuid transport = ObjectGuid::Empty);
@@ -199,6 +200,21 @@ namespace WorldPackets
             WorldPacket const* Write() override;
 
             ObjectGuid MoverGUID;
+        };
+
+        class MoveKnockBack final : public ServerPacket
+        {
+        public:
+            MoveKnockBack() : ServerPacket(SMSG_MOVE_KNOCK_BACK, 1 + 8 + 4 + 4 + 4 + 4 + 4) { }
+
+            WorldPacket const* Write() override;
+
+            ObjectGuid MoverGUID;
+            float DirectionX = 0.0f;
+            float DirectionY = 0.0f;
+            float HorzSpeed = 0.0f;
+            float VertSpeed = 0.0f;
+            uint32 SequenceIndex = 0;
         };
     }
 }
