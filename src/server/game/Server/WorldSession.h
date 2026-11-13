@@ -197,6 +197,7 @@ namespace WorldPackets
         class DestroyItem;
         class ReadItem;
         class SellItem;
+        class TransmogrifyItems;
         class BuybackItem;
         class BuyItemInSlot;
         class BuyItem;
@@ -968,6 +969,9 @@ public:                                                 // opcodes handlers
     // Cata Reforging
     void SendReforgeResult(bool success);
     void HandleReforgeItemOpcode(WorldPackets::Reforge::ReforgeItem& packet);
+
+    // Cata Transmogrification
+    void HandleTransmogrifyItems(WorldPackets::Item::TransmogrifyItems& packet);
 
     void HandleListInventoryOpcode(WorldPackets::Item::ListInventory& packet);
     void HandleAutoStoreBagItemOpcode(WorldPackets::Item::AutoStoreBagItem& packet);

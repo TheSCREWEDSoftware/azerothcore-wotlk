@@ -109,6 +109,25 @@ namespace WorldPackets
             uint8 Slot = 0;
         };
 
+        struct TransmogrifyItem
+        {
+            ObjectGuid SrcItemGUID;
+            int32 ItemID = 0;
+            uint32 Slot = 0;
+        };
+
+        // CMSG_TRANSMOGRIFY_ITEMS - sent from the transmogrifier window; ItemID == 0 resets a slot's look.
+        class TransmogrifyItems final : public ClientPacket
+        {
+        public:
+            TransmogrifyItems(WorldPacket&& packet) : ClientPacket(CMSG_TRANSMOGRIFY_ITEMS, std::move(packet)) { }
+
+            void Read() override;
+
+            ObjectGuid Npc;
+            std::vector<TransmogrifyItem> Items;
+        };
+
         class SellItem final : public ClientPacket
         {
         public:

@@ -646,6 +646,7 @@ void OpcodeTable::Initialize()
     /*0x0736*/ DEFINE_HANDLER(CMSG_BUY_ITEM,                                                         STATUS_LOGGEDIN,   PROCESS_INPLACE,        &WorldSession::HandleBuyItemOpcode                      );
     /*0x01A3*/ DEFINE_HANDLER(CMSG_BUY_ITEM_IN_SLOT,                                                 STATUS_LOGGEDIN,   PROCESS_INPLACE,        &WorldSession::HandleBuyItemInSlotOpcode                );
     /*0x331A*/ DEFINE_HANDLER(CMSG_REFORGE_ITEM,                                                     STATUS_LOGGEDIN,   PROCESS_INPLACE,        &WorldSession::HandleReforgeItemOpcode                  );
+    /*0x3B0E*/ DEFINE_HANDLER(CMSG_TRANSMOGRIFY_ITEMS,                                               STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleTransmogrifyItems                  );
     /*0x0F26*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_BUY_ITEM,                                           STATUS_NEVER);
     /*0x6435*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_BUY_FAILED,                                         STATUS_NEVER);
     /*0x0000*/ DEFINE_HANDLER(CMSG_TAXICLEARALLNODES,                                                STATUS_NEVER,      PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );

@@ -886,6 +886,130 @@ void WorldSession::HandleBuyItemOpcode(WorldPackets::Item::BuyItem& packet)
     GetPlayer()->BuyItemFromVendorSlot(packet.VendorGuid, packet.Slot, packet.Item, packet.Count, bag, packet.BagSlot);
 }
 
+void WorldSession::HandleTransmogrifyItems(WorldPackets::Item::TransmogrifyItems& packet)
+{
+    Player* player = GetPlayer();
+
+    if (packet.Items.size() >= EQUIPMENT_SLOT_END)
+    {
+        LOG_DEBUG("network", "HandleTransmogrifyItems: {} tried to transmogrify more items than possible ({}).",
+            player->GetGUID().ToString(), uint32(packet.Items.size()));
+        return;
+    }
+
+    if (!player->GetNPCIfCanInteractWith(packet.Npc, UNIT_NPC_FLAG_TRANSMOGRIFIER))
+    {
+        LOG_DEBUG("network", "HandleTransmogrifyItems: {} not found or player can't interact with it.",
+            packet.Npc.ToString());
+        return;
+    }
+
+    // Validate every slot before changing anything
+    uint32 cost = 0;
+    for (WorldPackets::Item::TransmogrifyItem const& item : packet.Items)
+    {
+        // slot of the transmogrified item
+        if (item.Slot >= EQUIPMENT_SLOT_END)
+        {
+            LOG_DEBUG("network", "HandleTransmogrifyItems: {} tried to transmogrify {} with a wrong slot ({}).",
+                player->GetGUID().ToString(), item.SrcItemGUID.ToString(), item.Slot);
+            return;
+        }
+
+        // transmogrified item
+        Item* targetItem = player->GetItemByPos(INVENTORY_SLOT_BAG_0, uint8(item.Slot));
+        if (!targetItem)
+        {
+            LOG_DEBUG("network", "HandleTransmogrifyItems: {} has no item in transmogrify slot {}.",
+                player->GetGUID().ToString(), item.Slot);
+            return;
+        }
+
+        // Resetting the look is free
+        if (!item.ItemID)
+            continue;
+
+        // entry of the transmogrifier item
+        if (!sObjectMgr->GetItemTemplate(item.ItemID))
+        {
+            LOG_DEBUG("network", "HandleTransmogrifyItems: {} tried to transmogrify to an invalid item (entry: {}).",
+                player->GetGUID().ToString(), item.ItemID);
+            return;
+        }
+
+        // guid of the transmogrifier item
+        Item const* sourceItem = player->GetItemByGuid(item.SrcItemGUID);
+        if (!sourceItem)
+        {
+            LOG_DEBUG("network", "HandleTransmogrifyItems: {} tried to transmogrify with an invalid item ({}).",
+                player->GetGUID().ToString(), item.SrcItemGUID.ToString());
+            return;
+        }
+
+        // entry of transmogrifier and from packet
+        if (sourceItem->GetEntry() != uint32(item.ItemID))
+        {
+            LOG_DEBUG("network", "HandleTransmogrifyItems: {} tried to transmogrify with an invalid entry ({}) for {}.",
+                player->GetGUID().ToString(), item.ItemID, item.SrcItemGUID.ToString());
+            return;
+        }
+
+        // validity of the transmogrification items
+        if (!Item::CanTransmogrifyItemWithItem(targetItem, sourceItem))
+        {
+            LOG_DEBUG("network", "HandleTransmogrifyItems: {} failed CanTransmogrifyItemWithItem ({} with {}).",
+                player->GetGUID().ToString(), targetItem->GetEntry(), sourceItem->GetEntry());
+            return;
+        }
+
+        cost += targetItem->GetSpecialPrice();
+    }
+
+    if (cost) // 0 cost if only reverting looks
+    {
+        if (!player->HasEnoughMoney(cost))
+            return;
+
+        player->ModifyMoney(-int32(cost));
+    }
+
+    // Everything is fine, proceed
+    for (WorldPackets::Item::TransmogrifyItem const& item : packet.Items)
+    {
+        Item* targetItem = player->GetItemByPos(INVENTORY_SLOT_BAG_0, uint8(item.Slot));
+        ASSERT(targetItem);
+
+        if (item.ItemID)
+        {
+            Item* sourceItem = player->GetItemByGuid(item.SrcItemGUID);
+            ASSERT(sourceItem);
+
+            // Transmogrify
+            targetItem->SetEnchantment(TRANSMOGRIFY_ENCHANTMENT_SLOT, item.ItemID, 0, 0);
+            player->SetVisibleItemSlot(uint8(item.Slot), targetItem);
+
+            targetItem->UpdatePlayedTime(player);
+            targetItem->SetOwnerGUID(player->GetGUID());
+            targetItem->SetNotRefundable(player);
+            targetItem->ClearSoulboundTradeable(player);
+
+            if (sourceItem->GetTemplate()->Bonding == BIND_WHEN_EQUIPPED ||
+                sourceItem->GetTemplate()->Bonding == BIND_WHEN_USE)
+                sourceItem->SetBinding(true);
+
+            sourceItem->SetOwnerGUID(player->GetGUID());
+            sourceItem->SetNotRefundable(player);
+            sourceItem->ClearSoulboundTradeable(player);
+        }
+        else
+        {
+            // Reset
+            targetItem->ClearEnchantment(TRANSMOGRIFY_ENCHANTMENT_SLOT);
+            player->SetVisibleItemSlot(uint8(item.Slot), targetItem);
+        }
+    }
+}
+
 void WorldSession::SendReforgeResult(bool success)
 {
     WorldPackets::Reforge::ReforgeResult packet;

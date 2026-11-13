@@ -1508,3 +1508,134 @@ int32 Item::GetReforgableStat(ItemModType statType) const
 
     return 0;
 }
+
+bool Item::HasStats() const
+{
+    if (GetItemRandomPropertyId() != 0)
+        return true;
+
+    ItemTemplate const* proto = GetTemplate();
+    for (uint8 i = 0; i < MAX_ITEM_PROTO_STATS; ++i)
+        if (proto->ItemStat[i].ItemStatValue != 0)
+            return true;
+
+    return false;
+}
+
+bool Item::CanBeTransmogrified() const
+{
+    ItemTemplate const* proto = GetTemplate();
+    if (!proto)
+        return false;
+
+    if (proto->Quality == ITEM_QUALITY_LEGENDARY)
+        return false;
+
+    if (proto->Class != ITEM_CLASS_ARMOR && proto->Class != ITEM_CLASS_WEAPON)
+        return false;
+
+    if (proto->Class == ITEM_CLASS_WEAPON && proto->SubClass == ITEM_SUBCLASS_WEAPON_FISHING_POLE)
+        return false;
+
+    if (proto->HasFlag2(ITEM_FLAG2_NO_ALTER_ITEM_VISUAL))
+        return false;
+
+    if (!HasStats())
+        return false;
+
+    return true;
+}
+
+bool Item::CanTransmogrify() const
+{
+    ItemTemplate const* proto = GetTemplate();
+    if (!proto)
+        return false;
+
+    if (proto->HasFlag2(ITEM_FLAG2_NO_SOURCE_FOR_ITEM_VISUAL))
+        return false;
+
+    if (proto->Quality == ITEM_QUALITY_LEGENDARY)
+        return false;
+
+    if (proto->Class != ITEM_CLASS_ARMOR && proto->Class != ITEM_CLASS_WEAPON)
+        return false;
+
+    if (proto->Class == ITEM_CLASS_WEAPON && proto->SubClass == ITEM_SUBCLASS_WEAPON_FISHING_POLE)
+        return false;
+
+    if (proto->HasFlag2(ITEM_FLAG2_IGNORE_QUALITY_FOR_ITEM_VISUAL_SOURCE))
+        return true;
+
+    if (!HasStats())
+        return false;
+
+    return true;
+}
+
+// Based on client function CheckTransmogrificationQualityAndClass (build 15595)
+static bool CheckTransmogrificationQualityAndClass(ItemTemplate const* sourceItem)
+{
+    // Only weapons and armor can be transmogrified
+    if (sourceItem->Class != ITEM_CLASS_WEAPON && sourceItem->Class != ITEM_CLASS_ARMOR)
+        return false;
+
+    // Legendary items cannot be transmogrified
+    if (sourceItem->Quality == ITEM_QUALITY_LEGENDARY)
+        return false;
+
+    // Fishing poles cannot be transmogrified
+    if (sourceItem->Class == ITEM_CLASS_WEAPON && sourceItem->SubClass == ITEM_SUBCLASS_WEAPON_FISHING_POLE)
+        return false;
+
+    return true;
+}
+
+bool Item::CanTransmogrifyItemWithItem(Item const* transmogrified, Item const* transmogrifier)
+{
+    if (!transmogrifier || !transmogrified)
+        return false;
+
+    ItemTemplate const* sourceItem = transmogrifier->GetTemplate(); // source
+    ItemTemplate const* targetItem = transmogrified->GetTemplate(); // dest
+
+    // The client checks these conditions on the source item, so the server does as well
+    if (!CheckTransmogrificationQualityAndClass(sourceItem))
+        return false;
+
+    if (sourceItem->ItemId == targetItem->ItemId)
+        return false;
+
+    if (!transmogrified->CanTransmogrify() || !transmogrifier->CanBeTransmogrified())
+        return false;
+
+    // Items which can never be transmogrified
+    switch (sourceItem->InventoryType)
+    {
+        case INVTYPE_BAG:
+        case INVTYPE_RELIC:
+        case INVTYPE_BODY:
+        case INVTYPE_FINGER:
+        case INVTYPE_TRINKET:
+        case INVTYPE_AMMO:
+        case INVTYPE_QUIVER:
+            return false;
+        default:
+            break;
+    }
+
+    if (sourceItem->SubClass != targetItem->SubClass &&
+        (sourceItem->Class != ITEM_CLASS_WEAPON || !sourceItem->IsRangedWeapon() || !targetItem->IsRangedWeapon()))
+        return false;
+
+    if (sourceItem->InventoryType != targetItem->InventoryType &&
+        (sourceItem->Class != ITEM_CLASS_WEAPON ||
+            (targetItem->InventoryType != INVTYPE_WEAPONMAINHAND &&
+             targetItem->InventoryType != INVTYPE_WEAPONOFFHAND)) &&
+        (sourceItem->Class != ITEM_CLASS_ARMOR ||
+            (sourceItem->InventoryType != INVTYPE_CHEST && targetItem->InventoryType != INVTYPE_ROBE &&
+             sourceItem->InventoryType != INVTYPE_ROBE && targetItem->InventoryType != INVTYPE_CHEST)))
+        return false;
+
+    return true;
+}

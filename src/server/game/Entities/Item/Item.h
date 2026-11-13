@@ -302,6 +302,18 @@ public:
     void UpdateItemSuffixFactor();
     static int32 GenerateItemRandomPropertyId(uint32 item_id);
     [[nodiscard]] int32 GetReforgableStat(ItemModType statType) const;
+    [[nodiscard]] bool HasStats() const;
+    [[nodiscard]] bool CanBeTransmogrified() const;
+    [[nodiscard]] bool CanTransmogrify() const;
+    static bool CanTransmogrifyItemWithItem(Item const* transmogrified, Item const* transmogrifier);
+    // Entry the client displays: the transmogrification source if set, otherwise the item itself
+    [[nodiscard]] uint32 GetVisibleEntry() const
+    {
+        if (uint32 transmogrification = GetEnchantmentId(TRANSMOGRIFY_ENCHANTMENT_SLOT))
+            return transmogrification;
+
+        return GetEntry();
+    }
     static uint32 GetSellPrice(ItemTemplate const* proto, bool& normalSellPrice);
     static uint32 GetSpecialPrice(ItemTemplate const* proto, uint32 minimumPrice = 10000);
     [[nodiscard]] uint32 GetSpecialPrice(uint32 minimumPrice = 10000) const { return Item::GetSpecialPrice(GetTemplate(), minimumPrice); }

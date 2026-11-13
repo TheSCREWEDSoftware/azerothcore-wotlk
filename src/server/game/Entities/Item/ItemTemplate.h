@@ -203,9 +203,9 @@ enum ItemFlags2 : uint32
     ITEM_FLAG2_CONFIRM_BEFORE_USE                       = 0x00040000, // NYI - unused
     ITEM_FLAG2_REEVALUATE_BONDING_ON_TRANSFORM          = 0x00080000, // NYI - unused
     ITEM_FLAG2_NO_TRANSFORM_ON_CHARGE_DEPLETION         = 0x00100000, // NYI - unused
-    ITEM_FLAG2_NO_ALTER_ITEM_VISUAL                     = 0x00200000, // NYI
-    ITEM_FLAG2_NO_SOURCE_FOR_ITEM_VISUAL                = 0x00400000, // NYI
-    ITEM_FLAG2_IGNORE_QUALITY_FOR_ITEM_VISUAL_SOURCE    = 0x00800000, // NYI - unused
+    ITEM_FLAG2_NO_ALTER_ITEM_VISUAL                     = 0x00200000, // Item cannot be transmogrified
+    ITEM_FLAG2_NO_SOURCE_FOR_ITEM_VISUAL                = 0x00400000, // Item cannot be a transmogrification source
+    ITEM_FLAG2_IGNORE_QUALITY_FOR_ITEM_VISUAL_SOURCE    = 0x00800000, // Item can be transmogrified even without stats
     ITEM_FLAG2_NO_DURABILITY                            = 0x01000000, // NYI - unused
     ITEM_FLAG2_ROLE_TANK                                = 0x02000000, // NYI - unused
     ITEM_FLAG2_ROLE_HEALER                              = 0x04000000, // NYI - unused

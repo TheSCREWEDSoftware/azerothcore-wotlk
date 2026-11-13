@@ -296,6 +296,7 @@ enum OpcodeClient : uint16
     CMSG_BUY_ITEM                                   = 0x0736,
     CMSG_BUY_ITEM_IN_SLOT                           = 0x1A3,
     CMSG_REFORGE_ITEM                               = 0x331A,
+    CMSG_TRANSMOGRIFY_ITEMS                         = 0x3B0E,
     CMSG_TAXICLEARALLNODES                          = 0x0000,
     CMSG_TAXIENABLEALLNODES                         = 0x0000,
     CMSG_TAXISHOWNODES                              = 0x0000,
