@@ -1198,7 +1198,7 @@ void OpcodeTable::Initialize()
     /*0x790C*/ DEFINE_HANDLER(CMSG_MOVE_SET_CAN_FLY_ACK,                                             STATUS_LOGGEDIN,   PROCESS_THREADSAFE,     &WorldSession::HandleMoveFlagChangeOpcode               );
     /*0x0346*/ DEFINE_HANDLER(CMSG_MOVE_SET_FLY,                                                     STATUS_LOGGEDIN,   PROCESS_THREADSAFE,     &WorldSession::HandleMovementOpcodes                    );
     /*0x2F04*/ DEFINE_HANDLER(CMSG_SOCKET_GEMS,                                                      STATUS_LOGGEDIN,   PROCESS_INPLACE,        &WorldSession::HandleSocketOpcode                       );
-    /*0x04A1*/ DEFINE_HANDLER(CMSG_ARENA_TEAM_CREATE,                                                STATUS_NEVER,      PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );
+    /*0x04A1*/ DEFINE_HANDLER(CMSG_ARENA_TEAM_CREATE,                                                STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleArenaTeamCreateOpcode              );
     /*0x39B3*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_ARENA_TEAM_COMMAND_RESULT,                          STATUS_NEVER);
     /*0x034A*/ DEFINE_HANDLER(MSG_MOVE_UPDATE_CAN_TRANSITION_BETWEEN_SWIM_AND_FLY,                   STATUS_NEVER,      PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );
     DEFINE_BIDIRECTIONAL_OPCODE(MSG_MOVE_UPDATE_CAN_TRANSITION_BETWEEN_SWIM_AND_FLY, MSG_MOVE_UPDATE_CAN_TRANSITION_BETWEEN_SWIM_AND_FLY, MSG_MOVE_UPDATE_CAN_TRANSITION_BETWEEN_SWIM_AND_FLY_SERVER);

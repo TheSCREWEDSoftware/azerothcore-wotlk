@@ -81,6 +81,53 @@ void WorldSession::HandleArenaTeamRosterOpcode(WorldPacket& recvData)
         arenaTeam->Roster(this);
 }
 
+void WorldSession::HandleArenaTeamCreateOpcode(WorldPacket& recvData)
+{
+    // 4.3.4 creates arena teams from the PvP window instead of with a charter
+    uint32 slot, icon, iconColor, border, borderColor, background;
+    recvData >> slot;
+    recvData >> iconColor;
+    recvData >> borderColor;
+    recvData >> border;
+    recvData >> background;
+    recvData >> icon;
+    std::string name = recvData.ReadString(recvData.ReadBits(8));
+
+    uint8 type = ArenaTeam::GetTypeBySlot(slot);
+    if (type == 0xFF)
+        return;
+
+    if (_player->GetArenaTeamId(slot))
+    {
+        SendArenaTeamCommandResult(ERR_ARENA_TEAM_INVITE_SS, "", _player->GetName(), ERR_ALREADY_IN_ARENA_TEAM_S);
+        return;
+    }
+
+    if (sObjectMgr->IsReservedName(name) || !ObjectMgr::IsValidCharterName(name))
+    {
+        SendArenaTeamCommandResult(ERR_ARENA_TEAM_CREATE_S, name, "", ERR_ARENA_TEAM_NAME_INVALID);
+        return;
+    }
+
+    if (sArenaTeamMgr->GetArenaTeamByName(name))
+    {
+        SendArenaTeamCommandResult(ERR_ARENA_TEAM_CREATE_S, name, "", ERR_ARENA_TEAM_NAME_EXISTS_S);
+        return;
+    }
+
+    ArenaTeam* arenaTeam = new ArenaTeam();
+    if (!arenaTeam->Create(_player->GetGUID(), type, name, background, uint8(icon), iconColor, uint8(border), borderColor))
+    {
+        LOG_ERROR("bg.arena", "Arena team create failed.");
+        delete arenaTeam;
+        return;
+    }
+
+    sArenaTeamMgr->AddArenaTeam(arenaTeam);
+
+    SendArenaTeamCommandResult(ERR_ARENA_TEAM_CREATE_S, name, "", ERR_ARENA_TEAM_CREATED);
+}
+
 void WorldSession::HandleArenaTeamInviteOpcode(WorldPacket& recvData)
 {
     LOG_DEBUG("network", "CMSG_ARENA_TEAM_INVITE");
@@ -405,11 +452,14 @@ void WorldSession::HandleArenaTeamLeaderOpcode(WorldPacket& recvData)
 
 void WorldSession::SendArenaTeamCommandResult(uint32 teamAction, std::string const& team, std::string const& player, uint32 errorId)
 {
-    WorldPacket data(SMSG_ARENA_TEAM_COMMAND_RESULT, 4 + team.length() + 1 + player.length() + 1 + 4);
+    WorldPacket data(SMSG_ARENA_TEAM_COMMAND_RESULT, 2 + team.length() + player.length() + 4 + 4);
+    data.WriteBits(player.length(), 7);
+    data.WriteBits(team.length(), 8);
+    data.FlushBits();
+    data.WriteString(player);
     data << uint32(teamAction);
-    data << team;
-    data << player;
     data << uint32(errorId);
+    data.WriteString(team);
     SendPacket(&data);
 }
 

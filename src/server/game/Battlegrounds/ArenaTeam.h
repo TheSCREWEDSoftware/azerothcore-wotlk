@@ -37,6 +37,7 @@ enum ArenaTeamCommandTypes
 
 enum ArenaTeamCommandErrors
 {
+    ERR_ARENA_TEAM_CREATED                  = 0x00,
     ERR_ARENA_TEAM_INTERNAL                 = 0x01,
     ERR_ALREADY_IN_ARENA_TEAM               = 0x02,
     ERR_ALREADY_IN_ARENA_TEAM_S             = 0x03,
@@ -55,17 +56,18 @@ enum ArenaTeamCommandErrors
     ERR_ARENA_TEAM_TARGET_TOO_HIGH_S        = 0x16,
     ERR_ARENA_TEAM_TOO_MANY_MEMBERS_S       = 0x17,
     ERR_ARENA_TEAM_NOT_FOUND                = 0x1B,
-    ERR_ARENA_TEAMS_LOCKED                  = 0x1E
+    ERR_ARENA_TEAMS_LOCKED                  = 0x1E,
+    ERR_ARENA_TEAM_TOO_MANY_CREATE          = 0x21
 };
 
 enum ArenaTeamEvents
 {
-    ERR_ARENA_TEAM_JOIN_SS                  = 3,            // player name + arena team name
-    ERR_ARENA_TEAM_LEAVE_SS                 = 4,            // player name + arena team name
-    ERR_ARENA_TEAM_REMOVE_SSS               = 5,            // player name + arena team name + captain name
-    ERR_ARENA_TEAM_LEADER_IS_SS             = 6,            // player name + arena team name
-    ERR_ARENA_TEAM_LEADER_CHANGED_SSS       = 7,            // old captain + new captain + arena team name
-    ERR_ARENA_TEAM_DISBANDED_S              = 8             // captain name + arena team name
+    ERR_ARENA_TEAM_JOIN_SS                  = 4,            // player name + arena team name
+    ERR_ARENA_TEAM_LEAVE_SS                 = 5,            // player name + arena team name
+    ERR_ARENA_TEAM_REMOVE_SSS               = 6,            // player name + arena team name + captain name
+    ERR_ARENA_TEAM_LEADER_IS_SS             = 7,            // player name + arena team name
+    ERR_ARENA_TEAM_LEADER_CHANGED_SSS       = 8,            // old captain + new captain + arena team name
+    ERR_ARENA_TEAM_DISBANDED_S              = 9             // captain name + arena team name
 };
 
 // PLAYER_FIELD_ARENA_TEAM_INFO_1_1 offsets
@@ -149,6 +151,7 @@ public:
     [[nodiscard]] uint32 GetType() const            { return Type; }
     [[nodiscard]] uint8  GetSlot() const            { return GetSlotByType(GetType()); }
     static uint8 GetSlotByType(uint32 type);
+    static uint8 GetTypeBySlot(uint8 slot);
     static uint8 GetReqPlayersForType(uint32 type);
     [[nodiscard]] ObjectGuid GetCaptain() const { return CaptainGuid; }
     [[nodiscard]] std::string const& GetName() const       { return TeamName; }

@@ -627,6 +627,21 @@ void ArenaTeam::MassInviteToEvent(WorldSession* session)
     session->SendPacket(&data);
 }
 
+uint8 ArenaTeam::GetTypeBySlot(uint8 slot)
+{
+    switch (slot)
+    {
+        case 0: return ARENA_TEAM_2v2;
+        case 1: return ARENA_TEAM_3v3;
+        case 2: return ARENA_TEAM_5v5;
+        default:
+            break;
+    }
+
+    LOG_ERROR("bg.arena", "FATAL: Unknown arena team slot {} for some arena team", slot);
+    return 0xFF;
+}
+
 uint8 ArenaTeam::GetSlotByType(uint32 type)
 {
     uint8 slot = 0xFF;
