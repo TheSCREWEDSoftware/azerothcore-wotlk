@@ -35,10 +35,12 @@ namespace WorldPackets
 
             void Read() override;
 
+            uint8 PartyIndex = 0;
             uint32 Roles = 0;
             std::string Comment;
             Array<uint32, 50> Slots;
             std::array<uint32, 3> Needs = { };
+            bool QueueAsGroup = false;
         };
 
         class LFGLeave final : public ClientPacket
@@ -73,6 +75,7 @@ namespace WorldPackets
             void Read() override;
 
             uint32 RolesDesired = 0;
+            uint8 PartyIndex = 0;
         };
 
         class LFGSetComment final : public ClientPacket
@@ -112,6 +115,7 @@ namespace WorldPackets
 
             void Read() override;
 
+            uint8 PartyIndex = 0;
             bool Player = false;
         };
 
@@ -216,7 +220,9 @@ namespace WorldPackets
             uint32 RequestedRoles = 0;
             std::vector<ObjectGuid> SuspendedPlayers;
             std::string Comment;
+            uint8 SubType = 0;
             bool IsParty = false;
+            bool NotifyUI = true;
             bool Joined = false;
             bool LfgJoined = false;
             bool Queued = false;
@@ -254,6 +260,8 @@ namespace WorldPackets
             WorldPacket const* Write() override;
 
             uint8 RoleCheckStatus = 0;
+            uint8 PartyIndex = 0;
+            ObjectGuid RequesterGuid;
             std::vector<uint32> JoinSlots;
             std::vector<LFGRoleCheckUpdateMember> Members;
             bool IsBeginning = false;
@@ -409,6 +417,16 @@ namespace WorldPackets
             WorldPacket const* Write() override;
 
             uint8 Reason = 0;
+        };
+
+        class LFGUpdateSearch final : public ServerPacket
+        {
+        public:
+            LFGUpdateSearch(bool update) : ServerPacket(SMSG_LFG_UPDATE_SEARCH, 1), Update(update) { }
+
+            WorldPacket const* Write() override;
+
+            bool Update = false;
         };
 
         struct ClientLFGSearchResultParty

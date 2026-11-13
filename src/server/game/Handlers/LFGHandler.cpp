@@ -171,6 +171,7 @@ void WorldSession::SendLfgPlayerLockInfo()
     sLFGMgr->InitializeLockedDungeons(GetPlayer(), GetPlayer()->GetGroup()); // pussywizard
 
     WorldPackets::LFG::LFGPlayerInfo lfgPlayerInfo;
+    lfgPlayerInfo.BlackList.PlayerGuid = guid;
     for (auto const& [dungeon, lockStatus] : sLFGMgr->GetLockedDungeons(guid))
         lfgPlayerInfo.BlackList.Slot.emplace_back(dungeon, lockStatus, 0, 0);
 
@@ -364,6 +365,7 @@ void WorldSession::SendLfgRoleCheckUpdate(lfg::LfgRoleCheck const& roleCheck)
     WorldPackets::LFG::LFGRoleCheckUpdate lfgRoleCheckUpdate;
     lfgRoleCheckUpdate.RoleCheckStatus = roleCheck.state;
     lfgRoleCheckUpdate.IsBeginning = roleCheck.state == lfg::LFG_ROLECHECK_INITIALITING;
+    lfgRoleCheckUpdate.RequesterGuid = roleCheck.leader;
     for (uint32 dungeonId : dungeons)
         lfgRoleCheckUpdate.JoinSlots.push_back(sLFGMgr->GetLFGDungeonEntry(dungeonId));
 
@@ -515,6 +517,7 @@ void WorldSession::SendLfgUpdateProposal(lfg::LfgProposal const& proposal)
     lfgProposalUpdate.State = proposal.state;
     lfgProposalUpdate.CompletedMask = proposal.encounters;
     lfgProposalUpdate.ProposalSilent = silent;
+    lfgProposalUpdate.InstanceID = uint64(lfgProposalUpdate.Slot) | (uint64(0x1F45) << 48);
 
     // Sort by roles: tank, healer, dps
     std::vector<ObjectGuid> tanks, healers, dps;
@@ -538,7 +541,7 @@ void WorldSession::SendLfgUpdateProposal(lfg::LfgProposal const& proposal)
     {
         lfg::LfgProposalPlayer const& player = proposal.players.find(pguid)->second;
         WorldPackets::LFG::LFGProposalUpdatePlayer& proposalPlayer = lfgProposalUpdate.Players.emplace_back();
-        proposalPlayer.Roles = player.role;
+        proposalPlayer.Roles = proposal.leader == pguid ? player.role : (player.role & ~lfg::PLAYER_ROLE_LEADER);
         proposalPlayer.Me = pguid == guid;
         proposalPlayer.MyParty = player.group && player.group == proposal.group;
         proposalPlayer.SameParty = player.group && player.group == gguid;
@@ -551,8 +554,8 @@ void WorldSession::SendLfgUpdateProposal(lfg::LfgProposal const& proposal)
 
 void WorldSession::SendLfgLfrList(bool update)
 {
-    // 4.3.4 has no raid browser search flag packet
-    LOG_DEBUG("network", "SMSG_LFG_LFR_LIST [{}] update: {}", GetPlayer()->GetGUID().ToString(), update ? 1 : 0);
+    LOG_DEBUG("network", "SMSG_LFG_UPDATE_SEARCH [{}] update: {}", GetPlayer()->GetGUID().ToString(), update ? 1 : 0);
+    SendPacket(WorldPackets::LFG::LFGUpdateSearch(update).Write());
 }
 
 void WorldSession::SendLfgDisabled()
