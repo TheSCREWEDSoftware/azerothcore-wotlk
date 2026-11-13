@@ -19,19 +19,25 @@
 
 void WorldPackets::Bank::AutoBankItem::Read()
 {
-    _worldPacket >> Bag;
+    // 5.4.8 18414, from Project SkyFire; the item list bits after them are not used
     _worldPacket >> Slot;
+    _worldPacket >> Bag;
+    _worldPacket.rfinish();
 }
 
 void WorldPackets::Bank::AutoStoreBankItem::Read()
 {
-    _worldPacket >> Bag;
+    // 5.4.8 18414, from Project SkyFire
     _worldPacket >> Slot;
+    _worldPacket >> Bag;
+    _worldPacket.rfinish();
 }
 
 void WorldPackets::Bank::BuyBankSlot::Read()
 {
-    _worldPacket >> Banker;
+    // 5.4.8 18414, from Project SkyFire
+    _worldPacket.ReadGuidMask(Banker, { 7, 6, 1, 3, 2, 0, 4, 5 });
+    _worldPacket.ReadGuidBytes(Banker, { 3, 5, 1, 6, 7, 2, 0, 4 });
 }
 
 WorldPacket const* WorldPackets::Bank::BuyBankSlotResult::Write()
@@ -43,7 +49,10 @@ WorldPacket const* WorldPackets::Bank::BuyBankSlotResult::Write()
 
 WorldPacket const* WorldPackets::Bank::ShowBank::Write()
 {
-    _worldPacket << Banker;
+    // 5.4.8 18414, from Project SkyFire
+    _worldPacket.WriteGuidMask(Banker, { 2, 4, 3, 6, 5, 1, 7, 0 });
+    _worldPacket.FlushBits();
+    _worldPacket.WriteGuidBytes(Banker, { 7, 0, 5, 3, 6, 1, 4, 2 });
 
     return &_worldPacket;
 }

@@ -118,15 +118,35 @@ void WorldPackets::Item::TransmogrifyItems::Read()
 
 void WorldPackets::Item::SellItem::Read()
 {
-    _worldPacket >> VendorGuid;
-    _worldPacket >> ItemGuid;
+    // 5.4.8 18414, from Project SkyFire
     _worldPacket >> Count;
+
+    _worldPacket.ReadGuidMask(ItemGuid, { 4, 3, 7 });
+    _worldPacket.ReadGuidMask(VendorGuid, { 6, 5, 1 });
+    _worldPacket.ReadGuidMask(ItemGuid, { 5, 2, 1 });
+    _worldPacket.ReadGuidMask(VendorGuid, { 2 });
+    _worldPacket.ReadGuidMask(ItemGuid, { 6 });
+    _worldPacket.ReadGuidMask(VendorGuid, { 4, 0, 7, 3 });
+    _worldPacket.ReadGuidMask(ItemGuid, { 0 });
+
+    _worldPacket.ReadGuidBytes(VendorGuid, { 6, 3, 1 });
+    _worldPacket.ReadGuidBytes(ItemGuid, { 1 });
+    _worldPacket.ReadGuidBytes(VendorGuid, { 2 });
+    _worldPacket.ReadGuidBytes(ItemGuid, { 7, 5 });
+    _worldPacket.ReadGuidBytes(VendorGuid, { 7 });
+    _worldPacket.ReadGuidBytes(ItemGuid, { 2 });
+    _worldPacket.ReadGuidBytes(VendorGuid, { 0, 5 });
+    _worldPacket.ReadGuidBytes(ItemGuid, { 3, 6 });
+    _worldPacket.ReadGuidBytes(VendorGuid, { 4 });
+    _worldPacket.ReadGuidBytes(ItemGuid, { 4, 0 });
 }
 
 void WorldPackets::Item::BuybackItem::Read()
 {
-    _worldPacket >> VendorGuid;
+    // 5.4.8 18414, from Project SkyFire
     _worldPacket >> Slot;
+    _worldPacket.ReadGuidMask(VendorGuid, { 2, 3, 0, 4, 1, 7, 5, 6 });
+    _worldPacket.ReadGuidBytes(VendorGuid, { 0, 6, 1, 7, 5, 2, 3, 4 });
 }
 
 void WorldPackets::Item::BuyItemInSlot::Read()
@@ -141,18 +161,42 @@ void WorldPackets::Item::BuyItemInSlot::Read()
 
 void WorldPackets::Item::BuyItem::Read()
 {
-    _worldPacket >> VendorGuid;
-    _worldPacket >> ItemType;
+    // 5.4.8 18414, from Project SkyFire
+    BagSlot = uint8(_worldPacket.read<uint32>());
+    _worldPacket >> Count;
     _worldPacket >> Item;
     _worldPacket >> Slot;
-    _worldPacket >> Count;
-    _worldPacket >> BagGuid;
-    _worldPacket >> BagSlot;
+
+    _worldPacket.ReadGuidMask(VendorGuid, { 6 });
+    _worldPacket.ReadGuidMask(BagGuid, { 6, 4 });
+    _worldPacket.ReadGuidMask(VendorGuid, { 4 });
+    ItemType = _worldPacket.ReadBits(2);
+    _worldPacket.ReadGuidMask(VendorGuid, { 0, 3 });
+    _worldPacket.ReadGuidMask(BagGuid, { 3 });
+    _worldPacket.ReadGuidMask(VendorGuid, { 7, 5 });
+    _worldPacket.ReadGuidMask(BagGuid, { 2 });
+    _worldPacket.ReadGuidMask(VendorGuid, { 1 });
+    _worldPacket.ReadGuidMask(BagGuid, { 7 });
+    _worldPacket.ReadGuidMask(VendorGuid, { 2 });
+    _worldPacket.ReadGuidMask(BagGuid, { 1, 0, 5 });
+
+    _worldPacket.ReadGuidBytes(VendorGuid, { 5, 0 });
+    _worldPacket.ReadGuidBytes(BagGuid, { 3, 1, 6 });
+    _worldPacket.ReadGuidBytes(VendorGuid, { 2, 7, 6 });
+    _worldPacket.ReadGuidBytes(BagGuid, { 0, 5 });
+    _worldPacket.ReadGuidBytes(VendorGuid, { 4 });
+    _worldPacket.ReadGuidBytes(BagGuid, { 2 });
+    _worldPacket.ReadGuidBytes(VendorGuid, { 3 });
+    _worldPacket.ReadGuidBytes(BagGuid, { 7 });
+    _worldPacket.ReadGuidBytes(VendorGuid, { 1 });
+    _worldPacket.ReadGuidBytes(BagGuid, { 4 });
 }
 
 void WorldPackets::Item::ListInventory::Read()
 {
-    _worldPacket >> VendorGuid;
+    // 5.4.8 18414, from Project SkyFire
+    _worldPacket.ReadGuidMask(VendorGuid, { 6, 7, 3, 1, 2, 0, 4, 5 });
+    _worldPacket.ReadGuidBytes(VendorGuid, { 0, 7, 1, 6, 4, 3, 5, 2 });
 }
 
 void WorldPackets::Item::AutoStoreBagItem::Read()

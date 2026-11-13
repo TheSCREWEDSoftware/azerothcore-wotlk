@@ -44,8 +44,9 @@ bool WorldSession::CanUseBank(ObjectGuid bankerGUID) const
 void WorldSession::HandleBankerActivateOpcode(WorldPacket& recvData)
 {
     ObjectGuid guid;
-
-    recvData >> guid;
+    // 5.4.8 18414, from Project SkyFire
+    recvData.ReadGuidMask(guid, { 4, 5, 0, 6, 1, 2, 7, 3 });
+    recvData.ReadGuidBytes(guid, { 1, 7, 2, 5, 6, 3, 0, 4 });
 
     Creature* unit = GetPlayer()->GetNPCIfCanInteractWith(guid, UNIT_NPC_FLAG_BANKER);
     if (!unit)

@@ -72,8 +72,11 @@ void WorldSession::HandleTabardVendorActivateOpcode(WorldPacket& recvData)
 
 void WorldSession::SendTabardVendorActivate(ObjectGuid guid)
 {
-    WorldPacket data(MSG_TABARDVENDOR_ACTIVATE, 8);
-    data << guid;
+    // 5.4.8 18414, from Project SkyFire
+    WorldPacket data(SMSG_TABARD_VENDOR_ACTIVATE, 9);
+    data.WriteGuidMask(guid, { 1, 5, 0, 7, 4, 6, 3, 2 });
+    data.FlushBits();
+    data.WriteGuidBytes(guid, { 5, 4, 2, 3, 6, 0, 1, 7 });
     SendPacket(&data);
 }
 
@@ -155,7 +158,9 @@ void WorldSession::HandleTrainerBuySpellOpcode(WorldPackets::NPC::TrainerBuySpel
 void WorldSession::HandleGossipHelloOpcode(WorldPacket& recvData)
 {
     ObjectGuid guid;
-    recvData >> guid;
+    // 5.4.8 18414, from Project SkyFire
+    recvData.ReadGuidMask(guid, { 2, 4, 0, 3, 6, 7, 5, 1 });
+    recvData.ReadGuidBytes(guid, { 4, 7, 1, 0, 5, 3, 6, 2 });
 
     Creature* unit = GetPlayer()->GetNPCIfCanInteractWith(guid, UNIT_NPC_FLAG_NONE);
     if (!unit)
@@ -256,8 +261,9 @@ void WorldSession::HandleSpiritHealerActivateOpcode(WorldPacket& recvData)
     LOG_DEBUG("network", "WORLD: CMSG_SPIRIT_HEALER_ACTIVATE");
 
     ObjectGuid guid;
-
-    recvData >> guid;
+    // 5.4.8 18414, from Project SkyFire
+    recvData.ReadGuidMask(guid, { 2, 7, 6, 0, 5, 4, 1, 3 });
+    recvData.ReadGuidBytes(guid, { 1, 5, 6, 3, 2, 0, 7, 4 });
 
     Creature* unit = GetPlayer()->GetNPCIfCanInteractWith(guid, UNIT_NPC_FLAG_SPIRITHEALER);
     if (!unit)
@@ -312,7 +318,9 @@ void WorldSession::SendSpiritResurrect()
 void WorldSession::HandleBinderActivateOpcode(WorldPacket& recvData)
 {
     ObjectGuid npcGUID;
-    recvData >> npcGUID;
+    // 5.4.8 18414, from Project SkyFire
+    recvData.ReadGuidMask(npcGUID, { 0, 5, 4, 7, 6, 2, 1, 3 });
+    recvData.ReadGuidBytes(npcGUID, { 0, 4, 2, 3, 7, 1, 5, 6 });
 
     if (!GetPlayer()->IsInWorld() || !GetPlayer()->IsAlive())
         return;
@@ -352,10 +360,11 @@ void WorldSession::SendBindPoint(Creature* npc)
 
 void WorldSession::HandleListStabledPetsOpcode(WorldPacket& recvData)
 {
-    LOG_DEBUG("network", "WORLD: Recv MSG_LIST_STABLED_PETS");
+    LOG_DEBUG("network", "WORLD: Recv CMSG_REQUEST_STABLED_PETS");
     ObjectGuid npcGUID;
-
-    recvData >> npcGUID;
+    // 5.4.8 18414, from Project SkyFire
+    recvData.ReadGuidMask(npcGUID, { 0, 5, 1, 3, 6, 7, 2, 4 });
+    recvData.ReadGuidBytes(npcGUID, { 0, 5, 7, 1, 2, 3, 4, 6 });
 
     if (!CheckStableMaster(npcGUID))
         return;
@@ -373,41 +382,52 @@ void WorldSession::HandleListStabledPetsOpcode(WorldPacket& recvData)
 
 void WorldSession::SendStablePet(ObjectGuid guid)
 {
-    WorldPacket data(MSG_LIST_STABLED_PETS, 200);
-    data << guid;
-    std::size_t countPos = data.wpos();
-    data << uint8(0);                                       // pet count, set below
-    data << uint8(PET_STABLE_LAST_CLIENT_SLOT);             // stable slots
-
-    uint8 count = 0;
-    auto appendPet = [&](PetStable::PetInfo const& pet, uint8 clientSlot)
+    // 5.4.8 18414 SMSG_PET_STABLE_LIST, from Project SkyFire. A stable master GUID opens the stable
+    // window, an empty GUID only refreshes the Call Pet list.
+    struct StableListEntry
     {
-        uint8 flags = PET_STABLE_FLAG_ACTIVE;
-        if (clientSlot >= PET_STABLE_FIRST_CLIENT_SLOT)
-            flags |= PET_STABLE_FLAG_INACTIVE;
-
-        data << int32(clientSlot);
-        data << uint32(pet.PetNumber);
-        data << uint32(pet.CreatureId);
-        data << uint32(pet.Level);
-        data << pet.Name;
-        data << uint8(flags);
-        ++count;
+        PetStable::PetInfo const* Pet;
+        uint8 ClientSlot;
     };
 
+    std::vector<StableListEntry> pets;
     if (PetStable const* petStable = GetPlayer()->GetPetStable())
     {
         // active pets in Call Pet order, then the stable
         for (uint8 callSlot = 0; callSlot < PET_CALL_SLOT_COUNT; ++callSlot)
             if (PetStable::PetInfo const* pet = petStable->GetPetInCallSlot(callSlot))
-                appendPet(*pet, callSlot);
+                pets.push_back({ pet, callSlot });
 
         for (std::size_t stableSlot = 0; stableSlot < petStable->StabledPets.size(); ++stableSlot)
             if (Optional<PetStable::PetInfo> const& pet = petStable->StabledPets[stableSlot])
-                appendPet(*pet, uint8(PET_STABLE_FIRST_CLIENT_SLOT + stableSlot));
+                pets.push_back({ &*pet, uint8(PET_STABLE_FIRST_CLIENT_SLOT + stableSlot) });
     }
 
-    data.put<uint8>(countPos, count);
+    WorldPacket data(SMSG_PET_STABLE_LIST, 200);
+    data.WriteGuidMask(guid, { 3, 0, 4, 7, 2, 1, 6, 5 });
+    data.WriteBits(pets.size(), 19);
+    for (StableListEntry const& entry : pets)
+        data.WriteBits(entry.Pet->Name.size(), 8);
+    data.FlushBits();
+
+    for (StableListEntry const& entry : pets)
+    {
+        uint32 displayId = entry.Pet->DisplayId;
+        if (!displayId)
+            if (CreatureTemplate const* creatureTemplate = sObjectMgr->GetCreatureTemplate(entry.Pet->CreatureId))
+                if (CreatureModel const* model = creatureTemplate->GetFirstValidModel())
+                    displayId = model->CreatureDisplayID;
+
+        data << uint32(entry.Pet->CreatureId);
+        data << uint32(entry.Pet->Level);
+        data << uint8(entry.ClientSlot < PET_STABLE_FIRST_CLIENT_SLOT ? PET_STABLE_FLAG_ACTIVE : PET_STABLE_FLAG_INACTIVE);
+        data << uint32(displayId);
+        data.WriteString(entry.Pet->Name);
+        data << uint32(entry.Pet->PetNumber);
+        data << uint32(entry.ClientSlot);
+    }
+
+    data.WriteGuidBytes(guid, { 3, 5, 7, 2, 0, 4, 1, 6 });
     SendPacket(&data);
 }
 
@@ -601,9 +621,30 @@ void WorldSession::HandleRepairItemOpcode(WorldPacket& recvData)
     LOG_DEBUG("network", "WORLD: CMSG_REPAIR_ITEM");
 
     ObjectGuid npcGUID, itemGUID;
-    uint8 guildBank;                                        // new in 2.3.2, bool that means from guild bank money
+    bool guildBank;                                         // new in 2.3.2, bool that means from guild bank money
 
-    recvData >> npcGUID >> itemGUID >> guildBank;
+    // 5.4.8 18414, from Project SkyFire
+    recvData.ReadGuidMask(itemGUID, { 2, 5 });
+    recvData.ReadGuidMask(npcGUID, { 3 });
+    guildBank = recvData.ReadBit();
+    recvData.ReadGuidMask(npcGUID, { 7 });
+    recvData.ReadGuidMask(itemGUID, { 4 });
+    recvData.ReadGuidMask(npcGUID, { 2 });
+    recvData.ReadGuidMask(itemGUID, { 0, 3 });
+    recvData.ReadGuidMask(npcGUID, { 6, 1, 4 });
+    recvData.ReadGuidMask(itemGUID, { 6 });
+    recvData.ReadGuidMask(npcGUID, { 5, 0 });
+    recvData.ReadGuidMask(itemGUID, { 7, 1 });
+
+    recvData.ReadGuidBytes(itemGUID, { 2 });
+    recvData.ReadGuidBytes(npcGUID, { 1 });
+    recvData.ReadGuidBytes(itemGUID, { 1 });
+    recvData.ReadGuidBytes(npcGUID, { 4, 7, 3, 2 });
+    recvData.ReadGuidBytes(itemGUID, { 7 });
+    recvData.ReadGuidBytes(npcGUID, { 5, 0 });
+    recvData.ReadGuidBytes(itemGUID, { 5, 3, 4, 6 });
+    recvData.ReadGuidBytes(npcGUID, { 6 });
+    recvData.ReadGuidBytes(itemGUID, { 0 });
 
     Creature* unit = GetPlayer()->GetNPCIfCanInteractWith(npcGUID, UNIT_NPC_FLAG_REPAIR);
     if (!unit)

@@ -1152,7 +1152,8 @@ void WorldSession::SendListInventory(ObjectGuid vendorGuid, uint32 vendorEntry)
     {
         WorldPackets::NPC::VendorInventory packet;
         packet.Vendor = vendorGuid;
-        packet.Reason = VENDOR_INVENTORY_REASON_INVENTORY_EMPTY;
+        // 5.4.8 opens an empty list only when this is not 0, SkyFire sends it for armorers
+        packet.Reason = vendor->IsArmorer() ? 1 : 0;
         SendPacket(packet.Write());
         return;
     }
@@ -1222,8 +1223,11 @@ void WorldSession::SendListInventory(ObjectGuid vendorGuid, uint32 vendorEntry)
         }
     }
 
-    if (!count)
-        packet.Reason = VENDOR_INVENTORY_REASON_INVENTORY_EMPTY;
+    // 5.4.8 opens an empty list only when this is not 0, SkyFire sends the vendor size or the armorer flag
+    if (itemCount)
+        packet.Reason = uint8(std::min<uint32>(itemCount, 255));
+    else
+        packet.Reason = vendor->IsArmorer() ? 1 : 0;
 
     SendPacket(packet.Write());
 }

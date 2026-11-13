@@ -47,12 +47,10 @@ namespace WorldPackets::NPC
         uint8 Usable           = 0;
         int32 MoneyCost        = 0;
         // 4.x replaced the WotLK point-cost pair with the profession dialog/button hints
-        int32 ProfessionDialog = 0;
-        int32 ProfessionButton = 0;
         uint8 ReqLevel         = 0;
         int32 ReqSkillLine     = 0;
         int32 ReqSkillRank     = 0;
-        std::array<int32, 2> ReqAbility = { };
+        std::array<int32, 3> ReqAbility = { };
     };
 
     class TrainerList final : public ServerPacket

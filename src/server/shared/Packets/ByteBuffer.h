@@ -22,6 +22,7 @@
 #include "Define.h"
 #include <array>
 #include <cstring>
+#include <initializer_list>
 #include <string>
 #include <vector>
 
@@ -259,6 +260,35 @@ public:
     {
         if (b != 0)
             append<uint8>(b ^ 1);
+    }
+
+    // Bit-packed GUID helpers, the indices are the client's per-packet order
+    template<class Guid>
+    void ReadGuidMask(Guid& guid, std::initializer_list<uint8> indices)
+    {
+        for (uint8 index : indices)
+            guid[index] = ReadBit();
+    }
+
+    template<class Guid>
+    void ReadGuidBytes(Guid& guid, std::initializer_list<uint8> indices)
+    {
+        for (uint8 index : indices)
+            ReadByteSeq(guid[index]);
+    }
+
+    template<class Guid>
+    void WriteGuidMask(Guid const& guid, std::initializer_list<uint8> indices)
+    {
+        for (uint8 index : indices)
+            WriteBit(guid[index]);
+    }
+
+    template<class Guid>
+    void WriteGuidBytes(Guid const& guid, std::initializer_list<uint8> indices)
+    {
+        for (uint8 index : indices)
+            WriteByteSeq(guid[index]);
     }
 
     ByteBuffer& operator<<(bool value)

@@ -38,8 +38,6 @@ namespace Trainer
     void Trainer::SendSpells(Creature* npc, Player* player, LocaleConstant locale) const
     {
         float reputationDiscount = player->GetReputationPriceDiscount(npc);
-        // 4.x shows the profession dialog/button only for a primary profession's first rank
-        bool canLearnPrimaryProfession = player->GetFreePrimaryProfessionPoints() > 0;
 
         WorldPackets::NPC::TrainerList trainerList;
         trainerList.TrainerGUID = npc->GetGUID();
@@ -51,19 +49,6 @@ namespace Trainer
         {
             if (!player->IsSpellFitByClassAndRace(trainerSpell.SpellId))
                 continue;
-
-            SpellInfo const* trainerSpellInfo = sSpellMgr->AssertSpellInfo(trainerSpell.SpellId);
-
-            bool primaryProfessionFirstRank = false;
-            for (SpellEffectInfo const& spellEffectInfo : trainerSpellInfo->GetEffects())
-            {
-                if (!spellEffectInfo.IsEffect(SPELL_EFFECT_LEARN_SPELL))
-                    continue;
-
-                SpellInfo const* learnedSpellInfo = sSpellMgr->GetSpellInfo(spellEffectInfo.TriggerSpell);
-                if (learnedSpellInfo && learnedSpellInfo->IsPrimaryProfessionFirstRank())
-                    primaryProfessionFirstRank = true;
-            }
 
             trainerList.Spells.emplace_back();
             WorldPackets::NPC::TrainerListSpell& trainerListSpell = trainerList.Spells.back();
@@ -84,15 +69,11 @@ namespace Trainer
                     break;
             }
             trainerListSpell.MoneyCost = int32(trainerSpell.MoneyCost * reputationDiscount);
-            trainerListSpell.ProfessionDialog = primaryProfessionFirstRank ? 1 : 0;
-            trainerListSpell.ProfessionButton = (primaryProfessionFirstRank && canLearnPrimaryProfession) ? 1 : 0;
             // the client only greys a class trainer's spell by level when the requirement is unmet
             if (_type != Type::Class || player->GetLevel() < trainerSpell.ReqLevel)
                 trainerListSpell.ReqLevel = trainerSpell.ReqLevel;
             trainerListSpell.ReqSkillLine = trainerSpell.ReqSkillLine;
             trainerListSpell.ReqSkillRank = trainerSpell.ReqSkillRank;
-            // the 4.x wire carries two required abilities; AC keeps a third DB column for its own
-            // eligibility checks, so only the destination's two elements are copied
             std::copy_n(trainerSpell.ReqAbility.begin(), trainerListSpell.ReqAbility.size(),
                 trainerListSpell.ReqAbility.begin());
         }

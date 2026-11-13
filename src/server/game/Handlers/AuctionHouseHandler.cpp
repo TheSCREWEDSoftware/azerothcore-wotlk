@@ -34,7 +34,9 @@
 void WorldSession::HandleAuctionHelloOpcode(WorldPacket& recvData)
 {
     ObjectGuid guid;                                            //NPC guid
-    recvData >> guid;
+    // 5.4.8 18414, from Project SkyFire
+    recvData.ReadGuidMask(guid, { 1, 5, 2, 0, 3, 6, 4, 7 });
+    recvData.ReadGuidBytes(guid, { 2, 7, 1, 3, 5, 0, 4, 6 });
 
     Creature* unit = GetPlayer()->GetNPCIfCanInteractWith(guid, UNIT_NPC_FLAG_AUCTIONEER);
     if (!unit)
@@ -66,10 +68,16 @@ void WorldSession::SendAuctionHello(ObjectGuid guid, Creature* unit)
     if (!ahEntry)
         return;
 
-    WorldPacket data(MSG_AUCTION_HELLO, 12);
-    data << guid;
+    // 5.4.8 18414, from Project SkyFire
+    WorldPacket data(SMSG_AUCTION_HELLO, 1 + 8 + 4);
+    data.WriteGuidMask(guid, { 6, 7, 3 });
+    data.WriteBit(true);                                    // 1 - AH enabled, 0 - AH disabled
+    data.WriteGuidMask(guid, { 4, 2, 5, 0, 1 });
+    data.FlushBits();
+
+    data.WriteGuidBytes(guid, { 3 });
     data << uint32(ahEntry->houseId);
-    data << uint8(1);                                       // 3.3.3: 1 - AH enabled, 0 - AH disabled
+    data.WriteGuidBytes(guid, { 4, 2, 7, 1, 0, 6, 5 });
     SendPacket(&data);
 }
 

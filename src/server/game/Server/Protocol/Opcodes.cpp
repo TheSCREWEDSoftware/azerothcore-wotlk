@@ -159,7 +159,6 @@ void OpcodeTable::Initialize()
     SetBidirectionalOpcodeNames(#opcode, clientOpcode, serverOpcode)
 
     // 5.4.8 opcodes without a handler yet
-    /*0x0379*/ DEFINE_HANDLER(CMSG_AUCTION_HELLO_REQUEST, STATUS_UNHANDLED, PROCESS_INPLACE, &WorldSession::Handle_NULL);
     /*0x0F49*/ DEFINE_HANDLER(CMSG_AUTH_CONTINUED_SESSION, STATUS_UNHANDLED, PROCESS_INPLACE, &WorldSession::Handle_NULL);
     /*0x0826*/ DEFINE_HANDLER(CMSG_BATTLEFIELD_RATED_INFO_REQUEST, STATUS_UNHANDLED, PROCESS_INPLACE, &WorldSession::Handle_NULL);
     /*0x08E3*/ DEFINE_HANDLER(CMSG_BATTLE_PAY_CHAR_BOOST, STATUS_UNHANDLED, PROCESS_INPLACE, &WorldSession::Handle_NULL);
@@ -1140,7 +1139,8 @@ void OpcodeTable::Initialize()
     /*0xF1E5*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_RESURRECT_FAILED,                                   STATUS_NEVER);
     /*0x0644*/ DEFINE_HANDLER(CMSG_TOGGLE_PVP,                                                       STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleTogglePvP                          );
     /*0x10C2*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_ZONE_UNDER_ATTACK,                                  STATUS_NEVER);
-    /*0xF0AB*/ DEFINE_HANDLER(MSG_AUCTION_HELLO,                                                     STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleAuctionHelloOpcode                 );
+    /*0x0379*/ DEFINE_HANDLER(CMSG_AUCTION_HELLO_REQUEST,                                            STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleAuctionHelloOpcode                 );
+    /*0xF0AB*/ DEFINE_HANDLER(MSG_AUCTION_HELLO,                                                     STATUS_NEVER,      PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );
     DEFINE_BIDIRECTIONAL_OPCODE(MSG_AUCTION_HELLO, MSG_AUCTION_HELLO, MSG_AUCTION_HELLO_SERVER);
     /*0x02EB*/ DEFINE_HANDLER(CMSG_AUCTION_SELL_ITEM,                                                STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleAuctionSellItem                    );
     /*0x0259*/ DEFINE_HANDLER(CMSG_AUCTION_REMOVE_ITEM,                                              STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleAuctionRemoveItem                  );

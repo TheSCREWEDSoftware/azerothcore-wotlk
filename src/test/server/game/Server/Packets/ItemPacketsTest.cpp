@@ -44,76 +44,108 @@ TEST(ItemPacketsTest, DestroyRejectsTruncatedCataCount)
     EXPECT_THROW(packet.Read(), ByteBufferException);
 }
 
-TEST(ItemPacketsTest, BuyItemReadsCataItemTypeAndDestinationBag)
+namespace
 {
-    EXPECT_EQ(uint16(CMSG_BUY_ITEM), 0x0736);
-    WorldPacket raw(CMSG_BUY_ITEM, 30);
-    raw << uint64(10);                              // vendorguid: Cata client packets carry it unpacked
-    raw << uint8(ITEM_VENDOR_TYPE_ITEM);
-    raw << uint32(0x0000ABCD);
-    raw << uint32(3);
-    raw << uint32(2);
-    raw << uint64(0);                               // empty destination bag guid
-    raw << uint8(42);                               // destination bag slot
-    WorldPackets::Item::BuyItem packet(std::move(raw));
+    WorldPacket BuildBuyItem(ObjectGuid vendor, ObjectGuid bag, uint8 itemType, uint32 bagSlot, uint32 count, uint32 item, uint32 slot)
+    {
+        // 5.4.8 18414 CMSG_BUY_ITEM, as the client sends it (Project SkyFire's read order)
+        WorldPacket raw(CMSG_BUY_ITEM, 40);
+        raw << bagSlot << count << item << slot;
+        raw.WriteGuidMask(vendor, { 6 });
+        raw.WriteGuidMask(bag, { 6, 4 });
+        raw.WriteGuidMask(vendor, { 4 });
+        raw.WriteBits(itemType, 2);
+        raw.WriteGuidMask(vendor, { 0, 3 });
+        raw.WriteGuidMask(bag, { 3 });
+        raw.WriteGuidMask(vendor, { 7, 5 });
+        raw.WriteGuidMask(bag, { 2 });
+        raw.WriteGuidMask(vendor, { 1 });
+        raw.WriteGuidMask(bag, { 7 });
+        raw.WriteGuidMask(vendor, { 2 });
+        raw.WriteGuidMask(bag, { 1, 0, 5 });
+        raw.FlushBits();
+        raw.WriteGuidBytes(vendor, { 5, 0 });
+        raw.WriteGuidBytes(bag, { 3, 1, 6 });
+        raw.WriteGuidBytes(vendor, { 2, 7, 6 });
+        raw.WriteGuidBytes(bag, { 0, 5 });
+        raw.WriteGuidBytes(vendor, { 4 });
+        raw.WriteGuidBytes(bag, { 2 });
+        raw.WriteGuidBytes(vendor, { 3 });
+        raw.WriteGuidBytes(bag, { 7 });
+        raw.WriteGuidBytes(vendor, { 1 });
+        raw.WriteGuidBytes(bag, { 4 });
+        return raw;
+    }
+}
+
+TEST(ItemPacketsTest, BuyItemReads548Layout)
+{
+    EXPECT_EQ(uint16(CMSG_BUY_ITEM), 0x02E2);
+    ObjectGuid vendor = ObjectGuid::Create<HighGuid::Unit>(911, 79964);
+    WorldPackets::Item::BuyItem packet(BuildBuyItem(vendor, ObjectGuid::Empty, ITEM_VENDOR_TYPE_ITEM, 42, 1000, 0xABCD, 3));
     packet.Read();
-    EXPECT_EQ(packet.VendorGuid.GetCounter(), 10u);
+    EXPECT_EQ(packet.VendorGuid, vendor);
     EXPECT_EQ(packet.ItemType, uint8(ITEM_VENDOR_TYPE_ITEM));
     EXPECT_EQ(packet.Item, 0x0000ABCDu);
     EXPECT_EQ(packet.Slot, 3u);
-    EXPECT_EQ(packet.Count, 2u);
+    EXPECT_EQ(packet.Count, 1000u);
     EXPECT_TRUE(packet.BagGuid.IsEmpty());
     EXPECT_EQ(packet.BagSlot, 42);
     EXPECT_EQ(packet.GetRawPacket()->rpos(), packet.GetSize());
 }
 
-TEST(ItemPacketsTest, BuyItemReadsCataDestinationBagGuidAndWideCount)
+TEST(ItemPacketsTest, BuyItemReads548DestinationBag)
 {
-    WorldPacket raw(CMSG_BUY_ITEM, 30);
-    raw << uint64(10);                              // vendorguid: Cata client packets carry it unpacked
-    raw << uint8(2);                                // ItemVendorType::Currency on the wire, parsed verbatim
-    raw << uint32(0x0000ABCD);
-    raw << uint32(3);
-    raw << uint32(1000);                            // Cata count is a uint32 item count, not a stack count
-    raw << uint64(0x0000000100000002ULL);           // destination bag guid
-    raw << uint8(7);                                // destination bag slot
-    WorldPackets::Item::BuyItem packet(std::move(raw));
+    ObjectGuid vendor = ObjectGuid::Create<HighGuid::Unit>(911, 79964);
+    ObjectGuid bag = ObjectGuid::Create<HighGuid::Item>(0x12345);
+    WorldPackets::Item::BuyItem packet(BuildBuyItem(vendor, bag, ITEM_VENDOR_TYPE_CURRENCY, 7, 2, 0xABCD, 3));
     packet.Read();
-    EXPECT_EQ(packet.VendorGuid.GetCounter(), 10u);
-    EXPECT_EQ(uint8(ITEM_VENDOR_TYPE_CURRENCY), 2); // the wire value the parse test writes
-    EXPECT_EQ(uint8(ITEM_VENDOR_TYPE_ITEM), 1);
-    EXPECT_EQ(packet.ItemType, 2);                  // the decoded value, which the handler dispatches on
-    EXPECT_EQ(packet.Item, 0x0000ABCDu);
-    EXPECT_EQ(packet.Slot, 3u);
-    EXPECT_EQ(packet.Count, 1000u);
-    EXPECT_EQ(packet.BagGuid.GetRawValue(), 0x0000000100000002ULL);
+    EXPECT_EQ(packet.VendorGuid, vendor);
+    EXPECT_EQ(packet.BagGuid, bag);
+    EXPECT_EQ(packet.ItemType, uint8(ITEM_VENDOR_TYPE_CURRENCY));
     EXPECT_EQ(packet.BagSlot, 7);
     EXPECT_EQ(packet.GetRawPacket()->rpos(), packet.GetSize());
 }
 
-TEST(ItemPacketsTest, BuyItemRejectsTruncatedCataDestinationBag)
+TEST(ItemPacketsTest, BuyItemRejectsTruncatedPacket)
 {
-    WorldPacket raw(CMSG_BUY_ITEM, 20);
-    raw << uint64(10);
-    raw << uint8(ITEM_VENDOR_TYPE_ITEM);
-    raw << uint32(0x0000ABCD);
-    raw << uint32(3);
-    raw << uint32(2);
+    WorldPacket raw(CMSG_BUY_ITEM, 12);
+    raw << uint32(0) << uint32(1) << uint32(0xABCD);
     WorldPackets::Item::BuyItem packet(std::move(raw));
     EXPECT_THROW(packet.Read(), ByteBufferException);
 }
 
-TEST(ItemPacketsTest, BuyItemRejectsMissingCataDestinationBagSlot)
+TEST(ItemPacketsTest, SellItemReads548Layout)
 {
-    WorldPacket raw(CMSG_BUY_ITEM, 30);
-    raw << uint64(10);
-    raw << uint8(ITEM_VENDOR_TYPE_ITEM);
-    raw << uint32(0x0000ABCD);
-    raw << uint32(3);
-    raw << uint32(2);
-    raw << uint64(0x0000000100000002ULL);           // destination bag guid, final bag slot byte missing
-    WorldPackets::Item::BuyItem packet(std::move(raw));
-    EXPECT_THROW(packet.Read(), ByteBufferException);
+    ObjectGuid vendor = ObjectGuid::Create<HighGuid::Unit>(911, 79964);
+    ObjectGuid item = ObjectGuid::Create<HighGuid::Item>(0x12345);
+    WorldPacket raw(CMSG_SELL_ITEM, 24);
+    raw << uint32(5);
+    raw.WriteGuidMask(item, { 4, 3, 7 });
+    raw.WriteGuidMask(vendor, { 6, 5, 1 });
+    raw.WriteGuidMask(item, { 5, 2, 1 });
+    raw.WriteGuidMask(vendor, { 2 });
+    raw.WriteGuidMask(item, { 6 });
+    raw.WriteGuidMask(vendor, { 4, 0, 7, 3 });
+    raw.WriteGuidMask(item, { 0 });
+    raw.FlushBits();
+    raw.WriteGuidBytes(vendor, { 6, 3, 1 });
+    raw.WriteGuidBytes(item, { 1 });
+    raw.WriteGuidBytes(vendor, { 2 });
+    raw.WriteGuidBytes(item, { 7, 5 });
+    raw.WriteGuidBytes(vendor, { 7 });
+    raw.WriteGuidBytes(item, { 2 });
+    raw.WriteGuidBytes(vendor, { 0, 5 });
+    raw.WriteGuidBytes(item, { 3, 6 });
+    raw.WriteGuidBytes(vendor, { 4 });
+    raw.WriteGuidBytes(item, { 4, 0 });
+
+    WorldPackets::Item::SellItem packet(std::move(raw));
+    packet.Read();
+    EXPECT_EQ(packet.VendorGuid, vendor);
+    EXPECT_EQ(packet.ItemGuid, item);
+    EXPECT_EQ(packet.Count, 5u);
+    EXPECT_EQ(packet.GetRawPacket()->rpos(), packet.GetSize());
 }
 
 class ItemInventoryTest : public IntegrationTestFixture

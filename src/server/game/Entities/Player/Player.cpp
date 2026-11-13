@@ -9207,8 +9207,11 @@ uint32 Player::GetXPRestBonus(uint32 xp)
 
 void Player::SetBindPoint(ObjectGuid guid)
 {
-    WorldPacket data(SMSG_BINDER_CONFIRM, 8);
-    data << guid;
+    // 5.4.8 18414, from Project SkyFire
+    WorldPacket data(SMSG_BINDER_CONFIRM, 9);
+    data.WriteGuidMask(guid, { 4, 6, 2, 1, 5, 3, 0, 7 });
+    data.FlushBits();
+    data.WriteGuidBytes(guid, { 6, 2, 5, 0, 4, 7, 1, 3 });
     SendDirectMessage(&data);
 }
 
