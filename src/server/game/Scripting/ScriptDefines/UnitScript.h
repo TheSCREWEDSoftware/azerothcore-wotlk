@@ -44,6 +44,7 @@ enum UnitHook
     UNITHOOK_ON_UNIT_EXIT_COMBAT,
     UNITHOOK_ON_UNIT_DEATH,
     UNITHOOK_ON_UNIT_SET_SHAPESHIFT_FORM,
+    UNITHOOK_ON_COMBO_POINTS_TARGET_CHANGE,
     UNITHOOK_END
 };
 
@@ -110,6 +111,19 @@ public:
     virtual void OnUnitExitCombat(Unit* /*unit*/) { }
     virtual void OnUnitDeath(Unit* /*unit*/, Unit* /*killer*/) { }
     virtual void OnUnitSetShapeshiftForm(Unit* /*unit*/, uint8 /*form*/) { }
+
+    /**
+     * @brief This hook is called when a unit gains combo points on another target than the one holding its combo
+     * points, before they move there, and can change how many the new target starts with.
+     *
+     * @param unit Contains information about the Unit gaining the combo points
+     * @param oldTarget The target holding its combo points until now (nullptr if none)
+     * @param newTarget The target that gets them
+     * @param oldPoints The combo points on oldTarget, lost when they move
+     * @param points How many combo points newTarget starts with (the gain, by default); clamped to 0-5 afterwards
+     */
+    virtual void OnUnitComboPointsTargetChange(Unit* /*unit*/, Unit* /*oldTarget*/, Unit* /*newTarget*/,
+        uint8 /*oldPoints*/, int8& /*points*/) { }
 };
 
 #endif

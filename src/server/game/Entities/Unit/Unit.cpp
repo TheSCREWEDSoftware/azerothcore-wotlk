@@ -12920,13 +12920,16 @@ void Unit::AddComboPoints(Unit* target, int8 count)
 
     if (target && target != m_comboTarget)
     {
+        int8 points = count;
+        sScriptMgr->OnUnitComboPointsTargetChange(this, m_comboTarget, target, m_comboPoints, points);
+
         if (m_comboTarget)
         {
             m_comboTarget->RemoveComboPointHolder(this);
         }
 
         m_comboTarget = target;
-        m_comboPoints = count;
+        m_comboPoints = std::clamp<int8>(points, 0, 5);
         target->AddComboPointHolder(this);
     }
     else

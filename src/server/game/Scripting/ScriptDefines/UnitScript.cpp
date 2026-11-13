@@ -139,6 +139,13 @@ void ScriptMgr::OnUnitSetShapeshiftForm(Unit* unit, uint8 form)
     CALL_ENABLED_HOOKS(UnitScript, UNITHOOK_ON_UNIT_SET_SHAPESHIFT_FORM, script->OnUnitSetShapeshiftForm(unit, form));
 }
 
+void ScriptMgr::OnUnitComboPointsTargetChange(Unit* unit, Unit* oldTarget, Unit* newTarget, uint8 oldPoints,
+    int8& points)
+{
+    CALL_ENABLED_HOOKS(UnitScript, UNITHOOK_ON_COMBO_POINTS_TARGET_CHANGE,
+        script->OnUnitComboPointsTargetChange(unit, oldTarget, newTarget, oldPoints, points));
+}
+
 UnitScript::UnitScript(char const* name, bool addToScripts, std::vector<uint16> enabledHooks)
     : ScriptObject(name, UNITHOOK_END)
 {
