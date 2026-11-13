@@ -25,6 +25,7 @@
 #include "QueryResult.h"
 #include "SharedDefines.h"
 #include <functional>
+#include <set>
 
 class Battlefield;
 class Battleground;
@@ -272,6 +273,7 @@ public:
     void ConvertToLFR();
     bool CheckLevelForRaid();
     void ConvertToRaid();
+    void ConvertToGroup();
 
     void SetBattlegroundGroup(Battleground* bg);
     void SetBattlefieldGroup(Battlefield* bf);
@@ -280,7 +282,7 @@ public:
     void DoMinimapPing(ObjectGuid sourceGuid, float mapX, float mapY);
 
     void ChangeMembersGroup(ObjectGuid guid, uint8 group);
-    void SetTargetIcon(uint8 id, ObjectGuid whoGuid, ObjectGuid targetGuid);
+    void SetTargetIcon(uint8 id, ObjectGuid whoGuid, ObjectGuid targetGuid, uint8 partyIndex = 0);
     void SetGroupMemberFlag(ObjectGuid guid, bool apply, GroupMemberFlags flag);
     void RemoveUniqueGroupMemberFlag(GroupMemberFlags flag);
     [[nodiscard]] ObjectGuid GetTargetIcon(uint8 id) const { return id < TARGETICONCOUNT ? m_targetIcons[id] : ObjectGuid::Empty; }
@@ -295,7 +297,7 @@ public:
 
     // -no description-
     //void SendInit(WorldSession* session);
-    void SendTargetIconList(WorldSession* session);
+    void SendTargetIconList(WorldSession* session, uint8 partyIndex = 0);
     void SendUpdate();
     void SendUpdateToPlayer(ObjectGuid playerGUID, MemberSlot* slot = nullptr);
 
@@ -308,8 +310,16 @@ public:
     void UpdatePlayerOutOfRange(Player* player);
     // ignore: GUID of player that will be ignored
     void BroadcastPacket(WorldPacket const* packet, bool ignorePlayersInBGRaid, int group = -1, ObjectGuid ignore = ObjectGuid::Empty);
-    void BroadcastReadyCheck(WorldPacket const* packet);
     void OfflineReadyCheck();
+
+    // 5.4.8 runs the ready check on the server, from Project SkyFire
+    [[nodiscard]] bool ReadyCheckInProgress() const { return _readyCheckInProgress; }
+    void SetReadyCheckInProgress(bool state) { _readyCheckInProgress = state; }
+    void ReadyCheckMemberHasResponded(ObjectGuid guid) { _readyCheckResponded.insert(guid); }
+    void ReadyCheckResetResponded() { _readyCheckResponded.clear(); }
+    [[nodiscard]] bool ReadyCheckAllResponded() const;
+    void SendReadyCheckConfirm(ObjectGuid playerGuid, bool ready);
+    void SendReadyCheckCompleted();
 
     /*********************************************************/
     /***                   LOOT SYSTEM                     ***/
@@ -386,6 +396,8 @@ protected:
     Battlefield*        m_bfGroup;
     Battleground*       m_bgGroup;
     ObjectGuid          m_targetIcons[TARGETICONCOUNT];
+    bool                _readyCheckInProgress{false};
+    std::set<ObjectGuid> _readyCheckResponded;
     struct RaidMarker
     {
         ObjectGuid SummonerGuid;

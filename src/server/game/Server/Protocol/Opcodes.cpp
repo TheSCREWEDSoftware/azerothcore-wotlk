@@ -191,7 +191,7 @@ void OpcodeTable::Initialize()
     /*0x1452*/ DEFINE_HANDLER(CMSG_GET_CHALLENGE_MODE_REWARDS, STATUS_UNHANDLED, PROCESS_INPLACE, &WorldSession::Handle_NULL);
     /*0x1258*/ DEFINE_HANDLER(CMSG_GET_ITEM_PURCHASE_DATA, STATUS_UNHANDLED, PROCESS_INPLACE, &WorldSession::Handle_NULL);
     /*0x15A8*/ DEFINE_HANDLER(CMSG_GM_TICKET_CASE_STATUS, STATUS_UNHANDLED, PROCESS_INPLACE, &WorldSession::Handle_NULL);
-    /*0x1882*/ DEFINE_HANDLER(CMSG_GROUP_INITIATE_ROLE_POLL, STATUS_UNHANDLED, PROCESS_INPLACE, &WorldSession::Handle_NULL);
+    /*0x1882*/ DEFINE_HANDLER(CMSG_GROUP_INITIATE_ROLE_POLL, STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleRolePollBeginOpcode);
     /*0x04D9*/ DEFINE_HANDLER(CMSG_GUILD_BANK_NOTE, STATUS_UNHANDLED, PROCESS_INPLACE, &WorldSession::Handle_NULL);
     /*0x0550*/ DEFINE_HANDLER(CMSG_GUILD_BANK_QUERY_TEXT, STATUS_UNHANDLED, PROCESS_INPLACE, &WorldSession::Handle_NULL);
     /*0x0C63*/ DEFINE_HANDLER(CMSG_LF_GUILD_ADD_APPLICATION, STATUS_UNHANDLED, PROCESS_INPLACE, &WorldSession::Handle_NULL);
@@ -1062,7 +1062,7 @@ void OpcodeTable::Initialize()
     /*0xF002*/ DEFINE_HANDLER(CMSG_CLEAR_RAID_MARKER,                                                STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleClearRaidMarkerOpcode              );
     /*0x10A7*/ DEFINE_HANDLER(CMSG_SET_PET_SLOT,                                                     STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleSetPetSlot                         );
     /*0x0B1C*/ DEFINE_HANDLER(CMSG_GENERATE_RANDOM_CHARACTER_NAME,                                   STATUS_AUTHED,     PROCESS_THREADUNSAFE,   &WorldSession::HandleRandomizeCharNameOpcode            );
-    /*0xF003*/ DEFINE_HANDLER(CMSG_ROLE_POLL_BEGIN,                                                  STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleRolePollBeginOpcode                );
+    /*0xF003*/ DEFINE_HANDLER(CMSG_ROLE_POLL_BEGIN,                                                  STATUS_NEVER,      PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );
     /*0x03E4*/ DEFINE_HANDLER(CMSG_SET_CURRENCY_FLAGS,                                               STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleSetCurrencyFlags                   );
     /*0x08A7*/ DEFINE_HANDLER(CMSG_REORDER_CHARACTERS,                                               STATUS_AUTHED,     PROCESS_THREADUNSAFE,   &WorldSession::HandleReorderCharacters                  );
     /*0xF004*/ DEFINE_HANDLER(CMSG_REQUEST_INSPECT_RATED_BG_STATS,                                   STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleRequestInspectRatedBgStatsOpcode   );
@@ -1476,7 +1476,7 @@ void OpcodeTable::Initialize()
     /*0x0E3A*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_DISMOUNT,                                           STATUS_NEVER);
     /*0xF101*/ DEFINE_HANDLER(MSG_MOVE_UPDATE_CAN_FLY,                                               STATUS_NEVER,      PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );
     DEFINE_BIDIRECTIONAL_OPCODE(MSG_MOVE_UPDATE_CAN_FLY, MSG_MOVE_UPDATE_CAN_FLY, MSG_MOVE_UPDATE_CAN_FLY_SERVER);
-    /*0x158B*/ DEFINE_HANDLER(MSG_RAID_READY_CHECK_CONFIRM,                                          STATUS_NEVER,      PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );
+    /*0x158B*/ DEFINE_HANDLER(MSG_RAID_READY_CHECK_CONFIRM,                                          STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleRaidReadyCheckConfirmOpcode        );
     /*0x15A9*/ DEFINE_HANDLER(CMSG_VOICE_SESSION_ENABLE,                                             STATUS_AUTHED,     PROCESS_THREADUNSAFE,   &WorldSession::HandleVoiceSessionEnableOpcode           );
     /*0xF221*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_VOICE_SESSION_ENABLE,                               STATUS_NEVER);
     /*0xF222*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_VOICE_PARENTAL_CONTROLS,                            STATUS_NEVER);

@@ -348,10 +348,13 @@ void WorldSession::DeclinePartyInvite()
 
 void WorldSession::HandleGroupUninviteGuidOpcode(WorldPacket& recvData)
 {
+    // 5.4.8 18414, from Project SkyFire
     ObjectGuid guid;
     std::string reason, name;
-    recvData >> guid;
-    recvData >> reason;
+    recvData.read_skip<uint8>();                            // party index
+    recvData.ReadGuidMask(guid, { 6, 4, 3, 2, 0, 1, 7, 5 });
+    reason = recvData.ReadString(recvData.ReadBits(8));
+    recvData.ReadGuidBytes(guid, { 5, 6, 1, 4, 3, 2, 7, 0 });
 
     //can't uninvite yourself
     if (guid == GetPlayer()->GetGUID())
@@ -466,8 +469,11 @@ void WorldSession::HandleGroupUninviteOpcode(WorldPacket& recvData)
 
 void WorldSession::HandleGroupSetLeaderOpcode(WorldPacket& recvData)
 {
+    // 5.4.8 18414, from Project SkyFire
     ObjectGuid guid;
-    recvData >> guid;
+    recvData.read_skip<uint8>();                            // party index
+    recvData.ReadGuidMask(guid, { 1, 7, 0, 2, 5, 3, 4, 6 });
+    recvData.ReadGuidBytes(guid, { 1, 5, 7, 6, 0, 2, 4, 3 });
 
     Player* player = ObjectAccessor::FindConnectedPlayer(guid);
     Group* group = GetPlayer()->GetGroup();
@@ -620,16 +626,15 @@ void WorldSession::HandleRaidTargetUpdateOpcode(WorldPacket& recvData)
     if (!group)
         return;
 
-    uint8  x;
-    recvData >> x;
-
-    /** error handling **/
-    /********************/
+    // 5.4.8 18414, from Project SkyFire
+    uint8 symbol;
+    uint8 partyIndex;
+    recvData >> symbol >> partyIndex;
 
     // everything's fine, do it
-    if (x == 0xFF)                                           // target icon request
+    if (symbol == 0xFF)                                     // target icon request
     {
-        group->SendTargetIconList(this);
+        group->SendTargetIconList(this, partyIndex);
     }
     else                                                    // target icon update
     {
@@ -637,7 +642,8 @@ void WorldSession::HandleRaidTargetUpdateOpcode(WorldPacket& recvData)
             return;
 
         ObjectGuid guid;
-        recvData >> guid;
+        recvData.ReadGuidMask(guid, { 3, 2, 1, 5, 0, 6, 7, 4 });
+        recvData.ReadGuidBytes(guid, { 2, 3, 0, 7, 5, 1, 6, 4 });
 
         if (guid.IsPlayer())
         {
@@ -647,12 +653,15 @@ void WorldSession::HandleRaidTargetUpdateOpcode(WorldPacket& recvData)
                 return;
         }
 
-        group->SetTargetIcon(x, _player->GetGUID(), guid);
+        group->SetTargetIcon(symbol, _player->GetGUID(), guid, partyIndex);
     }
 }
 
-void WorldSession::HandleGroupRaidConvertOpcode(WorldPacket& /*recvData*/)
+void WorldSession::HandleGroupRaidConvertOpcode(WorldPacket& recvData)
 {
+    // 5.4.8 18414, from Project SkyFire: a raid of five or fewer can go back to a party
+    bool toRaid = recvData.ReadBit();
+
     Group* group = GetPlayer()->GetGroup();
     if (!group)
         return;
@@ -673,7 +682,10 @@ void WorldSession::HandleGroupRaidConvertOpcode(WorldPacket& /*recvData*/)
 
     // everything's fine, do it (is it 0 (PARTY_OP_INVITE) correct code)
     SendPartyResult(PARTY_OP_INVITE, "", ERR_PARTY_RESULT_OK);
-    group->ConvertToRaid();
+    if (toRaid)
+        group->ConvertToRaid();
+    else
+        group->ConvertToGroup();
 }
 
 void WorldSession::HandleGroupChangeSubGroupOpcode(WorldPacket& recvData)
@@ -683,10 +695,13 @@ void WorldSession::HandleGroupChangeSubGroupOpcode(WorldPacket& recvData)
     if (!group)
         return;
 
-    std::string name;
+    // 5.4.8 18414, from Project SkyFire: the member is named by GUID
+    ObjectGuid guid;
     uint8 groupNr;
-    recvData >> name;
+    recvData.read_skip<uint8>();                            // party index
     recvData >> groupNr;
+    recvData.ReadGuidMask(guid, { 1, 4, 6, 3, 7, 2, 0, 5 });
+    recvData.ReadGuidBytes(guid, { 2, 6, 1, 5, 3, 4, 0, 7 });
 
     if (groupNr >= MAX_RAID_SUBGROUPS)
         return;
@@ -697,18 +712,6 @@ void WorldSession::HandleGroupChangeSubGroupOpcode(WorldPacket& recvData)
 
     if (!group->HasFreeSlotSubGroup(groupNr))
         return;
-
-    Player* movedPlayer = ObjectAccessor::FindPlayerByName(name, false);
-    ObjectGuid guid;
-    if (movedPlayer)
-    {
-        guid = movedPlayer->GetGUID();
-    }
-    else
-    {
-        CharacterDatabase.EscapeString(name);
-        guid = sCharacterCache->GetCharacterGuidByName(name);
-    }
 
     group->ChangeMembersGroup(guid, groupNr);
 }
@@ -722,10 +725,13 @@ void WorldSession::HandleGroupAssistantLeaderOpcode(WorldPacket& recvData)
     if (!group->IsLeader(GetPlayer()->GetGUID()))
         return;
 
+    // 5.4.8 18414, from Project SkyFire
     ObjectGuid guid;
-    bool apply;
-    recvData >> guid;
-    recvData >> apply;
+    recvData.read_skip<uint8>();                            // party index
+    recvData.ReadGuidMask(guid, { 2, 0, 6, 3, 1 });
+    bool apply = recvData.ReadBit();
+    recvData.ReadGuidMask(guid, { 4, 5, 7 });
+    recvData.ReadGuidBytes(guid, { 5, 1, 0, 7, 3, 6, 2, 4 });
 
     group->SetGroupMemberFlag(guid, apply, MEMBER_FLAG_ASSISTANT);
 
@@ -742,11 +748,14 @@ void WorldSession::HandlePartyAssignmentOpcode(WorldPacket& recvData)
     if (!group->IsLeader(senderGuid) && !group->IsAssistant(senderGuid))
         return;
 
+    // 5.4.8 18414, from Project SkyFire
     uint8 assignment;
-    bool apply;
     ObjectGuid guid;
-    recvData >> assignment >> apply;
-    recvData >> guid;
+    recvData >> assignment;
+    recvData.read_skip<uint8>();                            // party index
+    recvData.ReadGuidMask(guid, { 5, 6, 2, 3, 1, 0, 4, 7 });
+    bool apply = recvData.ReadBit();
+    recvData.ReadGuidBytes(guid, { 2, 5, 1, 0, 6, 3, 4, 7 });
 
     switch (assignment)
     {
@@ -770,62 +779,98 @@ void WorldSession::HandleRaidReadyCheckOpcode(WorldPacket& recvData)
     if (!group)
         return;
 
-    if (recvData.empty())                                   // request
-    {
-        /** error handling **/
-        if (!group->IsLeader(GetPlayer()->GetGUID()) && !group->IsAssistant(GetPlayer()->GetGUID()))
-            return;
-        /********************/
+    recvData.rfinish();                                     // party index
 
-        // Check if Ready Check in BG is enabled
-        if (sWorld->getBoolConfig(CONFIG_BATTLEGROUND_DISABLE_READY_CHECK_IN_BG))
+    ObjectGuid playerGuid = GetPlayer()->GetGUID();
+    if (!group->IsLeader(playerGuid) && !group->IsAssistant(playerGuid))
+        return;
+
+    // check is also done client side
+    if (group->ReadyCheckInProgress())
+        return;
+
+    // Check if Ready Check in BG is enabled
+    if (sWorld->getBoolConfig(CONFIG_BATTLEGROUND_DISABLE_READY_CHECK_IN_BG))
+    {
+        // Check if player is in BG
+        if (_player->InBattleground())
         {
-            // Check if player is in BG
-            if (_player->InBattleground())
-            {
-                ChatHandler(_player->GetSession()).SendNotification(LANG_BG_READY_CHECK_ERROR);
-                return;
-            }
+            ChatHandler(_player->GetSession()).SendNotification(LANG_BG_READY_CHECK_ERROR);
+            return;
         }
-
-        // everything's fine, do it
-        WorldPacket data(MSG_RAID_READY_CHECK, 8);
-        data << GetPlayer()->GetGUID();
-        group->BroadcastPacket(&data, false, -1);
-
-        group->OfflineReadyCheck();
     }
-    else                                                    // answer
+
+    // 5.4.8 18414, from Project SkyFire
+    static constexpr uint32 READY_CHECK_DURATION = 35000;
+    ObjectGuid groupGuid = group->GetGUID();
+    WorldPacket data(SMSG_RAID_READY_CHECK, 1 + 8 + 1 + 8 + 1 + 4);
+    data.WriteGuidMask(groupGuid, { 4, 2 });
+    data.WriteGuidMask(playerGuid, { 4 });
+    data.WriteGuidMask(groupGuid, { 3, 7, 1, 0 });
+    data.WriteGuidMask(playerGuid, { 6, 5 });
+    data.WriteGuidMask(groupGuid, { 6, 5 });
+    data.WriteGuidMask(playerGuid, { 0, 1, 2, 7, 3 });
+    data.FlushBits();
+    data << uint32(READY_CHECK_DURATION);
+    data.WriteGuidBytes(groupGuid, { 2, 7, 3 });
+    data.WriteGuidBytes(playerGuid, { 4 });
+    data.WriteGuidBytes(groupGuid, { 1, 0 });
+    data.WriteGuidBytes(playerGuid, { 1, 2, 6, 5 });
+    data.WriteGuidBytes(groupGuid, { 6 });
+    data.WriteGuidBytes(playerGuid, { 0 });
+    data << uint8(0);                                       // party index
+    data.WriteGuidBytes(playerGuid, { 7 });
+    data.WriteGuidBytes(groupGuid, { 4 });
+    data.WriteGuidBytes(playerGuid, { 3 });
+    data.WriteGuidBytes(groupGuid, { 5 });
+    group->BroadcastPacket(&data, false, -1);
+
+    group->SetReadyCheckInProgress(true);
+    group->ReadyCheckResetResponded();
+    group->ReadyCheckMemberHasResponded(playerGuid);
+    group->OfflineReadyCheck();
+
+    // the initiator keeps track of the ready check timer
+    GetPlayer()->SetReadyCheckTimer(READY_CHECK_DURATION);
+}
+
+void WorldSession::HandleRaidReadyCheckConfirmOpcode(WorldPacket& recvData)
+{
+    Group* group = GetPlayer()->GetGroup();
+    if (!group || !group->ReadyCheckInProgress())
     {
-        uint8 state;
-        recvData >> state;
-
-        // everything's fine, do it
-        WorldPacket data(MSG_RAID_READY_CHECK_CONFIRM, 9);
-        data << GetPlayer()->GetGUID();
-        data << uint8(state);
-        group->BroadcastReadyCheck(&data);
+        recvData.rfinish();
+        return;
     }
+
+    // 5.4.8 18414, from Project SkyFire; the GUID is the group's
+    ObjectGuid guid;
+    recvData.read_skip<uint8>();                            // party index
+    recvData.ReadGuidMask(guid, { 2, 1, 0, 3, 6 });
+    bool ready = recvData.ReadBit();
+    recvData.ReadGuidMask(guid, { 7, 4, 5 });
+    recvData.ReadGuidBytes(guid, { 1, 0, 3, 2, 4, 5, 7, 6 });
+
+    group->SendReadyCheckConfirm(GetPlayer()->GetGUID(), ready);
+    group->ReadyCheckMemberHasResponded(GetPlayer()->GetGUID());
+
+    if (group->ReadyCheckAllResponded())
+        GetPlayer()->CompleteReadyCheck(group);
 }
 
 void WorldSession::HandleRaidReadyCheckFinishedOpcode(WorldPacket& /*recvData*/)
 {
-    Group* group = GetPlayer()->GetGroup();
-    if (!group)
-        return;
-
-    if (!group->IsLeader(GetPlayer()->GetGUID()) && !group->IsAssistant(GetPlayer()->GetGUID()))
-        return;
-
-    WorldPacket data(MSG_RAID_READY_CHECK_FINISHED);
-    group->BroadcastPacket(&data, true, -1);
+    // 5.4.8 finishes the ready check on the server
 }
 
 /*this procedure handles clients CMSG_REQUEST_PARTY_MEMBER_STATS request*/
 void WorldSession::HandleRequestPartyMemberStatsOpcode(WorldPacket& recvData)
 {
+    // 5.4.8 18414, from Project SkyFire
     ObjectGuid guid;
-    recvData >> guid;
+    recvData.read_skip<uint8>();                            // party index
+    recvData.ReadGuidMask(guid, { 7, 4, 0, 1, 3, 6, 2, 5 });
+    recvData.ReadGuidBytes(guid, { 3, 6, 5, 2, 1, 4, 0, 7 });
 
     WorldPackets::Party::PartyMemberState packet(true);
     Player* player = ObjectAccessor::FindConnectedPlayer(guid);
@@ -981,9 +1026,7 @@ void WorldSession::HandleRolePollBeginOpcode(WorldPacket& recvData)
     if (!group)
         return;
 
-    // the client sends a role index only when it asks for a poll in a dungeon finder group
-    if (!recvData.empty())
-        return;
+    recvData.read_skip<uint8>();                            // 5.4.8: party index, from Project SkyFire
 
     if (!group->IsLeader(GetPlayer()->GetGUID()) && !group->IsAssistant(GetPlayer()->GetGUID()))
         return;

@@ -2608,6 +2608,11 @@ public:
     [[nodiscard]] bool HasPendingBind() const { return _pendingBindId > 0; }
     [[nodiscard]] uint32 GetPendingBind() const { return _pendingBindId; }
     void SendRaidInfo();
+
+    // 5.4.8 ready check, run by the player who started it, from Project SkyFire
+    void SetReadyCheckTimer(uint32 timer) { _readyCheckTimer = timer; }
+    void CompleteReadyCheck(Group* group);
+    void UpdateReadyCheck(uint32 diff);
     void SendSavedInstances();
     void PrettyPrintRequirementsQuestList(std::vector<ProgressionRequirement const*> const& missingQuests) const;
     void PrettyPrintRequirementsAchievementsList(std::vector<ProgressionRequirement const*> const& missingAchievements) const;
@@ -2968,6 +2973,7 @@ protected:
 
     TeamId m_team;
     uint32 m_nextSave; // pussywizard
+    uint32 _readyCheckTimer{0};
     uint16 m_additionalSaveTimer; // pussywizard
     uint8 m_additionalSaveMask; // pussywizard
     uint16 m_hostileReferenceCheckTimer; // pussywizard

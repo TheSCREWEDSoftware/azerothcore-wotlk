@@ -395,6 +395,8 @@ void Player::Update(uint32 p_time)
     // group update
     SendUpdateToOutOfRangeGroupMembers();
 
+    UpdateReadyCheck(p_time);
+
     Pet* pet = GetPet();
     if (pet && !pet->IsWithinDistInMap(this, GetMap()->GetVisibilityRange()) &&
         !pet->isPossessed())
@@ -703,6 +705,8 @@ void Player::UpdateRating(CombatRating cr)
         break;
     case CR_MASTERY:
         UpdateMastery();
+        break;
+    case CR_PVP_POWER: // 5.4.8, no stat behind it yet
         break;
     }
 }

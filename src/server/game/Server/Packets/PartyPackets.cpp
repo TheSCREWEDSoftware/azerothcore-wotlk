@@ -281,6 +281,8 @@ WorldPacket const* WorldPackets::Party::PartyMemberState::Write()
 
 void WorldPackets::Party::SetEveryoneIsAssistant::Read()
 {
+    // 5.4.8 18414, from Project SkyFire
+    _worldPacket.read_skip<uint8>();                        // party index
     EveryoneIsAssistant = _worldPacket.ReadBit();
 }
 
@@ -297,32 +299,22 @@ WorldPacket const* WorldPackets::Party::PartyCommandResult::Write()
 
 void WorldPackets::Party::PartyInviteClient::Read()
 {
-    _worldPacket >> TargetCfgRealmID;
+    // 5.4.8 18414, from Project SkyFire
+    _worldPacket >> TargetCfgRealmID;                       // non-zero in cross realm invites
+    _worldPacket.read_skip<uint8>();                        // party index
     _worldPacket >> ProposedRoles;
 
-    TargetGUID[2] = _worldPacket.ReadBit();
-    TargetGUID[7] = _worldPacket.ReadBit();
+    _worldPacket.ReadGuidMask(TargetGUID, { 7 });
     uint32 targetRealmLen = _worldPacket.ReadBits(9);
-    TargetGUID[3] = _worldPacket.ReadBit();
-    uint32 targetNameLen = _worldPacket.ReadBits(10);
-    TargetGUID[5] = _worldPacket.ReadBit();
-    TargetGUID[4] = _worldPacket.ReadBit();
-    TargetGUID[6] = _worldPacket.ReadBit();
-    TargetGUID[0] = _worldPacket.ReadBit();
-    TargetGUID[1] = _worldPacket.ReadBit();
+    _worldPacket.ReadGuidMask(TargetGUID, { 3 });
+    uint32 targetNameLen = _worldPacket.ReadBits(9);
+    _worldPacket.ReadGuidMask(TargetGUID, { 2, 5, 4, 0, 1, 6 });
 
-    _worldPacket.ReadByteSeq(TargetGUID[4]);
-    _worldPacket.ReadByteSeq(TargetGUID[7]);
-    _worldPacket.ReadByteSeq(TargetGUID[6]);
-
-    TargetName = _worldPacket.ReadString(targetNameLen);
+    _worldPacket.ReadGuidBytes(TargetGUID, { 7, 6, 0, 4 });
     TargetRealm = _worldPacket.ReadString(targetRealmLen);
-
-    _worldPacket.ReadByteSeq(TargetGUID[1]);
-    _worldPacket.ReadByteSeq(TargetGUID[0]);
-    _worldPacket.ReadByteSeq(TargetGUID[5]);
-    _worldPacket.ReadByteSeq(TargetGUID[3]);
-    _worldPacket.ReadByteSeq(TargetGUID[2]);
+    _worldPacket.ReadGuidBytes(TargetGUID, { 1, 2, 3 });
+    TargetName = _worldPacket.ReadString(targetNameLen);
+    _worldPacket.ReadGuidBytes(TargetGUID, { 5 });
 }
 
 void WorldPackets::Party::PartyInvite::Initialize(Player const* inviter, uint32 proposedRoles, bool canAccept)
@@ -380,6 +372,8 @@ WorldPacket const* WorldPackets::Party::PartyInvite::Write()
 
 void WorldPackets::Party::PartyInviteResponse::Read()
 {
+    // 5.4.8 18414, from Project SkyFire
+    _worldPacket.read_skip<uint8>();                        // party index
     bool hasRolesDesired = _worldPacket.ReadBit();
     Accept = _worldPacket.ReadBit();
 
@@ -472,25 +466,11 @@ WorldPacket const* WorldPackets::Party::SummonRaidMemberValidateFailed::Write()
 
 void WorldPackets::Party::SetRole::Read()
 {
+    // 5.4.8 18414, from Project SkyFire
+    _worldPacket.read_skip<uint8>();                        // party index
     _worldPacket >> Role;
-
-    ChangedUnit[2] = _worldPacket.ReadBit();
-    ChangedUnit[6] = _worldPacket.ReadBit();
-    ChangedUnit[3] = _worldPacket.ReadBit();
-    ChangedUnit[7] = _worldPacket.ReadBit();
-    ChangedUnit[5] = _worldPacket.ReadBit();
-    ChangedUnit[1] = _worldPacket.ReadBit();
-    ChangedUnit[0] = _worldPacket.ReadBit();
-    ChangedUnit[4] = _worldPacket.ReadBit();
-
-    _worldPacket.ReadByteSeq(ChangedUnit[6]);
-    _worldPacket.ReadByteSeq(ChangedUnit[4]);
-    _worldPacket.ReadByteSeq(ChangedUnit[1]);
-    _worldPacket.ReadByteSeq(ChangedUnit[3]);
-    _worldPacket.ReadByteSeq(ChangedUnit[0]);
-    _worldPacket.ReadByteSeq(ChangedUnit[5]);
-    _worldPacket.ReadByteSeq(ChangedUnit[2]);
-    _worldPacket.ReadByteSeq(ChangedUnit[7]);
+    _worldPacket.ReadGuidMask(ChangedUnit, { 2, 0, 7, 4, 1, 3, 6, 5 });
+    _worldPacket.ReadGuidBytes(ChangedUnit, { 1, 5, 2, 6, 7, 0, 4, 3 });
 }
 
 WorldPacket const* WorldPackets::Party::RoleChangedInform::Write()

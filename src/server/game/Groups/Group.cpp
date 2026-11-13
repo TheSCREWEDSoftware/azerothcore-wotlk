@@ -364,6 +364,38 @@ bool Group::CheckLevelForRaid()
     return false;
 }
 
+// 5.4.8 lets a raid of five or fewer go back to a party, from Project SkyFire
+void Group::ConvertToGroup()
+{
+    if (m_memberSlots.size() > MAXGROUPSIZE)
+        return;
+
+    m_groupType = GroupType(m_groupType & ~GROUPTYPE_RAID);
+
+    if (m_subGroupsCounts)
+    {
+        delete[] m_subGroupsCounts;
+        m_subGroupsCounts = nullptr;
+    }
+
+    if (!sToCloud9Sidecar->ClusterModeEnabled() && !isBGGroup() && !isBFGroup())
+    {
+        CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_GROUP_TYPE);
+
+        stmt->SetData(0, uint8(m_groupType));
+        stmt->SetData(1, GetGUID().GetCounter());
+
+        CharacterDatabase.Execute(stmt);
+    }
+
+    SendUpdate();
+
+    // update quest related GO states (quest activity dependent from raid membership)
+    for (member_citerator citr = m_memberSlots.begin(); citr != m_memberSlots.end(); ++citr)
+        if (Player* player = ObjectAccessor::FindPlayer(citr->guid))
+            player->UpdateForQuestWorldObjects();
+}
+
 void Group::ConvertToRaid()
 {
     m_groupType = GroupType(m_groupType | GROUPTYPE_RAID);
@@ -2013,7 +2045,7 @@ void Group::CountTheRoll(Rolls::iterator rollI)
     delete roll;
 }
 
-void Group::SetTargetIcon(uint8 id, ObjectGuid whoGuid, ObjectGuid targetGuid)
+void Group::SetTargetIcon(uint8 id, ObjectGuid whoGuid, ObjectGuid targetGuid, uint8 partyIndex)
 {
     if (id >= TARGETICONCOUNT)
         return;
@@ -2022,35 +2054,63 @@ void Group::SetTargetIcon(uint8 id, ObjectGuid whoGuid, ObjectGuid targetGuid)
     if (targetGuid)
         for (int i = 0; i < TARGETICONCOUNT; ++i)
             if (m_targetIcons[i] == targetGuid)
-                SetTargetIcon(i, ObjectGuid::Empty, ObjectGuid::Empty);
+                SetTargetIcon(i, ObjectGuid::Empty, ObjectGuid::Empty, partyIndex);
 
     m_targetIcons[id] = targetGuid;
 
-    WorldPacket data(MSG_RAID_TARGET_UPDATE, (1 + 8 + 1 + 8));
-    data << uint8(0);                                       // set targets
-    data << whoGuid;
+    // 5.4.8 18414, from Project SkyFire
+    WorldPacket data(SMSG_RAID_TARGET_UPDATE_SINGLE, 8 + 1 + 8 + 1 + 2);
+    data.WriteGuidMask(whoGuid, { 6 });
+    data.WriteGuidMask(targetGuid, { 4 });
+    data.WriteGuidMask(whoGuid, { 0, 7 });
+    data.WriteGuidMask(targetGuid, { 6 });
+    data.WriteGuidMask(whoGuid, { 5, 3, 4 });
+    data.WriteGuidMask(targetGuid, { 7, 2, 5, 1 });
+    data.WriteGuidMask(whoGuid, { 2, 1 });
+    data.WriteGuidMask(targetGuid, { 0, 3 });
+    data.FlushBits();
+
+    data.WriteGuidBytes(targetGuid, { 1 });
     data << uint8(id);
-    data << targetGuid;
+    data.WriteGuidBytes(whoGuid, { 0, 5, 3 });
+    data.WriteGuidBytes(targetGuid, { 7, 6 });
+    data.WriteGuidBytes(whoGuid, { 1 });
+    data.WriteGuidBytes(targetGuid, { 2, 4, 0, 3, 5 });
+    data.WriteGuidBytes(whoGuid, { 6 });
+    data << uint8(partyIndex);
+    data.WriteGuidBytes(whoGuid, { 4, 2, 7 });
     BroadcastPacket(&data, true);
 }
 
-void Group::SendTargetIconList(WorldSession* session)
+void Group::SendTargetIconList(WorldSession* session, uint8 partyIndex)
 {
     if (!session)
         return;
 
-    WorldPacket data(MSG_RAID_TARGET_UPDATE, (1 + TARGETICONCOUNT * 9));
-    data << uint8(1);                                       // list targets
+    // 5.4.8 18414, from Project SkyFire (which wrote the bits and bytes interleaved)
+    uint32 count = 0;
+    for (uint8 i = 0; i < TARGETICONCOUNT; ++i)
+        if (m_targetIcons[i])
+            ++count;
+
+    WorldPacket data(SMSG_RAID_TARGET_UPDATE_ALL, 4 + 1 + TARGETICONCOUNT * 9 + 1);
+    data.WriteBits(count, 25);
+    for (uint8 i = 0; i < TARGETICONCOUNT; ++i)
+        if (m_targetIcons[i])
+            data.WriteGuidMask(m_targetIcons[i], { 2, 1, 3, 7, 6, 4, 0, 5 });
+    data.FlushBits();
 
     for (uint8 i = 0; i < TARGETICONCOUNT; ++i)
     {
         if (!m_targetIcons[i])
             continue;
 
+        data.WriteGuidBytes(m_targetIcons[i], { 4, 7, 1, 0, 6, 5, 3 });
         data << uint8(i);
-        data << m_targetIcons[i];
+        data.WriteGuidBytes(m_targetIcons[i], { 2 });
     }
 
+    data << uint8(partyIndex);
     session->SendPacket(&data);
 }
 
@@ -2162,17 +2222,6 @@ void Group::BroadcastPacket(WorldPacket const* packet, bool ignorePlayersInBGRai
     }
 }
 
-void Group::BroadcastReadyCheck(WorldPacket const* packet)
-{
-    for (GroupReference* itr = GetFirstMember(); itr != nullptr; itr = itr->next())
-    {
-        Player* player = itr->GetSource();
-        if (player)
-            if (IsLeader(player->GetGUID()) || IsAssistant(player->GetGUID()))
-                player->SendDirectMessage(packet);
-    }
-}
-
 void Group::OfflineReadyCheck()
 {
     for (member_citerator citr = m_memberSlots.begin(); citr != m_memberSlots.end(); ++citr)
@@ -2180,12 +2229,62 @@ void Group::OfflineReadyCheck()
         Player* player = ObjectAccessor::FindConnectedPlayer(citr->guid);
         if (!player)
         {
-            WorldPacket data(MSG_RAID_READY_CHECK_CONFIRM, 9);
-            data << citr->guid;
-            data << uint8(0);
-            BroadcastReadyCheck(&data);
+            SendReadyCheckConfirm(citr->guid, false);
+            ReadyCheckMemberHasResponded(citr->guid);
         }
     }
+}
+
+bool Group::ReadyCheckAllResponded() const
+{
+    for (member_citerator citr = m_memberSlots.begin(); citr != m_memberSlots.end(); ++citr)
+        if (!_readyCheckResponded.count(citr->guid))
+            return false;
+
+    return true;
+}
+
+void Group::SendReadyCheckConfirm(ObjectGuid playerGuid, bool ready)
+{
+    // 5.4.8 18414, from Project SkyFire
+    ObjectGuid groupGuid = GetGUID();
+    WorldPacket data(SMSG_RAID_READY_CHECK_CONFIRM, 1 + 1 + 8 + 1 + 8);
+    data.WriteGuidMask(groupGuid, { 4 });
+    data.WriteGuidMask(playerGuid, { 5, 3 });
+    data.WriteBit(ready);
+    data.WriteGuidMask(groupGuid, { 2 });
+    data.WriteGuidMask(playerGuid, { 6 });
+    data.WriteGuidMask(groupGuid, { 3 });
+    data.WriteGuidMask(playerGuid, { 0, 1 });
+    data.WriteGuidMask(groupGuid, { 1, 5 });
+    data.WriteGuidMask(playerGuid, { 7, 4 });
+    data.WriteGuidMask(groupGuid, { 6 });
+    data.WriteGuidMask(playerGuid, { 2 });
+    data.WriteGuidMask(groupGuid, { 0, 7 });
+    data.FlushBits();
+
+    data.WriteGuidBytes(playerGuid, { 4, 2, 1 });
+    data.WriteGuidBytes(groupGuid, { 4, 2 });
+    data.WriteGuidBytes(playerGuid, { 0 });
+    data.WriteGuidBytes(groupGuid, { 5, 3 });
+    data.WriteGuidBytes(playerGuid, { 7 });
+    data.WriteGuidBytes(groupGuid, { 6, 1 });
+    data.WriteGuidBytes(playerGuid, { 6, 3, 5 });
+    data.WriteGuidBytes(groupGuid, { 0, 7 });
+    BroadcastPacket(&data, false);
+}
+
+void Group::SendReadyCheckCompleted()
+{
+    // 5.4.8 18414, from Project SkyFire
+    ObjectGuid groupGuid = GetGUID();
+    WorldPacket data(SMSG_RAID_READY_CHECK_COMPLETED, 1 + 8 + 1);
+    data.WriteGuidMask(groupGuid, { 4, 2, 5, 7, 1, 0, 3, 6 });
+    data.FlushBits();
+    data.WriteGuidBytes(groupGuid, { 6, 0, 3, 1, 5 });
+    data << uint8(0);                                       // party index
+    data.WriteGuidBytes(groupGuid, { 7, 2, 4 });
+    BroadcastPacket(&data, false);
 }
 
 bool Group::SameSubGroup(Player const* member1, Player const* member2) const

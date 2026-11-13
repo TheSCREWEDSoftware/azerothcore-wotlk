@@ -9249,6 +9249,37 @@ uint32 Player::GetXPRestBonus(uint32 xp)
     return rested_bonus;
 }
 
+void Player::UpdateReadyCheck(uint32 diff)
+{
+    if (!_readyCheckTimer)
+        return;
+
+    if (diff < _readyCheckTimer)
+    {
+        _readyCheckTimer -= diff;
+        return;
+    }
+
+    _readyCheckTimer = 0;
+    if (Group* group = GetGroup())
+        CompleteReadyCheck(group);
+}
+
+void Player::CompleteReadyCheck(Group* group)
+{
+    if (!group->ReadyCheckInProgress())
+        return;
+
+    // whoever started it stops tracking the timer
+    for (GroupReference* itr = group->GetFirstMember(); itr != nullptr; itr = itr->next())
+        if (Player* member = itr->GetSource())
+            member->SetReadyCheckTimer(0);
+
+    group->SetReadyCheckInProgress(false);
+    group->ReadyCheckResetResponded();
+    group->SendReadyCheckCompleted();
+}
+
 void Player::SetBindPoint(ObjectGuid guid)
 {
     // 5.4.8 18414, from Project SkyFire
