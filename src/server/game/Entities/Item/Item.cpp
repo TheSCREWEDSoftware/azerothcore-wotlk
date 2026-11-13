@@ -471,7 +471,7 @@ bool Item::LoadFromDB(ObjectGuid::LowType guid, ObjectGuid owner_guid, Field* fi
 
     std::string enchants = fields[6].Get<std::string>();
 
-    if (!_LoadIntoDataField(fields[6].Get<std::string>(), ITEM_FIELD_ENCHANTMENT_1_1, MAX_ENCHANTMENT_SLOT * MAX_ENCHANTMENT_OFFSET))
+    if (!LoadEnchantments(fields[6].Get<std::string>()))
     {
         LOG_WARN("entities.item", "Invalid enchantment data '{}' for item {}. Forcing partial load.", fields[6].Get<std::string>(), GetGUID().ToString());
     }
@@ -940,9 +940,9 @@ void Item::SetEnchantment(EnchantmentSlot slot, uint32 id, uint32 duration, uint
             owner->GetSession()->SendEnchantmentLog(GetOwnerGUID(), caster, GetEntry(), id);
     }
 
-    SetUInt32Value(ITEM_FIELD_ENCHANTMENT_1_1 + slot * MAX_ENCHANTMENT_OFFSET + ENCHANTMENT_ID_OFFSET, id);
-    SetUInt32Value(ITEM_FIELD_ENCHANTMENT_1_1 + slot * MAX_ENCHANTMENT_OFFSET + ENCHANTMENT_DURATION_OFFSET, duration);
-    SetUInt32Value(ITEM_FIELD_ENCHANTMENT_1_1 + slot * MAX_ENCHANTMENT_OFFSET + ENCHANTMENT_CHARGES_OFFSET, charges);
+    SetEnchantmentValue(slot, ENCHANTMENT_ID_OFFSET, id);
+    SetEnchantmentValue(slot, ENCHANTMENT_DURATION_OFFSET, duration);
+    SetEnchantmentValue(slot, ENCHANTMENT_CHARGES_OFFSET, charges);
     SetState(ITEM_CHANGED, owner);
 }
 void Item::SetEnchantmentDuration(EnchantmentSlot slot, uint32 duration, Player* owner)
@@ -950,7 +950,7 @@ void Item::SetEnchantmentDuration(EnchantmentSlot slot, uint32 duration, Player*
     if (GetEnchantmentDuration(slot) == duration)
         return;
 
-    SetUInt32Value(ITEM_FIELD_ENCHANTMENT_1_1 + slot * MAX_ENCHANTMENT_OFFSET + ENCHANTMENT_DURATION_OFFSET, duration);
+    SetEnchantmentValue(slot, ENCHANTMENT_DURATION_OFFSET, duration);
     SetState(ITEM_CHANGED, owner);
     // Cannot use GetOwner() here, has to be passed as an argument to avoid freeze due to hashtable locking
 }
@@ -960,7 +960,7 @@ void Item::SetEnchantmentCharges(EnchantmentSlot slot, uint32 charges)
     if (GetEnchantmentCharges(slot) == charges)
         return;
 
-    SetUInt32Value(ITEM_FIELD_ENCHANTMENT_1_1 + slot * MAX_ENCHANTMENT_OFFSET + ENCHANTMENT_CHARGES_OFFSET, charges);
+    SetEnchantmentValue(slot, ENCHANTMENT_CHARGES_OFFSET, charges);
     SetState(ITEM_CHANGED, GetOwner());
 }
 
@@ -970,8 +970,47 @@ void Item::ClearEnchantment(EnchantmentSlot slot)
         return;
 
     for (uint8 x = 0; x < MAX_SPELL_ITEM_ENCHANTMENT_EFFECTS; ++x)
-        SetUInt32Value(ITEM_FIELD_ENCHANTMENT_1_1 + slot * MAX_ENCHANTMENT_OFFSET + x, 0);
+        SetEnchantmentValue(slot, EnchantmentOffset(x), 0);
     SetState(ITEM_CHANGED, GetOwner());
+}
+
+int8 Item::GetEnchantmentFieldSlot(EnchantmentSlot slot)
+{
+    if (slot < REFORGE_ENCHANTMENT_SLOT)
+        return int8(slot);
+
+    if (slot >= PROP_ENCHANTMENT_SLOT_0 && slot < MAX_ENCHANTMENT_SLOT)
+        return int8(slot - PROP_ENCHANTMENT_SLOT_0 + REFORGE_ENCHANTMENT_SLOT);
+
+    return -1;
+}
+
+void Item::SetEnchantmentValue(EnchantmentSlot slot, EnchantmentOffset offset, uint32 value)
+{
+    if (slot >= MAX_ENCHANTMENT_SLOT)
+        return;
+
+    _enchantments[slot * MAX_ENCHANTMENT_OFFSET + offset] = value;
+
+    int8 fieldSlot = GetEnchantmentFieldSlot(slot);
+    if (fieldSlot >= 0)
+        SetUInt32Value(ITEM_FIELD_ENCHANTMENT + fieldSlot * MAX_ENCHANTMENT_OFFSET + offset, value);
+}
+
+bool Item::LoadEnchantments(std::string const& data)
+{
+    std::vector<std::string_view> tokens = Acore::Tokenize(data, ' ', false);
+
+    for (uint32 index = 0; index < _enchantments.size(); ++index)
+    {
+        uint32 value = 0;
+        if (index < tokens.size())
+            value = Acore::StringTo<uint32>(tokens[index]).value_or(0);
+
+        SetEnchantmentValue(EnchantmentSlot(index / MAX_ENCHANTMENT_OFFSET), EnchantmentOffset(index % MAX_ENCHANTMENT_OFFSET), value);
+    }
+
+    return tokens.size() == _enchantments.size();
 }
 
 bool Item::GemsFitSockets() const

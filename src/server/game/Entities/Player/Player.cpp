@@ -509,9 +509,9 @@ bool Player::Create(ObjectGuid::LowType guidlow, CharacterCreateInfo* createInfo
         return false;
     }
 
-    uint32 RaceClassGender = (createInfo->Race) | (createInfo->Class << 8) | (createInfo->Gender << 16);
-
-    SetUInt32Value(UNIT_FIELD_BYTES_0, (RaceClassGender | (powertype << 24)));
+    // 5.4.8: race, class, player class (unused), gender
+    SetUInt32Value(UNIT_FIELD_BYTES_0, (createInfo->Race) | (createInfo->Class << 8) | (createInfo->Gender << 24));
+    SetUInt32Value(UNIT_FIELD_DISPLAY_POWER, powertype);
     InitDisplayIds();
     if (sWorld->getIntConfig(CONFIG_GAME_TYPE) == REALM_TYPE_PVP || sWorld->getIntConfig(CONFIG_GAME_TYPE) == REALM_TYPE_RPPVP)
     {
@@ -2720,7 +2720,7 @@ void Player::InitStatsForLevel(bool reapplyMods)
         SetFloatValue(UNIT_FIELD_POWER_COST_MULTIPLIER + i, 0.0f);
     }
     // Reset no reagent cost field
-    for (uint8 i = 0; i < 3; ++i)
+    for (uint8 i = 0; i < 4; ++i)
         SetUInt32Value(PLAYER_NO_REAGENT_COST_1 + i, 0);
     // Init data for form but skip reapply item mods for form
     InitDataForForm(reapplyMods);
@@ -2758,7 +2758,7 @@ void Player::InitStatsForLevel(bool reapplyMods)
 
     }
     // restore if need some important flags
-    SetUInt32Value(PLAYER_FIELD_BYTES2, 0);                 // flags empty by default
+    SetUInt32Value(PLAYER_FIELD_OVERRIDE_SPELLS_ID, 0);
 
     if (reapplyMods)                                        // reapply stats values only on .reset stats (level) command
         _ApplyAllStatBonuses();
@@ -12796,9 +12796,9 @@ void Player::SetDailyQuestStatus(uint32 quest_id)
         {
             for (uint32 quest_daily_idx = 0; quest_daily_idx < PLAYER_MAX_DAILY_QUESTS; ++quest_daily_idx)
             {
-                if (!GetUInt32Value(PLAYER_FIELD_DAILY_QUESTS_1 + quest_daily_idx))
+                if (!_dailyQuests[quest_daily_idx])
                 {
-                    SetUInt32Value(PLAYER_FIELD_DAILY_QUESTS_1 + quest_daily_idx, quest_id);
+                    _dailyQuests[quest_daily_idx] = quest_id;
                     m_lastDailyQuestTime = GameTime::GetGameTime().count();              // last daily quest time
                     m_DailyQuestChanged = true;
                     break;
@@ -12820,7 +12820,7 @@ bool Player::IsDailyQuestDone(uint32 quest_id)
     {
         for (uint32 quest_daily_idx = 0; quest_daily_idx < PLAYER_MAX_DAILY_QUESTS; ++quest_daily_idx)
         {
-            if (GetUInt32Value(PLAYER_FIELD_DAILY_QUESTS_1 + quest_daily_idx) == quest_id)
+            if (_dailyQuests[quest_daily_idx] == quest_id)
             {
                 return true;
             }
@@ -12855,7 +12855,7 @@ void Player::SetMonthlyQuestStatus(uint32 quest_id)
 void Player::ResetDailyQuestStatus()
 {
     for (uint32 quest_daily_idx = 0; quest_daily_idx < PLAYER_MAX_DAILY_QUESTS; ++quest_daily_idx)
-        SetUInt32Value(PLAYER_FIELD_DAILY_QUESTS_1 + quest_daily_idx, 0);
+        _dailyQuests[quest_daily_idx] = 0;
 
     m_DFQuests.clear(); // Dungeon Finder Quests.
 
@@ -15965,6 +15965,9 @@ void Player::_SaveGlyphs(CharacterDatabaseTransaction trans)
         for (uint8 i = 0; i < MAX_GLYPH_SLOT_INDEX; ++i)
             stmt->SetData(index++, uint16(m_Glyphs[spec][i]));
 
+        for (uint8 i = MAX_GLYPH_SLOT_INDEX; i < MAX_GLYPH_DB_COLUMNS; ++i)
+            stmt->SetData(index++, uint16(0));
+
         trans->Append(stmt);
     }
 
@@ -17245,7 +17248,7 @@ void Player::SetArenaTeamInfoField(uint8 slot, ArenaTeamInfoType type, uint32 va
     if (!sScriptMgr->OnPlayerNotSetArenaTeamInfoField(this, slot, type, value))
         return;
 
-    SetUInt32Value(PLAYER_FIELD_ARENA_TEAM_INFO_1_1 + (slot * ARENA_TEAM_END) + type, value);
+    _arenaTeamInfo[slot][type] = value;
 
     // The arena conquest cap follows personal rating
     if (type == ARENA_TEAM_PERSONAL_RATING && IsInWorld())
@@ -17254,7 +17257,7 @@ void Player::SetArenaTeamInfoField(uint8 slot, ArenaTeamInfoType type, uint32 va
 
 uint32 Player::GetArenaPersonalRating(uint8 slot) const
 {
-    uint32 result = GetUInt32Value(PLAYER_FIELD_ARENA_TEAM_INFO_1_1 + (slot * ARENA_TEAM_END) + ARENA_TEAM_PERSONAL_RATING);
+    uint32 result = _arenaTeamInfo[slot][ARENA_TEAM_PERSONAL_RATING];
 
     sScriptMgr->OnPlayerGetArenaPersonalRating(const_cast<Player*>(this), slot, result);
 
@@ -17263,7 +17266,7 @@ uint32 Player::GetArenaPersonalRating(uint8 slot) const
 
 uint32 Player::GetArenaTeamId(uint8 slot) const
 {
-    uint32 result = GetUInt32Value(PLAYER_FIELD_ARENA_TEAM_INFO_1_1 + (slot * ARENA_TEAM_END) + ARENA_TEAM_ID);
+    uint32 result = _arenaTeamInfo[slot][ARENA_TEAM_ID];
 
     sScriptMgr->OnPlayerGetArenaTeamId(const_cast<Player*>(this), slot, result);
 

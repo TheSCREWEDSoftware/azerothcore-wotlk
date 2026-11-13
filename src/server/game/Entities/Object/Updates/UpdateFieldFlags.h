@@ -32,7 +32,9 @@ enum UpdatefieldFlags
     UF_FLAG_SPECIAL_INFO = 0x020,
     UF_FLAG_PARTY_MEMBER = 0x040,
     UF_FLAG_UNIT_ALL     = 0x080,
-    UF_FLAG_DYNAMIC      = 0x100,
+    UF_FLAG_DYNAMIC      = 0x100,                // 5.4.8 UF_FLAG_VIEWER_DEPENDENT
+    UF_FLAG_URGENT       = 0x200,
+    UF_FLAG_URGENT_SELF_ONLY = 0x400,
 };
 
 extern uint32 ItemUpdateFieldFlags[CONTAINER_END];

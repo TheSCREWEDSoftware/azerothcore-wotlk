@@ -76,7 +76,7 @@ typedef void(*bgZoneRef)(Battleground*, WorldPackets::WorldState::InitWorldState
 
 #define PLAYER_MAX_SKILLS           127
 #define PLAYER_MAX_DAILY_QUESTS     25
-#define PLAYER_EXPLORED_ZONES_SIZE  156
+#define PLAYER_EXPLORED_ZONES_SIZE  200
 // Faction.dbc id of the per-player "Guild" faction that backs guild reputation (Cata)
 #define PLAYER_GUILD_REPUTATION     1168
 
@@ -530,19 +530,8 @@ enum PlayerFieldBytesOffsets //@todo: Implement
     PLAYER_FIELD_BYTES_OFFSET_LIFETIME_MAX_PVP_RANK = 3
 };
 
-enum PlayerFieldBytes2Offsets
-{
-    PLAYER_FIELD_BYTES_2_OFFSET_OVERRIDE_SPELLS_ID                  = 0,    // uint16!
-    PLAYER_FIELD_BYTES_2_OFFSET_IGNORE_POWER_REGEN_PREDICTION_MASK  = 2,
-    PLAYER_FIELD_BYTES_2_OFFSET_AURA_VISION                         = 3
-};
-
-static_assert((PLAYER_FIELD_BYTES_2_OFFSET_OVERRIDE_SPELLS_ID & 1) == 0, "PLAYER_FIELD_BYTES_2_OFFSET_OVERRIDE_SPELLS_ID must be aligned to 2 byte boundary");
-
-#define PLAYER_BYTES_2_OVERRIDE_SPELLS_UINT16_OFFSET (PLAYER_FIELD_BYTES_2_OFFSET_OVERRIDE_SPELLS_ID / 2)
-
-#define KNOWN_TITLES_SIZE   3
-#define MAX_TITLE_INDEX     (KNOWN_TITLES_SIZE*64)          // 3 uint64 fields
+#define KNOWN_TITLES_SIZE   5
+#define MAX_TITLE_INDEX     (KNOWN_TITLES_SIZE*64)          // 5 uint64 fields
 
 // used in PLAYER_FIELD_BYTES values
 enum PlayerFieldByteFlags
@@ -552,7 +541,7 @@ enum PlayerFieldByteFlags
     PLAYER_FIELD_BYTE_NO_RELEASE_WINDOW = 0x00000010        // Display no "release spirit" window at all
 };
 
-// used in PLAYER_FIELD_BYTES2 values
+// aura vision flags (4.3.4 PLAYER_FIELD_BYTES2 byte 3, no update field in 5.4.8)
 enum PlayerFieldByte2Flags
 {
     PLAYER_FIELD_BYTE2_NONE                 = 0x00,
@@ -615,10 +604,10 @@ enum QuestSlotOffsets
     QUEST_ID_OFFSET     = 0,
     QUEST_STATE_OFFSET  = 1,
     QUEST_COUNTS_OFFSET = 2,
-    QUEST_TIME_OFFSET   = 4
+    QUEST_TIME_OFFSET   = 14
 };
 
-#define MAX_QUEST_OFFSET 5
+#define MAX_QUEST_OFFSET 15                                 // id, state, 24 uint16 counters, end time
 
 enum QuestSlotStateMask
 {
@@ -2328,6 +2317,10 @@ public:
 
     void SetDrunkValue(uint8 newDrunkValue, uint32 itemId = 0);
     [[nodiscard]] uint8 GetDrunkValue() const { return GetByteValue(PLAYER_BYTES_3, 1); }
+
+    // 5.4.8 has no aura vision update field, the flags are only kept on the server.
+    void ApplyAuraVisionFlag(uint8 flag, bool apply) { if (apply) _auraVisionFlags |= flag; else _auraVisionFlags &= ~flag; }
+    [[nodiscard]] uint8 GetAuraVisionFlags() const { return _auraVisionFlags; }
     [[nodiscard]] int32 GetFakeDrunkValue() const { return GetInt32Value(PLAYER_FAKE_INEBRIATION); }
     void UpdateInvisibilityDrunkDetect();
     static DrunkenState GetDrunkenstateByValue(uint8 value);
@@ -3228,6 +3221,11 @@ private:
     uint32 _pendingBindTimer;
 
     uint32 _activeCheats;
+    uint8 _auraVisionFlags{0};
+    // 5.4.8 has no arena team update fields, the team info is only kept on the server.
+    std::array<std::array<uint32, ARENA_TEAM_END>, MAX_ARENA_SLOT> _arenaTeamInfo{};
+    // 5.4.8 sends daily quests and research sites as dynamic fields, which are not built yet.
+    std::array<uint32, PLAYER_MAX_DAILY_QUESTS> _dailyQuests{};
 
     // duel health and mana reset attributes
     uint32 healthBeforeDuel;

@@ -6761,7 +6761,7 @@ void Unit::SendAttackStateUpdate(uint32 HitInfo, Unit* target, uint8 /*SwingType
 
 void Unit::setPowerType(Powers new_powertype)
 {
-    SetByteValue(UNIT_FIELD_BYTES_0, 3, new_powertype);
+    SetUInt32Value(UNIT_FIELD_DISPLAY_POWER, new_powertype);
 
     if (IsPlayer())
     {
@@ -12897,7 +12897,7 @@ void Unit::SetDisplayId(uint32 modelId, std::optional<float> displayScale /*= {}
 
     // Set Gender by modelId
     if (CreatureModelInfo const* minfo = sObjectMgr->GetCreatureModelInfo(modelId))
-        SetByteValue(UNIT_FIELD_BYTES_0, 2, minfo->gender);
+        SetByteValue(UNIT_FIELD_BYTES_0, 3, minfo->gender);
 
     _displayScale = displayScale;
     RecalculateObjectScale();

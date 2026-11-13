@@ -1747,7 +1747,7 @@ void AuraEffect::HandleModInvisibility(AuraApplication const* aurApp, uint8 mode
     {
         // apply glow vision
         if (target->IsPlayer() && (type == INVISIBILITY_GENERAL || type == INVISIBILITY_UNK10))
-            target->SetByteFlag(PLAYER_FIELD_BYTES2, PLAYER_FIELD_BYTES_2_OFFSET_AURA_VISION, PLAYER_FIELD_BYTE2_INVISIBILITY_GLOW);
+            target->ToPlayer()->ApplyAuraVisionFlag(PLAYER_FIELD_BYTE2_INVISIBILITY_GLOW, true);
 
         target->m_invisibility.AddFlag(type);
         target->m_invisibility.AddValue(type, GetAmount());
@@ -1759,7 +1759,7 @@ void AuraEffect::HandleModInvisibility(AuraApplication const* aurApp, uint8 mode
             // if not have different invisibility auras.
             // always remove glow vision
             if (target->IsPlayer())
-                target->RemoveByteFlag(PLAYER_FIELD_BYTES2, 3, PLAYER_FIELD_BYTE2_INVISIBILITY_GLOW);
+                target->ToPlayer()->ApplyAuraVisionFlag(PLAYER_FIELD_BYTE2_INVISIBILITY_GLOW, false);
 
             target->m_invisibility.DelFlag(type);
         }
@@ -1783,7 +1783,7 @@ void AuraEffect::HandleModInvisibility(AuraApplication const* aurApp, uint8 mode
                 // remove glow vision
                 if (target->IsPlayer() && !target->m_invisibility.HasFlag(INVISIBILITY_GENERAL) && !target->m_invisibility.HasFlag(INVISIBILITY_UNK10))
                 {
-                    target->RemoveByteFlag(PLAYER_FIELD_BYTES2, PLAYER_FIELD_BYTES_2_OFFSET_AURA_VISION, PLAYER_FIELD_BYTE2_INVISIBILITY_GLOW);
+                    target->ToPlayer()->ApplyAuraVisionFlag(PLAYER_FIELD_BYTE2_INVISIBILITY_GLOW, false);
                 }
             }
         }
@@ -1842,7 +1842,7 @@ void AuraEffect::HandleModStealth(AuraApplication const* aurApp, uint8 mode, boo
 
         target->SetStandFlags(UNIT_STAND_FLAGS_CREEP);
         if (target->IsPlayer())
-            target->SetByteFlag(PLAYER_FIELD_BYTES2, 3, PLAYER_FIELD_BYTE2_STEALTH);
+            target->ToPlayer()->ApplyAuraVisionFlag(PLAYER_FIELD_BYTE2_STEALTH, true);
 
         // interrupt autoshot
         if (target->GetCurrentSpell(CURRENT_AUTOREPEAT_SPELL))
@@ -1861,7 +1861,7 @@ void AuraEffect::HandleModStealth(AuraApplication const* aurApp, uint8 mode, boo
 
             target->RemoveStandFlags(UNIT_STAND_FLAGS_CREEP);
             if (target->IsPlayer())
-                target->RemoveByteFlag(PLAYER_FIELD_BYTES2, 3, PLAYER_FIELD_BYTE2_STEALTH);
+                target->ToPlayer()->ApplyAuraVisionFlag(PLAYER_FIELD_BYTE2_STEALTH, false);
         }
     }
 
@@ -1908,7 +1908,7 @@ void AuraEffect::HandleDetectAmore(AuraApplication const* aurApp, uint8 mode, bo
 
     if (apply)
     {
-        target->SetByteFlag(PLAYER_FIELD_BYTES2, 3, 1 << (GetMiscValue() - 1));
+        target->ToPlayer()->ApplyAuraVisionFlag(1 << (GetMiscValue() - 1), true);
     }
     else
     {
@@ -1922,7 +1922,7 @@ void AuraEffect::HandleDetectAmore(AuraApplication const* aurApp, uint8 mode, bo
                 }
         }
 
-        target->RemoveByteFlag(PLAYER_FIELD_BYTES2, 3, 1 << (GetMiscValue() - 1));
+        target->ToPlayer()->ApplyAuraVisionFlag(1 << (GetMiscValue() - 1), false);
     }
 }
 
@@ -5945,7 +5945,7 @@ void AuraEffect::HandleAuraOverrideSpells(AuraApplication const* aurApp, uint8 m
 
     if (apply)
     {
-        target->SetUInt16Value(PLAYER_FIELD_BYTES2, PLAYER_BYTES_2_OVERRIDE_SPELLS_UINT16_OFFSET, overrideId);
+        target->SetUInt32Value(PLAYER_FIELD_OVERRIDE_SPELLS_ID, overrideId);
         if (OverrideSpellDataEntry const* overrideSpells = sOverrideSpellDataStore.LookupEntry(overrideId))
             for (uint8 i = 0; i < MAX_OVERRIDE_SPELL; ++i)
                 if (uint32 spellId = overrideSpells->spellId[i])
@@ -5953,7 +5953,7 @@ void AuraEffect::HandleAuraOverrideSpells(AuraApplication const* aurApp, uint8 m
     }
     else
     {
-        target->SetUInt16Value(PLAYER_FIELD_BYTES2, PLAYER_BYTES_2_OVERRIDE_SPELLS_UINT16_OFFSET, 0);
+        target->SetUInt32Value(PLAYER_FIELD_OVERRIDE_SPELLS_ID, 0);
         if (OverrideSpellDataEntry const* overrideSpells = sOverrideSpellDataStore.LookupEntry(overrideId))
             for (uint8 i = 0; i < MAX_OVERRIDE_SPELL; ++i)
                 if (uint32 spellId = overrideSpells->spellId[i])

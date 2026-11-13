@@ -187,6 +187,10 @@ enum EnchantmentSlot : uint8
     MAX_ENCHANTMENT_SLOT            = 15
 };
 
+// 5.4.8 ITEM_FIELD_ENCHANTMENT: perm, temp, 3 sockets, bonus, prismatic, engineering and 5 property slots.
+// Reforging and transmogrification are not enchantment slots there.
+#define MAX_ITEM_FIELD_ENCHANTMENT_SLOT 13
+
 #define MAX_VISIBLE_ITEM_OFFSET       2                     // 2 fields per visible item (entry+enchantment)
 
 #define MAX_GEM_SOCKETS               MAX_ITEM_PROTO_SOCKETS// (BONUS_ENCHANTMENT_SLOT-SOCK_ENCHANTMENT_SLOT) and item proto size, equal value expected
@@ -321,9 +325,15 @@ public:
     void SetEnchantmentDuration(EnchantmentSlot slot, uint32 duration, Player* owner);
     void SetEnchantmentCharges(EnchantmentSlot slot, uint32 charges);
     void ClearEnchantment(EnchantmentSlot slot);
-    [[nodiscard]] uint32 GetEnchantmentId(EnchantmentSlot slot)       const { return GetUInt32Value(ITEM_FIELD_ENCHANTMENT_1_1 + slot * MAX_ENCHANTMENT_OFFSET + ENCHANTMENT_ID_OFFSET);}
-    [[nodiscard]] uint32 GetEnchantmentDuration(EnchantmentSlot slot) const { return GetUInt32Value(ITEM_FIELD_ENCHANTMENT_1_1 + slot * MAX_ENCHANTMENT_OFFSET + ENCHANTMENT_DURATION_OFFSET);}
-    [[nodiscard]] uint32 GetEnchantmentCharges(EnchantmentSlot slot)  const { return GetUInt32Value(ITEM_FIELD_ENCHANTMENT_1_1 + slot * MAX_ENCHANTMENT_OFFSET + ENCHANTMENT_CHARGES_OFFSET);}
+    [[nodiscard]] uint32 GetEnchantmentId(EnchantmentSlot slot)       const { return _enchantments[slot * MAX_ENCHANTMENT_OFFSET + ENCHANTMENT_ID_OFFSET]; }
+    [[nodiscard]] uint32 GetEnchantmentDuration(EnchantmentSlot slot) const { return _enchantments[slot * MAX_ENCHANTMENT_OFFSET + ENCHANTMENT_DURATION_OFFSET]; }
+    [[nodiscard]] uint32 GetEnchantmentCharges(EnchantmentSlot slot)  const { return _enchantments[slot * MAX_ENCHANTMENT_OFFSET + ENCHANTMENT_CHARGES_OFFSET]; }
+    // Sets one enchantment value without logging or marking the item changed.
+    void SetEnchantmentValue(EnchantmentSlot slot, EnchantmentOffset offset, uint32 value);
+    // Loads the saved "id duration charges" triplets of all MAX_ENCHANTMENT_SLOT slots.
+    bool LoadEnchantments(std::string const& data);
+    // 5.4.8 sends MAX_ITEM_FIELD_ENCHANTMENT_SLOT slots; returns -1 for slots the client does not get.
+    [[nodiscard]] static int8 GetEnchantmentFieldSlot(EnchantmentSlot slot);
     [[nodiscard]] std::string GetEnchantmentsString() const; // item_instance.enchantments format
 
     [[nodiscard]] std::string const& GetText() const { return m_text; }
@@ -395,6 +405,8 @@ private:
     time_t m_lastPlayedTimeUpdate;
     uint32 m_refundRecipient;
     uint32 m_paidMoney;
+    // Enchantments are kept here, ITEM_FIELD_ENCHANTMENT only holds the slots 5.4.8 knows.
+    std::array<uint32, MAX_ENCHANTMENT_SLOT * MAX_ENCHANTMENT_OFFSET> _enchantments{};
     uint32 m_paidExtendedCost;
     AllowedLooterSet allowedGUIDs;
 };

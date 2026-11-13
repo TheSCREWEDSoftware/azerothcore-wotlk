@@ -141,7 +141,7 @@ TEST_F(DeathHandlerTest, PowerSlotsFollowClassDataRatherThanPowerEnum)
 TEST_F(DeathHandlerTest, NonPlayerPowersRetainExistingSlots)
 {
     TestCreature* creature = CreateTestCreature(1, 299, TEST_FACTION_HOSTILE_TO_ALL);
-    creature->SetByteValue(UNIT_FIELD_BYTES_0, 3, POWER_ENERGY);
+    creature->SetUInt32Value(UNIT_FIELD_DISPLAY_POWER, POWER_ENERGY);
     creature->SetMaxPower(POWER_ENERGY, 100);
     creature->SetPower(POWER_ENERGY, 50, false);
 

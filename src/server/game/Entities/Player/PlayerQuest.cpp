@@ -1411,7 +1411,7 @@ bool Player::SatisfyQuestDay(Quest const* qInfo, bool msg) const
     bool have_slot = false;
     for (uint32 quest_daily_idx = 0; quest_daily_idx < PLAYER_MAX_DAILY_QUESTS; ++quest_daily_idx)
     {
-        uint32 id = GetUInt32Value(PLAYER_FIELD_DAILY_QUESTS_1 + quest_daily_idx);
+        uint32 id = _dailyQuests[quest_daily_idx];
         if (qInfo->GetQuestId() == id)
             return false;
 

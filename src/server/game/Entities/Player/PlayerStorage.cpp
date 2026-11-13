@@ -5069,7 +5069,8 @@ void Player::_LoadDeclinedNames(PreparedQueryResult result)
 
 void Player::_LoadArenaTeamInfo()
 {
-    memset((void*)&m_uint32Values[PLAYER_FIELD_ARENA_TEAM_INFO_1_1], 0, sizeof(uint32) * MAX_ARENA_SLOT * ARENA_TEAM_END);
+    for (auto& slotInfo : _arenaTeamInfo)
+        slotInfo.fill(0);
 
     for (auto const& itr : ArenaTeam::ArenaSlotByType)
         if (uint32 arenaTeamId = sCharacterCache->GetCharacterArenaTeamIdByGuid(GetGUID(), itr.second))
@@ -5258,7 +5259,7 @@ bool Player::LoadFromDB(ObjectGuid playerGuid, CharacterDatabaseQueryHolder cons
     uint32 bytes0 = 0;
     bytes0 |= fields[3].Get<uint8>();                         // race
     bytes0 |= fields[4].Get<uint8>() << 8;                    // class
-    bytes0 |= Gender << 16;                                 // gender
+    bytes0 |= Gender << 24;                                 // gender
     SetUInt32Value(UNIT_FIELD_BYTES_0, bytes0);
 
     m_realRace = fields[3].Get<uint8>(); // set real race
@@ -6731,7 +6732,7 @@ void Player::_LoadQuestStatusRewarded(PreparedQueryResult result)
 void Player::_LoadDailyQuestStatus(PreparedQueryResult result)
 {
     for (uint32 quest_daily_idx = 0; quest_daily_idx < PLAYER_MAX_DAILY_QUESTS; ++quest_daily_idx)
-        SetUInt32Value(PLAYER_FIELD_DAILY_QUESTS_1 + quest_daily_idx, 0);
+        _dailyQuests[quest_daily_idx] = 0;
 
     m_DFQuests.clear();
 
@@ -6769,7 +6770,7 @@ void Player::_LoadDailyQuestStatus(PreparedQueryResult result)
             if (!quest)
                 continue;
 
-            SetUInt32Value(PLAYER_FIELD_DAILY_QUESTS_1 + quest_daily_idx, quest_id);
+            _dailyQuests[quest_daily_idx] = quest_id;
             ++quest_daily_idx;
 
             LOG_DEBUG("entities.player.loading", "Daily quest ({}) cooldown for player ({})", quest_id, GetGUID().ToString());
@@ -7968,11 +7969,11 @@ void Player::_SaveDailyQuestStatus(CharacterDatabaseTransaction trans)
     trans->Append(stmt);
     for (uint32 quest_daily_idx = 0; quest_daily_idx < PLAYER_MAX_DAILY_QUESTS; ++quest_daily_idx)
     {
-        if (GetUInt32Value(PLAYER_FIELD_DAILY_QUESTS_1 + quest_daily_idx))
+        if (_dailyQuests[quest_daily_idx])
         {
             stmt = CharacterDatabase.GetPreparedStatement(CHAR_INS_CHARACTER_DAILYQUESTSTATUS);
             stmt->SetData(0, GetGUID().GetRawValue());
-            stmt->SetData(1, GetUInt32Value(PLAYER_FIELD_DAILY_QUESTS_1 + quest_daily_idx));
+            stmt->SetData(1, _dailyQuests[quest_daily_idx]);
             stmt->SetData(2, uint64(m_lastDailyQuestTime));
             trans->Append(stmt);
         }

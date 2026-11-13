@@ -961,7 +961,7 @@ public:
         }
 
         // Set gender
-        target->SetByteValue(UNIT_FIELD_BYTES_0, 2, gender);
+        target->SetByteValue(UNIT_FIELD_BYTES_0, 3, gender);
         target->SetByteValue(PLAYER_BYTES_3, 0, gender);
 
         // Change display ID

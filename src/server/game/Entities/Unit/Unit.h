@@ -258,10 +258,11 @@ enum CombatRating : uint8
     CR_WEAPON_SKILL_RANGED      = 22,
     CR_EXPERTISE                = 23,
     CR_ARMOR_PENETRATION        = 24,
-    CR_MASTERY                  = 25
+    CR_MASTERY                  = 25,
+    CR_PVP_POWER                = 26
 };
 
-#define MAX_COMBAT_RATING         26
+#define MAX_COMBAT_RATING         27
 
 enum DamageEffectType : uint8
 {
@@ -837,7 +838,7 @@ public:
     [[nodiscard]] uint32 getClassMask() const { return 1 << (getClass() - 1); }
 
     // Gender methods
-    [[nodiscard]] uint8 getGender() const { return GetByteValue(UNIT_FIELD_BYTES_0, 2); }
+    [[nodiscard]] uint8 getGender() const { return GetByteValue(UNIT_FIELD_BYTES_0, 3); }
 
     // Factions methods
     [[nodiscard]] uint32 GetFaction() const override { return GetUInt32Value(UNIT_FIELD_FACTIONTEMPLATE); }
@@ -1129,7 +1130,7 @@ public:
     void SetCreateHealth(uint32 val) { SetUInt32Value(UNIT_FIELD_BASE_HEALTH, val); }
 
     // Power methods
-    [[nodiscard]] Powers getPowerType() const { return Powers(GetByteValue(UNIT_FIELD_BYTES_0, 3)); }
+    [[nodiscard]] Powers getPowerType() const { return Powers(GetUInt32Value(UNIT_FIELD_DISPLAY_POWER)); }
     [[nodiscard]] virtual bool HasActivePowerType(Powers power) { return getPowerType() == power; }
     [[nodiscard]] Powers GetPowerTypeByAuraGroup(UnitMods unitMod) const;
 

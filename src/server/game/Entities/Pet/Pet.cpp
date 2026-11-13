@@ -322,7 +322,8 @@ bool Pet::LoadPetFromDB(Player* owner, uint32 petEntry, uint32 petnumber, bool c
             ReplaceAllUnitFlags(UNIT_FLAG_PLAYER_CONTROLLED); // this enables popup window (pet dismiss, cancel)
             break;
         case HUNTER_PET:
-            SetUInt32Value(UNIT_FIELD_BYTES_0, 0x02020100); // class = warrior, gender = none, power = focus
+            SetUInt32Value(UNIT_FIELD_BYTES_0, 0x02000100); // class = warrior, gender = none
+            SetUInt32Value(UNIT_FIELD_DISPLAY_POWER, POWER_FOCUS);
             SetSheath(SHEATH_STATE_MELEE);
             SetByteFlag(UNIT_FIELD_BYTES_2, 2, petInfo->WasRenamed ? UNIT_CAN_BE_ABANDONED : UNIT_CAN_BE_RENAMED | UNIT_CAN_BE_ABANDONED);
 
@@ -1067,7 +1068,8 @@ bool Pet::CreateBaseAtTamed(CreatureTemplate const* cinfo, Map* map, uint32 phas
 
     if (cinfo->type == CREATURE_TYPE_BEAST)
     {
-        SetUInt32Value(UNIT_FIELD_BYTES_0, 0x02020100);
+        SetUInt32Value(UNIT_FIELD_BYTES_0, 0x02000100);        // class = warrior, gender = none
+        SetUInt32Value(UNIT_FIELD_DISPLAY_POWER, POWER_FOCUS);
         SetSheath(SHEATH_STATE_MELEE);
         SetByteFlag(UNIT_FIELD_BYTES_2, 2, UNIT_CAN_BE_RENAMED | UNIT_CAN_BE_ABANDONED);
     }

@@ -166,7 +166,7 @@ bool ItemRecovery::Restore(RecoveryItem const& recovery, Player* owner)
         {
             uint32 const field = slot * MAX_ENCHANTMENT_OFFSET + ENCHANTMENT_ID_OFFSET;
             if (Optional<uint32> enchantId = Acore::StringTo<uint32>(enchantments[field]); enchantId && *enchantId)
-                item->SetUInt32Value(ITEM_FIELD_ENCHANTMENT_1_1 + field, *enchantId);
+                item->SetEnchantmentValue(slot, ENCHANTMENT_ID_OFFSET, *enchantId);
         }
     }
 
