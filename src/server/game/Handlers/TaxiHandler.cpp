@@ -234,9 +234,10 @@ void WorldSession::HandleMoveSplineDoneOpcode(WorldPacket& recvData)
 
     Unit* mover = _player->m_mover;
 
-    recvData >> guid.ReadAsPacked();
-    ReadMovementInfo(recvData, &movementInfo);
+    // 5.4.8 18414, from Project SkyFire: the spline id comes first, then the movement block
     recvData >> movementCounter;
+    ReadMovementInfo(recvData, &movementInfo);
+    guid = movementInfo.guid;
 
     if (_player->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_TAXI_FLIGHT)) // taxi spline case
     {
