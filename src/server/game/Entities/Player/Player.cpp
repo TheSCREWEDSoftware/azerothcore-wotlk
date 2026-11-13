@@ -2913,17 +2913,14 @@ void Player::RemoveMail(uint32 id)
 
 void Player::SendMailResult(uint32 mailId, MailResponseType mailAction, MailResponseResult mailError, uint32 equipError, ObjectGuid::LowType item_guid, uint32 item_count)
 {
-    WorldPacket data(SMSG_SEND_MAIL_RESULT, (4 + 4 + 4 + (mailError == MAIL_ERR_EQUIP_ERROR ? 4 : (mailAction == MAIL_ITEM_TAKEN ? 4 + 4 : 0))));
-    data << (uint32) mailId;
-    data << (uint32) mailAction;
-    data << (uint32) mailError;
-    if (mailError == MAIL_ERR_EQUIP_ERROR)
-        data << (uint32) equipError;
-    else if (mailAction == MAIL_ITEM_TAKEN)
-    {
-        data << (uint32) item_guid;                         // item guid low?
-        data << (uint32) item_count;                        // item count?
-    }
+    // 5.4.8 18414, from Project SkyFire: every field is always sent
+    WorldPacket data(SMSG_SEND_MAIL_RESULT, 4 * 6);
+    data << uint32(mailId);
+    data << uint32(mailError == MAIL_ERR_EQUIP_ERROR ? equipError : 0);
+    data << uint32(mailError);
+    data << uint32(mailAction);
+    data << uint32(mailAction == MAIL_ITEM_TAKEN ? item_guid : 0);
+    data << uint32(mailAction == MAIL_ITEM_TAKEN ? item_count : 0);
     SendDirectMessage(&data);
 }
 
@@ -2931,7 +2928,7 @@ void Player::SendNewMail()
 {
     // deliver undelivered mail
     WorldPacket data(SMSG_RECEIVED_MAIL, 4);
-    data << (uint32) 0;
+    data << float(0);                                       // 5.4.8: delay, from Project SkyFire
     SendDirectMessage(&data);
 
     // The client caches its inbox and refuses to re-query it more than once a minute, so a mailbox

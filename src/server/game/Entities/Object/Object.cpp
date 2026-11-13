@@ -2658,9 +2658,13 @@ void Object::ForceValuesUpdateAtIndex(uint32 i)
 
 void Unit::BuildHeartBeatMsg(WorldPacket* data) const
 {
-    data->Initialize(MSG_MOVE_HEARTBEAT, 32);
-    *data << GetPackGUID();
-    BuildMovementPacket(data);
+    // 5.4.8 relays movement as SMSG_PLAYER_MOVE
+    data->Initialize(SMSG_PLAYER_MOVE, 64);
+    MovementInfo info = m_movementInfo;
+    info.guid = GetGUID();
+    info.pos.Relocate(GetPositionX(), GetPositionY(), GetPositionZ(), GetOrientation());
+    info.time = GameTime::GetGameTimeMS().count();
+    WorldPackets::Movement::WriteMovementUpdate(*data, info);
 }
 
 void WorldObject::SendMessageToSet(WorldPacket const* data, bool self) const
