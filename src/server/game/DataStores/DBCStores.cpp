@@ -141,6 +141,7 @@ DBCStorage <MovieEntry> sMovieStore(MovieEntryfmt);
 
 DBCStorage <NamesReservedEntry> sNamesReservedStore(NamesReservedfmt);
 DBCStorage <NamesProfanityEntry> sNamesProfanityStore(NamesProfanityfmt);
+DBCStorage <NumTalentsAtLevelEntry> sNumTalentsAtLevelStore(NumTalentsAtLevelfmt);
 
 DBCStorage <OverrideSpellDataEntry> sOverrideSpellDataStore(OverrideSpellDatafmt);
 
@@ -395,6 +396,7 @@ void LoadDBCStores(std::string const& dataPath)
     LOAD_DBC(sMovieStore,                           "Movie.dbc",                            "movie_dbc");
     LOAD_DBC(sNamesReservedStore,                   "NamesReserved.dbc",                    "namesreserved_dbc");
     LOAD_DBC(sNamesProfanityStore,                  "NamesProfanity.dbc",                   "namesprofanity_dbc");
+    LOAD_DBC(sNumTalentsAtLevelStore,               "NumTalentsAtLevel.dbc",                 nullptr);
     LOAD_DBC(sOverrideSpellDataStore,               "OverrideSpellData.dbc",                "overridespelldata_dbc");
     LOAD_DBC(sPhaseStore,                           "Phase.dbc",                             nullptr);
     LOAD_DBC(sPhaseGroupStore,                      "PhaseXPhaseGroup.dbc",                  nullptr);

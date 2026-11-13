@@ -1556,6 +1556,13 @@ struct NamesProfanityEntry
 
 #define MAX_OVERRIDE_SPELL 10
 
+// NumTalentsAtLevel.dbc
+struct NumTalentsAtLevelEntry
+{
+    //uint32 Level;                                         // 0        index
+    float   NumberOfTalents;                                // 1
+};
+
 struct OverrideSpellDataEntry
 {
     uint32      id;                                         // 0

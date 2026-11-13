@@ -102,6 +102,7 @@ char constexpr MapDifficultyEntryfmt[] = "diisiix";
 char constexpr MovieEntryfmt[] = "nxxx";
 char constexpr NamesReservedfmt[] = "xsx";
 char constexpr NamesProfanityfmt[] = "xsx";
+char constexpr NumTalentsAtLevelfmt[] = "df";
 char constexpr OverrideSpellDatafmt[] = "niiiiiiiiiixx";
 char constexpr PowerDisplayfmt[] = "nixXXX";
 char constexpr QuestSortEntryfmt[] = "nx";

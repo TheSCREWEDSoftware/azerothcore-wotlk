@@ -14192,17 +14192,21 @@ LootItem* Player::StoreLootItem(uint8 lootSlot, Loot* loot, InventoryResult& msg
 
 uint32 Player::CalculateTalentsPoints() const
 {
-    uint32 base_talent = GetLevel() < 10 ? 0 : GetLevel() - 9;
+    // NumTalentsAtLevel.dbc has entries up to level 100
+    NumTalentsAtLevelEntry const* count = sNumTalentsAtLevelStore.LookupEntry(std::min<uint32>(GetLevel(), 100));
+    uint32 base_talent = count ? uint32(count->NumberOfTalents) : 0;
 
     uint32 talentPointsForLevel = 0;
     if (!IsClass(CLASS_DEATH_KNIGHT, CLASS_CONTEXT_TALENT_POINT_CALC) || GetMapId() != MAP_EBON_HOLD)
     {
         talentPointsForLevel = base_talent;
     }
-    else
+    else if (GetLevel() >= 55)
     {
-        talentPointsForLevel = GetLevel() < 56 ? 0 : GetLevel() - 55;
-        talentPointsForLevel += m_questRewardTalentCount;
+        // Ebon Hold quests award the points any other class would have at level 55
+        NumTalentsAtLevelEntry const* dkBase = sNumTalentsAtLevelStore.LookupEntry(55);
+        uint32 dkBaseTalents = dkBase ? uint32(dkBase->NumberOfTalents) : 0;
+        talentPointsForLevel = (base_talent > dkBaseTalents ? base_talent - dkBaseTalents : 0) + m_questRewardTalentCount;
 
         if (talentPointsForLevel > base_talent)
         {

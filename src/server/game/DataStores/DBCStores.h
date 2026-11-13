@@ -167,6 +167,7 @@ extern MapDifficultyMap                          sMapDifficultyMap;
 extern DBCStorage <MovieEntry>                   sMovieStore;
 extern DBCStorage <NamesReservedEntry>           sNamesReservedStore;
 extern DBCStorage <NamesProfanityEntry>          sNamesProfanityStore;
+extern DBCStorage <NumTalentsAtLevelEntry>       sNumTalentsAtLevelStore;
 extern DBCStorage <OverrideSpellDataEntry>       sOverrideSpellDataStore;
 extern DBCStorage <PhaseEntry>                   sPhaseStore;
 extern DBCStorage <PhaseGroupEntry>              sPhaseGroupStore;
