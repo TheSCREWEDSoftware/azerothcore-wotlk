@@ -556,7 +556,7 @@ void WorldConfig::BuildConfigCache()
 
     SetConfigValue<bool>(CONFIG_ENABLE_INFINITEAMMO, "InfiniteAmmo.Enabled", false);
 
-    SetConfigValue<uint32>(CONFIG_DAILY_RBG_MIN_LEVEL_AP_REWARD, "DailyRBGArenaPoints.MinLevel", 71);
+    SetConfigValue<uint32>(CONFIG_DAILY_RBG_MIN_LEVEL_AP_REWARD, "DailyRBGArenaPoints.MinLevel", 85);
 
     // Respawn
     SetConfigValue<float>(CONFIG_RESPAWN_DYNAMICRATE_CREATURE, "Respawn.DynamicRateCreature", 1.0f);
@@ -680,9 +680,9 @@ void WorldConfig::BuildConfigCache()
 
     // Random Battleground Rewards
     SetConfigValue<uint32>(CONFIG_BG_REWARD_WINNER_HONOR_FIRST, "Battleground.RewardWinnerHonorFirst", 30);
-    SetConfigValue<uint32>(CONFIG_BG_REWARD_WINNER_ARENA_FIRST, "Battleground.RewardWinnerArenaFirst", 25);
+    SetConfigValue<uint32>(CONFIG_BG_REWARD_WINNER_CONQUEST_FIRST, "Battleground.RewardWinnerConquestFirst", 100);
     SetConfigValue<uint32>(CONFIG_BG_REWARD_WINNER_HONOR_LAST, "Battleground.RewardWinnerHonorLast", 15);
-    SetConfigValue<uint32>(CONFIG_BG_REWARD_WINNER_ARENA_LAST, "Battleground.RewardWinnerArenaLast", 0);
+    SetConfigValue<uint32>(CONFIG_BG_REWARD_WINNER_CONQUEST_LAST, "Battleground.RewardWinnerConquestLast", 50);
     SetConfigValue<uint32>(CONFIG_BG_REWARD_LOSER_HONOR_FIRST, "Battleground.RewardLoserHonorFirst", 5);
     SetConfigValue<uint32>(CONFIG_BG_REWARD_LOSER_HONOR_LAST, "Battleground.RewardLoserHonorLast", 5);
 

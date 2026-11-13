@@ -4069,23 +4069,23 @@ Battleground.DisableReadyCheckInBG = 0
 
 #
 #    Battleground.RewardWinnerHonorFirst
-#    Battleground.RewardWinnerArenaFirst
+#    Battleground.RewardWinnerConquestFirst
 #    Battleground.RewardWinnerHonorLast
-#    Battleground.RewardWinnerArenaLast
+#    Battleground.RewardWinnerConquestLast
 #    Battleground.RewardLoserHonorFirst
 #    Battleground.RewardLoserHonorLast
 #        Description: Random Battlegrounds / call to the arms rewards
 #        Default:     30 - Battleground.RewardWinnerHonorFirst
-#                     25 - Battleground.RewardWinnerArenaFirst
+#                     100 - Battleground.RewardWinnerConquestFirst (first random win of the day)
 #                     15 - Battleground.RewardWinnerHonorLast
-#                     0  - Battleground.RewardWinnerArenaLast
+#                     50 - Battleground.RewardWinnerConquestLast (every other battleground win)
 #                     5  - Battleground.RewardLoserHonorFirst
 #                     5  - Battleground.RewardLoserHonorLast
 
 Battleground.RewardWinnerHonorFirst = 30
-Battleground.RewardWinnerArenaFirst = 25
+Battleground.RewardWinnerConquestFirst = 100
 Battleground.RewardWinnerHonorLast  = 15
-Battleground.RewardWinnerArenaLast  = 0
+Battleground.RewardWinnerConquestLast  = 50
 Battleground.RewardLoserHonorFirst  = 5
 Battleground.RewardLoserHonorLast   = 5
 
@@ -4899,10 +4899,10 @@ Calculate.Gameoject.Zone.Area.Data = 0
 
 #
 #    DailyRBGArenaPoints.MinLevel
-#        Description: Allows gaining arena points on the first RBG win at level 70.
-#        Default:     71 - (Blizzlike)
+#        Description: Minimum level required to gain conquest points from battleground wins.
+#        Default:     85 - (Blizzlike)
 
-DailyRBGArenaPoints.MinLevel = 71
+DailyRBGArenaPoints.MinLevel = 85
 
 #
 #    MunchingBlizzlike.Enabled

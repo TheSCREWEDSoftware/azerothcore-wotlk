@@ -894,7 +894,6 @@ void Battleground::EndBattleground(PvPTeamId winnerTeamId)
 
         uint32 winner_kills = player->GetRandomWinner() ? sWorld->getIntConfig(CONFIG_BG_REWARD_WINNER_HONOR_LAST) : sWorld->getIntConfig(CONFIG_BG_REWARD_WINNER_HONOR_FIRST);
         uint32 loser_kills = player->GetRandomWinner() ? sWorld->getIntConfig(CONFIG_BG_REWARD_LOSER_HONOR_LAST) : sWorld->getIntConfig(CONFIG_BG_REWARD_LOSER_HONOR_FIRST);
-        uint32 winner_arena = player->GetRandomWinner() ? sWorld->getIntConfig(CONFIG_BG_REWARD_WINNER_ARENA_LAST) : sWorld->getIntConfig(CONFIG_BG_REWARD_WINNER_ARENA_FIRST);
 
         // Reward winner team
         if (bgTeamId == GetTeamId(winnerTeamId))
@@ -903,12 +902,14 @@ void Battleground::EndBattleground(PvPTeamId winnerTeamId)
             {
                 UpdatePlayerScore(player, SCORE_BONUS_HONOR, GetBonusHonorFromKill(winner_kills));
 
-                // Xinef: check player level and not bracket level if (CanAwardArenaPoints())
-                if (player->GetLevel() >= sWorld->getIntConfig(CONFIG_DAILY_RBG_MIN_LEVEL_AP_REWARD))
-                    player->ModifyArenaPoints(winner_arena);
-
                 if (!player->GetRandomWinner())
+                {
+                    // 100cp awarded for the first random battleground won each day
+                    if (player->GetLevel() >= sWorld->getIntConfig(CONFIG_DAILY_RBG_MIN_LEVEL_AP_REWARD))
+                        player->ModifyCurrency(CURRENCY_TYPE_CONQUEST_META_ARENA, sWorld->getIntConfig(CONFIG_BG_REWARD_WINNER_CONQUEST_FIRST) * CURRENCY_PRECISION);
+
                     player->SetRandomWinner(true);
+                }
 
                 // Achievement 908 / 909 "Call to Arms!"
                 switch (GetBgTypeID(true))
@@ -937,6 +938,8 @@ void Battleground::EndBattleground(PvPTeamId winnerTeamId)
                         break;
                 }
             }
+            else if (player->GetLevel() >= sWorld->getIntConfig(CONFIG_DAILY_RBG_MIN_LEVEL_AP_REWARD)) // 50cp awarded for each non-rated battleground won
+                player->ModifyCurrency(CURRENCY_TYPE_CONQUEST_META_ARENA, sWorld->getIntConfig(CONFIG_BG_REWARD_WINNER_CONQUEST_LAST) * CURRENCY_PRECISION);
 
             player->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_WIN_BG, player->GetMapId());
         }

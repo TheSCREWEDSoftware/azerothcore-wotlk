@@ -16,6 +16,7 @@
  */
 
 #include "BattlegroundMgr.h"
+#include "BattlegroundPackets.h"
 #include "ArenaTeam.h"
 #include "ArenaTeamMgr.h"
 #include "BattlegroundAB.h"
@@ -583,70 +584,54 @@ void BattlegroundMgr::InitAutomaticArenaPointDistribution()
     LOG_INFO("server.loading", "Automatic Arena Point Distribution initialized.");
 }
 
-void BattlegroundMgr::BuildBattlegroundListPacket(WorldPacket* data, ObjectGuid guid, Player* player, BattlegroundTypeId bgTypeId, uint8 fromWhere)
+void BattlegroundMgr::SendBattlegroundList(ObjectGuid guid, Player* player, BattlegroundTypeId bgTypeId)
 {
     if (!player)
         return;
 
-    uint32 winner_kills = player->GetRandomWinner() ? sWorld->getIntConfig(CONFIG_BG_REWARD_WINNER_HONOR_LAST) : sWorld->getIntConfig(CONFIG_BG_REWARD_WINNER_HONOR_FIRST);
-    uint32 winner_arena = player->GetRandomWinner() ? sWorld->getIntConfig(CONFIG_BG_REWARD_WINNER_ARENA_LAST) : sWorld->getIntConfig(CONFIG_BG_REWARD_WINNER_ARENA_FIRST);
-    uint32 loser_kills = player->GetRandomWinner() ? sWorld->getIntConfig(CONFIG_BG_REWARD_LOSER_HONOR_LAST) : sWorld->getIntConfig(CONFIG_BG_REWARD_LOSER_HONOR_FIRST);
+    BattlegroundTemplate const* bgTemplate = GetBattlegroundTemplateByTypeId(bgTypeId);
+    if (!bgTemplate)
+        return;
 
-    winner_kills = Acore::Honor::hk_honor_at_level(player->GetLevel(), float(winner_kills));
-    loser_kills = Acore::Honor::hk_honor_at_level(player->GetLevel(), float(loser_kills));
+    uint32 winnerHonor = player->GetRandomWinner() ? sWorld->getIntConfig(CONFIG_BG_REWARD_WINNER_HONOR_LAST) : sWorld->getIntConfig(CONFIG_BG_REWARD_WINNER_HONOR_FIRST);
+    uint32 loserHonor = player->GetRandomWinner() ? sWorld->getIntConfig(CONFIG_BG_REWARD_LOSER_HONOR_LAST) : sWorld->getIntConfig(CONFIG_BG_REWARD_LOSER_HONOR_FIRST);
+    uint32 winnerConquest = player->GetRandomWinner() ? sWorld->getIntConfig(CONFIG_BG_REWARD_WINNER_CONQUEST_LAST) : sWorld->getIntConfig(CONFIG_BG_REWARD_WINNER_CONQUEST_FIRST);
 
-    data->Initialize(SMSG_BATTLEFIELD_LIST);
-    *data << guid;                                          // battlemaster guid
-    *data << uint8(fromWhere);                              // from where you joined
-    *data << uint32(bgTypeId);                              // battleground id
-    *data << uint8(0);                                      // unk
-    *data << uint8(0);                                      // unk
+    winnerHonor = Acore::Honor::hk_honor_at_level(player->GetLevel(), float(winnerHonor));
+    loserHonor = Acore::Honor::hk_honor_at_level(player->GetLevel(), float(loserHonor));
 
-    // Rewards
-    *data << uint8(player->GetRandomWinner());              // 3.3.3 hasWin
-    *data << uint32(winner_kills);                          // 3.3.3 winHonor
-    *data << uint32(winner_arena);                          // 3.3.3 winArena
-    *data << uint32(loser_kills);                           // 3.3.3 lossHonor
+    WorldPackets::Battleground::BattlefieldList battlefieldList;
+    battlefieldList.ConquestBonusRandom = winnerConquest;
+    battlefieldList.ConquestBonusHoliday = winnerConquest;
+    battlefieldList.HonorBonusRandomWin = winnerHonor;
+    battlefieldList.HonorBonusHolidayWin = winnerHonor;
+    battlefieldList.HonorBonusRandomLoss = loserHonor;
+    battlefieldList.HonorBonusHolidayLoss = loserHonor;
+    battlefieldList.BattlemasterGuid = guid;
+    battlefieldList.BattlemasterListID = bgTypeId;
+    battlefieldList.MinLevel = bgTemplate->MinLevel;
+    battlefieldList.MaxLevel = bgTemplate->MaxLevel;
+    battlefieldList.PvpAnywhere = guid.IsEmpty();
+    battlefieldList.IsRandomBG = bgTypeId == BATTLEGROUND_RB;
+    battlefieldList.HasRandomWinToday = player->GetRandomWinner();
+    battlefieldList.HasHolidayWinToday = player->GetRandomWinner();
 
-    uint8 isQueueRandom = (bgTypeId == BATTLEGROUND_RB);
-
-    *data << uint8(isQueueRandom);                          // 3.3.3 isRandom
-    if (isQueueRandom)
+    if (!bgTemplate->IsArena())
     {
-        // Rewards (random)
-        *data << uint8(player->GetRandomWinner());          // 3.3.3 hasWin_Random
-        *data << uint32(winner_kills);                      // 3.3.3 winHonor_Random
-        *data << uint32(winner_arena);                      // 3.3.3 winArena_Random
-        *data << uint32(loser_kills);                       // 3.3.3 lossHonor_Random
-    }
-
-    if (bgTypeId == BATTLEGROUND_AA)                        // arena
-        *data << uint32(0);                                 // unk (count?)
-    else                                                    // battleground
-    {
-        std::size_t count_pos = data->wpos();
-        *data << uint32(0);                                 // number of bg instances
-
         auto const& it = bgDataStore.find(bgTypeId);
-        if (it != bgDataStore.end())
+        if (it != bgDataStore.end() && !it->second._Battlegrounds.empty())
         {
             // expected bracket entry
             if (PvPDifficultyEntry const* bracketEntry = GetBattlegroundBracketByLevel(it->second._Battlegrounds.begin()->second->GetMapId(), player->GetLevel()))
             {
-                uint32 count = 0;
                 BattlegroundBracketId bracketId = bracketEntry->GetBracketId();
-                BattlegroundClientIdsContainer& clientIds = it->second._ClientBattlegroundIds[bracketId];
-
-                for (auto const& itr : clientIds)
-                {
-                    *data << uint32(itr);
-                    ++count;
-                }
-
-                data->put<uint32>(count_pos, count);
+                for (uint32 clientId : it->second._ClientBattlegroundIds[bracketId])
+                    battlefieldList.Battlefields.push_back(int32(clientId));
             }
         }
     }
+
+    player->SendDirectMessage(battlefieldList.Write());
 }
 
 bool BattlegroundMgr::SendToBattleground(Player* player, uint32 instanceId, BattlegroundTypeId bgTypeId)

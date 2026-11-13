@@ -350,6 +350,8 @@ void Arena::EndBattleground(TeamId winnerTeamId)
 
                         if (sScriptMgr->OnBeforeArenaTeamMemberUpdate(winnerArenaTeam, player, true, loserMatchmakerRating, winnerMatchmakerChange))
                             winnerArenaTeam->MemberWon(player, loserMatchmakerRating, winnerMatchmakerChange);
+
+                        player->ModifyCurrency(CURRENCY_TYPE_CONQUEST_META_ARENA, sWorld->getIntConfig(CONFIG_CURRENCY_CONQUEST_POINTS_ARENA_REWARD) * CURRENCY_PRECISION);
                     }
                 }
                 else

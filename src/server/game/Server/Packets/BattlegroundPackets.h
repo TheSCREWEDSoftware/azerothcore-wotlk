@@ -18,8 +18,10 @@
 #ifndef BattlegroundPackets_h__
 #define BattlegroundPackets_h__
 
+#include "ObjectGuid.h"
 #include "Packet.h"
 #include <array>
+#include <vector>
 
 namespace WorldPackets
 {
@@ -81,6 +83,30 @@ namespace WorldPackets
             int32 RewardPointsThisWeek = 0;
             int32 RatedRewardPointsThisWeek = 0;
             int8 Mode = 0;
+        };
+
+        class BattlefieldList final : public ServerPacket
+        {
+        public:
+            BattlefieldList() : ServerPacket(SMSG_BATTLEFIELD_LIST, 1 + 7 * 4 + 2 + 3 + 8) { }
+
+            WorldPacket const* Write() override;
+
+            ObjectGuid BattlemasterGuid;
+            int32 BattlemasterListID = 0;
+            uint8 MinLevel = 0;
+            uint8 MaxLevel = 0;
+            std::vector<int32> Battlefields;
+            bool PvpAnywhere = false;
+            bool HasRandomWinToday = false;
+            bool HasHolidayWinToday = false;
+            bool IsRandomBG = false;
+            int32 HonorBonusRandomWin = 0;
+            int32 HonorBonusRandomLoss = 0;
+            int32 HonorBonusHolidayWin = 0;
+            int32 HonorBonusHolidayLoss = 0;
+            int32 ConquestBonusRandom = 0;
+            int32 ConquestBonusHoliday = 0;
         };
 
         class RequestPVPRewardsResponse final : public ServerPacket

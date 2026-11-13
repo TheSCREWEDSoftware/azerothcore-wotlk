@@ -72,7 +72,7 @@ public:
     /* Packet Building */
     void BuildPlayerJoinedBattlegroundPacket(WorldPacket* data, Player* player);
     void BuildPlayerLeftBattlegroundPacket(WorldPacket* data, ObjectGuid guid);
-    void BuildBattlegroundListPacket(WorldPacket* data, ObjectGuid guid, Player* player, BattlegroundTypeId bgTypeId, uint8 fromWhere);
+    void SendBattlegroundList(ObjectGuid guid, Player* player, BattlegroundTypeId bgTypeId);
     void BuildGroupJoinedBattlegroundPacket(WorldPacket* data, GroupJoinBattlegroundResult result);
     void BuildBattlegroundStatusPacket(WorldPacket* data, Battleground* bg, uint8 queueSlot, uint8 statusId, uint32 time1, uint32 time2, uint8 arenaType, TeamId teamId, bool isRated = false, BattlegroundTypeId forceBgTypeId = BATTLEGROUND_TYPE_NONE);
     void SendAreaSpiritHealerQueryOpcode(Player* player, Battleground* bg, ObjectGuid guid);
