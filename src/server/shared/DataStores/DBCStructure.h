@@ -564,20 +564,20 @@ struct AreaGroupEntry
 
 struct AreaPOIEntry
 {
-    uint32 id;                  //0
-    uint32 icon[11];            //1-11
-    float x;                    //12
-    float y;                    //13
-    float z;                    //14
-    uint32 mapId;               //15
-    //uint32 val1;              //16
-    uint32 zoneId;              //17
-    //char const* name[16];     //18-33
-    //uint32 name_flag;         //34
-    //char const* name2[16];    //35-50
-    //uint32 name_flag2;        //51
-    uint32 worldState;          //52
-    //uint32 val2;              //53
+    uint32 id;                  // 0
+    //uint32 importance;        // 1
+    uint32 icon[9];             // 2-10
+    //uint32 factionId;         // 11
+    float x;                    // 12
+    float y;                    // 13
+    uint32 mapId;               // 14
+    //uint32 flags;             // 15
+    uint32 zoneId;              // 16
+    //char const* name;         // 17
+    //char const* description;  // 18
+    uint32 worldState;          // 19
+    //uint32 worldMapLink;      // 20
+    //uint32 portLocId;         // 21
 };
 
 struct AuctionHouseEntry
@@ -1487,23 +1487,22 @@ struct MapEntry
     //char const*       internalname;                       // 1 unused
     uint32  map_type;                                       // 2
     uint32  Flags;                                          // 3
-    // 4 0 or 1 for battlegrounds (not arenas)
-    char const*   name[16];                                 // 5-20
-    // 21 name flags, unused
-    uint32  linked_zone;                                    // 22 common zone for instance and continent map
-    //char const*     hordeIntro[16];                       // 23-38 text for PvP Zones
-    // 39 intro text flags
-    //char const*     allianceIntro[16];                    // 40-55 text for PvP Zones
-    // 56 intro text flags
-    uint32  multimap_id;                                    // 57
-    //float BattlefieldMapIconScale;                        // 58
-    int32   entrance_map;                                   // 59 map_id of entrance map
-    float   entrance_x;                                     // 60 entrance x coordinate (if exist single entry)
-    float   entrance_y;                                     // 61 entrance y coordinate (if exist single entry)
-    //uint32 TimeOfDayOverride;                             // 62 -1, 0 and 720
-    uint32  expansionID;                                    // 63 (0: Vanilla, 1:TBC, 2:WotLK)
-    //uint32  raidOffset;                                   // 64 some kind of time?
-    uint32  maxPlayers;                                     // 65 max players, fallback if not present in MapDifficulty.dbc
+    //uint32  instanceType;                                 // 4
+    //uint32  pvp;                                          // 5 0 or 1 for battlegrounds (not arenas)
+    char const*   name[16];                                 // 6
+    uint32  linked_zone;                                    // 7 common zone for instance and continent map
+    //char const*     hordeIntro;                           // 8 text for PvP Zones
+    //char const*     allianceIntro;                        // 9 text for PvP Zones
+    //uint32  loadingScreenId;                              // 10
+    //float   minimapIconScale;                             // 11
+    int32   entrance_map;                                   // 12 map_id of entrance map
+    float   entrance_x;                                     // 13 entrance x coordinate (if exist single entry)
+    float   entrance_y;                                     // 14 entrance y coordinate (if exist single entry)
+    //uint32 TimeOfDayOverride;                             // 15 -1, 0 and 720
+    uint32  expansionID;                                    // 16 (0: Vanilla, 1:TBC, 2:WotLK, 3:Cata)
+    //uint32  raidOffset;                                   // 17
+    uint32  maxPlayers;                                     // 18 max players, fallback if not present in MapDifficulty.dbc
+    //int32   parentMapId;                                  // 19
 
     // Helpers
     [[nodiscard]] uint32 Expansion() const { return expansionID; }
@@ -2238,9 +2237,10 @@ struct TaxiNodesEntry
     float     x;                                            // 2        m_x
     float     y;                                            // 3        m_y
     float     z;                                            // 4        m_z
-    char const*     name[16];                               // 5-21     m_Name_lang
-    // 22 string flags
-    uint32    MountCreatureID[2];                           // 23-24    m_MountCreatureID[2]
+    char const*     name[16];                               // 5        m_Name_lang
+    uint32    MountCreatureID[2];                           // 6-7      m_MountCreatureID[2]
+    //uint32  flags;                                        // 8
+    //float   mapOffset[2];                                 // 9-10
 };
 
 struct TaxiPathEntry
@@ -2439,6 +2439,9 @@ struct WorldMapAreaEntry
     int32   virtual_map_id;                                 // 8 -1 (map_id have correct map) other: virtual map where zone show (map_id - where zone in fact internally)
     // int32   dungeonMap_id;                               // 9 pointer to DungeonMap.dbc (owerride x1, x2, y1, y2 coordinates)
     // uint32  parentMapID;                                 // 10
+    // uint32  flags;                                       // 11
+    // uint32  levelRangeMin;                               // 12
+    // uint32  levelRangeMax;                               // 13
 };
 
 #define MAX_WORLD_MAP_OVERLAY_AREA_IDX 4
