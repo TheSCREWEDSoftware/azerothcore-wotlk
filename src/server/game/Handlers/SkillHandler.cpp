@@ -35,8 +35,16 @@ void WorldSession::HandleLearnPreviewTalents(WorldPacket& recvPacket)
 {
     LOG_DEBUG("network", "CMSG_LEARN_PREVIEW_TALENTS");
 
+    int32 talentTab;
     uint32 talentsCount;
-    recvPacket >> talentsCount;
+    recvPacket >> talentTab >> talentsCount;
+
+    // The client picks the primary talent tree with its first talents
+    if (talentTab >= 0 && !_player->LearnPrimaryTalentSpecialization(uint8(talentTab)))
+    {
+        recvPacket.rfinish();
+        return;
+    }
 
     uint32 talentId, talentRank;
 

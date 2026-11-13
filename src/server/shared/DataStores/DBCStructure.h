@@ -2217,6 +2217,15 @@ struct TalentTabEntry
     //char const* internalname;                             // 23
 };
 
+// TalentTreePrimarySpells.dbc
+struct TalentTreePrimarySpellsEntry
+{
+    //uint32  ID;                                           // 0
+    uint32  TalentTabID;                                    // 1
+    uint32  SpellID;                                        // 2
+    //uint32  Flags;                                        // 3
+};
+
 struct TaxiNodesEntry
 {
     uint32    ID;                                           // 0        m_ID

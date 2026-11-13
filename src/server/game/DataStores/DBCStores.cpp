@@ -210,6 +210,8 @@ DBCStorage <TalentEntry> sTalentStore(TalentEntryfmt);
 TalentSpellPosMap sTalentSpellPosMap;
 std::unordered_set<uint32> sPetTalentSpells;
 DBCStorage <TalentTabEntry> sTalentTabStore(TalentTabEntryfmt);
+static DBCStorage <TalentTreePrimarySpellsEntry> sTalentTreePrimarySpellsStore(TalentTreePrimarySpellsfmt);
+static std::unordered_map<uint32, std::vector<uint32>> sTalentTreePrimarySpellsMap;
 
 // store absolute bit position for first rank for talent inspect
 static uint32 sTalentTabPages[MAX_CLASSES][3];
@@ -452,6 +454,7 @@ void LoadDBCStores(std::string const& dataPath)
     LOAD_DBC(sSummonPropertiesStore,                "SummonProperties.dbc",                 "summonproperties_dbc");
     LOAD_DBC(sTalentStore,                          "Talent.dbc",                           "talent_dbc");
     LOAD_DBC(sTalentTabStore,                       "TalentTab.dbc",                        "talenttab_dbc");
+    LOAD_DBC(sTalentTreePrimarySpellsStore,         "TalentTreePrimarySpells.dbc",           nullptr);
     LOAD_DBC(sTaxiNodesStore,                       "TaxiNodes.dbc",                        "taxinodes_dbc");
     LOAD_DBC(sTaxiPathStore,                        "TaxiPath.dbc",                         "taxipath_dbc");
     LOAD_DBC(sTaxiPathNodeStore,                    "TaxiPathNode.dbc",                     "taxipathnode_dbc");
@@ -619,6 +622,9 @@ void LoadDBCStores(std::string const& dataPath)
                     sTalentTabPages[cls][talentTabInfo->tabpage] = talentTabId;
         }
     }
+
+    for (TalentTreePrimarySpellsEntry const* talentSpell : sTalentTreePrimarySpellsStore)
+        sTalentTreePrimarySpellsMap[talentSpell->TalentTabID].push_back(talentSpell->SpellID);
 
     for (uint32 i = 1; i < sTaxiPathStore.GetNumRows(); ++i)
         if (TaxiPathEntry const* entry = sTaxiPathStore.LookupEntry(i))
@@ -1078,6 +1084,12 @@ PvPDifficultyEntry const* GetBattlegroundBracketById(uint32 mapid, BattlegroundB
 uint32 const* GetTalentTabPages(uint8 cls)
 {
     return sTalentTabPages[cls];
+}
+
+std::vector<uint32> const* GetTalentTreePrimarySpells(uint32 talentTabId)
+{
+    auto itr = sTalentTreePrimarySpellsMap.find(talentTabId);
+    return itr != sTalentTreePrimarySpellsMap.end() ? &itr->second : nullptr;
 }
 
 bool IsSharedDifficultyMap(uint32 mapid)

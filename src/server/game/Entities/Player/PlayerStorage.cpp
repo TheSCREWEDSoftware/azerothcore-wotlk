@@ -5718,11 +5718,17 @@ bool Player::LoadFromDB(ObjectGuid playerGuid, CharacterDatabaseQueryHolder cons
     m_specsCount = fields[64].Get<uint8>();
     m_activeSpec = fields[65].Get<uint8>();
 
+    std::vector<std::string_view> talentTrees = Acore::Tokenize(fields[75].Get<std::string_view>(), ' ', false);
+    for (uint8 spec = 0; spec < MAX_TALENT_SPECS && spec < talentTrees.size(); ++spec)
+        if (Optional<uint32> talentTree = Acore::StringTo<uint32>(talentTrees[spec]); talentTree && sTalentTabStore.LookupEntry(*talentTree))
+            SetPrimaryTalentTree(spec, *talentTree);
+
     LearnDefaultSkills();
     LearnCustomSpells();
 
     _LoadSpells(holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_SPELLS));
     _LoadTalents(holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_TALENTS));
+    LearnSpecializationSpells();
 
     _LoadGlyphs(holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_GLYPHS));
     _LoadGlyphAuras();

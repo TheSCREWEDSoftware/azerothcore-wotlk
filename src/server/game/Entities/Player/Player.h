@@ -148,6 +148,9 @@ struct PlayerTalent
     bool IsInSpec(uint8 spec) { return (specMask & (1 << spec)); }
 };
 
+/// Points in the primary talent tree before the other trees open
+constexpr uint32 REQ_PRIMARY_TREE_TALENTS = 31;
+
 enum TalentTree // talent tabs
 {
     TALENT_TREE_WARRIOR_ARMS = 161,
@@ -1841,6 +1844,10 @@ public:
     void GetTalentTreePoints(uint8 (&specPoints)[3]) const;
     [[nodiscard]] uint8 GetMostPointsTalentTree() const;
     [[nodiscard]] uint32 GetPrimaryTalentTree(uint8 spec) const;
+    void SetPrimaryTalentTree(uint8 spec, uint32 talentTabId);
+    bool LearnPrimaryTalentSpecialization(uint8 talentTabIndex);
+    void LearnSpecializationSpells();
+    void RemoveSpecializationSpells();
     bool HasTankSpec();
     bool HasMeleeSpec();
     bool HasCasterSpec();
@@ -3022,6 +3029,7 @@ private:
     uint8 m_specsCount;
 
     uint32 m_Glyphs[MAX_TALENT_SPECS][MAX_GLYPH_SLOT_INDEX];
+    std::array<uint32, MAX_TALENT_SPECS> _talentTree = { }; // primary talent tree (TalentTab.dbc) per spec
 
     ActionButtonList m_actionButtons;
 

@@ -3817,8 +3817,8 @@ bool Player::resetTalents(bool noResetCost)
     // xinef: get max available talent points amount
     uint32 talentPointsForLevel = CalculateTalentsPoints();
 
-    // xinef: no talent points are used, return
-    if (m_usedTalentCount == 0)
+    // xinef: no talent points are used and no specialization picked, return
+    if (m_usedTalentCount == 0 && !GetPrimaryTalentTree(GetActiveSpec()))
         return false;
     m_usedTalentCount = 0;
 
@@ -3875,6 +3875,10 @@ bool Player::resetTalents(bool noResetCost)
         // xinef: remove talent modifies m_talents, move itr to map begin
         _removeTalent(itr, GetActiveSpecMask());
     }
+
+    // Resetting talents also clears the specialization so a new one can be picked
+    RemoveSpecializationSpells();
+    SetPrimaryTalentTree(GetActiveSpec(), 0);
 
     // xinef: remove titan grip if player had it set
     if (m_canTitanGrip)
@@ -14752,6 +14756,21 @@ void Player::LearnTalent(uint32 talentId, uint32 talentRank, bool command /*= fa
         // xinef: we do not have enough talent points to add talent of this tier
         if (spentPoints < (talentInfo->Row * MAX_TALENT_RANK))
             return;
+
+        // Other trees open after the specialization is picked and 31 points are spent in it
+        uint32 const primaryTree = GetPrimaryTalentTree(GetActiveSpec());
+        if (!primaryTree)
+            return;
+
+        if (primaryTree != talentInfo->TalentTab)
+        {
+            uint8 specPoints[MAX_TALENT_TABS] = { };
+            GetTalentTreePoints(specPoints);
+
+            TalentTabEntry const* primaryTab = sTalentTabStore.LookupEntry(primaryTree);
+            if (!primaryTab || primaryTab->tabpage >= MAX_TALENT_TABS || specPoints[primaryTab->tabpage] < REQ_PRIMARY_TREE_TALENTS)
+                return;
+        }
     }
 
     // xinef: hacking attempt, tries to learn unknown rank
@@ -15791,6 +15810,15 @@ void Player::_SaveCharacter(bool create, CharacterDatabaseTransaction trans)
     }
 
     trans->Append(stmt);
+
+    std::ostringstream talentTrees;
+    for (uint8 spec = 0; spec < MAX_TALENT_SPECS; ++spec)
+        talentTrees << (spec ? " " : "") << _talentTree[spec];
+
+    stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_CHARACTER_TALENT_TREE);
+    stmt->SetData(0, talentTrees.str());
+    stmt->SetData(1, GetGUID().GetCounter());
+    trans->Append(stmt);
 }
 
 void Player::_LoadGlyphs(PreparedQueryResult result)
@@ -15936,6 +15964,8 @@ void Player::ActivateSpec(uint8 spec)
     SendActionButtons(2);
     uint8 oldSpec = GetActiveSpec();
 
+    RemoveSpecializationSpells();
+
     std::unordered_set<uint32> removedSpecAuras;
 
     // xinef: reset talent auras
@@ -15968,6 +15998,7 @@ void Player::ActivateSpec(uint8 spec)
 
     // xinef: set active spec as new one
     SetActiveSpec(spec);
+    LearnSpecializationSpells();
     uint32 spentTalents = 0;
 
     // xinef: add talent auras
@@ -16180,45 +16211,48 @@ uint8 Player::GetMostPointsTalentTree() const
 
 uint32 Player::GetPrimaryTalentTree(uint8 spec) const
 {
-    if (spec >= MAX_TALENT_SPECS)
-        return 0;
+    return spec < MAX_TALENT_SPECS ? _talentTree[spec] : 0;
+}
 
-    uint32 specPoints[3] = { 0, 0, 0 };
-    PlayerTalentMap const& talentMap = GetTalentMap();
-    for (PlayerTalentMap::const_iterator itr = talentMap.begin(); itr != talentMap.end(); ++itr)
-    {
-        if (itr->second->State == PLAYERSPELL_REMOVED || !itr->second->IsInSpec(spec))
-            continue;
+void Player::SetPrimaryTalentTree(uint8 spec, uint32 talentTabId)
+{
+    if (spec < MAX_TALENT_SPECS)
+        _talentTree[spec] = talentTabId;
+}
 
-        TalentEntry const* talentInfo = sTalentStore.LookupEntry(itr->second->talentID);
-        if (!talentInfo)
-            continue;
+bool Player::LearnPrimaryTalentSpecialization(uint8 talentTabIndex)
+{
+    if (talentTabIndex >= MAX_TALENT_TABS || GetPrimaryTalentTree(GetActiveSpec()))
+        return false;
 
-        TalentTabEntry const* tab = sTalentTabStore.LookupEntry(talentInfo->TalentTab);
-        if (!tab || tab->tabpage >= 3)
-            continue;
+    uint32 const* talentTabs = GetTalentTabPages(getClass());
+    TalentTabEntry const* talentTab = talentTabs ? sTalentTabStore.LookupEntry(talentTabs[talentTabIndex]) : nullptr;
+    if (!talentTab)
+        return false;
 
-        for (uint8 rank = 0; rank < MAX_TALENT_RANK; ++rank)
-            if (talentInfo->RankID[rank] && itr->first == talentInfo->RankID[rank])
-            {
-                specPoints[tab->tabpage] += rank + 1;
-                break;
-            }
-    }
+    SetPrimaryTalentTree(GetActiveSpec(), talentTab->TalentTabID);
+    LearnSpecializationSpells();
+    return true;
+}
 
-    uint8 maxPage = 0;
-    uint32 maxPoints = specPoints[0];
-    for (uint8 i = 1; i < 3; ++i)
-        if (specPoints[i] > maxPoints)
-        {
-            maxPage = i;
-            maxPoints = specPoints[i];
-        }
+void Player::LearnSpecializationSpells()
+{
+    if (std::vector<uint32> const* specSpells = GetTalentTreePrimarySpells(GetPrimaryTalentTree(GetActiveSpec())))
+        for (uint32 spellId : *specSpells)
+            if (!HasSpell(spellId))
+                learnSpell(spellId, true);
+}
 
-    if (!maxPoints)
-        return 0;
+void Player::RemoveSpecializationSpells()
+{
+    uint32 const* talentTabs = GetTalentTabPages(getClass());
+    if (!talentTabs)
+        return;
 
-    return GetTalentTabPages(getClass())[maxPage];
+    for (uint8 i = 0; i < MAX_TALENT_TABS; ++i)
+        if (std::vector<uint32> const* specSpells = GetTalentTreePrimarySpells(talentTabs[i]))
+            for (uint32 spellId : *specSpells)
+                removeSpell(spellId, SPEC_MASK_ALL, true);
 }
 
 void Player::SetReputation(uint32 factionentry, float value)

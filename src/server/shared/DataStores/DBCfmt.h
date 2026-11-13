@@ -156,6 +156,7 @@ char constexpr StableSlotPricesfmt[] = "ni";
 char constexpr SummonPropertiesfmt[] = "niiiii";
 char constexpr TalentEntryfmt[] = "niiiiiiiiixxixxixxx";
 char constexpr TalentTabEntryfmt[] = "nxxiiixxxxx";
+char constexpr TalentTreePrimarySpellsfmt[] = "diix";
 char constexpr TaxiNodesEntryfmt[] = "nifffSxxxii";
 char constexpr TaxiPathEntryfmt[] = "niii";
 char constexpr TaxiPathNodeEntryfmt[] = "diiifffiiii";
