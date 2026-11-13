@@ -16,6 +16,7 @@
  */
 
 #include "GuildPackets.h"
+#include "Item.h"
 
 // Cata Guild Challenges. Field order matches TrinityCore's real wire layout exactly
 // (ChallengeType, GoldAwarded, CurrentCount, XpAwarded, MaxCount) - it does not match the
@@ -33,8 +34,24 @@ WorldPacket const* WorldPackets::Guild::GuildChallengeCompleted::Write()
 
 void WorldPackets::Guild::QueryGuildInfo::Read()
 {
-    _worldPacket >> GuildGuid;
-    _worldPacket >> PlayerGuid;
+    // 5.4.8 18414, from Project SkyFire
+    _worldPacket.ReadGuidMask(PlayerGuid, { 7, 3, 4 });
+    _worldPacket.ReadGuidMask(GuildGuid, { 3, 4 });
+    _worldPacket.ReadGuidMask(PlayerGuid, { 2, 6 });
+    _worldPacket.ReadGuidMask(GuildGuid, { 2, 5 });
+    _worldPacket.ReadGuidMask(PlayerGuid, { 1, 5 });
+    _worldPacket.ReadGuidMask(GuildGuid, { 7 });
+    _worldPacket.ReadGuidMask(PlayerGuid, { 0 });
+    _worldPacket.ReadGuidMask(GuildGuid, { 1, 6, 0 });
+    _worldPacket.ReadGuidBytes(PlayerGuid, { 7 });
+    _worldPacket.ReadGuidBytes(GuildGuid, { 2, 4, 7 });
+    _worldPacket.ReadGuidBytes(PlayerGuid, { 6, 0 });
+    _worldPacket.ReadGuidBytes(GuildGuid, { 6, 0, 3 });
+    _worldPacket.ReadGuidBytes(PlayerGuid, { 2 });
+    _worldPacket.ReadGuidBytes(GuildGuid, { 5 });
+    _worldPacket.ReadGuidBytes(PlayerGuid, { 3 });
+    _worldPacket.ReadGuidBytes(GuildGuid, { 1 });
+    _worldPacket.ReadGuidBytes(PlayerGuid, { 4, 1, 5 });
 }
 
 WorldPackets::Guild::QueryGuildInfoResponse::QueryGuildInfoResponse()
@@ -42,24 +59,36 @@ WorldPackets::Guild::QueryGuildInfoResponse::QueryGuildInfoResponse()
 
 WorldPacket const* WorldPackets::Guild::QueryGuildInfoResponse::Write()
 {
-    _worldPacket << GuildGuid;
-    _worldPacket << Info.GuildName;
+    // 5.4.8 18414, from Project SkyFire
+    ObjectGuid guid = GuildGuid;
+    _worldPacket.WriteGuidMask(guid, { 5 });
+    _worldPacket.WriteBit(true);                            // has guild info
+    _worldPacket.WriteBits(Info.RankCount, 21);
+    _worldPacket.WriteGuidMask(guid, { 5, 1, 4, 7 });
+    for (uint32 i = 0; i < Info.RankCount; ++i)
+        _worldPacket.WriteBits(Info.Ranks[i].length(), 7);
+    _worldPacket.WriteGuidMask(guid, { 3, 2, 0, 6 });
+    _worldPacket.WriteBits(Info.GuildName.length(), 7);
+    _worldPacket.WriteGuidMask(guid, { 3, 7, 2, 1, 0, 4, 6 });
+    _worldPacket.FlushBits();
 
-    for (std::string const& rankName : Info.Ranks)
-        _worldPacket << rankName;
-
-    for (uint32 rankOrder : Info.RankOrders)
-        _worldPacket << uint32(rankOrder);
-
-    for (uint32 rankId : Info.RankIds)
-        _worldPacket << uint32(rankId);
-
-    _worldPacket << uint32(Info.EmblemStyle);
-    _worldPacket << uint32(Info.EmblemColor);
     _worldPacket << uint32(Info.BorderStyle);
+    _worldPacket << uint32(Info.EmblemStyle);
+    _worldPacket.WriteGuidBytes(guid, { 2, 7 });
+    _worldPacket << uint32(Info.EmblemColor);
+    _worldPacket << uint32(VirtualRealmAddress);
+    for (uint32 i = 0; i < Info.RankCount; ++i)
+    {
+        _worldPacket << uint32(Info.RankOrders[i]);
+        _worldPacket << uint32(Info.RankIds[i]);
+        _worldPacket.WriteString(Info.Ranks[i]);
+    }
+    _worldPacket.WriteString(Info.GuildName);
     _worldPacket << uint32(Info.BorderColor);
+    _worldPacket.WriteGuidBytes(guid, { 5, 4 });
     _worldPacket << uint32(Info.BackgroundColor);
-    _worldPacket << uint32(Info.RankCount);
+    _worldPacket.WriteGuidBytes(guid, { 1, 6, 0, 3 });
+    _worldPacket.WriteGuidBytes(guid, { 2, 6, 4, 0, 7, 3, 5, 1 });
 
     return &_worldPacket;
 }
@@ -81,44 +110,16 @@ WorldPacket const* WorldPackets::Guild::GuildInfoResponse::Write()
 
 void WorldPackets::Guild::GuildXPQuery::Read()
 {
-    GuildGuid[2] = _worldPacket.ReadBit();
-    GuildGuid[1] = _worldPacket.ReadBit();
-    GuildGuid[0] = _worldPacket.ReadBit();
-    GuildGuid[5] = _worldPacket.ReadBit();
-    GuildGuid[4] = _worldPacket.ReadBit();
-    GuildGuid[7] = _worldPacket.ReadBit();
-    GuildGuid[6] = _worldPacket.ReadBit();
-    GuildGuid[3] = _worldPacket.ReadBit();
-
-    _worldPacket.ReadByteSeq(GuildGuid[7]);
-    _worldPacket.ReadByteSeq(GuildGuid[2]);
-    _worldPacket.ReadByteSeq(GuildGuid[3]);
-    _worldPacket.ReadByteSeq(GuildGuid[6]);
-    _worldPacket.ReadByteSeq(GuildGuid[1]);
-    _worldPacket.ReadByteSeq(GuildGuid[5]);
-    _worldPacket.ReadByteSeq(GuildGuid[0]);
-    _worldPacket.ReadByteSeq(GuildGuid[4]);
+    // 5.4.8 18414, from Project SkyFire
+    _worldPacket.ReadGuidMask(GuildGuid, { 5, 6, 0, 1, 3, 7, 4, 2 });
+    _worldPacket.ReadGuidBytes(GuildGuid, { 4, 6, 3, 0, 7, 5, 2, 1 });
 }
 
 void WorldPackets::Guild::GuildRequestMaxDailyXP::Read()
 {
-    GuildGuid[0] = _worldPacket.ReadBit();
-    GuildGuid[3] = _worldPacket.ReadBit();
-    GuildGuid[5] = _worldPacket.ReadBit();
-    GuildGuid[1] = _worldPacket.ReadBit();
-    GuildGuid[4] = _worldPacket.ReadBit();
-    GuildGuid[6] = _worldPacket.ReadBit();
-    GuildGuid[7] = _worldPacket.ReadBit();
-    GuildGuid[2] = _worldPacket.ReadBit();
-
-    _worldPacket.ReadByteSeq(GuildGuid[7]);
-    _worldPacket.ReadByteSeq(GuildGuid[4]);
-    _worldPacket.ReadByteSeq(GuildGuid[3]);
-    _worldPacket.ReadByteSeq(GuildGuid[5]);
-    _worldPacket.ReadByteSeq(GuildGuid[1]);
-    _worldPacket.ReadByteSeq(GuildGuid[2]);
-    _worldPacket.ReadByteSeq(GuildGuid[6]);
-    _worldPacket.ReadByteSeq(GuildGuid[0]);
+    // 5.4.8 18414, from Project SkyFire
+    _worldPacket.ReadGuidMask(GuildGuid, { 0, 3, 5, 1, 4, 6, 7, 2 });
+    _worldPacket.ReadGuidBytes(GuildGuid, { 7, 4, 3, 5, 1, 2, 6, 0 });
 }
 
 WorldPacket const* WorldPackets::Guild::GuildMaxDailyXP::Write()
@@ -130,11 +131,11 @@ WorldPacket const* WorldPackets::Guild::GuildMaxDailyXP::Write()
 
 WorldPacket const* WorldPackets::Guild::GuildXP::Write()
 {
+    // 5.4.8 18414, from Project SkyFire
+    _worldPacket << uint64(GuildCurrentXP);
+    _worldPacket << uint64(WeeklyXP);
     _worldPacket << uint64(TotalXP);
     _worldPacket << uint64(GuildRemainingXP);
-    _worldPacket << uint64(GuildTodayXP);
-    _worldPacket << uint64(WeeklyXP);
-    _worldPacket << uint64(GuildCurrentXP);
 
     return &_worldPacket;
 }
@@ -148,37 +149,37 @@ WorldPacket const* WorldPackets::Guild::GuildReputationWeeklyCap::Write()
 
 WorldPacket const* WorldPackets::Guild::GuildRoster::Write()
 {
-    _worldPacket.WriteBits(WelcomeText.length(), 11);
-    _worldPacket.WriteBits(MemberData.size(), 18);
-
+    // 5.4.8 18414, from Project SkyFire
+    _worldPacket.WriteBits(MemberData.size(), 17);
+    _worldPacket.WriteBits(WelcomeText.length(), 10);
     for (GuildRosterMemberData const& member : MemberData)
     {
-        _worldPacket.WriteBit(member.Guid[3]);
-        _worldPacket.WriteBit(member.Guid[4]);
-        _worldPacket.WriteBit(member.Authenticated);
+        _worldPacket.WriteBits(member.OfficerNote.length(), 8);
+        _worldPacket.WriteBit(member.Guid[5]);
         _worldPacket.WriteBit(member.SorEligible);
         _worldPacket.WriteBits(member.Note.length(), 8);
-        _worldPacket.WriteBits(member.OfficerNote.length(), 8);
+        _worldPacket.WriteBit(member.Guid[7]);
         _worldPacket.WriteBit(member.Guid[0]);
-        _worldPacket.WriteBits(member.Name.length(), 7);
+        _worldPacket.WriteBit(member.Guid[6]);
+        _worldPacket.WriteBits(member.Name.length(), 6);
+        _worldPacket.WriteBit(member.Authenticated);
+        _worldPacket.WriteBit(member.Guid[3]);
+        _worldPacket.WriteBit(member.Guid[4]);
         _worldPacket.WriteBit(member.Guid[1]);
         _worldPacket.WriteBit(member.Guid[2]);
-        _worldPacket.WriteBit(member.Guid[6]);
-        _worldPacket.WriteBit(member.Guid[5]);
-        _worldPacket.WriteBit(member.Guid[7]);
     }
 
-    _worldPacket.WriteBits(InfoText.length(), 12);
+    _worldPacket.WriteBits(InfoText.length(), 11);
     _worldPacket.FlushBits();
 
     for (GuildRosterMemberData const& member : MemberData)
         _worldPacket << member;
 
-    _worldPacket.WriteString(InfoText);
-    _worldPacket.WriteString(WelcomeText);
     _worldPacket << uint32(NumAccounts);
-    _worldPacket << uint32(WeeklyRepCap);
     _worldPacket.AppendPackedTime(CreateDate);
+    _worldPacket.WriteString(InfoText);
+    _worldPacket << uint32(WeeklyRepCap);
+    _worldPacket.WriteString(WelcomeText);
     _worldPacket << uint32(GuildFlags);
 
     return &_worldPacket;
@@ -196,73 +197,50 @@ ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::Guild::GuildRosterProfess
 
 ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::Guild::GuildRosterMemberData const& rosterMemberData)
 {
+    // 5.4.8 18414, from Project SkyFire
     data << uint8(rosterMemberData.ClassID);
     data << uint32(rosterMemberData.GuildReputation);
+    data.WriteString(rosterMemberData.Name);
     data.WriteByteSeq(rosterMemberData.Guid[0]);
-    data << uint64(rosterMemberData.WeeklyXP);
-    data << uint32(rosterMemberData.RankID);
-    data << uint32(rosterMemberData.PersonalAchievementPoints);
-
     for (WorldPackets::Guild::GuildRosterProfessionData const& profession : rosterMemberData.Profession)
-    {
-        data << uint32(profession.Step);
-        data << uint32(profession.Rank);
-        data << uint32(profession.DbID);
-    }
-
-    data.WriteByteSeq(rosterMemberData.Guid[2]);
+        data << profession;
+    data << uint8(rosterMemberData.Level);
     data << uint8(rosterMemberData.Status);
     data << uint32(rosterMemberData.AreaID);
-    data << uint64(rosterMemberData.TotalXP);
-    data.WriteByteSeq(rosterMemberData.Guid[7]);
     data << uint32(rosterMemberData.GuildRepToCap);
-    data.WriteString(rosterMemberData.Note);
     data.WriteByteSeq(rosterMemberData.Guid[3]);
-    data << uint8(rosterMemberData.Level);
+    data << uint64(rosterMemberData.TotalXP);
+    data.WriteString(rosterMemberData.OfficerNote);
+    data << float(rosterMemberData.LastSave);
+    data << uint8(rosterMemberData.Gender);
+    data << uint32(rosterMemberData.RankID);
     data << int32(rosterMemberData.VirtualRealmAddress);
     data.WriteByteSeq(rosterMemberData.Guid[5]);
+    data.WriteByteSeq(rosterMemberData.Guid[7]);
+    data.WriteString(rosterMemberData.Note);
     data.WriteByteSeq(rosterMemberData.Guid[4]);
-    data << uint8(rosterMemberData.Gender);
-    data.WriteByteSeq(rosterMemberData.Guid[1]);
-    data << float(rosterMemberData.LastSave);
-    data.WriteString(rosterMemberData.OfficerNote);
+    data << uint64(rosterMemberData.WeeklyXP);
+    data << uint32(rosterMemberData.PersonalAchievementPoints);
     data.WriteByteSeq(rosterMemberData.Guid[6]);
-    data.WriteString(rosterMemberData.Name);
-
-    for (uint8 i = 0; i < GUILD_PROFESSION_COUNT; ++i)
-        data << rosterMemberData.Profession[i];
+    data.WriteByteSeq(rosterMemberData.Guid[1]);
+    data.WriteByteSeq(rosterMemberData.Guid[2]);
 
     return data;
 }
 
 void WorldPackets::Guild::GuildQueryRanks::Read()
 {
-    GuildGuid[2] = _worldPacket.ReadBit();
-    GuildGuid[3] = _worldPacket.ReadBit();
-    GuildGuid[0] = _worldPacket.ReadBit();
-    GuildGuid[6] = _worldPacket.ReadBit();
-    GuildGuid[4] = _worldPacket.ReadBit();
-    GuildGuid[7] = _worldPacket.ReadBit();
-    GuildGuid[5] = _worldPacket.ReadBit();
-    GuildGuid[1] = _worldPacket.ReadBit();
-
-    _worldPacket.ReadByteSeq(GuildGuid[3]);
-    _worldPacket.ReadByteSeq(GuildGuid[4]);
-    _worldPacket.ReadByteSeq(GuildGuid[5]);
-    _worldPacket.ReadByteSeq(GuildGuid[7]);
-    _worldPacket.ReadByteSeq(GuildGuid[1]);
-    _worldPacket.ReadByteSeq(GuildGuid[0]);
-    _worldPacket.ReadByteSeq(GuildGuid[6]);
-    _worldPacket.ReadByteSeq(GuildGuid[2]);
+    // 5.4.8 18414, from Project SkyFire
+    _worldPacket.ReadGuidMask(GuildGuid, { 0, 2, 5, 4, 3, 7, 6, 1 });
+    _worldPacket.ReadGuidBytes(GuildGuid, { 6, 0, 1, 7, 3, 2, 5, 4 });
 }
 
 WorldPacket const* WorldPackets::Guild::GuildRanks::Write()
 {
-    _worldPacket.WriteBits(Ranks.size(), 18);
-
+    // 5.4.8 18414, from Project SkyFire
+    _worldPacket.WriteBits(Ranks.size(), 17);
     for (GuildRankData const& rank : Ranks)
         _worldPacket.WriteBits(rank.RankName.length(), 7);
-
     _worldPacket.FlushBits();
 
     for (GuildRankData const& rank : Ranks)
@@ -273,59 +251,28 @@ WorldPacket const* WorldPackets::Guild::GuildRanks::Write()
 
 ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::Guild::GuildRankData const& rankData)
 {
-    data << int32(rankData.RankID);
-
+    // 5.4.8 18414, from Project SkyFire
+    data << uint32(rankData.RankOrder);
+    data << uint32(rankData.WithdrawGoldLimit);
     for (uint8 i = 0; i < GUILD_BANK_MAX_TABS; i++)
     {
-        data << int32(rankData.TabWithdrawItemLimit[i]);
-        data << int32(rankData.TabFlags[i]);
+        data << uint32(rankData.TabWithdrawItemLimit[i]);
+        data << uint32(rankData.TabFlags[i]);
     }
 
-    data << int32(rankData.WithdrawGoldLimit);
-    data << int32(rankData.Flags);
     data.WriteString(rankData.RankName);
-    data << int32(rankData.RankOrder);
+    data << uint32(rankData.RankID);
+    data << uint32(rankData.Flags);
 
     return data;
 }
 
 void WorldPackets::Guild::GuildAssignMemberRank::Read()
 {
+    // 5.4.8 18414, from Project SkyFire
     _worldPacket >> RankOrder;
-
-    Member[1] = _worldPacket.ReadBit();
-    Member[7] = _worldPacket.ReadBit();
-    Setter[4] = _worldPacket.ReadBit();
-    Setter[2] = _worldPacket.ReadBit();
-    Member[4] = _worldPacket.ReadBit();
-    Member[5] = _worldPacket.ReadBit();
-    Member[6] = _worldPacket.ReadBit();
-    Setter[1] = _worldPacket.ReadBit();
-    Setter[7] = _worldPacket.ReadBit();
-    Member[2] = _worldPacket.ReadBit();
-    Member[3] = _worldPacket.ReadBit();
-    Member[0] = _worldPacket.ReadBit();
-    Setter[6] = _worldPacket.ReadBit();
-    Setter[3] = _worldPacket.ReadBit();
-    Setter[0] = _worldPacket.ReadBit();
-    Setter[5] = _worldPacket.ReadBit();
-
-    _worldPacket.ReadByteSeq(Member[0]);
-    _worldPacket.ReadByteSeq(Setter[1]);
-    _worldPacket.ReadByteSeq(Setter[3]);
-    _worldPacket.ReadByteSeq(Setter[5]);
-    _worldPacket.ReadByteSeq(Member[7]);
-    _worldPacket.ReadByteSeq(Member[3]);
-    _worldPacket.ReadByteSeq(Setter[0]);
-    _worldPacket.ReadByteSeq(Member[1]);
-    _worldPacket.ReadByteSeq(Setter[6]);
-    _worldPacket.ReadByteSeq(Member[2]);
-    _worldPacket.ReadByteSeq(Member[5]);
-    _worldPacket.ReadByteSeq(Member[4]);
-    _worldPacket.ReadByteSeq(Setter[2]);
-    _worldPacket.ReadByteSeq(Setter[4]);
-    _worldPacket.ReadByteSeq(Member[6]);
-    _worldPacket.ReadByteSeq(Setter[7]);
+    _worldPacket.ReadGuidMask(Member, { 2, 3, 1, 6, 0, 4, 7, 5 });
+    _worldPacket.ReadGuidBytes(Member, { 7, 3, 2, 5, 6, 0, 4, 1 });
 }
 
 void WorldPackets::Guild::GuildSwitchRank::Read()
@@ -336,74 +283,74 @@ void WorldPackets::Guild::GuildSwitchRank::Read()
 
 void WorldPackets::Guild::GuildUpdateMotdText::Read()
 {
-    uint32 length = _worldPacket.ReadBits(11);
+    // 5.4.8 18414, from Project SkyFire
+    uint32 length = _worldPacket.ReadBits(10);
     MotdText.ReadWithLength(_worldPacket, length);
 }
 
 WorldPacket const* WorldPackets::Guild::GuildCommandResult::Write()
 {
+    // 5.4.8 18414, from Project SkyFire
     _worldPacket << uint32(Command);
-    _worldPacket << Name;
     _worldPacket << uint32(Result);
+    _worldPacket.WriteBits(Name.length(), 8);
+    _worldPacket.FlushBits();
+    _worldPacket.WriteString(Name);
 
     return &_worldPacket;
 }
 
 void WorldPackets::Guild::GuildInviteByName::Read()
 {
-    uint32 length = _worldPacket.ReadBits(7);
+    // 5.4.8 18414, from Project SkyFire
+    uint32 length = _worldPacket.ReadBits(9);
     Name.ReadWithLength(_worldPacket, length);
 }
 
 WorldPacket const* WorldPackets::Guild::GuildInvite::Write()
 {
-    _worldPacket << uint32(GuildLevel);
-    _worldPacket << uint32(BorderStyle);
-    _worldPacket << uint32(BorderColor);
-    _worldPacket << uint32(EmblemStyle);
-    _worldPacket << uint32(BackgroundColor);
-    _worldPacket << uint32(EmblemColor);
-
-    _worldPacket.WriteBit(GuildGuid[3]);
-    _worldPacket.WriteBit(GuildGuid[2]);
-    _worldPacket.WriteBits(OldGuildName.length(), 8);
-    _worldPacket.WriteBit(GuildGuid[1]);
-    _worldPacket.WriteBit(OldGuildGuid[6]);
-    _worldPacket.WriteBit(OldGuildGuid[4]);
-    _worldPacket.WriteBit(OldGuildGuid[1]);
-    _worldPacket.WriteBit(OldGuildGuid[5]);
-    _worldPacket.WriteBit(OldGuildGuid[7]);
-    _worldPacket.WriteBit(OldGuildGuid[2]);
-    _worldPacket.WriteBit(GuildGuid[7]);
-    _worldPacket.WriteBit(GuildGuid[0]);
-    _worldPacket.WriteBit(GuildGuid[6]);
-    _worldPacket.WriteBits(GuildName.length(), 8);
-    _worldPacket.WriteBit(OldGuildGuid[3]);
-    _worldPacket.WriteBit(OldGuildGuid[0]);
-    _worldPacket.WriteBit(GuildGuid[5]);
-    _worldPacket.WriteBits(InviterName.length(), 7);
-    _worldPacket.WriteBit(GuildGuid[4]);
+    // 5.4.8 18414, from Project SkyFire
+    _worldPacket.WriteGuidMask(GuildGuid, { 4 });
+    _worldPacket.WriteBits(GuildName.length(), 7);
+    _worldPacket.WriteGuidMask(OldGuildGuid, { 4 });
+    _worldPacket.WriteGuidMask(GuildGuid, { 6 });
+    _worldPacket.WriteGuidMask(OldGuildGuid, { 2, 1, 5, 7 });
+    _worldPacket.WriteGuidMask(GuildGuid, { 0 });
+    _worldPacket.WriteGuidMask(OldGuildGuid, { 3 });
+    _worldPacket.WriteGuidMask(GuildGuid, { 5 });
+    _worldPacket.WriteGuidMask(OldGuildGuid, { 6 });
+    _worldPacket.WriteBits(InviterName.length(), 6);
+    _worldPacket.WriteGuidMask(GuildGuid, { 1, 3 });
+    _worldPacket.WriteGuidMask(OldGuildGuid, { 0 });
+    _worldPacket.WriteGuidMask(GuildGuid, { 7 });
+    _worldPacket.WriteBits(OldGuildName.length(), 7);
+    _worldPacket.WriteGuidMask(GuildGuid, { 2 });
     _worldPacket.FlushBits();
 
-    _worldPacket.WriteByteSeq(GuildGuid[1]);
-    _worldPacket.WriteByteSeq(OldGuildGuid[3]);
-    _worldPacket.WriteByteSeq(GuildGuid[6]);
-    _worldPacket.WriteByteSeq(OldGuildGuid[2]);
-    _worldPacket.WriteByteSeq(OldGuildGuid[1]);
-    _worldPacket.WriteByteSeq(GuildGuid[0]);
-    _worldPacket.WriteString(OldGuildName);
-    _worldPacket.WriteByteSeq(GuildGuid[7]);
-    _worldPacket.WriteByteSeq(GuildGuid[2]);
+    _worldPacket.WriteGuidBytes(GuildGuid, { 1 });
+    _worldPacket << uint32(BackgroundColor);
+    _worldPacket.WriteGuidBytes(GuildGuid, { 4 });
     _worldPacket.WriteString(InviterName);
-    _worldPacket.WriteByteSeq(OldGuildGuid[7]);
-    _worldPacket.WriteByteSeq(OldGuildGuid[6]);
-    _worldPacket.WriteByteSeq(OldGuildGuid[5]);
-    _worldPacket.WriteByteSeq(OldGuildGuid[0]);
-    _worldPacket.WriteByteSeq(GuildGuid[4]);
+    _worldPacket << uint32(BorderStyle);
+    _worldPacket.WriteGuidBytes(OldGuildGuid, { 7 });
+    _worldPacket.WriteGuidBytes(GuildGuid, { 0, 2 });
+    _worldPacket << uint32(EmblemColor);
+    _worldPacket.WriteGuidBytes(OldGuildGuid, { 2, 5 });
+    _worldPacket << uint32(GuildLevel);
+    _worldPacket << uint32(OldGuildGuid ? VirtualRealmAddress : 0);
+    _worldPacket.WriteGuidBytes(GuildGuid, { 7, 3 });
+    _worldPacket.WriteGuidBytes(OldGuildGuid, { 4 });
+    _worldPacket << uint32(BorderColor);
     _worldPacket.WriteString(GuildName);
-    _worldPacket.WriteByteSeq(GuildGuid[5]);
-    _worldPacket.WriteByteSeq(GuildGuid[3]);
-    _worldPacket.WriteByteSeq(OldGuildGuid[4]);
+    _worldPacket << uint32(VirtualRealmAddress);              // inviter realm
+    _worldPacket << uint32(EmblemStyle);
+    _worldPacket.WriteGuidBytes(OldGuildGuid, { 0 });
+    _worldPacket.WriteString(OldGuildName);
+    _worldPacket.WriteGuidBytes(GuildGuid, { 5 });
+    _worldPacket << uint32(VirtualRealmAddress);              // guild realm
+    _worldPacket.WriteGuidBytes(OldGuildGuid, { 1 });
+    _worldPacket.WriteGuidBytes(GuildGuid, { 6 });
+    _worldPacket.WriteGuidBytes(OldGuildGuid, { 3, 6 });
 
     return &_worldPacket;
 }
@@ -423,51 +370,36 @@ WorldPacket const* WorldPackets::Guild::GuildEvent::Write()
 
 WorldPacket const* WorldPackets::Guild::GuildEventLogQueryResults::Write()
 {
-    _worldPacket.WriteBits(Entry.size(), 23);
-
+    // 5.4.8 18414, from Project SkyFire
+    _worldPacket.WriteBits(Entry.size(), 21);
     for (GuildEventEntry const& entry : Entry)
     {
-        _worldPacket.WriteBit(entry.PlayerGUID[2]);
-        _worldPacket.WriteBit(entry.PlayerGUID[4]);
-        _worldPacket.WriteBit(entry.OtherGUID[7]);
-        _worldPacket.WriteBit(entry.OtherGUID[6]);
-        _worldPacket.WriteBit(entry.PlayerGUID[3]);
-        _worldPacket.WriteBit(entry.OtherGUID[3]);
-        _worldPacket.WriteBit(entry.OtherGUID[5]);
-        _worldPacket.WriteBit(entry.PlayerGUID[7]);
-        _worldPacket.WriteBit(entry.PlayerGUID[5]);
-        _worldPacket.WriteBit(entry.PlayerGUID[0]);
-        _worldPacket.WriteBit(entry.OtherGUID[4]);
-        _worldPacket.WriteBit(entry.OtherGUID[2]);
-        _worldPacket.WriteBit(entry.OtherGUID[0]);
-        _worldPacket.WriteBit(entry.OtherGUID[1]);
-        _worldPacket.WriteBit(entry.PlayerGUID[1]);
-        _worldPacket.WriteBit(entry.PlayerGUID[6]);
+        _worldPacket.WriteGuidMask(entry.PlayerGUID, { 6, 1 });
+        _worldPacket.WriteGuidMask(entry.OtherGUID, { 5, 1, 3, 0, 4 });
+        _worldPacket.WriteGuidMask(entry.PlayerGUID, { 4 });
+        _worldPacket.WriteGuidMask(entry.OtherGUID, { 7 });
+        _worldPacket.WriteGuidMask(entry.PlayerGUID, { 0, 2, 7, 3, 5 });
+        _worldPacket.WriteGuidMask(entry.OtherGUID, { 2, 6 });
     }
 
     _worldPacket.FlushBits();
 
     for (GuildEventEntry const& entry : Entry)
     {
-        _worldPacket.WriteByteSeq(entry.OtherGUID[3]);
-        _worldPacket.WriteByteSeq(entry.OtherGUID[2]);
-        _worldPacket.WriteByteSeq(entry.OtherGUID[5]);
-        _worldPacket << uint8(entry.RankID);
-        _worldPacket.WriteByteSeq(entry.OtherGUID[4]);
-        _worldPacket.WriteByteSeq(entry.PlayerGUID[0]);
-        _worldPacket.WriteByteSeq(entry.PlayerGUID[4]);
-        _worldPacket << uint32(entry.TransactionDate);
-        _worldPacket.WriteByteSeq(entry.PlayerGUID[7]);
-        _worldPacket.WriteByteSeq(entry.PlayerGUID[3]);
-        _worldPacket.WriteByteSeq(entry.OtherGUID[0]);
-        _worldPacket.WriteByteSeq(entry.OtherGUID[6]);
-        _worldPacket.WriteByteSeq(entry.OtherGUID[7]);
-        _worldPacket.WriteByteSeq(entry.PlayerGUID[5]);
+        _worldPacket.WriteGuidBytes(entry.PlayerGUID, { 5, 4 });
+        _worldPacket.WriteGuidBytes(entry.OtherGUID, { 6 });
+        _worldPacket.WriteGuidBytes(entry.PlayerGUID, { 2 });
+        _worldPacket.WriteGuidBytes(entry.OtherGUID, { 4 });
         _worldPacket << uint8(entry.TransactionType);
-        _worldPacket.WriteByteSeq(entry.OtherGUID[1]);
-        _worldPacket.WriteByteSeq(entry.PlayerGUID[2]);
-        _worldPacket.WriteByteSeq(entry.PlayerGUID[6]);
-        _worldPacket.WriteByteSeq(entry.PlayerGUID[1]);
+        _worldPacket.WriteGuidBytes(entry.OtherGUID, { 0 });
+        _worldPacket.WriteGuidBytes(entry.PlayerGUID, { 7, 3 });
+        _worldPacket.WriteGuidBytes(entry.OtherGUID, { 5, 2 });
+        _worldPacket.WriteGuidBytes(entry.PlayerGUID, { 0 });
+        _worldPacket << uint32(entry.TransactionDate);
+        _worldPacket.WriteGuidBytes(entry.PlayerGUID, { 1, 6 });
+        _worldPacket.WriteGuidBytes(entry.OtherGUID, { 7, 1 });
+        _worldPacket << uint8(entry.RankID);
+        _worldPacket.WriteGuidBytes(entry.OtherGUID, { 3 });
     }
 
     return &_worldPacket;
@@ -475,16 +407,18 @@ WorldPacket const* WorldPackets::Guild::GuildEventLogQueryResults::Write()
 
 WorldPacket const* WorldPackets::Guild::GuildPermissionsQueryResults::Write()
 {
+    // 5.4.8 18414, from Project SkyFire
     _worldPacket << uint32(RankID);
+    _worldPacket << uint32(WithdrawGoldLimit);
     _worldPacket << uint32(NumTabs);
     _worldPacket << uint32(Flags);
-    _worldPacket << uint32(WithdrawGoldLimit);
-    _worldPacket.WriteBits(Tab.size(), 23);
+    _worldPacket.WriteBits(Tab.size(), 21);
+    _worldPacket.FlushBits();
 
     for (GuildRankTabPermissions const& tab : Tab)
     {
-        _worldPacket << int32(tab.Flags);
         _worldPacket << int32(tab.WithdrawItemLimit);
+        _worldPacket << int32(tab.Flags);
     }
 
     return &_worldPacket;
@@ -492,10 +426,8 @@ WorldPacket const* WorldPackets::Guild::GuildPermissionsQueryResults::Write()
 
 void WorldPackets::Guild::GuildSetRankPermissions::Read()
 {
+    // 5.4.8 18414, from Project SkyFire
     _worldPacket >> OldRankID;
-    _worldPacket >> OldFlags;
-    _worldPacket >> Flags;
-
     for (uint8 i = 0; i < GUILD_BANK_MAX_TABS; i++)
     {
         _worldPacket >> TabFlags[i];
@@ -503,6 +435,8 @@ void WorldPackets::Guild::GuildSetRankPermissions::Read()
     }
 
     _worldPacket >> WithdrawGoldLimit;
+    _worldPacket >> OldFlags;
+    _worldPacket >> Flags;
     _worldPacket >> RankID;
 
     uint32 length = _worldPacket.ReadBits(7);
@@ -525,128 +459,93 @@ void WorldPackets::Guild::GuildDeleteRank::Read()
 
 void WorldPackets::Guild::GuildUpdateInfoText::Read()
 {
-    uint32 length = _worldPacket.ReadBits(12);
+    // 5.4.8 18414, from Project SkyFire
+    uint32 length = _worldPacket.ReadBits(11);
     InfoText.ReadWithLength(_worldPacket, length);
 }
 
 void WorldPackets::Guild::GuildSetMemberNote::Read()
 {
-    NoteeGUID[1] = _worldPacket.ReadBit();
-    NoteeGUID[4] = _worldPacket.ReadBit();
-    NoteeGUID[5] = _worldPacket.ReadBit();
-    NoteeGUID[3] = _worldPacket.ReadBit();
-    NoteeGUID[0] = _worldPacket.ReadBit();
-    NoteeGUID[7] = _worldPacket.ReadBit();
-    IsPublic = _worldPacket.ReadBit();
-    NoteeGUID[6] = _worldPacket.ReadBit();
+    // 5.4.8 18414, from Project SkyFire
+    _worldPacket.ReadGuidMask(NoteeGUID, { 1 });
     uint32 noteLength = _worldPacket.ReadBits(8);
-    NoteeGUID[2] = _worldPacket.ReadBit();
-
-    _worldPacket.ReadByteSeq(NoteeGUID[4]);
-    _worldPacket.ReadByteSeq(NoteeGUID[5]);
-    _worldPacket.ReadByteSeq(NoteeGUID[0]);
-    _worldPacket.ReadByteSeq(NoteeGUID[3]);
-    _worldPacket.ReadByteSeq(NoteeGUID[1]);
-    _worldPacket.ReadByteSeq(NoteeGUID[6]);
-    _worldPacket.ReadByteSeq(NoteeGUID[7]);
+    _worldPacket.ReadGuidMask(NoteeGUID, { 4, 2 });
+    IsPublic = _worldPacket.ReadBit();
+    _worldPacket.ReadGuidMask(NoteeGUID, { 3, 5, 0, 6, 7 });
+    _worldPacket.ReadGuidBytes(NoteeGUID, { 5, 1, 6 });
     Note.ReadWithLength(_worldPacket, noteLength);
-    _worldPacket.ReadByteSeq(NoteeGUID[2]);
+    _worldPacket.ReadGuidBytes(NoteeGUID, { 0, 7, 4, 3, 2 });
 }
 
 void WorldPackets::Guild::GuildDemoteMember::Read()
 {
-    Demotee[7] = _worldPacket.ReadBit();
-    Demotee[1] = _worldPacket.ReadBit();
-    Demotee[5] = _worldPacket.ReadBit();
-    Demotee[6] = _worldPacket.ReadBit();
-    Demotee[2] = _worldPacket.ReadBit();
-    Demotee[3] = _worldPacket.ReadBit();
-    Demotee[0] = _worldPacket.ReadBit();
-    Demotee[4] = _worldPacket.ReadBit();
-
-    _worldPacket.ReadByteSeq(Demotee[1]);
-    _worldPacket.ReadByteSeq(Demotee[2]);
-    _worldPacket.ReadByteSeq(Demotee[7]);
-    _worldPacket.ReadByteSeq(Demotee[5]);
-    _worldPacket.ReadByteSeq(Demotee[6]);
-    _worldPacket.ReadByteSeq(Demotee[0]);
-    _worldPacket.ReadByteSeq(Demotee[4]);
-    _worldPacket.ReadByteSeq(Demotee[3]);
+    // 5.4.8 18414, from Project SkyFire
+    _worldPacket.ReadGuidMask(Demotee, { 3, 6, 0, 2, 7, 5, 4, 1 });
+    _worldPacket.ReadGuidBytes(Demotee, { 7, 4, 2, 5, 1, 3, 0, 6 });
 }
 
 void WorldPackets::Guild::GuildPromoteMember::Read()
 {
-    Promotee[7] = _worldPacket.ReadBit();
-    Promotee[2] = _worldPacket.ReadBit();
-    Promotee[5] = _worldPacket.ReadBit();
-    Promotee[6] = _worldPacket.ReadBit();
-    Promotee[1] = _worldPacket.ReadBit();
-    Promotee[0] = _worldPacket.ReadBit();
-    Promotee[3] = _worldPacket.ReadBit();
-    Promotee[4] = _worldPacket.ReadBit();
-
-    _worldPacket.ReadByteSeq(Promotee[0]);
-    _worldPacket.ReadByteSeq(Promotee[5]);
-    _worldPacket.ReadByteSeq(Promotee[2]);
-    _worldPacket.ReadByteSeq(Promotee[3]);
-    _worldPacket.ReadByteSeq(Promotee[6]);
-    _worldPacket.ReadByteSeq(Promotee[4]);
-    _worldPacket.ReadByteSeq(Promotee[1]);
-    _worldPacket.ReadByteSeq(Promotee[7]);
+    // 5.4.8 18414, from Project SkyFire
+    _worldPacket.ReadGuidMask(Promotee, { 6, 0, 4, 3, 1, 7, 2, 5 });
+    _worldPacket.ReadGuidBytes(Promotee, { 1, 7, 2, 5, 3, 4, 0, 6 });
 }
 
 void WorldPackets::Guild::GuildOfficerRemoveMember::Read()
 {
-    Removee[6] = _worldPacket.ReadBit();
-    Removee[5] = _worldPacket.ReadBit();
-    Removee[4] = _worldPacket.ReadBit();
-    Removee[0] = _worldPacket.ReadBit();
-    Removee[1] = _worldPacket.ReadBit();
-    Removee[3] = _worldPacket.ReadBit();
-    Removee[7] = _worldPacket.ReadBit();
-    Removee[2] = _worldPacket.ReadBit();
-
-    _worldPacket.ReadByteSeq(Removee[2]);
-    _worldPacket.ReadByteSeq(Removee[6]);
-    _worldPacket.ReadByteSeq(Removee[5]);
-    _worldPacket.ReadByteSeq(Removee[7]);
-    _worldPacket.ReadByteSeq(Removee[1]);
-    _worldPacket.ReadByteSeq(Removee[4]);
-    _worldPacket.ReadByteSeq(Removee[3]);
-    _worldPacket.ReadByteSeq(Removee[0]);
+    // 5.4.8 18414, from Project SkyFire
+    _worldPacket.ReadGuidMask(Removee, { 7, 3, 4, 2, 5, 6, 1, 0 });
+    _worldPacket.ReadGuidBytes(Removee, { 0, 2, 5, 6, 7, 1, 4, 3 });
 }
 
 void WorldPackets::Guild::GuildBankActivate::Read()
 {
-    _worldPacket >> Banker;
-    _worldPacket >> FullUpdate;
+    // 5.4.8 18414, from Project SkyFire
+    _worldPacket.ReadGuidMask(Banker, { 3 });
+    FullUpdate = _worldPacket.ReadBit();
+    _worldPacket.ReadGuidMask(Banker, { 0, 7, 1, 5, 2, 6, 4 });
+    _worldPacket.ReadGuidBytes(Banker, { 7, 1, 0, 6, 4, 2, 5, 3 });
 }
 
 void WorldPackets::Guild::GuildBankBuyTab::Read()
 {
-    _worldPacket >> Banker;
+    // 5.4.8 18414, from Project SkyFire
     _worldPacket >> BankTab;
+    _worldPacket.ReadGuidMask(Banker, { 0, 1, 3, 7, 2, 6, 5, 4 });
+    _worldPacket.ReadGuidBytes(Banker, { 1, 4, 6, 7, 3, 5, 2, 0 });
 }
 
 void WorldPackets::Guild::GuildBankUpdateTab::Read()
 {
-    _worldPacket >> Banker;
+    // 5.4.8 18414, from Project SkyFire
     _worldPacket >> BankTab;
-    _worldPacket >> Name;
-    _worldPacket >> Icon;
+    _worldPacket.ReadGuidMask(Banker, { 5 });
+    uint32 iconLength = _worldPacket.ReadBits(9);
+    _worldPacket.ReadGuidMask(Banker, { 1, 4, 2, 7, 0, 6, 3 });
+    uint32 nameLength = _worldPacket.ReadBits(7);
+    _worldPacket.ReadGuidBytes(Banker, { 7, 4 });
+    Icon.ReadWithLength(_worldPacket, iconLength);
+    _worldPacket.ReadGuidBytes(Banker, { 5, 1, 0 });
+    Name.ReadWithLength(_worldPacket, nameLength);
+    _worldPacket.ReadGuidBytes(Banker, { 2, 3, 6 });
 }
 
 void WorldPackets::Guild::GuildBankDepositMoney::Read()
 {
-    _worldPacket >> Banker;
+    // 5.4.8 18414, from Project SkyFire
     _worldPacket >> Money;
+    _worldPacket.ReadGuidMask(Banker, { 2, 7, 6, 4, 0, 1, 5, 3 });
+    _worldPacket.ReadGuidBytes(Banker, { 1, 4, 5, 0, 2, 7, 6, 3 });
 }
 
 void WorldPackets::Guild::GuildBankQueryTab::Read()
 {
-    _worldPacket >> Banker;
+    // 5.4.8 18414, from Project SkyFire
     _worldPacket >> Tab;
-    _worldPacket >> FullUpdate;
+    _worldPacket.ReadGuidMask(Banker, { 7, 3 });
+    FullUpdate = _worldPacket.ReadBit();
+    _worldPacket.ReadGuidMask(Banker, { 0, 2, 4, 1, 6, 5 });
+    _worldPacket.ReadGuidBytes(Banker, { 3, 7, 6, 4, 2, 5, 0, 1 });
 }
 
 WorldPacket const* WorldPackets::Guild::GuildBankRemainingWithdrawMoney::Write()
@@ -658,62 +557,70 @@ WorldPacket const* WorldPackets::Guild::GuildBankRemainingWithdrawMoney::Write()
 
 void WorldPackets::Guild::GuildBankWithdrawMoney::Read()
 {
-    _worldPacket >> Banker;
+    // 5.4.8 18414, from Project SkyFire
     _worldPacket >> Money;
+    _worldPacket.ReadGuidMask(Banker, { 1, 3, 7, 6, 5, 0, 4, 2 });
+    _worldPacket.ReadGuidBytes(Banker, { 0, 7, 4, 2, 1, 6, 3, 5 });
 }
 
 WorldPacket const* WorldPackets::Guild::GuildBankQueryResults::Write()
 {
+    // 5.4.8 18414, from Project SkyFire
+    _worldPacket << uint32(Tab);
+    _worldPacket << uint64(Money);
+    _withdrawalsRemainingPos = _worldPacket.wpos();
+    _worldPacket << int32(WithdrawalsRemaining);
     _worldPacket.WriteBit(FullUpdate);
-    _worldPacket.WriteBits(ItemInfo.size(), 20);
-    _worldPacket.WriteBits(TabInfo.size(), 22);
-
-    for (GuildBankItemInfo const& item : ItemInfo)
-    {
-        _worldPacket.WriteBit(item.Locked);
-        _worldPacket.WriteBits(item.SocketEnchant.size(), 23);
-    }
-
+    _worldPacket.WriteBits(TabInfo.size(), 21);
+    _worldPacket.WriteBits(ItemInfo.size(), 18);
     for (GuildBankTabInfo const& tab : TabInfo)
     {
         _worldPacket.WriteBits(tab.Icon.length(), 9);
         _worldPacket.WriteBits(tab.Name.length(), 7);
     }
 
+    ByteBuffer itemData;
+    for (GuildBankItemInfo const& item : ItemInfo)
+    {
+        // enchantment id and enchantment slot pairs
+        std::vector<std::pair<int32, uint32>> enchants;
+        if (item.EnchantmentID)
+            enchants.emplace_back(item.EnchantmentID, uint32(PERM_ENCHANTMENT_SLOT));
+        for (GuildBankSocketEnchant const& socketEnchant : item.SocketEnchant)
+            enchants.emplace_back(socketEnchant.SocketEnchantID, uint32(SOCK_ENCHANTMENT_SLOT) + socketEnchant.SocketIndex);
+        if (item.ReforgeEnchantmentID)
+            enchants.emplace_back(item.ReforgeEnchantmentID, uint32(REFORGE_ENCHANTMENT_SLOT));
+
+        _worldPacket.WriteBit(item.Locked);
+        _worldPacket.WriteBits(enchants.size(), 21);
+
+        itemData << uint32(0);
+        itemData << uint32(0);
+        for (auto const& [enchantId, enchantSlot] : enchants)
+        {
+            itemData << uint32(enchantId);
+            itemData << uint32(enchantSlot);
+        }
+
+        itemData << uint32(0);
+        itemData << uint32(0);                              // item modifiers size
+        itemData << uint32(item.ItemID);
+        itemData << uint32(item.Charges);
+        itemData << uint32(item.Count);
+        itemData << uint32(item.Slot);
+        itemData << int32(item.RandomPropertiesID);
+        itemData << int32(item.RandomPropertiesSeed);
+    }
+
     _worldPacket.FlushBits();
+    _worldPacket.append(itemData);
 
     for (GuildBankTabInfo const& tab : TabInfo)
     {
-        _worldPacket.WriteString(tab.Icon);
         _worldPacket << uint32(tab.TabIndex);
+        _worldPacket.WriteString(tab.Icon);
         _worldPacket.WriteString(tab.Name);
     }
-
-    _worldPacket << uint64(Money);
-
-    for (GuildBankItemInfo const& item : ItemInfo)
-    {
-        for (GuildBankSocketEnchant const& socketEnchant : item.SocketEnchant)
-        {
-            _worldPacket << uint32(socketEnchant.SocketIndex);
-            _worldPacket << uint32(socketEnchant.SocketEnchantID);
-        }
-
-        _worldPacket << uint32(item.EnchantmentID);
-        _worldPacket << uint32(item.ReforgeEnchantmentID);
-        _worldPacket << uint32(item.OnUseEnchantmentID);
-        _worldPacket << uint32(item.Count);
-        _worldPacket << uint32(item.Slot);
-        _worldPacket << uint32(item.Flags);
-        _worldPacket << uint32(item.ItemID);
-        _worldPacket << uint32(item.RandomPropertiesID);
-        _worldPacket << uint32(item.Charges);
-        _worldPacket << uint32(item.RandomPropertiesSeed);
-    }
-
-    _worldPacket << uint32(Tab);
-    _withdrawalsRemainingPos = _worldPacket.wpos();
-    _worldPacket << int32(WithdrawalsRemaining);
 
     return &_worldPacket;
 }
@@ -726,45 +633,49 @@ void WorldPackets::Guild::GuildBankQueryResults::SetWithdrawalsRemaining(int32 w
 
 void WorldPackets::Guild::GuildBankSwapItems::Read()
 {
-    _worldPacket >> Banker;
-    _worldPacket >> BankOnly;
+    // 5.4.8 18414, from Project SkyFire
+    uint32 stackCount;
+    uint32 itemId;
+    _worldPacket >> stackCount;
+    _worldPacket >> BankSlot;
+    _worldPacket >> ToSlot;
+    _worldPacket >> itemId;
+    _worldPacket >> BankTab;
+    StackCount = int32(stackCount);
+    ItemID = itemId;
 
-    if (BankOnly)
-    {
-        // dest
-        _worldPacket >> BankTab;
-        _worldPacket >> BankSlot;
-        _worldPacket >> ItemID;
+    Banker[5] = _worldPacket.ReadBit();
+    bool hasBankTab1 = !_worldPacket.ReadBit();
+    Banker[1] = _worldPacket.ReadBit();
+    bool hasContainerSlot = !_worldPacket.ReadBit();
+    AutoStore = _worldPacket.ReadBit();
+    Banker[0] = _worldPacket.ReadBit();
+    bool hasItemID1 = !_worldPacket.ReadBit();
+    bool hasBankSlot1 = !_worldPacket.ReadBit();
+    Banker[2] = _worldPacket.ReadBit();
+    BankOnly = _worldPacket.ReadBit();
+    Banker[4] = _worldPacket.ReadBit();
+    Banker[7] = _worldPacket.ReadBit();
+    Banker[3] = _worldPacket.ReadBit();
+    bool hasContainerItemSlot = !_worldPacket.ReadBit();
+    Banker[6] = _worldPacket.ReadBit();
+    bool hasBankItemCount = !_worldPacket.ReadBit();
+    _worldPacket.ReadGuidBytes(Banker, { 2, 6, 5, 4, 0, 3, 1, 7 });
 
-        // src
-        _worldPacket >> BankTab1;
-        _worldPacket >> BankSlot1;
+    ContainerSlot = NULL_BAG;
+    ContainerItemSlot = NULL_SLOT;
+    if (hasItemID1)
         _worldPacket >> ItemID1;
-
-        _worldPacket >> ToSlot;
-        _worldPacket >> StackCount;
-    }
-    else
-    {
-        _worldPacket >> BankTab;
-        _worldPacket >> BankSlot;
-        _worldPacket >> ItemID;
-
-        _worldPacket >> AutoStore;
-        if (AutoStore)
-        {
-            _worldPacket >> StackCount;
-            _worldPacket >> ToSlot;
-            _worldPacket >> BankItemCount;
-        }
-        else
-        {
-            _worldPacket >> ContainerSlot;
-            _worldPacket >> ContainerItemSlot;
-            _worldPacket >> ToSlot;
-            _worldPacket >> StackCount;
-        }
-    }
+    if (hasContainerSlot)
+        _worldPacket >> ContainerSlot;
+    if (hasContainerItemSlot)
+        _worldPacket >> ContainerItemSlot;
+    if (hasBankSlot1)
+        _worldPacket >> BankSlot1;
+    if (hasBankItemCount)
+        _worldPacket >> BankItemCount;
+    if (hasBankTab1)
+        _worldPacket >> BankTab1;
 }
 
 void WorldPackets::Guild::GuildBankLogQuery::Read()
@@ -774,57 +685,40 @@ void WorldPackets::Guild::GuildBankLogQuery::Read()
 
 WorldPacket const* WorldPackets::Guild::GuildBankLogQueryResults::Write()
 {
+    // 5.4.8 18414, from Project SkyFire
+    _worldPacket << int32(Tab);
     _worldPacket.WriteBit(WeeklyBonusMoney.has_value());
-    _worldPacket.WriteBits(Entry.size(), 23);
-
+    _worldPacket.WriteBits(Entry.size(), 21);
     for (GuildBankLogEntry const& entry : Entry)
     {
         _worldPacket.WriteBit(entry.Money.has_value());
-        _worldPacket.WriteBit(entry.PlayerGUID[4]);
-        _worldPacket.WriteBit(entry.PlayerGUID[1]);
-        _worldPacket.WriteBit(entry.ItemID.has_value());
+        _worldPacket.WriteGuidMask(entry.PlayerGUID, { 0, 2, 3, 6, 5, 4 });
         _worldPacket.WriteBit(entry.Count.has_value());
-        _worldPacket.WriteBit(entry.PlayerGUID[2]);
-        _worldPacket.WriteBit(entry.PlayerGUID[5]);
-        _worldPacket.WriteBit(entry.PlayerGUID[3]);
-        _worldPacket.WriteBit(entry.PlayerGUID[6]);
-        _worldPacket.WriteBit(entry.PlayerGUID[0]);
+        _worldPacket.WriteBit(entry.ItemID.has_value());
+        _worldPacket.WriteGuidMask(entry.PlayerGUID, { 7, 1 });
         _worldPacket.WriteBit(entry.OtherTab.has_value());
-        _worldPacket.WriteBit(entry.PlayerGUID[7]);
     }
 
     _worldPacket.FlushBits();
 
     for (GuildBankLogEntry const& entry : Entry)
     {
-        _worldPacket.WriteByteSeq(entry.PlayerGUID[6]);
-        _worldPacket.WriteByteSeq(entry.PlayerGUID[1]);
-        _worldPacket.WriteByteSeq(entry.PlayerGUID[5]);
-
-        if (entry.Count)
-            _worldPacket << int32(*entry.Count);
-
-        _worldPacket << int8(entry.EntryType);
-
-        _worldPacket.WriteByteSeq(entry.PlayerGUID[2]);
-        _worldPacket.WriteByteSeq(entry.PlayerGUID[4]);
-        _worldPacket.WriteByteSeq(entry.PlayerGUID[0]);
-        _worldPacket.WriteByteSeq(entry.PlayerGUID[7]);
-        _worldPacket.WriteByteSeq(entry.PlayerGUID[3]);
-
-        if (entry.ItemID)
-            _worldPacket << int32(*entry.ItemID);
-
-        _worldPacket << uint32(entry.TimeOffset);
-
-        if (entry.Money)
-            _worldPacket << uint64(*entry.Money);
-
+        _worldPacket.WriteGuidBytes(entry.PlayerGUID, { 1, 7 });
         if (entry.OtherTab)
             _worldPacket << int8(*entry.OtherTab);
+        _worldPacket.WriteGuidBytes(entry.PlayerGUID, { 2 });
+        _worldPacket << uint32(entry.TimeOffset);
+        _worldPacket << int8(entry.EntryType);
+        _worldPacket.WriteGuidBytes(entry.PlayerGUID, { 0, 4 });
+        if (entry.ItemID)
+            _worldPacket << int32(*entry.ItemID);
+        if (entry.Money)
+            _worldPacket << uint64(*entry.Money);
+        _worldPacket.WriteGuidBytes(entry.PlayerGUID, { 6 });
+        if (entry.Count)
+            _worldPacket << int32(*entry.Count);
+        _worldPacket.WriteGuidBytes(entry.PlayerGUID, { 5, 3 });
     }
-
-    _worldPacket << int32(Tab);
 
     if (WeeklyBonusMoney)
         _worldPacket << uint64(*WeeklyBonusMoney);
@@ -841,10 +735,10 @@ void WorldPackets::Guild::GuildBankTextQuery::Read()
 
 WorldPacket const* WorldPackets::Guild::GuildBankTextQueryResult::Write()
 {
+    // 5.4.8 18414, from Project SkyFire
+    _worldPacket << uint32(Tab);
     _worldPacket.WriteBits(Text.length(), 14);
     _worldPacket.FlushBits();
-
-    _worldPacket << uint32(Tab);
     _worldPacket.WriteString(Text);
 
     return &_worldPacket;
@@ -862,8 +756,8 @@ void WorldPackets::Guild::GuildBankSetTabText::Read()
 
 void WorldPackets::Guild::GuildSetGuildMaster::Read()
 {
-    uint32 length = _worldPacket.ReadBits(7);
-    IsDethrone = _worldPacket.ReadBit();
+    // 5.4.8 18414, from Project SkyFire
+    uint32 length = _worldPacket.ReadBits(9);
     NewMasterName = _worldPacket.ReadString(length);
 }
 
@@ -886,109 +780,74 @@ WorldPacket const* WorldPackets::Guild::PlayerSaveGuildEmblem::Write()
 
 WorldPacket const* WorldPackets::Guild::GuildMemberUpdateNote::Write()
 {
-    _worldPacket.WriteBit(Member[7]);
-    _worldPacket.WriteBit(Member[2]);
-    _worldPacket.WriteBit(Member[3]);
+    // 5.4.8 18414, from Project SkyFire
+    _worldPacket.WriteGuidMask(Member, { 2 });
     _worldPacket.WriteBits(Note.length(), 8);
-    _worldPacket.WriteBit(Member[5]);
-    _worldPacket.WriteBit(Member[0]);
-    _worldPacket.WriteBit(Member[6]);
-    _worldPacket.WriteBit(Member[4]);
     _worldPacket.WriteBit(IsPublic);
-    _worldPacket.WriteBit(Member[1]);
+    _worldPacket.WriteGuidMask(Member, { 5, 0, 4, 3, 1, 6, 7 });
     _worldPacket.FlushBits();
-
-    _worldPacket.WriteByteSeq(Member[3]);
-    _worldPacket.WriteByteSeq(Member[0]);
-    _worldPacket.WriteByteSeq(Member[2]);
-    _worldPacket.WriteByteSeq(Member[5]);
+    _worldPacket.WriteGuidBytes(Member, { 7, 5, 0, 1 });
     _worldPacket.WriteString(Note);
-    _worldPacket.WriteByteSeq(Member[7]);
-    _worldPacket.WriteByteSeq(Member[6]);
-    _worldPacket.WriteByteSeq(Member[1]);
-    _worldPacket.WriteByteSeq(Member[4]);
+    _worldPacket.WriteGuidBytes(Member, { 3, 6, 4, 2 });
 
     return &_worldPacket;
 }
 
 WorldPacket const* WorldPackets::Guild::GuildRanksUpdate::Write()
 {
-    _worldPacket.WriteBit(Officer[7]);
-    _worldPacket.WriteBit(Officer[2]);
-    _worldPacket.WriteBit(Other[2]);
-    _worldPacket.WriteBit(Officer[1]);
-    _worldPacket.WriteBit(Other[1]);
-    _worldPacket.WriteBit(Other[7]);
-    _worldPacket.WriteBit(Other[0]);
-    _worldPacket.WriteBit(Other[5]);
-    _worldPacket.WriteBit(Other[4]);
+    // 5.4.8 18414, from Project SkyFire
+    _worldPacket.WriteGuidMask(Other, { 5, 6 });
+    _worldPacket.WriteGuidMask(Officer, { 0, 1 });
+    _worldPacket.WriteGuidMask(Other, { 3 });
+    _worldPacket.WriteGuidMask(Officer, { 4 });
+    _worldPacket.WriteGuidMask(Other, { 2 });
+    _worldPacket.WriteGuidMask(Officer, { 6, 3, 7 });
+    _worldPacket.WriteGuidMask(Other, { 4, 0, 1 });
+    _worldPacket.WriteGuidMask(Officer, { 2 });
+    _worldPacket.WriteGuidMask(Other, { 7 });
     _worldPacket.WriteBit(Promote);
-    _worldPacket.WriteBit(Officer[5]);
-    _worldPacket.WriteBit(Officer[0]);
-    _worldPacket.WriteBit(Other[6]);
-    _worldPacket.WriteBit(Officer[3]);
-    _worldPacket.WriteBit(Officer[6]);
-    _worldPacket.WriteBit(Other[3]);
-    _worldPacket.WriteBit(Officer[4]);
+    _worldPacket.WriteGuidMask(Officer, { 5 });
     _worldPacket.FlushBits();
 
+    _worldPacket.WriteGuidBytes(Other, { 2 });
+    _worldPacket.WriteGuidBytes(Officer, { 1 });
+    _worldPacket.WriteGuidBytes(Other, { 6, 1, 5 });
+    _worldPacket.WriteGuidBytes(Officer, { 0 });
     _worldPacket << int32(RankID);
-    _worldPacket.WriteByteSeq(Officer[3]);
-    _worldPacket.WriteByteSeq(Other[7]);
-    _worldPacket.WriteByteSeq(Officer[6]);
-    _worldPacket.WriteByteSeq(Officer[2]);
-    _worldPacket.WriteByteSeq(Other[5]);
-    _worldPacket.WriteByteSeq(Other[0]);
-    _worldPacket.WriteByteSeq(Officer[7]);
-    _worldPacket.WriteByteSeq(Officer[5]);
-    _worldPacket.WriteByteSeq(Other[2]);
-    _worldPacket.WriteByteSeq(Other[1]);
-    _worldPacket.WriteByteSeq(Officer[0]);
-    _worldPacket.WriteByteSeq(Officer[4]);
-    _worldPacket.WriteByteSeq(Officer[1]);
-    _worldPacket.WriteByteSeq(Other[3]);
-    _worldPacket.WriteByteSeq(Other[6]);
-    _worldPacket.WriteByteSeq(Other[4]);
+    _worldPacket.WriteGuidBytes(Officer, { 3, 7 });
+    _worldPacket.WriteGuidBytes(Other, { 7 });
+    _worldPacket.WriteGuidBytes(Officer, { 2 });
+    _worldPacket.WriteGuidBytes(Other, { 3, 4 });
+    _worldPacket.WriteGuidBytes(Officer, { 6, 5 });
+    _worldPacket.WriteGuidBytes(Other, { 0 });
+    _worldPacket.WriteGuidBytes(Officer, { 4 });
 
     return &_worldPacket;
 }
 
 void WorldPackets::Guild::GuildRequestPartyState::Read()
 {
-    GuildGUID[0] = _worldPacket.ReadBit();
-    GuildGUID[6] = _worldPacket.ReadBit();
-    GuildGUID[7] = _worldPacket.ReadBit();
-    GuildGUID[3] = _worldPacket.ReadBit();
-    GuildGUID[5] = _worldPacket.ReadBit();
-    GuildGUID[1] = _worldPacket.ReadBit();
-    GuildGUID[2] = _worldPacket.ReadBit();
-    GuildGUID[4] = _worldPacket.ReadBit();
-
-    _worldPacket.ReadByteSeq(GuildGUID[6]);
-    _worldPacket.ReadByteSeq(GuildGUID[3]);
-    _worldPacket.ReadByteSeq(GuildGUID[2]);
-    _worldPacket.ReadByteSeq(GuildGUID[1]);
-    _worldPacket.ReadByteSeq(GuildGUID[5]);
-    _worldPacket.ReadByteSeq(GuildGUID[0]);
-    _worldPacket.ReadByteSeq(GuildGUID[7]);
-    _worldPacket.ReadByteSeq(GuildGUID[4]);
+    // 5.4.8 18414, from Project SkyFire
+    _worldPacket.ReadGuidMask(GuildGUID, { 1, 5, 7, 2, 6, 3, 0, 4 });
+    _worldPacket.ReadGuidBytes(GuildGUID, { 2, 5, 4, 6, 1, 0, 7, 3 });
 }
 
 WorldPacket const* WorldPackets::Guild::GuildPartyState::Write()
 {
-    _worldPacket.WriteBit(InGuildParty);
-    _worldPacket.FlushBits();
-
+    // 5.4.8 18414, from Project SkyFire
+    _worldPacket << uint32(NumRequired);
     _worldPacket << float(GuildXPEarnedMult);
     _worldPacket << uint32(NumMembers);
-    _worldPacket << uint32(NumRequired);
+    _worldPacket.WriteBit(InGuildParty);
+    _worldPacket.FlushBits();
 
     return &_worldPacket;
 }
 
 void WorldPackets::Guild::AutoDeclineGuildInvites::Read()
 {
-    Allow = _worldPacket.read<uint8>() != 0;
+    // 5.4.8 18414, from Project SkyFire
+    Allow = _worldPacket.ReadBit();
 }
 
 void WorldPackets::Guild::GuildQueryMembersForRecipe::Read()
@@ -1127,17 +986,18 @@ WorldPacket const* WorldPackets::Guild::GuildMemberRecipes::Write()
 
 WorldPacket const* WorldPackets::Guild::GuildChallengeUpdate::Write()
 {
-    for (int32 xp : Xp)
-        _worldPacket << int32(xp);
-
-    for (int32 gold : MaxLevelGold)
-        _worldPacket << int32(gold);
-
+    // 5.4.8 18414, from Project SkyFire
     for (int32 count : MaxCount)
         _worldPacket << int32(count);
 
     for (int32 gold : Gold)
         _worldPacket << int32(gold);
+
+    for (int32 gold : MaxLevelGold)
+        _worldPacket << int32(gold);
+
+    for (int32 xp : Xp)
+        _worldPacket << int32(xp);
 
     for (int32 count : CurrentCount)
         _worldPacket << int32(count);
@@ -1147,12 +1007,14 @@ WorldPacket const* WorldPackets::Guild::GuildChallengeUpdate::Write()
 
 ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::Guild::GuildRewardItem const& rewardItem)
 {
-    data << uint32(rewardItem.MinGuildRep);
-    data << uint32(rewardItem.RaceMask);
+    // 5.4.8 18414, from Project SkyFire
+    if (rewardItem.AchievementRequired)
+        data << uint32(rewardItem.AchievementRequired);
+    data << int32(rewardItem.RaceMask);
     data << uint32(rewardItem.ItemID);
+    data << uint32(0);                                      // min guild level
+    data << uint32(rewardItem.MinGuildRep);
     data << uint64(rewardItem.Cost);
-    data << uint32(rewardItem.Unk4);
-    data << uint32(rewardItem.AchievementRequired);
 
     return data;
 }
@@ -1164,7 +1026,10 @@ void WorldPackets::Guild::RequestGuildRewardsList::Read()
 
 WorldPacket const* WorldPackets::Guild::GuildRewardList::Write()
 {
-    _worldPacket.WriteBits(RewardItems.size(), 21);
+    // 5.4.8 18414, from Project SkyFire
+    _worldPacket.WriteBits(RewardItems.size(), 19);
+    for (GuildRewardItem const& item : RewardItems)
+        _worldPacket.WriteBits(item.AchievementRequired ? 1 : 0, 22);
     _worldPacket.FlushBits();
 
     for (GuildRewardItem const& item : RewardItems)
@@ -1193,97 +1058,45 @@ WorldPacket const* WorldPackets::Guild::GuildKnownRecipes::Write()
 
 void WorldPackets::Guild::GuildQueryNews::Read()
 {
-    _worldPacket >> GuildID;
+    // 5.4.8 18414, from Project SkyFire
+    _worldPacket.rfinish();
 }
 
 void WorldPackets::Guild::GuildNewsUpdateSticky::Read()
 {
+    // 5.4.8 18414, from Project SkyFire
     _worldPacket >> NewsID;
-
-    GuildGUID[2] = _worldPacket.ReadBit();
-    GuildGUID[4] = _worldPacket.ReadBit();
-    GuildGUID[3] = _worldPacket.ReadBit();
-    GuildGUID[0] = _worldPacket.ReadBit();
+    _worldPacket.ReadGuidMask(GuildGUID, { 6, 0 });
     Sticky = _worldPacket.ReadBit();
-    GuildGUID[6] = _worldPacket.ReadBit();
-    GuildGUID[7] = _worldPacket.ReadBit();
-    GuildGUID[1] = _worldPacket.ReadBit();
-    GuildGUID[5] = _worldPacket.ReadBit();
-
-    _worldPacket.ReadByteSeq(GuildGUID[6]);
-    _worldPacket.ReadByteSeq(GuildGUID[2]);
-    _worldPacket.ReadByteSeq(GuildGUID[1]);
-    _worldPacket.ReadByteSeq(GuildGUID[0]);
-    _worldPacket.ReadByteSeq(GuildGUID[5]);
-    _worldPacket.ReadByteSeq(GuildGUID[3]);
-    _worldPacket.ReadByteSeq(GuildGUID[7]);
-    _worldPacket.ReadByteSeq(GuildGUID[4]);
+    _worldPacket.ReadGuidMask(GuildGUID, { 2, 7, 5, 4, 3, 1 });
+    _worldPacket.ReadGuidBytes(GuildGUID, { 5, 4, 0, 1, 6, 2, 3, 7 });
 }
 
 WorldPacket const* WorldPackets::Guild::GuildNews::Write()
 {
-    _worldPacket.WriteBits(NewsEvents.size(), 21);
-
+    // 5.4.8 18414, from Project SkyFire. The member list (guild achievements) is not sent.
+    _worldPacket.WriteBits(NewsEvents.size(), 19);
     for (GuildNewsEvent const& newsEvent : NewsEvents)
     {
-        _worldPacket.WriteBits(newsEvent.MemberList.size(), 26);
-        _worldPacket.WriteBit(newsEvent.MemberGuid[7]);
-
-        for (ObjectGuid const& memberGuid : newsEvent.MemberList)
-        {
-            _worldPacket.WriteBit(memberGuid[7]);
-            _worldPacket.WriteBit(memberGuid[1]);
-            _worldPacket.WriteBit(memberGuid[5]);
-            _worldPacket.WriteBit(memberGuid[3]);
-            _worldPacket.WriteBit(memberGuid[4]);
-            _worldPacket.WriteBit(memberGuid[6]);
-            _worldPacket.WriteBit(memberGuid[0]);
-            _worldPacket.WriteBit(memberGuid[2]);
-        }
-
-        _worldPacket.WriteBit(newsEvent.MemberGuid[0]);
-        _worldPacket.WriteBit(newsEvent.MemberGuid[6]);
-        _worldPacket.WriteBit(newsEvent.MemberGuid[5]);
-        _worldPacket.WriteBit(newsEvent.MemberGuid[4]);
-        _worldPacket.WriteBit(newsEvent.MemberGuid[3]);
-        _worldPacket.WriteBit(newsEvent.MemberGuid[1]);
-        _worldPacket.WriteBit(newsEvent.MemberGuid[2]);
+        _worldPacket.WriteGuidMask(newsEvent.MemberGuid, { 3 });
+        _worldPacket.WriteBits(0, 24);
+        _worldPacket.WriteGuidMask(newsEvent.MemberGuid, { 4, 5, 6, 0, 7, 2, 1 });
     }
 
     _worldPacket.FlushBits();
 
     for (GuildNewsEvent const& newsEvent : NewsEvents)
     {
-        for (ObjectGuid const& memberGuid : newsEvent.MemberList)
-        {
-            _worldPacket.WriteByteSeq(memberGuid[0]);
-            _worldPacket.WriteByteSeq(memberGuid[1]);
-            _worldPacket.WriteByteSeq(memberGuid[4]);
-            _worldPacket.WriteByteSeq(memberGuid[7]);
-            _worldPacket.WriteByteSeq(memberGuid[5]);
-            _worldPacket.WriteByteSeq(memberGuid[6]);
-            _worldPacket.WriteByteSeq(memberGuid[3]);
-            _worldPacket.WriteByteSeq(memberGuid[2]);
-        }
-
-        _worldPacket.WriteByteSeq(newsEvent.MemberGuid[5]);
-
-        _worldPacket << uint32(newsEvent.Flags);
-
-        for (int32 data : newsEvent.Data)
-            _worldPacket << int32(data);
-
-        _worldPacket.WriteByteSeq(newsEvent.MemberGuid[7]);
-        _worldPacket.WriteByteSeq(newsEvent.MemberGuid[6]);
-        _worldPacket.WriteByteSeq(newsEvent.MemberGuid[2]);
-        _worldPacket.WriteByteSeq(newsEvent.MemberGuid[3]);
-        _worldPacket.WriteByteSeq(newsEvent.MemberGuid[0]);
-        _worldPacket.WriteByteSeq(newsEvent.MemberGuid[4]);
-        _worldPacket.WriteByteSeq(newsEvent.MemberGuid[1]);
-
-        _worldPacket << int32(newsEvent.Id);
+        _worldPacket.WriteGuidBytes(newsEvent.MemberGuid, { 2 });
+        _worldPacket << int32(newsEvent.Data[0]);
+        _worldPacket.WriteGuidBytes(newsEvent.MemberGuid, { 1, 7, 4, 3, 5 });
+        _worldPacket << int32(newsEvent.Data[1]);
         _worldPacket << int32(newsEvent.Type);
+        _worldPacket << uint32(newsEvent.Flags);
+        _worldPacket.WriteGuidBytes(newsEvent.MemberGuid, { 6 });
         _worldPacket.AppendPackedTime(newsEvent.CompletedDate);
+        _worldPacket << int32(newsEvent.Id);
+        _worldPacket.WriteGuidBytes(newsEvent.MemberGuid, { 0 });
     }
 
     return &_worldPacket;
@@ -1291,26 +1104,13 @@ WorldPacket const* WorldPackets::Guild::GuildNews::Write()
 
 WorldPacket const* WorldPackets::Guild::GuildNameChanged::Write()
 {
-    _worldPacket.WriteBit(GuildGUID[5]);
-    _worldPacket.WriteBits(GuildName.length(), 8);
-    _worldPacket.WriteBit(GuildGUID[4]);
-    _worldPacket.WriteBit(GuildGUID[0]);
-    _worldPacket.WriteBit(GuildGUID[6]);
-    _worldPacket.WriteBit(GuildGUID[3]);
-    _worldPacket.WriteBit(GuildGUID[1]);
-    _worldPacket.WriteBit(GuildGUID[7]);
-    _worldPacket.WriteBit(GuildGUID[2]);
+    // 5.4.8 18414, from Project SkyFire
+    _worldPacket.WriteGuidMask(GuildGUID, { 0, 7, 3, 1, 5, 6 });
+    _worldPacket.WriteBits(GuildName.length(), 7);
+    _worldPacket.WriteGuidMask(GuildGUID, { 2, 4 });
     _worldPacket.FlushBits();
-
-    _worldPacket.WriteByteSeq(GuildGUID[3]);
-    _worldPacket.WriteByteSeq(GuildGUID[2]);
-    _worldPacket.WriteByteSeq(GuildGUID[7]);
-    _worldPacket.WriteByteSeq(GuildGUID[1]);
-    _worldPacket.WriteByteSeq(GuildGUID[0]);
-    _worldPacket.WriteByteSeq(GuildGUID[6]);
     _worldPacket.WriteString(GuildName);
-    _worldPacket.WriteByteSeq(GuildGUID[4]);
-    _worldPacket.WriteByteSeq(GuildGUID[5]);
+    _worldPacket.WriteGuidBytes(GuildGUID, { 3, 2, 6, 7, 5, 0, 1, 4 });
 
     return &_worldPacket;
 }

@@ -192,8 +192,8 @@ void OpcodeTable::Initialize()
     /*0x1258*/ DEFINE_HANDLER(CMSG_GET_ITEM_PURCHASE_DATA,                                           STATUS_LOGGEDIN, PROCESS_INPLACE,          &WorldSession::HandleItemRefundInfoRequest              );
     /*0x15A8*/ DEFINE_HANDLER(CMSG_GM_TICKET_CASE_STATUS, STATUS_UNHANDLED, PROCESS_INPLACE, &WorldSession::Handle_NULL);
     /*0x1882*/ DEFINE_HANDLER(CMSG_GROUP_INITIATE_ROLE_POLL, STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleRolePollBeginOpcode);
-    /*0x04D9*/ DEFINE_HANDLER(CMSG_GUILD_BANK_NOTE, STATUS_UNHANDLED, PROCESS_INPLACE, &WorldSession::Handle_NULL);
-    /*0x0550*/ DEFINE_HANDLER(CMSG_GUILD_BANK_QUERY_TEXT, STATUS_UNHANDLED, PROCESS_INPLACE, &WorldSession::Handle_NULL);
+    /*0x04D9*/ DEFINE_HANDLER(CMSG_GUILD_BANK_NOTE,                                                  STATUS_LOGGEDIN, PROCESS_THREADUNSAFE,     &WorldSession::HandleSetGuildBankTabText                );
+    /*0x0550*/ DEFINE_HANDLER(CMSG_GUILD_BANK_QUERY_TEXT,                                            STATUS_LOGGEDIN, PROCESS_THREADUNSAFE,     &WorldSession::HandleQueryGuildBankTabText              );
     /*0x0C63*/ DEFINE_HANDLER(CMSG_LF_GUILD_ADD_APPLICATION, STATUS_UNHANDLED, PROCESS_INPLACE, &WorldSession::Handle_NULL);
     /*0x1C53*/ DEFINE_HANDLER(CMSG_LF_GUILD_REMOVE_APPLICATION, STATUS_UNHANDLED, PROCESS_INPLACE, &WorldSession::Handle_NULL);
     /*0x162A*/ DEFINE_HANDLER(CMSG_MESSAGECHAT_INSTANCE, STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleMessagechatOpcode);
@@ -1575,8 +1575,8 @@ void OpcodeTable::Initialize()
     /*0x1A87*/ DEFINE_HANDLER(CMSG_KEEP_ALIVE,                                                       STATUS_NEVER,      PROCESS_THREADUNSAFE,   &WorldSession::Handle_EarlyProccess                     );
     /*0xF23C*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_RAID_READY_CHECK_ERROR,                             STATUS_NEVER);
     /*0x06E0*/ DEFINE_HANDLER(CMSG_OPT_OUT_OF_LOOT,                                                  STATUS_AUTHED,     PROCESS_THREADUNSAFE,   &WorldSession::HandleOptOutOfLootOpcode                 );
-    /*0xF128*/ DEFINE_HANDLER(CMSG_GUILD_BANK_TEXT_QUERY,                                            STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleQueryGuildBankTabText              );
-    /*0xF129*/ DEFINE_HANDLER(CMSG_GUILD_BANK_SET_TAB_TEXT,                                          STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleSetGuildBankTabText                );
+    /*0xF128*/ DEFINE_HANDLER(CMSG_GUILD_BANK_TEXT_QUERY,                                            STATUS_UNHANDLED,   PROCESS_INPLACE,       &WorldSession::Handle_NULL                              );
+    /*0xF129*/ DEFINE_HANDLER(CMSG_GUILD_BANK_SET_TAB_TEXT,                                          STATUS_UNHANDLED,   PROCESS_INPLACE,       &WorldSession::Handle_NULL                              );
     /*0xF12A*/ DEFINE_HANDLER(CMSG_SET_GRANTABLE_LEVELS,                                             STATUS_NEVER,      PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );
     /*0x0662*/ DEFINE_HANDLER(CMSG_GRANT_LEVEL,                                                      STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGrantLevel                         );
     /*0xF12B*/ DEFINE_HANDLER(CMSG_REFER_A_FRIEND,                                                   STATUS_NEVER,      PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );

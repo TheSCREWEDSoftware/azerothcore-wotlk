@@ -16,6 +16,8 @@
  */
 
 #include "Guild.h"
+#include "Realm.h"
+#include "StringConvert.h"
 #include "Bag.h"
 #include "Battleground.h"
 #include "CalendarMgr.h"
@@ -1498,6 +1500,7 @@ void Guild::HandleQuery(WorldSession* session)
     response.Info.RankCount = _GetRanksSize();
 
     response.Info.GuildName = m_name;
+    response.VirtualRealmAddress = realm.Id.Realm;
 
     session->SendPacket(response.Write());
     LOG_DEBUG("guild", "SMSG_QUERY_GUILD_INFO_RESPONSE [{}]", session->GetPlayerInfo());
@@ -1590,7 +1593,7 @@ void Guild::HandleSetLeader(WorldSession* session, std::string_view name)
         {
             _SetLeaderGUID(*pNewLeader);
             pOldLeader->ChangeRank(GR_OFFICER);
-            _BroadcastEvent(GE_LEADER_CHANGED, ObjectGuid::Empty, player->GetName(), pNewLeader->GetName());
+            _SendSetNewGuildMaster(pOldLeader->GetGUID(), pOldLeader->GetName(), pNewLeader->GetGUID(), pNewLeader->GetName(), false);
         }
     }
 }
@@ -1616,7 +1619,7 @@ void Guild::HandleReplaceGuildMaster(WorldSession* session)
 
     _SetLeaderGUID(*newGuildMaster);
     oldGuildMaster->ChangeRank(GR_INITIATE);
-    _BroadcastEvent(GE_LEADER_CHANGED, ObjectGuid::Empty, oldGuildMaster->GetName(), newGuildMaster->GetName());
+    _SendSetNewGuildMaster(oldGuildMaster->GetGUID(), oldGuildMaster->GetName(), newGuildMaster->GetGUID(), newGuildMaster->GetName(), true);
 }
 
 void Guild::HandleGuildPartyRequest(WorldSession* session) const
@@ -1881,6 +1884,7 @@ void Guild::HandleInviteMember(WorldSession* session, std::string const& name)
     invite.BorderStyle = m_emblemInfo.GetBorderStyle();
     invite.BorderColor = m_emblemInfo.GetBorderColor();
     invite.BackgroundColor = m_emblemInfo.GetBackgroundColor();
+    invite.VirtualRealmAddress = realm.Id.Realm;
     if (Guild const* oldGuild = pInvitee->GetGuild())
     {
         invite.OldGuildGuid = oldGuild->GetGUID();
@@ -1928,7 +1932,7 @@ void Guild::HandleLeaveMember(WorldSession* session)
         DeleteMember(player->GetGUID(), false, false);
 
         _LogEvent(GUILD_EVENT_LOG_LEAVE_GUILD, player->GetGUID());
-        _BroadcastEvent(GE_LEFT, player->GetGUID(), player->GetName());
+        _SendRemovePlayerFromGuild(player->GetGUID(), player->GetName(), nullptr);
 
         SendCommandResult(session, GUILD_COMMAND_QUIT, ERR_GUILD_COMMAND_SUCCESS, m_name);
     }
@@ -1965,7 +1969,7 @@ void Guild::HandleRemoveMember(WorldSession* session, std::string_view name)
                 // After call to DeleteMember pointer to member becomes invalid
                 DeleteMember(guid, false, true);
                 _LogEvent(GUILD_EVENT_LOG_UNINVITE_PLAYER, player->GetGUID(), guid);
-                _BroadcastEvent(GE_REMOVED, ObjectGuid::Empty, memberName, player->GetName());
+                _SendRemovePlayerFromGuild(guid, memberName, player);
             }
         }
     }
@@ -2853,8 +2857,8 @@ void Guild::DeleteMember(ObjectGuid guid, bool isDisbanding, bool isKicked, bool
         // If leader does not exist (at guild loading with deleted leader) do not send broadcasts
         if (oldLeader)
         {
-            _BroadcastEvent(GE_LEADER_CHANGED, ObjectGuid::Empty, oldLeader->GetName(), newLeader->GetName());
-            _BroadcastEvent(GE_LEFT, guid, oldLeader->GetName());
+            _SendSetNewGuildMaster(oldLeader->GetGUID(), oldLeader->GetName(), newLeader->GetGUID(), newLeader->GetName(), false);
+            _SendRemovePlayerFromGuild(guid, oldLeader->GetName(), nullptr);
         }
     }
     // Call script on remove before member is actually removed from guild (and database)
@@ -2942,6 +2946,11 @@ void Guild::SetBankTabText(uint8 tabId, std::string_view text)
     {
         pTab->SetText(text);
         pTab->SendText(this, nullptr);
+
+        // 5.4.8 18414, from Project SkyFire
+        WorldPacket data(SMSG_GUILD_EVENT_BANK_TAB_TEXT_CHANGED, 4);
+        data << uint32(tabId);
+        BroadcastPacket(&data);
     }
 }
 
@@ -3372,9 +3381,113 @@ void Guild::_SendBankContentUpdate(uint8 tabId, SlotIds slots) const
     _SendBankList(nullptr, tabId, false, &slots);
 }
 
+// 5.4.8 18414, from Project SkyFire
+void Guild::_SendRemovePlayerFromGuild(ObjectGuid removedGuid, std::string_view removedName, Player const* remover) const
+{
+    ObjectGuid removerGuid = remover ? remover->GetGUID() : ObjectGuid::Empty;
+    WorldPacket data(SMSG_GUILD_EVENT_PLAYER_LEFT, 2 * (8 + 4 + 1) + removedName.length() + (remover ? remover->GetName().length() : 0));
+    data.WriteGuidMask(removedGuid, { 2 });
+    data.WriteBits(removedName.length(), 6);
+    data.WriteGuidMask(removedGuid, { 6, 5 });
+    data.WriteBit(remover != nullptr);
+    if (remover)
+    {
+        data.WriteBit(false);
+        data.WriteBit(false);
+        data.WriteBits(remover->GetName().length(), 6);
+        data.WriteGuidMask(removerGuid, { 1, 3, 4, 2, 5, 7, 6, 0 });
+        data.WriteBit(false);
+    }
+
+    data.WriteGuidMask(removedGuid, { 1, 0, 3, 4, 7 });
+    data.FlushBits();
+
+    if (remover)
+    {
+        data.WriteGuidBytes(removerGuid, { 1, 3, 5, 2, 0, 4, 6, 7 });
+        data.WriteString(remover->GetName());
+        data << int32(realm.Id.Realm);
+    }
+
+    data.WriteString(removedName);
+    data.WriteGuidBytes(removedGuid, { 1 });
+    data << int32(realm.Id.Realm);
+    data.WriteGuidBytes(removedGuid, { 0, 4, 2, 3, 6, 5, 7 });
+    BroadcastPacket(&data);
+}
+
+// 5.4.8 18414, from Project SkyFire
+void Guild::_SendSetNewGuildMaster(ObjectGuid oldGuid, std::string_view oldName, ObjectGuid newGuid, std::string_view newName, bool replace) const
+{
+    WorldPacket data(SMSG_GUILD_SET_GUILD_MASTER, oldName.size() + newName.size() + 2 * (8 + 4) + 3);
+    data.WriteGuidMask(newGuid, { 4, 2, 7 });
+    data.WriteGuidMask(oldGuid, { 4 });
+    data.WriteBits(oldName.size(), 6);
+    data.WriteGuidMask(oldGuid, { 0 });
+    data.WriteGuidMask(newGuid, { 6, 3 });
+    data.WriteBit(replace);
+    data.WriteGuidMask(newGuid, { 1, 0 });
+    data.WriteGuidMask(oldGuid, { 1, 7, 3, 6, 2 });
+    data.WriteBits(newName.size(), 6);
+    data.WriteGuidMask(oldGuid, { 5 });
+    data.WriteGuidMask(newGuid, { 5 });
+    data.FlushBits();
+
+    data.WriteGuidBytes(newGuid, { 5, 6 });
+    data.WriteString(oldName);
+    data.WriteString(newName);
+    data.WriteGuidBytes(newGuid, { 3, 4 });
+    data << int32(realm.Id.Realm);
+    data.WriteGuidBytes(oldGuid, { 6 });
+    data.WriteGuidBytes(newGuid, { 0 });
+    data.WriteGuidBytes(oldGuid, { 5 });
+    data.WriteGuidBytes(newGuid, { 2, 7 });
+    data.WriteGuidBytes(oldGuid, { 7, 4 });
+    data << int32(realm.Id.Realm);
+    data.WriteGuidBytes(newGuid, { 1 });
+    data.WriteGuidBytes(oldGuid, { 2, 1, 3, 0 });
+    BroadcastPacket(&data);
+}
+
 void Guild::_BroadcastEvent(GuildEvents guildEvent, ObjectGuid guid,
                             Optional<std::string_view> param1 /*= {}*/, Optional<std::string_view> param2 /*= {}*/, Optional<std::string_view> param3 /*= {}*/) const
 {
+    // 5.4.8 18414: the bank events have their own opcodes, from Project SkyFire
+    switch (guildEvent)
+    {
+        case GE_BANK_TAB_PURCHASED:
+        {
+            WorldPacket data(SMSG_GUILD_EVENT_BANK_TAB_ADDED, 0);
+            BroadcastPacket(&data);
+            return;
+        }
+        case GE_BANK_TAB_UPDATED:
+        {
+            uint32 tabId = param1 ? Acore::StringTo<uint32>(*param1).value_or(0) : 0;
+            std::string_view name = param2.value_or(std::string_view());
+            std::string_view icon = param3.value_or(std::string_view());
+            WorldPacket data(SMSG_GUILD_EVENT_BANK_TAB_MODIFIED, 2 + 4 + name.size() + icon.size());
+            data.WriteBits(icon.size(), 9);
+            data.WriteBits(name.size(), 7);
+            data.FlushBits();
+            data.WriteString(name);
+            data << uint32(tabId);
+            data.WriteString(icon);
+            BroadcastPacket(&data);
+            return;
+        }
+        case GE_BANK_MONEY_SET:
+        case GE_BANK_TAB_AND_MONEY_UPDATED:
+        {
+            WorldPacket data(SMSG_GUILD_EVENT_BANK_MONEY_CHANGED, 8);
+            data << uint64(m_bankMoney);
+            BroadcastPacket(&data);
+            return;
+        }
+        default:
+            break;
+    }
+
     WorldPackets::Guild::GuildEvent event;
     event.Type = guildEvent;
     if (param1)

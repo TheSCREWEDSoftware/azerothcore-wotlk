@@ -1049,5 +1049,7 @@ private:
     void _SendBankList(WorldSession* session = nullptr, uint8 tabId = 0, bool sendFullSlots = false, SlotIds* slots = nullptr) const;
 
     void _BroadcastEvent(GuildEvents guildEvent, ObjectGuid guid = ObjectGuid::Empty, Optional<std::string_view> param1 = {}, Optional<std::string_view> param2 = {}, Optional<std::string_view> param3 = {}) const;
+    void _SendRemovePlayerFromGuild(ObjectGuid removedGuid, std::string_view removedName, Player const* remover) const;
+    void _SendSetNewGuildMaster(ObjectGuid oldGuid, std::string_view oldName, ObjectGuid newGuid, std::string_view newName, bool replace) const;
 };
 #endif
