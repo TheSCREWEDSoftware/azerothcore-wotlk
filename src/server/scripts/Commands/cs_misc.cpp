@@ -450,7 +450,7 @@ public:
 
             uint32 queueSlot = 0;
             WorldPacket data;
-            sBattlegroundMgr->BuildBattlegroundStatusPacket(&data, bg, queueSlot, STATUS_IN_PROGRESS, 0, bg->GetStartTime(), bg->GetArenaType(), teamId);
+            sBattlegroundMgr->BuildBattlegroundStatusPacket(&data, bg, player->GetGUID(), queueSlot, STATUS_IN_PROGRESS, 0, bg->GetStartTime(), bg->GetArenaType(), teamId);
             player->SendDirectMessage(&data);
 
             // Remove from LFG queues

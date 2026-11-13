@@ -246,7 +246,6 @@ s2c	SMSG_FORCE_SET_VEHICLE_REC_ID	#186	movement packet layout is ported with the
 s2c	SMSG_GHOSTEE_GONE	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
 s2c	SMSG_GMRESPONSE_CREATE_TICKET	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
 s2c	SMSG_GOGOGO_OBSOLETE	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
-s2c	SMSG_GROUP_JOINED_BATTLEGROUND	#182	grouping and social packets are ported with phase 9
 s2c	SMSG_GUILD_INFO	#182	grouping and social packets are ported with phase 9
 s2c	SMSG_INIT_EXTRA_AURA_INFO_OBSOLETE	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
 s2c	SMSG_INSTANCE_LOCK_WARNING_QUERY	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin

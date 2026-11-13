@@ -809,6 +809,11 @@ enum OpcodeClient : uint16
 
 enum OpcodeServer : uint16
 {
+    SMSG_BATTLEFIELD_STATUS_FAILED                  = 0x71A7,
+    SMSG_BATTLEFIELD_STATUS_WAITFORGROUPS           = 0x75A2,
+    SMSG_BATTLEFIELD_STATUS_NEEDCONFIRMATION        = 0x59A0,
+    SMSG_BATTLEFIELD_STATUS_ACTIVE                  = 0x74A4,
+    SMSG_BATTLEFIELD_STATUS_QUEUED                  = 0x35A1,
     SMSG_MOVE_UPDATE_KNOCK_BACK                     = 0x3DB2,
     SMSG_PLAY_SPELL_VISUAL_KIT                      = 0x55A5,
     SMSG_SUMMON_RAID_MEMBER_VALIDATE_FAILED         = 0x18B6,
@@ -1192,7 +1197,6 @@ enum OpcodeServer : uint16
     SMSG_BATTLEFIELD_STATUS                         = 0x7DA1,
     SMSG_AREA_SPIRIT_HEALER_TIME                    = 0x0734,
     SMSG_WARDEN_DATA                                = 0x31A0,
-    SMSG_GROUP_JOINED_BATTLEGROUND                  = 0x2E8,
     SMSG_BINDER_CONFIRM                             = 0x2835,
     SMSG_BATTLEGROUND_PLAYER_JOINED                 = 0x50B0,
     SMSG_BATTLEGROUND_PLAYER_LEFT                   = 0x59A6,
