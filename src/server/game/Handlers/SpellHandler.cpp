@@ -27,6 +27,7 @@
 #include "Spell.h"
 #include "SpellAuraEffects.h"
 #include "SpellAuras.h"
+#include "SpellCastRequest.h"
 #include "SpellMgr.h"
 #include "Totem.h"
 #include "TotemPackets.h"
@@ -34,56 +35,12 @@
 #include "WorldPacket.h"
 #include "WorldSession.h"
 
-void WorldSession::HandleClientCastFlags(WorldPacket& recvPacket, uint8 castFlags, SpellCastTargets& targets)
+void WorldSession::ApplyCastRequestResearchData(SpellCastRequest const& request)
 {
-    // some spell cast packet including more data (for projectiles?)
-    if (castFlags & 0x02)
-    {
-        // not sure about these two
-        float elevation, speed;
-        recvPacket >> elevation;
-        recvPacket >> speed;
-
-        targets.SetElevation(elevation);
-        targets.SetSpeed(speed);
-
-        bool hasMovementData;
-        recvPacket >> hasMovementData;
-        if (hasMovementData)
-        {
-            // 4.3.4 sends the caster's movement without an opcode; TrinityCore reads and drops it too
-            MovementInfo movementInfo;
-            WorldPackets::Movement::ReadGroundMovement(recvPacket, movementInfo,
-                WorldPackets::Movement::GetSpellCastMovementSequence());
-        }
-    }
-    else if (castFlags & 0x8)   // Archaeology: fragment/keystone reagent substitution data
-    {
-        ArchData archData;
-        uint32 count;
-        uint8 type;
-        recvPacket >> count;
-        for (uint32 i = 0; i < count; ++i)
-        {
-            recvPacket >> type;
-            switch (type)
-            {
-                case 2: // Keystones
-                    recvPacket >> archData.KeyId;       // Item id
-                    recvPacket >> archData.KeyCount;    // Item count
-                    break;
-                case 1: // Fragments
-                    recvPacket >> archData.FragId;      // Currency id
-                    recvPacket >> archData.FragCount;   // Currency count
-                    break;
-                default:
-                    break;
-            }
-        }
-
+    // Archaeology: fragment/keystone reagent substitution data
+    if (request.hasResearchData)
         if (Player* player = GetPlayer())
-            player->SetArchData(archData);
-    }
+            player->SetArchData(request.researchData);
 }
 
 void WorldSession::HandleUseItemOpcode(WorldPacket& recvPacket)
@@ -95,13 +52,14 @@ void WorldSession::HandleUseItemOpcode(WorldPacket& recvPacket)
     if (pUser->m_mover != pUser)
         return;
 
-    uint8 bagIndex, slot, castFlags;
-    uint8 castCount;                                       // next cast if exists (single or not)
-    ObjectGuid itemGUID;
-    uint32 glyphIndex;                                      // something to do with glyphs?
-    uint32 spellId;                                         // casted spell id
-
-    recvPacket >> bagIndex >> slot >> castCount >> spellId >> itemGUID >> glyphIndex >> castFlags;
+    // 5.4.8 18414, from Project SkyFire
+    SpellCastRequest request = WorldPackets::Spells::ReadUseItem(recvPacket, pUser);
+    uint8 bagIndex = request.bagIndex;
+    uint8 slot = request.slot;
+    uint8 castCount = request.castCount;                    // next cast if exists (single or not)
+    ObjectGuid itemGUID = request.itemGuid;
+    uint32 glyphIndex = request.glyphIndex;                 // something to do with glyphs?
+    uint32 spellId = request.spellId;                       // casted spell id
 
     if (glyphIndex >= MAX_GLYPH_SLOT_INDEX)
     {
@@ -221,8 +179,8 @@ void WorldSession::HandleUseItemOpcode(WorldPacket& recvPacket)
     }
 
     SpellCastTargets targets;
-    targets.Read(recvPacket, pUser);
-    HandleClientCastFlags(recvPacket, castFlags, targets);
+    request.FillTargets(targets, pUser);
+    ApplyCastRequestResearchData(request);
 
     // Note: If script stop casting it must send appropriate data to client to prevent stuck item in gray state.
     if (!sScriptMgr->OnItemUse(pUser, pItem, targets))
@@ -360,7 +318,9 @@ void WorldSession::HandleOpenWrappedItemCallback(uint8 bagIndex, uint8 slot, Obj
 void WorldSession::HandleGameObjectUseOpcode(WorldPacket& recvData)
 {
     ObjectGuid guid;
-    recvData >> guid;
+    // 5.4.8 18414, from Project SkyFire
+    recvData.ReadGuidMask(guid, { 6, 1, 3, 4, 0, 5, 7, 2 });
+    recvData.ReadGuidBytes(guid, { 0, 1, 6, 2, 3, 4, 5, 7 });
 
     LOG_DEBUG("network", "WORLD: Recvd CMSG_GAMEOBJ_USE Message [{}]", guid.ToString());
 
@@ -385,7 +345,9 @@ void WorldSession::HandleGameObjectUseOpcode(WorldPacket& recvData)
 void WorldSession::HandleGameobjectReportUse(WorldPacket& recvPacket)
 {
     ObjectGuid guid;
-    recvPacket >> guid;
+    // 5.4.8 18414, from Project SkyFire
+    recvPacket.ReadGuidMask(guid, { 4, 7, 5, 3, 6, 1, 2, 0 });
+    recvPacket.ReadGuidBytes(guid, { 7, 1, 6, 5, 0, 3, 2, 4 });
 
     LOG_DEBUG("network", "WORLD: Recvd CMSG_GAMEOBJ_REPORT_USE Message [{}]", guid.ToString());
 
@@ -416,14 +378,14 @@ void WorldSession::HandleGameobjectReportUse(WorldPacket& recvPacket)
 
 void WorldSession::HandleCastSpellOpcode(WorldPacket& recvPacket)
 {
-    uint32 spellId;
-    uint32 misc; // Cata: unused word between SpellID and SendCastFlags, present on the wire since 4.x
-    uint8  castCount, castFlags;
-
     if (recvPacket.empty())
         return;
 
-    recvPacket >> castCount >> spellId >> misc >> castFlags;
+    // 5.4.8 18414, from Project SkyFire
+    SpellCastRequest request = WorldPackets::Spells::ReadCastSpell(recvPacket, _player->m_mover);
+    uint32 spellId = request.spellId;
+    uint8 castCount = request.castCount;
+    uint8 castFlags = request.castFlags;
     TriggerCastFlags triggerFlag = TRIGGERED_NONE;
 
     uint32 oldSpellId = spellId;
@@ -480,8 +442,8 @@ void WorldSession::HandleCastSpellOpcode(WorldPacket& recvPacket)
 
     // client provided targets
     SpellCastTargets targets;
-    targets.Read(recvPacket, mover);
-    HandleClientCastFlags(recvPacket, castFlags, targets);
+    request.FillTargets(targets, mover);
+    ApplyCastRequestResearchData(request);
 
     // not have spell in spellbook
     if (mover->IsPlayer())
@@ -594,10 +556,16 @@ void WorldSession::HandleCastSpellOpcode(WorldPacket& recvPacket)
 
 void WorldSession::HandleCancelCastOpcode(WorldPacket& recvPacket)
 {
-    uint32 spellId;
+    // 5.4.8 18414, from Project SkyFire
+    uint32 spellId = 0;
+    bool hasCounter = !recvPacket.ReadBit();               // increments with every CANCEL packet, don't use for now
+    bool hasSpellId = !recvPacket.ReadBit();
 
-    recvPacket.read_skip<uint8>();                          // counter, increments with every CANCEL packet, don't use for now
-    recvPacket >> spellId;
+    if (hasSpellId)
+        recvPacket >> spellId;
+
+    if (hasCounter)
+        recvPacket.read_skip<uint8>();
 
     _player->SpellQueue.clear();
 
@@ -608,8 +576,13 @@ void WorldSession::HandleCancelCastOpcode(WorldPacket& recvPacket)
 
 void WorldSession::HandleCancelAuraOpcode(WorldPacket& recvPacket)
 {
+    // 5.4.8 18414, from Project SkyFire; the GUID is the caster of the aura
     uint32 spellId;
+    ObjectGuid casterGuid;
     recvPacket >> spellId;
+    recvPacket.ReadBit();
+    recvPacket.ReadGuidMask(casterGuid, { 6, 5, 1, 0, 4, 3, 2, 7 });
+    recvPacket.ReadGuidBytes(casterGuid, { 3, 2, 1, 0, 4, 7, 5, 6 });
 
     SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(spellId);
     if (!spellInfo)
@@ -647,8 +620,10 @@ void WorldSession::HandlePetCancelAuraOpcode(WorldPacket& recvPacket)
     ObjectGuid guid;
     uint32 spellId;
 
-    recvPacket >> guid;
+    // 5.4.8 18414, from Project SkyFire
     recvPacket >> spellId;
+    recvPacket.ReadGuidMask(guid, { 0, 3, 1, 4, 6, 2, 7, 5 });
+    recvPacket.ReadGuidBytes(guid, { 0, 5, 3, 4, 7, 2, 6, 1 });
 
     SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(spellId);
     if (!spellInfo)
@@ -764,7 +739,11 @@ void WorldSession::HandleSelfResOpcode(WorldPacket& /*recvData*/)
 void WorldSession::HandleSpellClick(WorldPacket& recvData)
 {
     ObjectGuid guid;
-    recvData >> guid;
+    // 5.4.8 18414, from Project SkyFire
+    recvData.ReadGuidMask(guid, { 7, 4, 0, 3, 6, 5 });
+    recvData.ReadBit();                                     // try auto dismount
+    recvData.ReadGuidMask(guid, { 1, 2 });
+    recvData.ReadGuidBytes(guid, { 6, 1, 5, 4, 7, 2, 3, 0 });
 
     // this will get something not in world. crash
     Creature* unit = ObjectAccessor::GetCreatureOrPetOrVehicle(*_player, guid);
@@ -783,7 +762,10 @@ void WorldSession::HandleMirrorImageDataRequest(WorldPacket& recvData)
 {
     LOG_DEBUG("network", "WORLD: CMSG_GET_MIRRORIMAGE_DATA");
     ObjectGuid guid;
-    recvData >> guid;
+    // 5.4.8 18414, from Project SkyFire
+    recvData.read_skip<uint32>();                           // display id
+    recvData.ReadGuidMask(guid, { 0, 2, 1, 6, 5, 4, 7, 3 });
+    recvData.ReadGuidBytes(guid, { 6, 0, 3, 5, 4, 2, 1, 7 });
 
     // Get unit for which data is needed by client
     Unit* unit = ObjectAccessor::GetUnit(*_player, guid);

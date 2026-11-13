@@ -124,6 +124,9 @@ public:
     ~SpellCastTargets();
 
     void Read(ByteBuffer& data, WorldObject* caster);
+    // 5.4.8 sends the targets as separate fields, no source or destination means the caster's position
+    void Initialize(WorldObject* caster, uint32 targetMask, ObjectGuid objectTarget, ObjectGuid itemTarget,
+        ObjectGuid srcTransport, Position const& srcPos, ObjectGuid dstTransport, Position const& dstPos, std::string const& targetString);
     void Write(ByteBuffer& data);
 
     uint32 GetTargetMask() const { return m_targetMask; }

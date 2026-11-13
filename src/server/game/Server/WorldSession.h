@@ -40,6 +40,7 @@
 #include <utility>
 
 class Creature;
+struct SpellCastRequest;
 struct Signatures;
 class GameObject;
 class InstanceSave;
@@ -662,7 +663,7 @@ public:
     void SendPetitionQueryOpcode(ObjectGuid petitionguid);
 
     // Spell
-    void HandleClientCastFlags(WorldPacket& recvPacket, uint8 castFlags, SpellCastTargets& targets);
+    void ApplyCastRequestResearchData(SpellCastRequest const& request);
 
     // Pet
     void SendPetNameQuery(ObjectGuid guid, uint64 petnumber);

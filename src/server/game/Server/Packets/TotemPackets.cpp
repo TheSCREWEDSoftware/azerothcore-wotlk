@@ -19,7 +19,11 @@
 
 void WorldPackets::Totem::TotemDestroyed::Read()
 {
+    // 5.4.8 18414, from Project SkyFire; the totem GUID is not used
+    ObjectGuid totemGuid;
     _worldPacket >> Slot;
+    _worldPacket.ReadGuidMask(totemGuid, { 4, 2, 1, 3, 0, 6, 7, 5 });
+    _worldPacket.ReadGuidBytes(totemGuid, { 6, 2, 4, 1, 5, 0, 3, 7 });
 }
 
 WorldPacket const* WorldPackets::Totem::TotemCreated::Write()

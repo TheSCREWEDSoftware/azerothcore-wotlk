@@ -29,6 +29,7 @@
 #include "PetPackets.h"
 #include "Player.h"
 #include "Spell.h"
+#include "SpellCastRequest.h"
 #include "SpellInfo.h"
 #include "SpellMgr.h"
 #include "Util.h"
@@ -1046,12 +1047,12 @@ void WorldSession::HandlePetCastSpellOpcode(WorldPacket& recvPacket)
 {
     LOG_DEBUG("network", "WORLD: CMSG_PET_CAST_SPELL");
 
-    ObjectGuid guid;
-    uint8  castCount;
-    uint32 spellId;
-    uint8  castFlags;
-
-    recvPacket >> guid >> castCount >> spellId >> castFlags;
+    // 5.4.8 18414, from Project SkyFire
+    SpellCastRequest request = WorldPackets::Spells::ReadPetCastSpell(recvPacket);
+    ObjectGuid guid = request.petGuid;
+    uint8  castCount = request.castCount;
+    uint32 spellId = request.spellId;
+    uint8  castFlags = request.castFlags;
 
     LOG_DEBUG("network", "WORLD: CMSG_PET_CAST_SPELL, guid: {}, castCount: {}, spellId {}, castFlags {}", guid.ToString(), castCount, spellId, castFlags);
 
@@ -1079,8 +1080,8 @@ void WorldSession::HandlePetCastSpellOpcode(WorldPacket& recvPacket)
         return;
 
     SpellCastTargets targets;
-    targets.Read(recvPacket, caster);
-    HandleClientCastFlags(recvPacket, castFlags, targets);
+    request.FillTargets(targets, caster);
+    ApplyCastRequestResearchData(request);
 
     bool SetFollow = caster->HasUnitState(UNIT_STATE_FOLLOW);
     caster->ClearUnitState(UNIT_STATE_FOLLOW);

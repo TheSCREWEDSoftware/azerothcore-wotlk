@@ -215,6 +215,29 @@ void SpellCastTargets::Read(ByteBuffer& data, WorldObject* caster)
     Update(caster);
 }
 
+void SpellCastTargets::Initialize(WorldObject* caster, uint32 targetMask, ObjectGuid objectTarget, ObjectGuid itemTarget,
+    ObjectGuid srcTransport, Position const& srcPos, ObjectGuid dstTransport, Position const& dstPos, std::string const& targetString)
+{
+    m_targetMask = targetMask;
+    m_objectTargetGUID = objectTarget;
+    m_itemTargetGUID = itemTarget;
+    m_strTarget = targetString;
+
+    m_src._transportGUID = srcTransport;
+    if (srcTransport)
+        m_src._transportOffset.Relocate(srcPos);
+    else
+        m_src._position.Relocate(srcPos);
+
+    m_dst._transportGUID = dstTransport;
+    if (dstTransport)
+        m_dst._transportOffset.Relocate(dstPos);
+    else
+        m_dst._position.Relocate(dstPos);
+
+    Update(caster);
+}
+
 void SpellCastTargets::Write(ByteBuffer& data)
 {
     data << uint32(m_targetMask);
