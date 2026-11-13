@@ -471,14 +471,10 @@ namespace
             if (!root)
                 continue;
 
-            // an "any of" tree completes with one criteria
+            // an "any of" tree completes with one criteria. The row lives in the DBC data pool, so it is
+            // changed in place (SetEntry would delete a pointer it does not own).
             if (root->Operator == CRITERIA_TREE_OPERATOR_ANY && !achievement->count)
-            {
-                AchievementEntry* copy = new AchievementEntry(*achievement);
-                copy->count = 1;
-                sAchievementStore.SetEntry(achievement->ID, copy);
-                achievement = copy;
-            }
+                const_cast<AchievementEntry*>(achievement)->count = 1;
 
             std::vector<CriteriaTreeEntry const*> leaves;
             if (root->CriteriaID)
