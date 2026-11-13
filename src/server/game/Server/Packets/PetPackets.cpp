@@ -59,8 +59,12 @@ WorldPacket const* WorldPackets::Pet::PetUnlearnedSpell::Write()
 
 WorldPacket const* WorldPackets::Pet::PetActionSound::Write()
 {
-    _worldPacket << UnitGUID;
+    // 5.4.8 18414, from Project SkyFire
+    _worldPacket.WriteGuidMask(UnitGUID, { 2, 7, 6, 0, 5, 1, 3, 4 });
+    _worldPacket.FlushBits();
+    _worldPacket.WriteGuidBytes(UnitGUID, { 7, 4, 6, 1 });
     _worldPacket << int32(Action);
+    _worldPacket.WriteGuidBytes(UnitGUID, { 2, 3, 5, 0 });
     return &_worldPacket;
 }
 

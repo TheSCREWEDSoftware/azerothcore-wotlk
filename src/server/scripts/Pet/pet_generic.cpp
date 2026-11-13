@@ -15,6 +15,7 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "Chat.h"
 #include "CreatureScript.h"
 #include "CreatureTextMgr.h"
 #include "Group.h"
@@ -544,17 +545,7 @@ struct npc_pet_gen_imp_in_a_bottle : public NullCreatureAI
                         _hasParty = true;
                         std::string const& text = sCreatureTextMgr->GetLocalizedChatString(me->GetEntry(), 0, 0 /*text group*/, urand(0, 60) /*text id*/, LOCALE_enUS);
 
-                        _data.Initialize(SMSG_MESSAGECHAT, 200);                // guess size
-                        _data << uint8(CHAT_MSG_MONSTER_PARTY);
-                        _data << uint32(LANG_UNIVERSAL);
-                        _data << me->GetGUID();
-                        _data << uint32(0);
-                        _data << uint32(me->GetName().size() + 1);
-                        _data << me->GetName();
-                        _data << uint64(0);
-                        _data << uint32(text.size() + 1);
-                        _data << text.c_str();
-                        _data << uint8(0);
+                        ChatHandler::BuildChatPacket(_data, CHAT_MSG_MONSTER_PARTY, LANG_UNIVERSAL, me, nullptr, text);
                     }
                 }
     }

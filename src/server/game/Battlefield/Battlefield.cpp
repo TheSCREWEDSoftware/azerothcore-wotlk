@@ -729,12 +729,17 @@ void Battlefield::RemovePlayerFromResurrectQueue(ObjectGuid playerGuid)
 
 void Battlefield::SendAreaSpiritHealerQueryOpcode(Player* player, ObjectGuid const& guid)
 {
-    WorldPacket data(SMSG_AREA_SPIRIT_HEALER_TIME, 12);
     Milliseconds remaining = _scheduler.GetNextGroupOccurrence(BATTLEFIELD_TIMER_GROUP_RESURRECT);
     uint32 time = static_cast<uint32>(std::clamp(remaining,
         Milliseconds::zero(), Milliseconds(RESURRECTION_INTERVAL)).count());
 
-    data << guid << time;
+    // 5.4.8 18414, from Project SkyFire
+    WorldPacket data(SMSG_AREA_SPIRIT_HEALER_TIME, 1 + 8 + 4);
+    data.WriteGuidMask(guid, { 5, 2, 7, 6, 1, 0, 3, 4 });
+    data.FlushBits();
+    data.WriteGuidBytes(guid, { 2, 3, 5, 4, 6 });
+    data << uint32(time);
+    data.WriteGuidBytes(guid, { 7, 0, 1 });
     ASSERT(player);
     player->SendDirectMessage(&data);
 }

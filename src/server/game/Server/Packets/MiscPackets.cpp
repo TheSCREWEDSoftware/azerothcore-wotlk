@@ -267,9 +267,13 @@ WorldPacket const* WorldPackets::Misc::StopMirrorTimer::Write()
 
 WorldPacket const* WorldPackets::Misc::CrossedInebriationThreshold::Write()
 {
-    _worldPacket << Guid;
-    _worldPacket << uint32(Threshold);
+    // 5.4.8 18414, from Project SkyFire
+    _worldPacket.WriteGuidMask(Guid, { 0, 4, 2, 6, 5, 1, 3, 7 });
+    _worldPacket.FlushBits();
+    _worldPacket.WriteGuidBytes(Guid, { 3 });
     _worldPacket << uint32(ItemID);
+    _worldPacket << uint32(Threshold);
+    _worldPacket.WriteGuidBytes(Guid, { 4, 6, 7, 0, 2, 5, 1 });
 
     return &_worldPacket;
 }
