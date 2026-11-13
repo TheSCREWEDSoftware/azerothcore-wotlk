@@ -369,6 +369,10 @@ public: // pussywizard: public class Member
         uint64 GetTotalActivity() const { return m_totalActivity; }
         uint64 GetWeekActivity() const { return m_weekActivity; }
 
+        // Cata guild reputation
+        void AddReputation(uint32 rep, Player* player);
+        uint32 GetWeekReputation() const { return m_weekReputation; }
+
         inline Player* FindPlayer() const { return ObjectAccessor::FindConnectedPlayer(m_guid); }
 
         void SubscribeToGuildBankUpdatePackets() { receiveGuildBankUpdatePackets = true; }
@@ -397,6 +401,11 @@ public: // pussywizard: public class Member
         // Cata guild leveling: lifetime and this-week member activity, both feed member XP contribution.
         uint64 m_totalActivity = 0;
         uint64 m_weekActivity = 0;
+
+        // Cata guild reputation: this-week reputation gained, capped at Guild.WeeklyReputationCap.
+        // Lifetime guild reputation is not tracked here - it lives in the player's own
+        // PLAYER_GUILD_REPUTATION faction standing (character_reputation), same as TrinityCore.
+        uint32 m_weekReputation = 0;
 
         bool receiveGuildBankUpdatePackets;
     };
@@ -727,6 +736,10 @@ public:
     void SendGuildXP(WorldSession* session);
     void CompleteChallenge(uint8 challengeType, Player* source);
     void HandleGuildRequestChallengeUpdate(WorldSession* session) const;
+
+    // Cata guild reputation
+    void GiveReputation(uint32 rep, Player* source);
+    void SendGuildReputationWeeklyCap(WorldSession* session, uint32 reputation) const;
 
     // Handle client commands
     void HandleRoster(WorldSession* session);

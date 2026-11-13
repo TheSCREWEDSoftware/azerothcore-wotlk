@@ -808,12 +808,21 @@ void Player::RewardQuest(Quest const* quest, uint32 reward, Object* questGiver, 
         sScriptMgr->OnPlayerGiveXP(this, XP, nullptr, isLFGReward ? PlayerXPSource::XPSOURCE_QUEST_DF : PlayerXPSource::XPSOURCE_QUEST);
         GiveXP(XP, nullptr, 1.0f, isLFGReward);
 
-        // Cata guild leveling. XP here already has RATE_XP_QUEST/RATE_XP_QUEST_DF applied via
-        // CalculateQuestRewardXP()'s GetQuestRate() call, so we don't multiply by RATE_XP_QUEST
-        // again here - only by the separate guild-specific modifier.
-        if (sWorld->getBoolConfig(CONFIG_GUILD_LEVELING_ENABLED))
-            if (Guild* guild = GetGuild())
+        if (Guild* guild = GetGuild())
+        {
+            // Cata guild leveling. XP here already has RATE_XP_QUEST/RATE_XP_QUEST_DF applied via
+            // CalculateQuestRewardXP()'s GetQuestRate() call, so we don't multiply by RATE_XP_QUEST
+            // again here - only by the separate guild-specific modifier.
+            if (sWorld->getBoolConfig(CONFIG_GUILD_LEVELING_ENABLED))
                 guild->GiveXP(uint32(float(XP) * sWorld->getRate(RATE_XP_QUEST_GUILD_MODIFIER)), this);
+
+            // Cata guild reputation. Matches TrinityCore's real Player::RewardQuest exactly: uses
+            // the quest's raw XP value (quest->XPValue(level)), not the guild-XP-rate-scaled `XP`
+            // used just above, and is not gated by Guild.LevelingEnabled - TrinityCore's real
+            // Guild::GiveReputation has no such gate either, only GiveXP does.
+            uint32 guildRep = std::max<uint32>(1, quest->XPValue(GetLevel()) / sWorld->getIntConfig(CONFIG_GUILD_REPUTATION_QUEST_DIVIDER));
+            guild->GiveReputation(guildRep, this);
+        }
     }
 
     // Give player extra money if GetRewOrReqMoney > 0 and get ReqMoney if negative

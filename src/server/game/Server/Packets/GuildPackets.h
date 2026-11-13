@@ -193,6 +193,17 @@ namespace WorldPackets
             int64 GuildCurrentXP = 0;
         };
 
+        // Cata guild reputation
+        class GuildReputationWeeklyCap final : public ServerPacket
+        {
+        public:
+            GuildReputationWeeklyCap() : ServerPacket(SMSG_GUILD_REPUTATION_WEEKLY_CAP, 4) { }
+
+            WorldPacket const* Write() override;
+
+            uint32 Cap = 0;
+        };
+
         // Cata Guild Challenges
         class GuildChallengeUpdateRequest final : public ClientPacket
         {

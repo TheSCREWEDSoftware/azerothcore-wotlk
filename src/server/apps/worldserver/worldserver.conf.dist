@@ -3721,6 +3721,25 @@ Guild.UndeletableLevel = 4
 Guild.DailyXPCap = 7807500
 
 #
+#    Guild.WeeklyReputationCap
+#        Description: Maximum guild reputation (on the player's own Guild faction) a member can
+#                     earn per week.
+#        Default:     4375
+
+Guild.WeeklyReputationCap = 4375
+
+#
+#    Guild.ReputationQuestDivider
+#        Description: Divider applied to a quest's XP value to compute the guild reputation
+#                     awarded on turn-in (min 1). Only the quest turn-in reputation source is
+#                     wired in this fork; see .agents/docs/porting-from-trinitycore.md for why
+#                     the kill-reward source (which is the only other real TrinityCore consumer
+#                     of this config) is not.
+#        Default:     450
+
+Guild.ReputationQuestDivider = 450
+
+#
 ###################################################################################################
 
 ###################################################################################################

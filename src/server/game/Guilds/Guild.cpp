@@ -32,6 +32,7 @@
 #include "ObjectMgr.h"
 #include "Opcodes.h"
 #include "Player.h"
+#include "ReputationMgr.h"
 #include "RBAC.h"
 #include "ScriptMgr.h"
 #include "SocialMgr.h"
@@ -596,6 +597,7 @@ void Guild::Member::SaveToDB(CharacterDatabaseTransaction trans) const
     stmt->SetData(4, m_officerNote);
     stmt->SetData(5, m_totalActivity);
     stmt->SetData(6, m_weekActivity);
+    stmt->SetData(7, m_weekReputation);
     CharacterDatabase.ExecuteOrAppend(trans, stmt);
 }
 
@@ -619,6 +621,7 @@ bool Guild::Member::LoadFromDB(Field* fields)
     m_logoutTime = fields[20].Get<uint32>();                  // characters.logout_time
     m_totalActivity = fields[21].Get<uint64>();                // guild_member.activity
     m_weekActivity  = fields[22].Get<uint64>();                // guild_member.weekActivity
+    m_weekReputation = fields[23].Get<uint32>();               // guild_member.weekReputation
 
     if (!CheckStats())
         return false;
@@ -673,7 +676,37 @@ void Guild::Member::ResetValues(bool weekly)
         m_bankWithdraw[tabId] = 0;
 
     if (weekly)
+    {
         m_weekActivity = 0;
+        m_weekReputation = 0;
+    }
+}
+
+// Cata guild reputation. Ported from TrinityCore's Guild::Member::AddReputation. Grants rep on
+// the player's own PLAYER_GUILD_REPUTATION faction (id 1168) via ReputationMgr - guild
+// reputation is stored as ordinary player faction standing, not a separate guild-side ledger -
+// while m_weekReputation tracks only the portion counted against the weekly cap.
+// Deliberate hardening vs. upstream: TrinityCore computes
+// `rep = std::min(rep, cap - m_weekReputation)` unconditionally, which underflows (uint32) if
+// m_weekReputation somehow exceeds the cap. That should never happen given this is the only
+// writer, but the explicit weekReputation < cap check below costs nothing and removes the risk
+// entirely.
+void Guild::Member::AddReputation(uint32 rep, Player* player)
+{
+    uint32 const cap = sWorld->getIntConfig(CONFIG_GUILD_WEEKLY_REP_CAP);
+    rep = m_weekReputation < cap ? std::min(rep, cap - m_weekReputation) : 0;
+
+    if (!rep)
+        return;
+
+    player->GetReputationMgr().ModifyReputation(sFactionStore.LookupEntry(PLAYER_GUILD_REPUTATION), float(rep));
+
+    m_weekReputation += rep;
+
+    CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_GUILD_MEMBER_WEEK_REPUTATION);
+    stmt->SetData(0, m_weekReputation);
+    stmt->SetData(1, m_guid.GetCounter());
+    CharacterDatabase.Execute(stmt);
 }
 
 // Get amount of money/slots left for today.
@@ -1224,6 +1257,7 @@ void Guild::HandleRoster(WorldSession* session)
 {
     WorldPackets::Guild::GuildRoster roster;
     roster.NumAccounts = m_accountsNumber;
+    roster.WeeklyRepCap = sWorld->getIntConfig(CONFIG_GUILD_WEEKLY_REP_CAP);
     roster.CreateDate = m_createdDate;
 
     bool sendOfficerNote = _HasRankRight(session->GetPlayer(), GR_RIGHT_VIEWOFFNOTE);
@@ -1238,6 +1272,8 @@ void Guild::HandleRoster(WorldSession* session)
         memberData.LastSave = float(float(GameTime::GetGameTime().count() - member.GetLogoutTime()) / DAY);
         memberData.WeeklyXP = int64(member.GetWeekActivity());
         memberData.TotalXP = int64(member.GetTotalActivity());
+        uint32 const weeklyRepCap = sWorld->getIntConfig(CONFIG_GUILD_WEEKLY_REP_CAP);
+        memberData.GuildRepToCap = int32(weeklyRepCap > member.GetWeekReputation() ? weeklyRepCap - member.GetWeekReputation() : 0);
 
         memberData.Status = member.GetFlags();
         memberData.Level = member.GetLevel();
@@ -3165,6 +3201,13 @@ void Guild::ResetTimes(bool weekly)
         CharacterDatabasePreparedStatement* resetStmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_GUILD_RESET_CHALLENGE);
         resetStmt->SetData(0, m_id);
         CharacterDatabase.Execute(resetStmt);
+
+        // Cata guild reputation: persist the weekly reset immediately (unlike weekActivity,
+        // which this fork's Guild Leveling leaves as an in-memory-only reset - a pre-existing
+        // gap noted in that commit, not reintroduced here).
+        CharacterDatabasePreparedStatement* repResetStmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_GUILD_RESET_WEEK_REPUTATION);
+        repResetStmt->SetData(0, m_id);
+        CharacterDatabase.Execute(repResetStmt);
     }
 
     for (auto& [guid, member] : m_members)
@@ -3321,6 +3364,34 @@ void Guild::SendGuildXP(WorldSession* session)
     packet.GuildTodayXP = int64(GetTodayExperience());
     packet.WeeklyXP = int64(member ? member->GetWeekActivity() : 0);
     packet.GuildCurrentXP = int64(GetExperience());
+    session->SendPacket(packet.Write());
+}
+
+// Cata guild reputation. Ported from TrinityCore's Guild::GiveReputation/SendGuildReputationWeeklyCap.
+// Unlike GiveXP, upstream's GiveReputation has no Guild.LevelingEnabled gate of its own, so this
+// doesn't add one either - both call sites already decide independently whether guild rewards
+// apply.
+void Guild::GiveReputation(uint32 rep, Player* source)
+{
+    if (!source)
+        return;
+
+    if (Member* member = GetMember(source->GetGUID()))
+    {
+        member->AddReputation(rep, source);
+        SendGuildReputationWeeklyCap(source->GetSession(), member->GetWeekReputation());
+    }
+}
+
+void Guild::SendGuildReputationWeeklyCap(WorldSession* session, uint32 reputation) const
+{
+    if (!session)
+        return;
+
+    uint32 const cap = std::max<uint32>(0, sWorld->getIntConfig(CONFIG_GUILD_WEEKLY_REP_CAP) - reputation);
+
+    WorldPackets::Guild::GuildReputationWeeklyCap packet;
+    packet.Cap = cap;
     session->SendPacket(packet.Write());
 }
 

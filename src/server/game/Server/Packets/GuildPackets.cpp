@@ -139,6 +139,13 @@ WorldPacket const* WorldPackets::Guild::GuildXP::Write()
     return &_worldPacket;
 }
 
+WorldPacket const* WorldPackets::Guild::GuildReputationWeeklyCap::Write()
+{
+    _worldPacket << uint32(Cap);
+
+    return &_worldPacket;
+}
+
 WorldPacket const* WorldPackets::Guild::GuildRoster::Write()
 {
     _worldPacket.WriteBits(WelcomeText.length(), 11);

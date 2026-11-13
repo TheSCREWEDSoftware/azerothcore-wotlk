@@ -407,6 +407,10 @@ void WorldConfig::BuildConfigCache()
     SetConfigValue<uint32>(CONFIG_GUILD_UNDELETABLE_LEVEL, "Guild.UndeletableLevel", 4);
     SetConfigValue<uint32>(CONFIG_GUILD_DAILY_XP_CAP, "Guild.DailyXPCap", 7807500);
 
+    // Cata guild reputation
+    SetConfigValue<uint32>(CONFIG_GUILD_WEEKLY_REP_CAP, "Guild.WeeklyReputationCap", 4375);
+    SetConfigValue<uint32>(CONFIG_GUILD_REPUTATION_QUEST_DIVIDER, "Guild.ReputationQuestDivider", 450);
+
     SetConfigValue<bool>(CONFIG_DETECT_POS_COLLISION, "DetectPosCollision", true);
 
     SetConfigValue<bool>(CONFIG_RESTRICTED_LFG_CHANNEL, "Channel.RestrictedLfg", true);
