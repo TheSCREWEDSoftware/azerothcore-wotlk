@@ -23,15 +23,17 @@ WorldPacket const* WorldPackets::WorldState::InitWorldStates::Write()
 {
     _worldPacket.reserve(4 + 4 + 4 + 2 + Worldstates.size() * 8);
 
+    // 5.4.8 18414
     _worldPacket << int32(MapID);
-    _worldPacket << int32(ZoneID);
     _worldPacket << int32(AreaID);
+    _worldPacket << int32(ZoneID);
 
-    _worldPacket << uint16(Worldstates.size());
+    _worldPacket.WriteBits(Worldstates.size(), 21);
+    _worldPacket.FlushBits();
     for (WorldStateInfo const& wsi : Worldstates)
     {
-        _worldPacket << int32(wsi.VariableID);
         _worldPacket << int32(wsi.Value);
+        _worldPacket << int32(wsi.VariableID);
     }
 
     return &_worldPacket;
@@ -39,8 +41,11 @@ WorldPacket const* WorldPackets::WorldState::InitWorldStates::Write()
 
 WorldPacket const* WorldPackets::WorldState::UpdateWorldState::Write()
 {
-    _worldPacket << int32(VariableID);
+    // 5.4.8 18414
+    _worldPacket.WriteBit(false);                           // hidden
+    _worldPacket.FlushBits();
     _worldPacket << int32(Value);
+    _worldPacket << int32(VariableID);
 
     return &_worldPacket;
 }

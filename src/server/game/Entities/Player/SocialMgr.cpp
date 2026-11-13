@@ -158,6 +158,8 @@ void PlayerSocial::SendSocialList(Player* player, uint32 flags)
         sSocialMgr->GetFriendInfo(player, itr.first, friendInfo);
 
         data << itr.first;                                    // player guid
+        data << uint32(0);                                    // 5.4.8: virtual realm address
+        data << uint32(0);                                    // 5.4.8: native realm address
         data << uint32(contactFlags);                         // player flag (0x1 = Friend, 0x2 = Ignored, 0x4 = Muted)
         data << friendInfo.Note;                              // string note
         if (contactFlags & SOCIAL_FLAG_FRIEND)                // if IsFriend()
