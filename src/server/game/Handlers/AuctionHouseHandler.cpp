@@ -176,8 +176,8 @@ void WorldSession::HandleAuctionSellItem(WorldPacket& recvData)
     if (!bidMoney || !etime)
         return;
 
-    // the 4.3.4 client sends 64 bit money, auctions are still kept in 32 bit
-    if (bidMoney > MAX_MONEY_AMOUNT || buyoutMoney > MAX_MONEY_AMOUNT)
+    // auctions are still kept in 32 bit
+    if (bidMoney > std::numeric_limits<uint32>::max() || buyoutMoney > std::numeric_limits<uint32>::max())
     {
         SendAuctionCommandResult(nullptr, AUCTION_SELL_ITEM, ERR_AUCTION_DATABASE_ERROR);
         return;
@@ -185,14 +185,6 @@ void WorldSession::HandleAuctionSellItem(WorldPacket& recvData)
 
     uint32 bid = uint32(bidMoney);
     uint32 buyout = uint32(buyoutMoney);
-
-    if (bid > MAX_MONEY_AMOUNT || buyout > MAX_MONEY_AMOUNT)
-    {
-        LOG_DEBUG("network", "WORLD: HandleAuctionSellItem - Player {} ({}) attempted to sell item with higher price than max gold amount.",
-            _player->GetName(), _player->GetGUID().ToString());
-        SendAuctionCommandResult(nullptr, AUCTION_SELL_ITEM, ERR_AUCTION_DATABASE_ERROR);
-        return;
-    }
 
     Creature* creature = GetPlayer()->GetNPCIfCanInteractWith(auctioneer, UNIT_NPC_FLAG_AUCTIONEER);
     if (!creature)
@@ -458,7 +450,7 @@ void WorldSession::HandleAuctionPlaceBid(WorldPacket& recvData)
     recvData >> auctioneer;
     recvData >> auctionId >> priceMoney;
 
-    if (!auctionId || !priceMoney || priceMoney > MAX_MONEY_AMOUNT)
+    if (!auctionId || !priceMoney || priceMoney > std::numeric_limits<uint32>::max())
         return;                                             //check for cheaters
 
     uint32 price = uint32(priceMoney);

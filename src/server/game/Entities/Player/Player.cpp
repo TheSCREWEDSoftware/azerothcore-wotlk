@@ -12103,21 +12103,27 @@ void Player::InitPrimaryProfessions()
     SetFreePrimaryProfessions(sWorld->getIntConfig(CONFIG_MAX_PRIMARY_TRADE_SKILL));
 }
 
-bool Player::ModifyMoney(int32 amount, bool sendError /*= true*/)
+bool Player::ModifyMoney(int64 amount, bool sendError /*= true*/)
 {
     if (!amount)
         return true;
 
-    sScriptMgr->OnPlayerMoneyChanged(this, amount);
+    // the script hook still takes 32 bit amounts
+    if (amount >= std::numeric_limits<int32>::min() && amount <= std::numeric_limits<int32>::max())
+    {
+        int32 hookAmount = int32(amount);
+        sScriptMgr->OnPlayerMoneyChanged(this, hookAmount);
+        amount = hookAmount;
+    }
 
     if (amount < 0)
-        SetMoney (GetMoney() > uint32(-amount) ? GetMoney() + amount : 0);
+        SetMoney(GetMoney() > uint64(-amount) ? GetMoney() + amount : 0);
     else
     {
         // Trial account money cap (0 disables the cap)
         if (uint32 trialMoneyCap = sWorld->getIntConfig(CONFIG_TRIAL_MONEY_CAP))
         {
-            if (GetSession()->IsTrialAccount() && GetMoney() + uint32(amount) > trialMoneyCap)
+            if (GetSession()->IsTrialAccount() && GetMoney() + uint64(amount) > trialMoneyCap)
             {
                 if (sendError)
                     SendEquipError(EQUIP_ERR_TOO_MUCH_GOLD, nullptr, nullptr);
@@ -12125,7 +12131,7 @@ bool Player::ModifyMoney(int32 amount, bool sendError /*= true*/)
             }
         }
 
-        if (GetMoney() < uint32(MAX_MONEY_AMOUNT - amount))
+        if (GetMoney() < MAX_MONEY_AMOUNT - uint64(amount))
             SetMoney(GetMoney() + amount);
         else
         {

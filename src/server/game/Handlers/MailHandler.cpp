@@ -141,7 +141,7 @@ void WorldSession::HandleSendMail(WorldPacket& recvData)
         return;
 
     // the server keeps money as 32 bits
-    if (money64 > MAX_MONEY_AMOUNT || COD64 > MAX_MONEY_AMOUNT)
+    if (money64 > std::numeric_limits<uint32>::max() || COD64 > std::numeric_limits<uint32>::max())
     {
         GetPlayer()->SendMailResult(0, MAIL_SEND, MAIL_ERR_NOT_ENOUGH_MONEY);
         return;

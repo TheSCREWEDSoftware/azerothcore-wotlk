@@ -943,7 +943,7 @@ enum PlayerCharmedAISpells
 
 // Player summoning auto-decline time (in secs)
 #define MAX_PLAYER_SUMMON_DELAY                   (2*MINUTE)
-#define MAX_MONEY_AMOUNT                       (0x7FFFFFFF-1)
+#define MAX_MONEY_AMOUNT                       (UI64LIT(9999999999))
 
 struct ProgressionRequirement
 {
@@ -1590,7 +1590,7 @@ public:
     void KilledPlayerCreditForQuest(uint16 count, Quest const* quest);
     void KillCreditGO(uint32 entry, ObjectGuid guid = ObjectGuid::Empty);
     void TalkedToCreature(uint32 entry, ObjectGuid guid);
-    void MoneyChanged(uint32 value);
+    void MoneyChanged(uint64 value);
     void ReputationChanged(FactionEntry const* factionEntry);
     void ReputationChanged2(FactionEntry const* factionEntry);
     [[nodiscard]] bool HasQuestForItem(uint32 itemId, uint32 excludeQuestId = 0, bool turnIn = false, bool* showInLoot = nullptr) const;
@@ -1667,19 +1667,22 @@ public:
     void setRegenTimerCount(uint32 time) {m_regenTimerCount = time;}
     void setWeaponChangeTimer(uint32 time) {m_weaponChangeTimer = time;}
 
-    [[nodiscard]] uint32 GetMoney() const { return GetUInt32Value(PLAYER_FIELD_COINAGE); }
-    bool ModifyMoney(int32 amount, bool sendError = true);
-    [[nodiscard]] bool HasEnoughMoney(uint32 amount) const { return (GetMoney() >= amount); }
-    [[nodiscard]] bool HasEnoughMoney(int32 amount) const
+    [[nodiscard]] uint64 GetMoney() const { return GetUInt64Value(PLAYER_FIELD_COINAGE); }
+    bool ModifyMoney(int64 amount, bool sendError = true);
+    template <typename T>
+    [[nodiscard]] bool HasEnoughMoney(T amount) const
     {
-        if (amount > 0)
-            return (GetMoney() >= (uint32) amount);
-        return true;
+        static_assert(std::is_integral_v<T>);
+        if constexpr (std::is_signed_v<T>)
+            if (amount <= 0)
+                return true;
+
+        return GetMoney() >= uint64(amount);
     }
 
-    void SetMoney(uint32 value)
+    void SetMoney(uint64 value)
     {
-        SetUInt32Value(PLAYER_FIELD_COINAGE, value);
+        SetUInt64Value(PLAYER_FIELD_COINAGE, value);
         MoneyChanged(value);
         UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_HIGHEST_GOLD_VALUE_OWNED);
     }

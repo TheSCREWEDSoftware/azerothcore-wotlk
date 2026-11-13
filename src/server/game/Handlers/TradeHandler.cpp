@@ -586,9 +586,9 @@ void WorldSession::HandleAcceptTradeOpcode(WorldPacket& recvPacket)
         }
 
         // update money
-        _player->ModifyMoney(-int32(my_trade->GetMoney()));
+        _player->ModifyMoney(-int64(my_trade->GetMoney()));
         _player->ModifyMoney(his_trade->GetMoney());
-        trader->ModifyMoney(-int32(his_trade->GetMoney()));
+        trader->ModifyMoney(-int64(his_trade->GetMoney()));
         trader->ModifyMoney(my_trade->GetMoney());
 
         if (HasPermission(rbac::RBAC_PERM_LOG_GM_TRADE))
@@ -872,7 +872,7 @@ void WorldSession::HandleSetTradeGoldOpcode(WorldPacket& recvPacket)
         return;
 
     my_trade->UpdateClientStateIndex();
-    my_trade->SetMoney(uint32(std::min<uint64>(gold, MAX_MONEY_AMOUNT)));
+    my_trade->SetMoney(std::min<uint64>(gold, MAX_MONEY_AMOUNT));
 }
 
 void WorldSession::HandleSetTradeItemOpcode(WorldPacket& recvPacket)

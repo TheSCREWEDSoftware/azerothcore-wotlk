@@ -602,12 +602,12 @@ public:
             return false;
         }
 
-        int32 moneyToAdd = *moneyToAddO;
-        uint32 targetMoney = target->GetMoney();
+        int64 moneyToAdd = *moneyToAddO;
+        uint64 targetMoney = target->GetMoney();
 
         if (moneyToAdd < 0)
         {
-            int32 newmoney = int32(targetMoney) + moneyToAdd;
+            int64 newmoney = int64(targetMoney) + moneyToAdd;
 
             LOG_DEBUG("chat.system", handler->GetAcoreString(LANG_CURRENT_MONEY), targetMoney, moneyToAdd, newmoney);
             if (newmoney <= 0)
@@ -620,8 +620,8 @@ public:
             }
             else
             {
-                if (newmoney > MAX_MONEY_AMOUNT)
-                    newmoney = MAX_MONEY_AMOUNT;
+                if (uint64(newmoney) > MAX_MONEY_AMOUNT)
+                    newmoney = int64(MAX_MONEY_AMOUNT);
 
                 handler->PSendSysMessage(LANG_YOU_TAKE_MONEY, std::abs(moneyToAdd), handler->GetNameLink(target));
                 if (handler->needReportToTarget(target))
@@ -635,10 +635,10 @@ public:
             if (handler->needReportToTarget(target))
                 ChatHandler(target->GetSession()).PSendSysMessage(LANG_YOURS_MONEY_GIVEN, handler->GetNameLink(), moneyToAdd);
 
-            if (moneyToAdd >= MAX_MONEY_AMOUNT)
-                moneyToAdd = MAX_MONEY_AMOUNT;
+            if (uint64(moneyToAdd) >= MAX_MONEY_AMOUNT)
+                moneyToAdd = int64(MAX_MONEY_AMOUNT);
 
-            if (targetMoney >= uint32(MAX_MONEY_AMOUNT) - moneyToAdd)
+            if (targetMoney >= MAX_MONEY_AMOUNT - uint64(moneyToAdd))
                 moneyToAdd -= targetMoney;
 
             target->ModifyMoney(moneyToAdd);

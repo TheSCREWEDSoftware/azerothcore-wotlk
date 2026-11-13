@@ -1900,7 +1900,7 @@ public:
 
         Field* fields = result->Fetch();
         uint32 atLoginFlags = fields[0].Get<uint16>();
-        uint32 money = fields[2].Get<uint32>();
+        uint64 money = fields[2].Get<uint64>();
 
         // Header
         handler->PSendSysMessage(LANG_DEBUG_FACTIONCHANGE_HEADER, name, guid.GetCounter());

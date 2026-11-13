@@ -71,12 +71,6 @@ void ServerMailMgr::LoadMailServerTemplates()
         if (!servMail.active)
             continue;
 
-        if (servMail.moneyA > MAX_MONEY_AMOUNT || servMail.moneyH > MAX_MONEY_AMOUNT)
-        {
-            LOG_ERROR("sql.sql", "Table `mail_server_template` has moneyA {} or moneyH {} larger than MAX_MONEY_AMOUNT {} for id {}, skipped.", servMail.moneyA, servMail.moneyH, MAX_MONEY_AMOUNT, servMail.id);
-            continue;
-        }
-
         if (servMail.senderEntry && !sObjectMgr->GetCreatureTemplate(servMail.senderEntry))
         {
             LOG_ERROR("sql.sql", "Table `mail_server_template` has invalid senderEntry {} (no matching creature_template) for id {}, falling back to default sender.", servMail.senderEntry, servMail.id);
