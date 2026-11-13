@@ -13736,9 +13736,14 @@ void Player::SetClientControl(Unit* target, bool allowMove, bool packetOnly /*= 
 
     // A fleeing/confused target can't be controlled by the client yet, but the mover
     // must still switch so control is restored once the crowd control ends.
-    WorldPacket data(SMSG_CLIENT_CONTROL_UPDATE, target->GetPackGUID().size() + 1);
-    data << target->GetPackGUID();
-    data << uint8((allowMove && !target->HasUnitState(UNIT_STATE_FLEEING | UNIT_STATE_CONFUSED)) ? 1 : 0);
+    // 5.4.8 18414, from Project SkyFire
+    ObjectGuid targetGuid = target->GetGUID();
+    WorldPacket data(SMSG_CLIENT_CONTROL_UPDATE, 1 + 8);
+    data.WriteGuidMask(targetGuid, { 2, 7 });
+    data.WriteBit(allowMove && !target->HasUnitState(UNIT_STATE_FLEEING | UNIT_STATE_CONFUSED));
+    data.WriteGuidMask(targetGuid, { 0, 3, 6, 5, 1, 4 });
+    data.FlushBits();
+    data.WriteGuidBytes(targetGuid, { 1, 5, 7, 4, 2, 6, 3, 0 });
     SendDirectMessage(&data);
 
     // We want to set the packet only
@@ -15538,31 +15543,50 @@ void Player::BuildEnchantmentsInfoData(WorldPacket* data)
 
 void Player::SendEquipmentSetList()
 {
-    uint32 count = 0;
-    WorldPacket data(SMSG_EQUIPMENT_SET_LIST, 4);
-    std::size_t count_pos = data.wpos();
-    data << uint32(count);                                  // count placeholder
-    for (EquipmentSets::iterator itr = m_EquipmentSets.begin(); itr != m_EquipmentSets.end(); ++itr)
+    // 5.4.8 18414, from Project SkyFire (SMSG_LOAD_EQUIPMENT_SET)
+    std::vector<std::pair<uint32, EquipmentSet const*>> sets;
+    for (EquipmentSets::const_iterator itr = m_EquipmentSets.begin(); itr != m_EquipmentSets.end(); ++itr)
+        if (itr->second.state != EQUIPMENT_SET_DELETED)
+            sets.emplace_back(itr->first, &itr->second);
+
+    auto itemGuid = [](EquipmentSet const& set, uint32 slot) -> ObjectGuid
     {
-        if (itr->second.state == EQUIPMENT_SET_DELETED)
-            continue;
+        // ignored slots stored in IgnoreMask, client wants "1" as raw GUID, so no HighGuid::Item
+        if (set.IgnoreMask & (1 << slot))
+            return ObjectGuid(uint64(1));
+        return set.Items[slot];
+    };
 
-        data.appendPackGUID(itr->second.Guid);
-        data << uint32(itr->first);
-        data << itr->second.Name;
-        data << itr->second.IconName;
+    WorldPacket data(SMSG_LOAD_EQUIPMENT_SET, 3 + sets.size() * (8 + 4 + 64 + EQUIPMENT_SLOT_END * 9));
+    data.WriteBits(sets.size(), 19);
+    for (auto const& [index, set] : sets)
+    {
+        ObjectGuid setGuid = ObjectGuid(set->Guid);
+        data.WriteGuidMask(setGuid, { 4 });
         for (uint32 i = 0; i < EQUIPMENT_SLOT_END; ++i)
-        {
-            // ignored slots stored in IgnoreMask, client wants "1" as raw GUID, so no HighGuid::Item
-            if (itr->second.IgnoreMask & (1 << i))
-                data.appendPackGUID(uint64(1));
-            else // xinef: send proper data (do not append 0 with high guid)
-                data.appendPackGUID(itr->second.Items[i] ? itr->second.Items[i].GetRawValue() : uint64(0));
-        }
-
-        ++count;                                            // client have limit but it checked at loading and set
+            data.WriteGuidMask(itemGuid(*set, i), { 3, 5, 7, 2, 6, 0, 4, 1 });
+        data.WriteGuidMask(setGuid, { 5 });
+        data.WriteBits(set->IconName.size(), 9);
+        data.WriteGuidMask(setGuid, { 1, 7 });
+        data.WriteBits(set->Name.size(), 8);
+        data.WriteGuidMask(setGuid, { 3, 2, 6, 0 });
     }
-    data.put<uint32>(count_pos, count);
+    data.FlushBits();
+
+    for (auto const& [index, set] : sets)
+    {
+        ObjectGuid setGuid = ObjectGuid(set->Guid);
+        // SkyFire writes the set guid bytes here; the item guid bytes in the same order are meant
+        for (uint32 i = 0; i < EQUIPMENT_SLOT_END; ++i)
+            data.WriteGuidBytes(itemGuid(*set, i), { 2, 3, 7, 1, 6, 5, 0, 4 });
+
+        data.WriteGuidBytes(setGuid, { 7 });
+        data << uint32(index);
+        data.WriteString(set->Name);
+        data.WriteGuidBytes(setGuid, { 2, 6, 0, 3, 1, 5, 4 });
+        data.WriteString(set->IconName);
+    }
+
     SendDirectMessage(&data);
 }
 
@@ -15598,9 +15622,13 @@ void Player::SetEquipmentSet(uint32 index, EquipmentSet eqset)
     {
         eqslot.Guid = sObjectMgr->GenerateEquipmentSetGuid();
 
-        WorldPacket data(SMSG_EQUIPMENT_SET_SAVED, 4 + 1);
+        // 5.4.8 18414, from Project SkyFire
+        ObjectGuid setGuid = ObjectGuid(eqslot.Guid);
+        WorldPacket data(SMSG_EQUIPMENT_SET_ID, 1 + 4 + 8);
+        data.WriteGuidMask(setGuid, { 4, 1, 6, 2, 7, 0, 3, 5 });
+        data.FlushBits();
         data << uint32(index);
-        data.appendPackGUID(eqslot.Guid);
+        data.WriteGuidBytes(setGuid, { 1, 3, 7, 4, 5, 0, 2, 6 });
         SendDirectMessage(&data);
     }
 

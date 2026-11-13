@@ -211,10 +211,12 @@ namespace WorldPackets
 
             WorldPacket const* Write() override;
 
-            PackedGuid Target;
-            PackedGuid Caster;
+            ObjectGuid Target;
+            ObjectGuid Caster;
+            ObjectGuid ItemGuid;
             uint32 ItemId = 0;
             uint32 EnchantId = 0;
+            uint32 Slot = 0;
         };
 
         class ItemEnchantTimeUpdate final : public ServerPacket

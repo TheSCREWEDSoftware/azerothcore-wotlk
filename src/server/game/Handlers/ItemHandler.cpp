@@ -1306,13 +1306,15 @@ void WorldSession::HandleSetAmmoOpcode(WorldPacket& recvData)
         _player->RemoveAmmo();
 }
 
-void WorldSession::SendEnchantmentLog(ObjectGuid target, ObjectGuid caster, uint32 itemId, uint32 enchantId)
+void WorldSession::SendEnchantmentLog(ObjectGuid target, ObjectGuid caster, ObjectGuid itemGuid, uint32 itemId, uint32 enchantId, uint32 slot)
 {
     WorldPackets::Item::EnchantmentLog enchantmentLog;
-    enchantmentLog.Target = target.WriteAsPacked();
-    enchantmentLog.Caster = caster.WriteAsPacked();
+    enchantmentLog.Target = target;
+    enchantmentLog.Caster = caster;
+    enchantmentLog.ItemGuid = itemGuid;
     enchantmentLog.ItemId = itemId;
     enchantmentLog.EnchantId = enchantId;
+    enchantmentLog.Slot = slot;
     GetPlayer()->SendMessageToSet(enchantmentLog.Write(), true);
 }
 

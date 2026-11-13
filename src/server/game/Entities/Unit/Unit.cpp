@@ -10517,8 +10517,12 @@ void Unit::Dismount()
         SendCollisionHeightToController(player->GetCollisionHeight(), UPDATE_COLLISION_HEIGHT_MOUNT);
     }
 
-    WorldPacket data(SMSG_DISMOUNT, 8);
-    data << GetPackGUID();
+    // 5.4.8 18414, from Project SkyFire
+    ObjectGuid guid = GetGUID();
+    WorldPacket data(SMSG_DISMOUNT, 1 + 8);
+    data.WriteGuidMask(guid, { 6, 3, 0, 7, 1, 2, 5, 4 });
+    data.FlushBits();
+    data.WriteGuidBytes(guid, { 3, 6, 7, 5, 1, 4, 2, 0 });
     SendMessageToSet(&data, true);
 
     // dismount as a vehicle
@@ -12373,11 +12377,16 @@ void Unit::SetPower(Powers power, uint32 val, bool withPowerUpdate /*= true*/, b
 
     if (withPowerUpdate)
     {
-        WorldPacket data(SMSG_POWER_UPDATE, 8 + 4 + 1 + 4);
-        data << GetPackGUID();
-        data << uint32(1);
+        // 5.4.8 18414, from Project SkyFire
+        ObjectGuid guid = GetGUID();
+        WorldPacket data(SMSG_POWER_UPDATE, 1 + 3 + 8 + 1 + 4);
+        data.WriteGuidMask(guid, { 4, 6, 7, 5, 2, 3, 0, 1 });
+        data.WriteBits(1, 21);                              // power count
+        data.FlushBits();
+        data.WriteGuidBytes(guid, { 7, 0, 5, 3, 1, 2, 4 });
         data << uint8(power);
-        data << uint32(val);
+        data << int32(val);
+        data.WriteGuidBytes(guid, { 6 });
         SendMessageToSet(&data, IsPlayer());
     }
 
@@ -13231,12 +13240,21 @@ void Unit::SendComboPoints()
         return;
     }
 
-    PackedGuid const packGUID = m_comboTarget ? m_comboTarget->GetPackGUID() : PackedGuid();
+    // 5.4.8 18414, from Project SkyFire
+    ObjectGuid targetGuid = m_comboTarget ? m_comboTarget->GetGUID() : ObjectGuid::Empty;
+    auto writeComboTarget = [&](WorldPacket& data)
+    {
+        data.WriteGuidMask(targetGuid, { 0, 5, 6, 3, 7, 4, 1, 2 });
+        data.FlushBits();
+        data.WriteGuidBytes(targetGuid, { 5, 6, 4, 7, 3, 0 });
+        data << uint8(m_comboPoints);
+        data.WriteGuidBytes(targetGuid, { 2, 1 });
+    };
+
     if (Player* playerMe = ToPlayer())
     {
-        WorldPacket data(SMSG_UPDATE_COMBO_POINTS, packGUID.size() + 1);
-        data << packGUID;
-        data << uint8(m_comboPoints);
+        WorldPacket data(SMSG_UPDATE_COMBO_POINTS, 1 + 8 + 1);
+        writeComboTarget(data);
         playerMe->SendDirectMessage(&data);
     }
 
@@ -13249,10 +13267,10 @@ void Unit::SendComboPoints()
 
     if (m_movedByPlayer || owner)
     {
-        WorldPacket data(SMSG_PET_UPDATE_COMBO_POINTS, GetPackGUID().size() + packGUID.size() + 1);
+        // SkyFire prefixes the pet's packed guid to the player layout
+        WorldPacket data(SMSG_PET_UPDATE_COMBO_POINTS, GetPackGUID().size() + 1 + 8 + 1);
         data << GetPackGUID();
-        data << packGUID;
-        data << uint8(m_comboPoints);
+        writeComboTarget(data);
 
         if (m_movedByPlayer)
             m_movedByPlayer->ToPlayer()->SendDirectMessage(&data);
@@ -16312,8 +16330,12 @@ void Unit::CastDelayedSpellWithPeriodicAmount(Unit* caster, uint32 spellId, Aura
 
 void Unit::SendClearTarget()
 {
-    WorldPacket data(SMSG_BREAK_TARGET, GetPackGUID().size());
-    data << GetPackGUID();
+    // 5.4.8 18414, from Project SkyFire
+    ObjectGuid guid = GetGUID();
+    WorldPacket data(SMSG_BREAK_TARGET, 1 + 8);
+    data.WriteGuidMask(guid, { 2, 3, 7, 5, 4, 6, 0, 1 });
+    data.FlushBits();
+    data.WriteGuidBytes(guid, { 2, 1, 3, 0, 7, 4, 6, 5 });
     SendMessageToSet(&data, false);
 }
 
@@ -16760,8 +16782,7 @@ void Unit::SendHoverUpdate(bool enable)
 
             uint32 const counter = player->GetSession()->GetOrderCounter();
 
-            data << GetPackGUID();
-            data << counter;
+            WorldPackets::Movement::WriteMovementFlagChange(data, GetGUID(), counter);
             player->SendDirectMessage(&data);
             player->GetSession()->IncrementOrderCounter();
         }

@@ -40,6 +40,7 @@
 #include "MapMgr.h"
 #include "ObjectMgr.h"
 #include "Player.h"
+#include "Realm.h"
 #include "RBAC.h"
 #include "RaceMgr.h"
 #include "ReputationMgr.h"
@@ -762,34 +763,69 @@ void AchievementMgr::SendAchievementEarned(AchievementEntry const* achievement) 
         Cell::VisitObjects(GetPlayer(), _worker, sWorld->getFloatConfig(CONFIG_LISTEN_RANGE_SAY));
     }
 
-    WorldPacket data(SMSG_ACHIEVEMENT_EARNED, 8 + 4 + 8);
-    data << GetPlayer()->GetPackGUID();
-    data << uint32(achievement->ID);
+    // 5.4.8 18414, from Project SkyFire: earner and sender are the same player. SkyFire writes the
+    // earner's byte 5 twice; the second copy is dropped.
+    ObjectGuid guid = GetPlayer()->GetGUID();
+    uint32 realmId = realm.Id.Realm;
+    WorldPacket data(SMSG_ACHIEVEMENT_EARNED, 3 + 8 + 8 + 4 + 4 + 4 + 4);
+    data.WriteGuidMask(guid, { 6, 2 });                     // sender
+    data.WriteGuidMask(guid, { 4, 5, 0, 3 });               // earner
+    data.WriteBit(false);                                   // initial (no toast)
+    data.WriteGuidMask(guid, { 2 });
+    data.WriteGuidMask(guid, { 7, 1 });
+    data.WriteGuidMask(guid, { 3, 0, 4 });
+    data.WriteGuidMask(guid, { 6 });
+    data.WriteGuidMask(guid, { 1 });
+    data.WriteGuidMask(guid, { 2 });
+    data.WriteGuidMask(guid, { 5 });
+    data.FlushBits();
+
+    data.WriteGuidBytes(guid, { 5 });
+    data.WriteGuidBytes(guid, { 3 });
+    data.WriteGuidBytes(guid, { 6 });
+    data.WriteGuidBytes(guid, { 6 });
     data.AppendPackedTime(GameTime::GetGameTime().count());
-    data << uint32(0);
+    data.WriteGuidBytes(guid, { 1 });
+    data.WriteGuidBytes(guid, { 2, 0, 7 });
+    data.WriteGuidBytes(guid, { 3 });
+    data.WriteGuidBytes(guid, { 4 });
+    data.WriteGuidBytes(guid, { 7 });
+    data << uint32(achievement->ID);
+    data.WriteGuidBytes(guid, { 4 });
+    data.WriteGuidBytes(guid, { 1 });
+    data.WriteGuidBytes(guid, { 0 });
+    data.WriteGuidBytes(guid, { 5 });
+    data << uint32(realmId);
+    data << uint32(realmId);
+    data.WriteGuidBytes(guid, { 2 });
     GetPlayer()->SendMessageToSetInRange(&data, sWorld->getFloatConfig(CONFIG_LISTEN_RANGE_SAY), true);
 }
 
 void AchievementMgr::SendCriteriaUpdate(AchievementCriteriaEntry const* entry, CriteriaProgress const* progress, uint32 timeElapsed, bool timedCompleted) const
 {
-    WorldPacket data(SMSG_CRITERIA_UPDATE, 8 + 4 + 8);
+    // 5.4.8 18414, from Project SkyFire
+    ObjectGuid guid = GetPlayer()->GetGUID();
+    WorldPacket data(SMSG_CRITERIA_UPDATE, 1 + 8 + 4 + 4 + 4 + 4 + 4 + 8);
+    data.WriteGuidMask(guid, { 4, 6, 2, 3, 7, 1, 5, 0 });
+    data.FlushBits();
+    data.WriteGuidBytes(guid, { 3, 6, 2 });
     data << uint32(entry->ID);
-
-    // the counter is packed like a packed Guid
-    data.appendPackGUID(progress->counter);
-
-    data << GetPlayer()->GetPackGUID();
     if (!entry->timeLimit)
         data << uint32(0);
     else
         data << uint32(timedCompleted ? 0 : 1); // 1 is for keeping the counter at 0 in client
+    data.WriteGuidBytes(guid, { 5, 1 });
     data.AppendPackedTime(progress->date);
+    data.WriteGuidBytes(guid, { 4 });
     data << uint32(timeElapsed);    // time elapsed in seconds
 
     if (sAchievementMgr->IsAverageCriteria(entry))
         data << uint32(GameTime::GetGameTime().count() - GetPlayer()->GetCreationTime().count());    // for average achievements
     else
         data << uint32(timeElapsed);    // time elapsed in seconds
+
+    data.WriteGuidBytes(guid, { 7, 0 });
+    data << uint64(progress->counter);
 
     GetPlayer()->SendDirectMessage(&data);
 }

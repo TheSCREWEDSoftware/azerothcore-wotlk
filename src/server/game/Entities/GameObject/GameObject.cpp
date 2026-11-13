@@ -2450,13 +2450,53 @@ void GameObject::ModifyHealth(int32 change, Unit* attackerOrHealer /*= nullptr*/
     /// @todo: is there any packet for healing?
     if (player)
     {
-        WorldPacket data(SMSG_DESTRUCTIBLE_BUILDING_DAMAGE, 8 + 8 + 8 + 4 + 4);
-        data << GetPackGUID();
-        data << attackerOrHealer->GetPackGUID();
-        data << player->GetPackGUID();
-        data << uint32(-change);                    // change  < 0 triggers SPELL_BUILDING_HEAL combat log event
-        // change >= 0 triggers SPELL_BUILDING_DAMAGE event
+        // 5.4.8 18414, from Project SkyFire
+        ObjectGuid playerGuid = player->GetGUID();
+        ObjectGuid vehicleGuid = attackerOrHealer->GetGUID();
+        ObjectGuid objectGuid = GetGUID();
+
+        WorldPacket data(SMSG_DESTRUCTIBLE_BUILDING_DAMAGE, 3 + 8 + 8 + 8 + 4 + 4);
+        data.WriteGuidMask(vehicleGuid, { 2 });
+        data.WriteGuidMask(objectGuid, { 2 });
+        data.WriteGuidMask(playerGuid, { 7 });
+        data.WriteGuidMask(objectGuid, { 4 });
+        data.WriteGuidMask(playerGuid, { 3, 5 });
+        data.WriteGuidMask(objectGuid, { 0 });
+        data.WriteGuidMask(playerGuid, { 2, 6 });
+        data.WriteGuidMask(vehicleGuid, { 4 });
+        data.WriteGuidMask(objectGuid, { 5 });
+        data.WriteGuidMask(playerGuid, { 0, 1 });
+        data.WriteGuidMask(objectGuid, { 1 });
+        data.WriteGuidMask(vehicleGuid, { 0, 3, 6 });
+        data.WriteGuidMask(objectGuid, { 7 });
+        data.WriteGuidMask(vehicleGuid, { 7, 5 });
+        data.WriteGuidMask(objectGuid, { 6 });
+        data.WriteGuidMask(playerGuid, { 4 });
+        data.WriteGuidMask(vehicleGuid, { 1 });
+        data.WriteGuidMask(objectGuid, { 3 });
+        data.FlushBits();
+
+        data.WriteGuidBytes(vehicleGuid, { 2 });
         data << uint32(spellId);
+        data.WriteGuidBytes(playerGuid, { 5, 6 });
+        data.WriteGuidBytes(objectGuid, { 7 });
+        data.WriteGuidBytes(playerGuid, { 1 });
+        data.WriteGuidBytes(objectGuid, { 1 });
+        data.WriteGuidBytes(playerGuid, { 2 });
+        data.WriteGuidBytes(vehicleGuid, { 7, 5 });
+        data.WriteGuidBytes(objectGuid, { 0, 2, 6 });
+        data.WriteGuidBytes(vehicleGuid, { 1, 6 });
+        data << int32(-change);                     // change  < 0 triggers SPELL_BUILDING_HEAL combat log event
+                                                    // change >= 0 triggers SPELL_BUILDING_DAMAGE event
+        data.WriteGuidBytes(objectGuid, { 5 });
+        data.WriteGuidBytes(playerGuid, { 0 });
+        data.WriteGuidBytes(vehicleGuid, { 0 });
+        data.WriteGuidBytes(playerGuid, { 7, 4 });
+        data.WriteGuidBytes(objectGuid, { 3 });
+        data.WriteGuidBytes(vehicleGuid, { 3 });
+        data.WriteGuidBytes(objectGuid, { 4 });
+        data.WriteGuidBytes(vehicleGuid, { 4 });
+        data.WriteGuidBytes(playerGuid, { 3 });
         player->SendDirectMessage(&data);
     }
 

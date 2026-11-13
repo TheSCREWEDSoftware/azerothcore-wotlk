@@ -243,20 +243,82 @@ void WorldPackets::Item::AutoStoreBagItem::Read()
 
 WorldPacket const* WorldPackets::Item::EnchantmentLog::Write()
 {
-    _worldPacket << Target;
-    _worldPacket << Caster;
-    _worldPacket << ItemId;
-    _worldPacket << EnchantId;
+    // 5.4.8 18414, from Project SkyFire. SkyFire writes caster byte 3 twice and target byte 3 never;
+    // the second one is the target's
+    _worldPacket << uint32(ItemId);
+    _worldPacket << uint32(Slot);
+    _worldPacket << uint32(EnchantId);
+
+    _worldPacket.WriteGuidMask(Caster, { 6, 7 });
+    _worldPacket.WriteGuidMask(Target, { 6, 4 });
+    _worldPacket.WriteGuidMask(Caster, { 5 });
+    _worldPacket.WriteGuidMask(ItemGuid, { 7, 2, 3 });
+    _worldPacket.WriteGuidMask(Caster, { 4, 3 });
+    _worldPacket.WriteGuidMask(ItemGuid, { 6 });
+    _worldPacket.WriteGuidMask(Target, { 1 });
+    _worldPacket.WriteGuidMask(Caster, { 2 });
+    _worldPacket.WriteGuidMask(Target, { 5 });
+    _worldPacket.WriteGuidMask(ItemGuid, { 4 });
+    _worldPacket.WriteGuidMask(Target, { 0 });
+    _worldPacket.WriteGuidMask(ItemGuid, { 1 });
+    _worldPacket.WriteGuidMask(Caster, { 0 });
+    _worldPacket.WriteGuidMask(Target, { 3, 7 });
+    _worldPacket.WriteGuidMask(ItemGuid, { 5, 0 });
+    _worldPacket.WriteGuidMask(Target, { 2 });
+    _worldPacket.WriteGuidMask(Caster, { 1 });
+    _worldPacket.FlushBits();
+
+    _worldPacket.WriteGuidBytes(Caster, { 0 });
+    _worldPacket.WriteGuidBytes(Target, { 2 });
+    _worldPacket.WriteGuidBytes(ItemGuid, { 7 });
+    _worldPacket.WriteGuidBytes(Caster, { 1 });
+    _worldPacket.WriteGuidBytes(Target, { 4 });
+    _worldPacket.WriteGuidBytes(ItemGuid, { 5 });
+    _worldPacket.WriteGuidBytes(Caster, { 4 });
+    _worldPacket.WriteGuidBytes(ItemGuid, { 2 });
+    _worldPacket.WriteGuidBytes(Target, { 6, 0 });
+    _worldPacket.WriteGuidBytes(ItemGuid, { 0, 4 });
+    _worldPacket.WriteGuidBytes(Caster, { 3 });
+    _worldPacket.WriteGuidBytes(Target, { 5 });
+    _worldPacket.WriteGuidBytes(ItemGuid, { 1 });
+    _worldPacket.WriteGuidBytes(Target, { 3 });
+    _worldPacket.WriteGuidBytes(Target, { 7 });
+    _worldPacket.WriteGuidBytes(Caster, { 7 });
+    _worldPacket.WriteGuidBytes(ItemGuid, { 3 });
+    _worldPacket.WriteGuidBytes(Caster, { 6, 2, 5 });
+    _worldPacket.WriteGuidBytes(ItemGuid, { 6 });
+    _worldPacket.WriteGuidBytes(Target, { 1 });
 
     return &_worldPacket;
 }
 
 WorldPacket const* WorldPackets::Item::ItemEnchantTimeUpdate::Write()
 {
-    _worldPacket << ItemGuid;
-    _worldPacket << Slot;
-    _worldPacket << Duration;
-    _worldPacket << PlayerGuid;
+    // 5.4.8 18414, from Project SkyFire
+    _worldPacket.WriteGuidMask(ItemGuid, { 4, 0 });
+    _worldPacket.WriteGuidMask(PlayerGuid, { 3 });
+    _worldPacket.WriteGuidMask(ItemGuid, { 3 });
+    _worldPacket.WriteGuidMask(PlayerGuid, { 2, 6, 7 });
+    _worldPacket.WriteGuidMask(ItemGuid, { 1 });
+    _worldPacket.WriteGuidMask(PlayerGuid, { 4 });
+    _worldPacket.WriteGuidMask(ItemGuid, { 6, 5 });
+    _worldPacket.WriteGuidMask(PlayerGuid, { 0 });
+    _worldPacket.WriteGuidMask(ItemGuid, { 2 });
+    _worldPacket.WriteGuidMask(PlayerGuid, { 5, 1 });
+    _worldPacket.WriteGuidMask(ItemGuid, { 7 });
+    _worldPacket.FlushBits();
+
+    _worldPacket << uint32(Slot);
+    _worldPacket.WriteGuidBytes(PlayerGuid, { 4, 2 });
+    _worldPacket.WriteGuidBytes(ItemGuid, { 5, 4 });
+    _worldPacket.WriteGuidBytes(PlayerGuid, { 6 });
+    _worldPacket.WriteGuidBytes(ItemGuid, { 1 });
+    _worldPacket.WriteGuidBytes(PlayerGuid, { 0, 1 });
+    _worldPacket.WriteGuidBytes(ItemGuid, { 6, 2 });
+    _worldPacket.WriteGuidBytes(PlayerGuid, { 7 });
+    _worldPacket.WriteGuidBytes(ItemGuid, { 0, 3, 7 });
+    _worldPacket.WriteGuidBytes(PlayerGuid, { 3, 5 });
+    _worldPacket << uint32(Duration);
 
     return &_worldPacket;
 }

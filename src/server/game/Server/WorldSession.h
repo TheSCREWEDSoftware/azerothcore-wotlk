@@ -697,7 +697,7 @@ public:
     void SendAuctionOwnerNotification(AuctionEntry* auction);
 
     //Item Enchantment
-    void SendEnchantmentLog(ObjectGuid target, ObjectGuid caster, uint32 itemId, uint32 enchantId);
+    void SendEnchantmentLog(ObjectGuid target, ObjectGuid caster, ObjectGuid itemGuid, uint32 itemId, uint32 enchantId, uint32 slot);
     void SendItemEnchantTimeUpdate(ObjectGuid Playerguid, ObjectGuid Itemguid, uint32 slot, uint32 Duration);
 
     //Taxi
