@@ -168,6 +168,7 @@ namespace WorldPackets
         class GuildBankSetTabText;
         class GuildSetGuildMaster;
         class SaveGuildEmblem;
+        class RequestGuildRewardsList;
     }
 
     namespace Misc
@@ -899,6 +900,7 @@ public:                                                 // opcodes handlers
     void HandleGuildAddRankOpcode(WorldPackets::Guild::GuildAddRank& packet);
     void HandleGuildDelRankOpcode(WorldPackets::Guild::GuildDeleteRank& packet);
     void HandleGuildChangeInfoTextOpcode(WorldPackets::Guild::GuildUpdateInfoText& packet);
+    void HandleRequestGuildRewardsListOpcode(WorldPackets::Guild::RequestGuildRewardsList& packet);
     void HandleSaveGuildEmblemOpcode(WorldPackets::Guild::SaveGuildEmblem& packet);
 
     void HandleTaxiNodeStatusQueryOpcode(WorldPacket& recvPacket);

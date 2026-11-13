@@ -16,9 +16,12 @@
  */
 
 #include "GuildMgr.h"
+#include "AchievementMgr.h"
 #include "Common.h"
 #include "DatabaseEnv.h"
 #include "Log.h"
+#include "ObjectMgr.h"
+#include "SharedDefines.h"
 #include "World.h"
 
 GuildMgr::GuildMgr() : NextGuildId(1)
@@ -506,5 +509,63 @@ void GuildMgr::LoadGuildChallenges()
     } while (result->NextRow());
 
     LOG_INFO("server.loading", ">> Loaded {} guild challenge definitions in {} ms", count, GetMSTimeDiffToNow(oldMSTime));
+    LOG_INFO("server.loading", " ");
+}
+
+// Cata guild rewards. Ported from TrinityCore's GuildMgr::LoadGuildRewards. Validates each row's
+// item entry, achievement id (0 = no achievement requirement) and reputation standing against
+// this fork's data stores before accepting it - a malformed guild_rewards row would otherwise
+// silently produce a client-side reward tile that can never resolve.
+void GuildMgr::LoadGuildRewards()
+{
+    uint32 oldMSTime = getMSTime();
+
+    GuildRewards.clear();
+
+    //                                                     0      1         2         3      4
+    QueryResult result = WorldDatabase.Query("SELECT entry, standing, racemask, price, achievement FROM guild_rewards");
+
+    if (!result)
+    {
+        LOG_ERROR("server.loading", ">> Loaded 0 guild reward definitions. DB table `guild_rewards` is empty.");
+        LOG_INFO("server.loading", " ");
+        return;
+    }
+
+    uint32 count = 0;
+    do
+    {
+        Field* fields = result->Fetch();
+
+        GuildReward reward;
+        reward.Entry         = fields[0].Get<uint32>();
+        reward.Standing      = fields[1].Get<uint8>();
+        reward.Racemask      = fields[2].Get<int32>();
+        reward.Price         = fields[3].Get<uint64>();
+        reward.AchievementId = fields[4].Get<uint32>();
+
+        if (!sObjectMgr->GetItemTemplate(reward.Entry))
+        {
+            LOG_ERROR("server.loading", "Guild rewards table `guild_rewards` references non-existing item entry {}. Skipped.", reward.Entry);
+            continue;
+        }
+
+        if (reward.AchievementId && !sAchievementMgr->GetAchievement(reward.AchievementId))
+        {
+            LOG_ERROR("server.loading", "Guild rewards table `guild_rewards` references non-existing achievement {}. Skipped.", reward.AchievementId);
+            continue;
+        }
+
+        if (reward.Standing >= MAX_REPUTATION_RANK)
+        {
+            LOG_ERROR("server.loading", "Guild rewards table `guild_rewards` has an out-of-range reputation standing {} (max {}). Skipped.", uint32(reward.Standing), MAX_REPUTATION_RANK - 1);
+            continue;
+        }
+
+        GuildRewards.push_back(reward);
+        ++count;
+    } while (result->NextRow());
+
+    LOG_INFO("server.loading", ">> Loaded {} guild reward definitions in {} ms", count, GetMSTimeDiffToNow(oldMSTime));
     LOG_INFO("server.loading", " ");
 }

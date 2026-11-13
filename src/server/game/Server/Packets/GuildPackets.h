@@ -800,10 +800,47 @@ namespace WorldPackets
 
             int32 Error = 0;
         };
+
+        // Cata guild rewards: rep/gold-gated mount/item rewards from the world table
+        // `guild_rewards`. Eligibility (has the required reputation standing/achievement, can
+        // afford the gold cost) is computed client-side from this list plus the player's own
+        // state - the server just hands over the full reward catalog, matching TrinityCore's
+        // real HandleRequestGuildRewardsList (no server-side filtering there either).
+        class RequestGuildRewardsList final : public ClientPacket
+        {
+        public:
+            RequestGuildRewardsList(WorldPacket&& packet) : ClientPacket(CMSG_REQUEST_GUILD_REWARDS_LIST, std::move(packet)) { }
+
+            void Read() override;
+
+            uint32 CurrentVersion = 0;
+        };
+
+        struct GuildRewardItem
+        {
+            uint32 ItemID = 0;
+            uint32 Unk4 = 0;
+            uint32 AchievementRequired = 0;
+            uint32 RaceMask = 0;
+            int32 MinGuildRep = 0;
+            uint64 Cost = 0;
+        };
+
+        class GuildRewardList final : public ServerPacket
+        {
+        public:
+            GuildRewardList() : ServerPacket(SMSG_GUILD_REWARD_LIST, 8) { }
+
+            WorldPacket const* Write() override;
+
+            std::vector<GuildRewardItem> RewardItems;
+            int32 Version = 0;
+        };
     }
 }
 
 ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::Guild::GuildRosterMemberData const& rosterMemberData);
 ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::Guild::GuildRankData const& rankData);
+ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::Guild::GuildRewardItem const& rewardItem);
 
 #endif // GuildPackets_h__

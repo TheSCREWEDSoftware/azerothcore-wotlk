@@ -820,6 +820,7 @@ void OpcodeTable::Initialize()
     /*0x1026*/ DEFINE_HANDLER(CMSG_GUILD_QUERY_RANKS,                                                STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildQueryRanksOpcode              );
     /*0x3032*/ DEFINE_HANDLER(CMSG_GUILD_ASSIGN_MEMBER_RANK,                                         STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildAssignRankOpcode              );
     /*0x1221*/ DEFINE_HANDLER(CMSG_GUILD_SWITCH_RANK,                                                STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildSwitchRankOpcode              );
+    /*0x3012*/ DEFINE_HANDLER(CMSG_REQUEST_GUILD_REWARDS_LIST,                                       STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleRequestGuildRewardsListOpcode      );
     /*0x1224*/ DEFINE_HANDLER(CMSG_GUILD_REQUEST_CHALLENGE_UPDATE,                                   STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildRequestChallengeUpdate        );
     /*0x1237*/ DEFINE_HANDLER(CMSG_GUILD_XP_QUERY,                                                   STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildXPQueryOpcode                 );
     /*0x3232*/ DEFINE_HANDLER(CMSG_GUILD_REQUEST_MAX_DAILY_XP,                                       STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildRequestMaxDailyXP             );

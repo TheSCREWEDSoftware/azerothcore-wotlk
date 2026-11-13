@@ -16,6 +16,7 @@
  */
 
 #include "Guild.h"
+#include "GameTime.h"
 #include "GuildMgr.h"
 #include "GuildPackets.h"
 #include "Log.h"
@@ -480,4 +481,32 @@ void WorldSession::HandleGuildRequestChallengeUpdate(WorldPackets::Guild::GuildC
 {
     if (Guild* guild = GetPlayer()->GetGuild())
         guild->HandleGuildRequestChallengeUpdate(this);
+}
+
+// Cata guild rewards. Ported from TrinityCore's WorldSession::HandleRequestGuildRewardsList -
+// sends the full reward catalog; the client itself decides which rewards the viewer currently
+// qualifies for (reputation standing, gold on hand, achievement).
+void WorldSession::HandleRequestGuildRewardsListOpcode(WorldPackets::Guild::RequestGuildRewardsList& /*packet*/)
+{
+    if (!sGuildMgr->GetGuildById(GetPlayer()->GetGuildId()))
+        return;
+
+    std::vector<GuildReward> const& rewards = sGuildMgr->GetGuildRewards();
+
+    WorldPackets::Guild::GuildRewardList rewardList;
+    rewardList.Version = int32(GameTime::GetGameTime().count());
+    rewardList.RewardItems.reserve(rewards.size());
+
+    for (GuildReward const& reward : rewards)
+    {
+        WorldPackets::Guild::GuildRewardItem rewardItem;
+        rewardItem.ItemID = reward.Entry;
+        rewardItem.RaceMask = uint32(reward.Racemask);
+        rewardItem.MinGuildRep = int32(reward.Standing);
+        rewardItem.AchievementRequired = reward.AchievementId;
+        rewardItem.Cost = reward.Price;
+        rewardList.RewardItems.push_back(rewardItem);
+    }
+
+    SendPacket(rewardList.Write());
 }

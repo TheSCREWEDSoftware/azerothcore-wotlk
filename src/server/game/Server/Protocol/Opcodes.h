@@ -28,6 +28,7 @@
 /// Lists of opcodes by wire direction
 enum OpcodeClient : uint16
 {
+    CMSG_REQUEST_GUILD_REWARDS_LIST                 = 0x3012,
     CMSG_GUILD_REQUEST_CHALLENGE_UPDATE             = 0x1224,
     CMSG_BOOTME                                     = 0x001, // DEPRECATED
     CMSG_DBLOOKUP                                   = 0x002, // DEPRECATED

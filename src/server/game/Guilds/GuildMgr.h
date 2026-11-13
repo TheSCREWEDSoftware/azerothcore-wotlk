@@ -30,6 +30,18 @@ struct GuildChallenge
     uint32 GoldMaxLevel = 0;
 };
 
+// Cata guild rewards: one row per reward item from the world table `guild_rewards`. Eligibility
+// (has the required reputation standing, achievement, and gold) is computed client-side from
+// this catalog plus the player's own state - see GuildMgr::LoadGuildRewards.
+struct GuildReward
+{
+    uint32 Entry = 0;
+    uint8 Standing = 0;
+    int32 Racemask = 0;
+    uint64 Price = 0;
+    uint32 AchievementId = 0;
+};
+
 class GuildMgr
 {
 private:
@@ -60,6 +72,10 @@ public:
     // Cata Guild Challenges
     void LoadGuildChallenges();
     std::vector<GuildChallenge> const& GetGuildChallengeData() const { return GuildChallenges; }
+
+    // Cata guild rewards
+    void LoadGuildRewards();
+    std::vector<GuildReward> const& GetGuildRewards() const { return GuildRewards; }
 protected:
     typedef std::unordered_map<uint32, Guild*> GuildContainer;
     uint32 NextGuildId;
@@ -67,6 +83,7 @@ protected:
 
     std::vector<uint64> GuildXPperLevel;
     std::vector<GuildChallenge> GuildChallenges;
+    std::vector<GuildReward> GuildRewards;
 };
 
 #define sGuildMgr GuildMgr::instance()
