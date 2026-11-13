@@ -843,7 +843,7 @@ class spell_valkyr_touch_aura : public AuraScript
         uint32 damage = dmg;
         int32 resilienceReduction = damage;
         if (caster->CanApplyResilience())
-            Unit::ApplyResilience(target, nullptr, &dmg, false, CR_CRIT_TAKEN_SPELL);
+            Unit::ApplyResilience(target, &dmg);
         resilienceReduction = damage - resilienceReduction;
         damage -= resilienceReduction;
         uint32 mitigated_damage = resilienceReduction;

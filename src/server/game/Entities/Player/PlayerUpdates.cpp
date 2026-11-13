@@ -671,17 +671,15 @@ void Player::UpdateRating(CombatRating cr)
         if (affectStats)
             UpdateAllSpellCritChances();
         break;
-    case CR_HIT_TAKEN_MELEE: // Implemented in Unit::MeleeMissChanceCalc
+    case CR_HIT_TAKEN_MELEE:  // Deprecated since Cataclysm
     case CR_HIT_TAKEN_RANGED:
+    case CR_HIT_TAKEN_SPELL:
         break;
-    case CR_HIT_TAKEN_SPELL: // Implemented in Unit::MagicSpellHitResult
+    case CR_RESILIENCE_CRIT_TAKEN: // Unused in 4.3.4
         break;
-    case CR_CRIT_TAKEN_MELEE: // Implemented in Unit::RollMeleeOutcomeAgainst
-                              // (only for chance to crit)
-    case CR_CRIT_TAKEN_RANGED:
+    case CR_RESILIENCE_PLAYER_DAMAGE_TAKEN: // Implemented in Unit::ApplyResilience
         break;
-    case CR_CRIT_TAKEN_SPELL: // Implemented in Unit::SpellCriticalBonus (only
-                              // for chance to crit)
+    case CR_CRIT_TAKEN_SPELL: // Deprecated since Cataclysm
         break;
     case CR_HASTE_MELEE: // Implemented in Player::ApplyRatingMod
     case CR_HASTE_RANGED:

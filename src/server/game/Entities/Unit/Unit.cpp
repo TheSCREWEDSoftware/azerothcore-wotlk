@@ -1589,16 +1589,7 @@ void Unit::CalculateSpellDamageTaken(SpellNonMeleeDamage* damageInfo, int32 dama
 
                 int32 resilienceReduction = damage;
                 if (CanApplyResilience())
-                {
-                    if (attackType != RANGED_ATTACK)
-                    {
-                        Unit::ApplyResilience(victim, nullptr, &resilienceReduction, crit, CR_CRIT_TAKEN_MELEE);
-                    }
-                    else
-                    {
-                        Unit::ApplyResilience(victim, nullptr, &resilienceReduction, crit, CR_CRIT_TAKEN_RANGED);
-                    }
-                }
+                    Unit::ApplyResilience(victim, &resilienceReduction);
 
                 resilienceReduction = damage - resilienceReduction;
                 damage -= resilienceReduction;
@@ -1618,9 +1609,7 @@ void Unit::CalculateSpellDamageTaken(SpellNonMeleeDamage* damageInfo, int32 dama
 
                 int32 resilienceReduction = damage;
                 if (CanApplyResilience())
-                {
-                    Unit::ApplyResilience(victim, nullptr, &resilienceReduction, crit, CR_CRIT_TAKEN_SPELL);
-                }
+                    Unit::ApplyResilience(victim, &resilienceReduction);
 
                 resilienceReduction = damage - resilienceReduction;
                 damage -= resilienceReduction;
@@ -1953,7 +1942,7 @@ void Unit::CalculateMeleeDamage(Unit* victim, CalcDamageInfo* damageInfo, Weapon
         if (CanApplyResilience())
         {
             int32 resilienceReduction = damageInfo->damages[i].damage;
-            Unit::ApplyResilience(victim, nullptr, &resilienceReduction, (damageInfo->hitOutCome == MELEE_HIT_CRIT), CR_CRIT_TAKEN_MELEE);
+            Unit::ApplyResilience(victim, &resilienceReduction);
 
             resilienceReduction = damageInfo->damages[i].damage - resilienceReduction;
             dmg -= resilienceReduction;
@@ -3663,12 +3652,6 @@ float Unit::GetUnitCriticalChance(WeaponAttackType attackType, Unit const* victi
     {
        return GetGUID() == aurEff->GetCasterGUID();
     });
-
-    // reduce crit chance from Rating for players
-    if (attackType != RANGED_ATTACK)
-        Unit::ApplyResilience(victim, &crit, nullptr, false, CR_CRIT_TAKEN_MELEE);
-    else
-        Unit::ApplyResilience(victim, &crit, nullptr, false, CR_CRIT_TAKEN_RANGED);
 
     // Apply crit chance from defence skill
     crit += GetCritChanceFromSkillDiff(victim);
@@ -8826,7 +8809,7 @@ float Unit::processDummyAuras(float TakenTotalMod) const
                         // Patch 2.4.3: The resilience required to reach the 90% damage reduction cap
                         //  is 22.5% critical strike damage reduction, or 444 resilience.
                         // To calculate for 90%, we multiply the 100% by 4 (22.5% * 4 = 90%)
-                        float mod = -1.0f * GetMeleeCritDamageReduction(400);
+                        float mod = -1.0f * float(GetDamageReduction(400));
                         AddPct(TakenTotalMod, std::max(mod, float((*i)->GetAmount())));
                     }
                     break;
@@ -8995,8 +8978,6 @@ float Unit::SpellTakenCritChance(Unit const* caster, SpellInfo const* spellProto
                         crit_chance += GetMaxNegativeAuraModifierByMiscMask(SPELL_AURA_MOD_ATTACKER_SPELL_CRIT_CHANCE, schoolMask);
                         crit_chance += GetMaxPositiveAuraModifierByMiscMask(SPELL_AURA_MOD_ATTACKER_SPELL_CRIT_CHANCE, schoolMask);
                     }
-
-                    Unit::ApplyResilience(this, &crit_chance, nullptr, false, CR_CRIT_TAKEN_SPELL);
                 }
                 // scripted (increase crit chance ... against ... target by x%
                 if (caster)
@@ -9150,15 +9131,6 @@ float Unit::SpellTakenCritChance(Unit const* caster, SpellInfo const* spellProto
                     crit_chance += GetTotalAuraModifier(SPELL_AURA_MOD_ATTACKER_RANGED_CRIT_CHANCE);
                 else
                     crit_chance += GetTotalAuraModifier(SPELL_AURA_MOD_ATTACKER_MELEE_CRIT_CHANCE);
-
-                // reduce crit chance from Rating for players
-                if (attackType != RANGED_ATTACK)
-                {
-                    // xinef: little hack, crit chance dont require caster to calculate, pass victim
-                    Unit::ApplyResilience(this, &crit_chance, nullptr, false, CR_CRIT_TAKEN_MELEE);
-                }
-                else
-                    Unit::ApplyResilience(this, &crit_chance, nullptr, false, CR_CRIT_TAKEN_RANGED);
 
                 // Apply crit chance from defence skill
                 if (caster)
@@ -14978,7 +14950,7 @@ void Unit::SendPlaySpellImpact(ObjectGuid guid, uint32 id)
     SendMessageToSet(&data, true);
 }
 
-void Unit::ApplyResilience(Unit const* victim, float* crit, int32* damage, bool isCrit, CombatRating type)
+void Unit::ApplyResilience(Unit const* victim, int32* damage)
 {
     // player mounted on multi-passenger mount is also classified as vehicle
     if (victim->IsVehicle() && !victim->IsPlayer())
@@ -14997,44 +14969,9 @@ void Unit::ApplyResilience(Unit const* victim, float* crit, int32* damage, bool 
     if (!target)
         return;
 
-    switch (type)
-    {
-        case CR_CRIT_TAKEN_MELEE:
-            // Crit chance reduction works against nonpets
-            if (crit)
-                *crit -= target->GetMeleeCritChanceReduction();
-            if (damage)
-            {
-                if (isCrit)
-                    *damage -= target->GetMeleeCritDamageReduction(*damage);
-                *damage -= target->GetMeleeDamageReduction(*damage);
-            }
-            break;
-        case CR_CRIT_TAKEN_RANGED:
-            // Crit chance reduction works against nonpets
-            if (crit)
-                *crit -= target->GetRangedCritChanceReduction();
-            if (damage)
-            {
-                if (isCrit)
-                    *damage -= target->GetRangedCritDamageReduction(*damage);
-                *damage -= target->GetRangedDamageReduction(*damage);
-            }
-            break;
-        case CR_CRIT_TAKEN_SPELL:
-            // Crit chance reduction works against nonpets
-            if (crit)
-                *crit -= target->GetSpellCritChanceReduction();
-            if (damage)
-            {
-                if (isCrit)
-                    *damage -= target->GetSpellCritDamageReduction(*damage);
-                *damage -= target->GetSpellDamageReduction(*damage);
-            }
-            break;
-        default:
-            break;
-    }
+    // Resilience reduces all damage taken from players and their pets; it no longer affects crits
+    if (damage)
+        *damage -= target->GetDamageReduction(*damage);
 }
 
 // Melee based spells can be miss, parry or dodge on this step

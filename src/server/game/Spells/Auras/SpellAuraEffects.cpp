@@ -6437,7 +6437,7 @@ void AuraEffect::HandlePeriodicDamageAurasTick(Unit* target, Unit* caster) const
     if (CanApplyResilience())
     {
         int32 resilienceReduction = dmg;
-        Unit::ApplyResilience(target, nullptr, &resilienceReduction, crit, CR_CRIT_TAKEN_SPELL);
+        Unit::ApplyResilience(target, &resilienceReduction);
 
         resilienceReduction = dmg - resilienceReduction;
         dmg -= resilienceReduction;
@@ -6530,7 +6530,7 @@ void AuraEffect::HandlePeriodicHealthLeechAuraTick(Unit* target, Unit* caster) c
     if (CanApplyResilience())
     {
         int32 resilienceReduction = dmg;
-        Unit::ApplyResilience(target, nullptr, &resilienceReduction, crit, CR_CRIT_TAKEN_SPELL);
+        Unit::ApplyResilience(target, &resilienceReduction);
 
         resilienceReduction = dmg - resilienceReduction;
         dmg -= resilienceReduction;
@@ -6795,9 +6795,9 @@ void AuraEffect::HandlePeriodicManaLeechAuraTick(Unit* target, Unit* caster) con
 
     LOG_DEBUG("spells.aura.effect", "PeriodicTick: {} power leech of {} for {} dmg inflicted by {}",
                     GetCasterGUID().ToString(), target->GetGUID().ToString(), drainAmount, GetId());
-    // resilience reduce mana draining effect at spell crit damage reduction (added in 2.4)
+    // resilience reduces mana draining effects (added in 2.4)
     if (PowerType == POWER_MANA)
-        drainAmount -= target->GetSpellCritDamageReduction(drainAmount);
+        drainAmount -= int32(target->GetDamageReduction(uint32(drainAmount)));
 
     int32 drainedAmount = -target->ModifyPower(PowerType, -drainAmount);
 
@@ -6917,9 +6917,9 @@ void AuraEffect::HandlePeriodicPowerBurnAuraTick(Unit* target, Unit* caster) con
     // ignore negative values (can be result apply spellmods to aura damage
     int32 damage = std::max(m_amount, 0);
 
-    // resilience reduce mana draining effect at spell crit damage reduction (added in 2.4)
+    // resilience reduces mana draining effects (added in 2.4)
     if (PowerType == POWER_MANA)
-        damage -= target->GetSpellCritDamageReduction(damage);
+        damage -= int32(target->GetDamageReduction(uint32(damage)));
 
     uint32 gain = uint32(-target->ModifyPower(PowerType, -damage));
 
