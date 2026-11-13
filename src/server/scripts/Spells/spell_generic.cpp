@@ -5696,12 +5696,12 @@ class spell_gen_food_heart_emote : public AuraScript
 
     void OnApply(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
     {
-        GetUnitOwner()->SendPlaySpellVisual(SPELL_VISUAL_KIT_HEART_EMOTE);
+        GetUnitOwner()->SendPlaySpellVisualKit(SPELL_VISUAL_KIT_HEART_EMOTE);
     }
 
     void HandleUpdatePeriodic(AuraEffect* /*aurEff*/)
     {
-        GetUnitOwner()->SendPlaySpellVisual(SPELL_VISUAL_KIT_HEART_EMOTE);
+        GetUnitOwner()->SendPlaySpellVisualKit(SPELL_VISUAL_KIT_HEART_EMOTE);
     }
 
     void Register() override

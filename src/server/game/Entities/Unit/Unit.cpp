@@ -65,6 +65,7 @@
 #include "SpellAuras.h"
 #include "SpellInfo.h"
 #include "SpellMgr.h"
+#include "SpellPackets.h"
 #include "TemporarySummon.h"
 #include "Totem.h"
 #include "TotemAI.h"
@@ -14995,20 +14996,32 @@ void Unit::SetAuraStack(uint32 spellId, Unit* target, uint32 stack)
         aura->SetStackAmount(stack);
 }
 
-void Unit::SendPlaySpellVisual(uint32 id)
+void Unit::SendPlaySpellVisualKit(uint32 id, uint32 type /*= 0*/, uint32 duration /*= 0*/) const
 {
-    WorldPacket data(SMSG_PLAY_SPELL_VISUAL, 8 + 4);
-    data << GetGUID();
-    data << uint32(id); // SpellVisualKit.dbc index
-    SendMessageToSet(&data, true);
+    WorldPackets::Spells::PlaySpellVisualKit packet;
+    packet.Unit = GetGUID();
+    packet.KitRecID = id; // SpellVisualKit.dbc index
+    packet.KitType = type;
+    packet.Duration = duration;
+    SendMessageToSet(packet.Write(), true);
 }
 
-void Unit::SendPlaySpellImpact(ObjectGuid guid, uint32 id)
+void Unit::SendPlaySpellVisual(uint32 spellVisualId, Unit const* target /*= nullptr*/, Optional<Position> targetPosition /*= {}*/, float travelSpeed /*= 0.0f*/, uint16 missReason /*= 0*/, uint16 reflectStatus /*= 0*/, bool speedAsTime /*= false*/) const
 {
-    WorldPacket data(SMSG_PLAY_SPELL_IMPACT, 8 + 4);
-    data << guid;       // target
-    data << uint32(id); // SpellVisualKit.dbc index
-    SendMessageToSet(&data, true);
+    WorldPackets::Spells::PlaySpellVisual packet;
+    packet.SpellVisualID = spellVisualId; // SpellVisual.dbc index
+    packet.Source = GetGUID();
+    if (target)
+        packet.Target = target->GetGUID();
+
+    if (targetPosition)
+        packet.TargetPosition = *targetPosition;
+
+    packet.TravelSpeed = travelSpeed;
+    packet.MissReason = missReason;
+    packet.ReflectStatus = reflectStatus;
+    packet.SpeedAsTime = speedAsTime;
+    SendMessageToSet(packet.Write(), true);
 }
 
 void Unit::ApplyResilience(Unit const* victim, int32* damage)

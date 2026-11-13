@@ -94,3 +94,80 @@ WorldPacket const* WorldPackets::Spells::ResyncRunes::Write()
     }
     return &_worldPacket;
 }
+
+WorldPacket const* WorldPackets::Spells::PlaySpellVisual::Write()
+{
+    _worldPacket << float(TargetPosition.GetPositionZ());
+    _worldPacket << int32(SpellVisualID);
+    _worldPacket << uint16(MissReason);
+    _worldPacket << float(TravelSpeed);
+    _worldPacket << float(TargetPosition.GetPositionX());
+    _worldPacket << uint16(ReflectStatus);
+    _worldPacket << float(TargetPosition.GetPositionY());
+
+    _worldPacket.WriteBit(Target[1]);
+    _worldPacket.WriteBit(Source[3]);
+    _worldPacket.WriteBit(Source[0]);
+    _worldPacket.WriteBit(Target[2]);
+    _worldPacket.WriteBit(Target[5]);
+    _worldPacket.WriteBit(Source[2]);
+    _worldPacket.WriteBit(Source[4]);
+    _worldPacket.WriteBit(Target[6]);
+    _worldPacket.WriteBit(Target[0]);
+    _worldPacket.WriteBit(SpeedAsTime);
+    _worldPacket.WriteBit(Source[6]);
+    _worldPacket.WriteBit(Target[7]);
+    _worldPacket.WriteBit(Source[5]);
+    _worldPacket.WriteBit(Source[1]);
+    _worldPacket.WriteBit(Source[7]);
+    _worldPacket.WriteBit(Target[3]);
+    _worldPacket.WriteBit(Target[4]);
+    _worldPacket.FlushBits();
+
+    _worldPacket.WriteByteSeq(Source[7]);
+    _worldPacket.WriteByteSeq(Source[4]);
+    _worldPacket.WriteByteSeq(Target[7]);
+    _worldPacket.WriteByteSeq(Source[1]);
+    _worldPacket.WriteByteSeq(Source[3]);
+    _worldPacket.WriteByteSeq(Source[0]);
+    _worldPacket.WriteByteSeq(Source[6]);
+    _worldPacket.WriteByteSeq(Target[0]);
+    _worldPacket.WriteByteSeq(Target[4]);
+    _worldPacket.WriteByteSeq(Source[5]);
+    _worldPacket.WriteByteSeq(Target[1]);
+    _worldPacket.WriteByteSeq(Target[5]);
+    _worldPacket.WriteByteSeq(Target[6]);
+    _worldPacket.WriteByteSeq(Target[2]);
+    _worldPacket.WriteByteSeq(Source[2]);
+    _worldPacket.WriteByteSeq(Target[3]);
+
+    return &_worldPacket;
+}
+
+WorldPacket const* WorldPackets::Spells::PlaySpellVisualKit::Write()
+{
+    _worldPacket << uint32(Duration);
+    _worldPacket << int32(KitRecID);
+    _worldPacket << int32(KitType);
+
+    _worldPacket.WriteBit(Unit[4]);
+    _worldPacket.WriteBit(Unit[7]);
+    _worldPacket.WriteBit(Unit[5]);
+    _worldPacket.WriteBit(Unit[3]);
+    _worldPacket.WriteBit(Unit[1]);
+    _worldPacket.WriteBit(Unit[2]);
+    _worldPacket.WriteBit(Unit[0]);
+    _worldPacket.WriteBit(Unit[6]);
+    _worldPacket.FlushBits();
+
+    _worldPacket.WriteByteSeq(Unit[0]);
+    _worldPacket.WriteByteSeq(Unit[4]);
+    _worldPacket.WriteByteSeq(Unit[1]);
+    _worldPacket.WriteByteSeq(Unit[6]);
+    _worldPacket.WriteByteSeq(Unit[7]);
+    _worldPacket.WriteByteSeq(Unit[2]);
+    _worldPacket.WriteByteSeq(Unit[3]);
+    _worldPacket.WriteByteSeq(Unit[5]);
+
+    return &_worldPacket;
+}

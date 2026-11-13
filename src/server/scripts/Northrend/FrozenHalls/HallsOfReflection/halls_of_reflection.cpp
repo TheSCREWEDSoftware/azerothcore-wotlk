@@ -596,7 +596,7 @@ public:
                 if (!shortver)
                     if (Creature* uther = instance->GetCreature(NPC_UTHER))
                     {
-                        uther->SendPlaySpellVisual(SPELL_UTHER_DESPAWN);
+                        uther->SendPlaySpellVisualKit(SPELL_UTHER_DESPAWN);
                         uther->CastSpell(uther, SPELL_UTHER_DESPAWN, true);
                     }
                 events.ScheduleEvent(EVENT_INTRO_LK_3, 2s);

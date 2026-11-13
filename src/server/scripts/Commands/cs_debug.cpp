@@ -220,16 +220,11 @@ public:
             return false;
         }
 
-        Player* player = handler->GetPlayer();
         Unit* target = handler->getSelectedUnit();
-
         if (!target)
-        {
-            player->SendPlaySpellVisual(visualId);
-            return true;
-        }
+            target = handler->GetPlayer();
 
-        player->SendPlaySpellImpact(target->GetGUID(), visualId);
+        target->SendPlaySpellVisualKit(visualId);
         return true;
     }
 

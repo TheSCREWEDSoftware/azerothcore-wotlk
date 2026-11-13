@@ -809,6 +809,7 @@ enum OpcodeClient : uint16
 
 enum OpcodeServer : uint16
 {
+    SMSG_PLAY_SPELL_VISUAL_KIT                      = 0x55A5,
     SMSG_SUMMON_RAID_MEMBER_VALIDATE_FAILED         = 0x18B6,
     SMSG_ROLE_CHANGED_INFORM                        = 0x39A6,
     SMSG_PARTY_MEMBER_FULL_STATE                    = 0x0215,
@@ -1089,7 +1090,6 @@ enum OpcodeServer : uint16
     SMSG_PLAY_SPELL_VISUAL                          = 0x10B1,
     SMSG_PARTYKILLLOG                               = 0x4937,
     SMSG_COMPRESSED_UPDATE_OBJECT                   = 0x1F6,
-    SMSG_PLAY_SPELL_IMPACT                          = 0x1F7,
     SMSG_EXPLORATION_EXPERIENCE                     = 0x6716,
     SMSG_ENVIRONMENTAL_DAMAGE_LOG                   = 0x6C05,
     SMSG_RWHOIS                                     = 0x2437,

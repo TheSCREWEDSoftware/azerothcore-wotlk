@@ -3204,7 +3204,7 @@ void SmartScript::ProcessAction(SmartScriptHolder& e, Unit* unit, uint32 var0, u
                 if (IsUnit(target))
                 {
                     if (e.action.spellVisual.visualId)
-                        target->ToUnit()->SendPlaySpellVisual(e.action.spellVisual.visualId);
+                        target->ToUnit()->SendPlaySpellVisualKit(e.action.spellVisual.visualId);
                 }
             }
             break;

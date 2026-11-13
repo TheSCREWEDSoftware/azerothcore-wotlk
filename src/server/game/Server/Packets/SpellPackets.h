@@ -8,7 +8,9 @@
 #ifndef SpellPackets_h__
 #define SpellPackets_h__
 
+#include "ObjectGuid.h"
 #include "Packet.h"
+#include "Position.h"
 #include <array>
 #include <string>
 
@@ -113,6 +115,36 @@ namespace WorldPackets
             WorldPacket const* Write() override;
 
             std::vector<ResyncRune> Runes;
+        };
+
+        class PlaySpellVisual final : public ServerPacket
+        {
+        public:
+            PlaySpellVisual() : ServerPacket(SMSG_PLAY_SPELL_VISUAL, 4 + 4 + 2 + 2 + 4 * 3 + 1 + 8 + 8 + 2) { }
+
+            WorldPacket const* Write() override;
+
+            Position TargetPosition;
+            ObjectGuid Source;
+            ObjectGuid Target;
+            int32 SpellVisualID = 0;
+            float TravelSpeed = 0.0f;
+            uint16 MissReason = 0;
+            uint16 ReflectStatus = 0;
+            bool SpeedAsTime = false;
+        };
+
+        class PlaySpellVisualKit final : public ServerPacket
+        {
+        public:
+            PlaySpellVisualKit() : ServerPacket(SMSG_PLAY_SPELL_VISUAL_KIT, 4 + 4 + 4 + 1 + 8) { }
+
+            WorldPacket const* Write() override;
+
+            ObjectGuid Unit;
+            int32 KitRecID = 0;
+            int32 KitType = 0;
+            uint32 Duration = 0;
         };
     }
 }

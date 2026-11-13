@@ -130,8 +130,8 @@ namespace Trainer
 
         player->ModifyMoney(-moneyCost);
 
-        npc->SendPlaySpellVisual(179); // 53 SpellCastDirected
-        npc->SendPlaySpellImpact(player->GetGUID(), 362); // 113 EmoteSalute
+        npc->SendPlaySpellVisualKit(179, 0, 0); // 53 SpellCastDirected
+        player->SendPlaySpellVisualKit(362, 1, 0); // 113 EmoteSalute
 
         // learn explicitly or cast explicitly. A cast puts each wrapped spell through learnSpell and
         // its hook, but also runs whatever else the entry does (a class mount steps the Riding skill),

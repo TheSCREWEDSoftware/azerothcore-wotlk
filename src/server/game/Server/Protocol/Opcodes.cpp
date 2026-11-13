@@ -244,6 +244,7 @@ void OpcodeTable::Initialize()
     /*0x34A3*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GUILD_PERMISSIONS_QUERY_RESULTS,                    STATUS_NEVER);
     /*0x10B2*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GUILD_EVENT_LOG_QUERY_RESULTS,                      STATUS_NEVER);
     /*0x30B4*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GUILD_RANKS,                                        STATUS_NEVER);
+    /*0x55A5*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_PLAY_SPELL_VISUAL_KIT,                              STATUS_NEVER);
     /*0x18B6*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_SUMMON_RAID_MEMBER_VALIDATE_FAILED,                 STATUS_NEVER);
     /*0x39A6*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_ROLE_CHANGED_INFORM,                                STATUS_NEVER);
     /*0x0215*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_PARTY_MEMBER_FULL_STATE,                            STATUS_NEVER);
@@ -792,7 +793,6 @@ void OpcodeTable::Initialize()
     /*0x4F37*/ DEFINE_HANDLER(CMSG_ZONEUPDATE,                                                       STATUS_LOGGEDIN,   PROCESS_INPLACE,        &WorldSession::HandleZoneUpdateOpcode                   );
     /*0x4937*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_PARTYKILLLOG,                                       STATUS_NEVER);
     /*0x01F6*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_COMPRESSED_UPDATE_OBJECT,                           STATUS_NEVER);
-    /*0x01F7*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_PLAY_SPELL_IMPACT,                                  STATUS_NEVER);
     /*0x6716*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_EXPLORATION_EXPERIENCE,                             STATUS_NEVER);
     /*0x0000*/ DEFINE_HANDLER(CMSG_GM_SET_SECURITY_GROUP,                                            STATUS_NEVER,      PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );
     /*0x0000*/ DEFINE_HANDLER(CMSG_GM_NUKE,                                                          STATUS_NEVER,      PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );

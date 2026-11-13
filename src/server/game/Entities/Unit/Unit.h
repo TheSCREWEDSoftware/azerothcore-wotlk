@@ -2039,8 +2039,8 @@ public:
 
     void SendComboPoints();
 
-    void SendPlaySpellVisual(uint32 id);
-    void SendPlaySpellImpact(ObjectGuid guid, uint32 id);
+    void SendPlaySpellVisualKit(uint32 id, uint32 type = 0, uint32 duration = 0) const;
+    void SendPlaySpellVisual(uint32 spellVisualId, Unit const* target = nullptr, Optional<Position> targetPosition = {}, float travelSpeed = 0.0f, uint16 missReason = 0, uint16 reflectStatus = 0, bool speedAsTime = false) const;
 
     void SendPetActionFeedback(uint8 msg) const;
     void SendPetActionSound(PetAction action) const;

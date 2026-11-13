@@ -305,7 +305,7 @@ class spell_forgiveness_dummy_visual : public SpellScript
         if (!target)
             return;
 
-        target->SendPlaySpellVisual(SPELL_FORGIVENESS_IMPACTKIT);//SPELL_FORGIVENESS IMPACTKIT 317 SpellVisualEntry.ImpactKit can't be used
+        target->SendPlaySpellVisualKit(SPELL_FORGIVENESS_IMPACTKIT);//SPELL_FORGIVENESS IMPACTKIT 317 SpellVisualEntry.ImpactKit can't be used
 
         //Delay death to prevent the death of the creature from interrupting the animation display
         target->m_Events.AddEventAtOffset([target]() -> void
@@ -331,7 +331,7 @@ class spell_transform_ghost_visual: public SpellScript
         if (!target)
             return;
 
-        target->SendPlaySpellVisual(SPELL_TRANSFORM_IMPACTKIT); //SPELL_TRANSFORM_GHOST IMPACTKIT 500
+        target->SendPlaySpellVisualKit(SPELL_TRANSFORM_IMPACTKIT); //SPELL_TRANSFORM_GHOST IMPACTKIT 500
     }
 
     void Register() override
