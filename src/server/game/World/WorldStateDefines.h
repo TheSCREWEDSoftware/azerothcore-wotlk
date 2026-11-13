@@ -165,6 +165,9 @@ enum WorldStateIDs
     WORLD_STATE_BATTLEGROUND_AV_SHOW_HORDE_SCORE      = 3133,
     WORLD_STATE_BATTLEGROUND_AV_SHOW_ALLIANCE_SCORE   = 3134,
 
+    // Rated battlegrounds
+    WORLD_STATE_RATED_BATTLEGROUND_ACTIVE              = 5508, // active bracket (0 - none, 1 - 10v10, 2 - 15v15, 3 - 25v25)
+
     // Warsong Gulch
     WORLD_STATE_BATTLEGROUND_WS_UNK_0                  = 1545, // set to 1 on alliance flag pickup...
     WORLD_STATE_BATTLEGROUND_WS_UNK_1                  = 1546, // set to 1 on horde flag pickup, after drop it's -1

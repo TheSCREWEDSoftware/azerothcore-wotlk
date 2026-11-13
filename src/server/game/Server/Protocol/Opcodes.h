@@ -28,6 +28,10 @@
 /// Lists of opcodes by wire direction
 enum OpcodeClient : uint16
 {
+    CMSG_REQUEST_RATED_BG_STATS                     = 0x05B3,
+    CMSG_REQUEST_RATED_BG_INFO                      = 0x2423,
+    CMSG_REQUEST_PVP_REWARDS                        = 0x780C,
+    CMSG_REQUEST_PVP_OPTIONS_ENABLED                = 0x24A1,
     CMSG_REQUEST_RESEARCH_HISTORY                   = 0x3306,
     CMSG_GUILD_NEWS_UPDATE_STICKY                   = 0x3223,
     CMSG_GUILD_QUERY_NEWS                           = 0x3020,
@@ -809,6 +813,10 @@ enum OpcodeClient : uint16
 
 enum OpcodeServer : uint16
 {
+    SMSG_REQUEST_PVP_REWARDS_RESPONSE               = 0x5DA4,
+    SMSG_RATED_BG_STATS                             = 0x34A1,
+    SMSG_PVP_OPTIONS_ENABLED                        = 0x50A1,
+    SMSG_BATTLEFIELD_RATED_INFO                     = 0x54A3,
     SMSG_UPDATE_CURRENCY_WEEK_LIMIT                 = 0x70A7,
     SMSG_WEEKLY_RESET_CURRENCY                      = 0x3CA1,
     SMSG_RESEARCH_COMPLETE                          = 0x35A6,

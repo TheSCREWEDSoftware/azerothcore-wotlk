@@ -87,6 +87,11 @@ namespace WorldPackets
         class RequestResearchHistory;
     }
 
+    namespace Battleground
+    {
+        class RequestRatedBgInfo;
+    }
+
     namespace LFG
     {
         class LFGJoin;
@@ -798,6 +803,10 @@ public:                                                 // opcodes handlers
     void HandleLogoutRequestOpcode(WorldPackets::Character::LogoutRequest& logoutRequest);
     void HandlePlayerLoginOpcode(WorldPackets::Character::PlayerLogin& playerLogin);
     void HandleRequestResearchHistory(WorldPackets::Archaeology::RequestResearchHistory& packet);
+    void HandleRequestPvpOptions(WorldPacket& recvData);
+    void HandleRequestPvpReward(WorldPacket& recvData);
+    void HandleRequestRatedBgInfo(WorldPackets::Battleground::RequestRatedBgInfo& packet);
+    void HandleRequestRatedBgStats(WorldPacket& recvData);
     void HandlePlayerLogoutOpcode(WorldPackets::Character::PlayerLogout& playerLogout);
     void HandleLogoutCancelOpcode(WorldPackets::Character::LogoutCancel& logoutCancel);
 

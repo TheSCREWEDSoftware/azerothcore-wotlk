@@ -21,6 +21,7 @@
 #include "ArenaSeasonMgr.h"
 #include "Battleground.h"
 #include "BattlegroundMgr.h"
+#include "BattlegroundPackets.h"
 #include "Chat.h"
 #include "DisableMgr.h"
 #include "GameTime.h"
@@ -33,6 +34,7 @@
 #include "ScriptMgr.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
+#include "WorldStateDefines.h"
 
 void WorldSession::HandleBattlemasterHelloOpcode(WorldPacket& recvData)
 {
@@ -940,4 +942,55 @@ void WorldSession::HandleReportPvPAFK(WorldPacket& recvData)
     LOG_DEBUG("bg.battleground", "WorldSession::HandleReportPvPAFK: {} reported {}", _player->GetName(), reportedPlayer->GetName());
 
     reportedPlayer->ReportedAfkBy(_player);
+}
+
+void WorldSession::HandleRequestPvpOptions(WorldPacket& /*recvData*/)
+{
+    WorldPackets::Battleground::PVPOptionsEnabled packet;
+    packet.RatedArenas = true;
+    packet.WargameBattlegrounds = false;
+    packet.RatedBattlegrounds = sWorld->getIntConfig(CONFIG_RATED_BATTLEGROUND_ENABLE) != 0;
+    SendPacket(packet.Write());
+}
+
+void WorldSession::HandleRequestPvpReward(WorldPacket& /*recvData*/)
+{
+    WorldPackets::Battleground::RequestPVPRewardsResponse packet;
+    packet.ArenaMaxRewardPointsThisWeek = _player->GetCurrencyWeekCap(CURRENCY_TYPE_CONQUEST_META_ARENA);
+    packet.ArenaRewardPointsThisWeek = _player->GetCurrencyOnWeek(CURRENCY_TYPE_CONQUEST_META_ARENA);
+    packet.MaxRewardPointsThisWeek = _player->GetCurrencyWeekCap(CURRENCY_TYPE_CONQUEST_POINTS);
+    packet.RewardPointsThisWeek = _player->GetCurrencyOnWeek(CURRENCY_TYPE_CONQUEST_POINTS);
+    packet.RatedMaxRewardPointsThisWeek = _player->GetCurrencyWeekCap(CURRENCY_TYPE_CONQUEST_META_RBG);
+    packet.RatedRewardPointsThisWeek = _player->GetCurrencyOnWeek(CURRENCY_TYPE_CONQUEST_META_RBG);
+    SendPacket(packet.Write());
+}
+
+void WorldSession::HandleRequestRatedBgInfo(WorldPackets::Battleground::RequestRatedBgInfo& packet)
+{
+    LOG_DEBUG("bg.battleground", "WorldSession::HandleRequestRatedBgInfo: mode = {}", packet.Mode);
+
+    WorldPackets::Battleground::BattlefieldRatedInfo response;
+    response.Mode = int8(packet.Mode);
+
+    int32 const remainingConquest = int32(_player->GetCurrencyWeekCap(CURRENCY_TYPE_CONQUEST_POINTS)) - int32(_player->GetCurrencyOnWeek(CURRENCY_TYPE_CONQUEST_POINTS));
+    uint32 const metaCurrency = packet.Mode == 3 ? CURRENCY_TYPE_CONQUEST_META_RBG : CURRENCY_TYPE_CONQUEST_META_ARENA;
+    int32 const baseReward = int32(sWorld->getIntConfig(packet.Mode == 3 ? CONFIG_RATED_BATTLEGROUND_REWARD : CONFIG_CURRENCY_CONQUEST_POINTS_ARENA_REWARD));
+    int32 const remainingMeta = int32(_player->GetCurrencyWeekCap(metaCurrency)) - int32(_player->GetCurrencyOnWeek(metaCurrency));
+
+    response.Reward = std::max(0, std::min({ baseReward, remainingMeta, remainingConquest }));
+    response.RatedMaxRewardPointsThisWeek = _player->GetCurrencyWeekCap(CURRENCY_TYPE_CONQUEST_META_RBG);
+    response.MaxRewardPointsThisWeek = _player->GetCurrencyWeekCap(CURRENCY_TYPE_CONQUEST_POINTS);
+    response.RewardPointsThisWeek = _player->GetCurrencyOnWeek(CURRENCY_TYPE_CONQUEST_POINTS);
+    response.RatedRewardPointsThisWeek = _player->GetCurrencyOnWeek(CURRENCY_TYPE_CONQUEST_META_RBG);
+    response.PersonalRating = _player->GetRBGPersonalRating();
+    SendPacket(response.Write());
+
+    _player->SendUpdateWorldState(WORLD_STATE_RATED_BATTLEGROUND_ACTIVE, sWorld->getIntConfig(CONFIG_RATED_BATTLEGROUND_ENABLE));
+}
+
+void WorldSession::HandleRequestRatedBgStats(WorldPacket& /*recvData*/)
+{
+    // Rated battleground matches are not recorded yet
+    WorldPackets::Battleground::RatedBattlefieldInfo packet;
+    SendPacket(packet.Write());
 }

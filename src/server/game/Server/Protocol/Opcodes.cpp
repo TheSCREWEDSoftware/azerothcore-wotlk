@@ -244,6 +244,10 @@ void OpcodeTable::Initialize()
     /*0x34A3*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GUILD_PERMISSIONS_QUERY_RESULTS,                    STATUS_NEVER);
     /*0x10B2*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GUILD_EVENT_LOG_QUERY_RESULTS,                      STATUS_NEVER);
     /*0x30B4*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GUILD_RANKS,                                        STATUS_NEVER);
+    /*0x5DA4*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_REQUEST_PVP_REWARDS_RESPONSE,                       STATUS_NEVER);
+    /*0x34A1*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_RATED_BG_STATS,                                     STATUS_NEVER);
+    /*0x50A1*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_PVP_OPTIONS_ENABLED,                                STATUS_NEVER);
+    /*0x54A3*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_BATTLEFIELD_RATED_INFO,                             STATUS_NEVER);
     /*0x70A7*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_UPDATE_CURRENCY_WEEK_LIMIT,                         STATUS_NEVER);
     /*0x3CA1*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_WEEKLY_RESET_CURRENCY,                              STATUS_NEVER);
     /*0x35A6*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_RESEARCH_COMPLETE,                                  STATUS_NEVER);
@@ -833,6 +837,10 @@ void OpcodeTable::Initialize()
     /*0x1026*/ DEFINE_HANDLER(CMSG_GUILD_QUERY_RANKS,                                                STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildQueryRanksOpcode              );
     /*0x3032*/ DEFINE_HANDLER(CMSG_GUILD_ASSIGN_MEMBER_RANK,                                         STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildAssignRankOpcode              );
     /*0x1221*/ DEFINE_HANDLER(CMSG_GUILD_SWITCH_RANK,                                                STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildSwitchRankOpcode              );
+    /*0x05B3*/ DEFINE_HANDLER(CMSG_REQUEST_RATED_BG_STATS,                                           STATUS_LOGGEDIN,   PROCESS_INPLACE,        &WorldSession::HandleRequestRatedBgStats                );
+    /*0x2423*/ DEFINE_HANDLER(CMSG_REQUEST_RATED_BG_INFO,                                            STATUS_LOGGEDIN,   PROCESS_INPLACE,        &WorldSession::HandleRequestRatedBgInfo                 );
+    /*0x780C*/ DEFINE_HANDLER(CMSG_REQUEST_PVP_REWARDS,                                              STATUS_LOGGEDIN,   PROCESS_INPLACE,        &WorldSession::HandleRequestPvpReward                   );
+    /*0x24A1*/ DEFINE_HANDLER(CMSG_REQUEST_PVP_OPTIONS_ENABLED,                                      STATUS_LOGGEDIN,   PROCESS_INPLACE,        &WorldSession::HandleRequestPvpOptions                  );
     /*0x3306*/ DEFINE_HANDLER(CMSG_REQUEST_RESEARCH_HISTORY,                                         STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleRequestResearchHistory             );
     /*0x3223*/ DEFINE_HANDLER(CMSG_GUILD_NEWS_UPDATE_STICKY,                                         STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildNewsUpdateStickyOpcode        );
     /*0x3020*/ DEFINE_HANDLER(CMSG_GUILD_QUERY_NEWS,                                                 STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildQueryNewsOpcode               );

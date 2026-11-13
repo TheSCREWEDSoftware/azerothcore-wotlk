@@ -3644,6 +3644,31 @@ Guild.BankEventLogRecordsCount = 25
 Guild.NewsLogRecordsCount = 250
 
 #
+#    RatedBattleground.Enable
+#        Description: Rated battleground brackets shown as active in the PvP window. Rated
+#                     battleground queues are not implemented.
+#        Default:     0 - (Disabled)
+#                     1 - (10v10)
+#                     2 - (15v15)
+#                     3 - (25v25)
+
+RatedBattleground.Enable = 0
+
+#
+#    RatedBattleground.Reward
+#        Description: Conquest points shown as the reward for winning a rated battleground.
+#        Default:     400
+
+RatedBattleground.Reward = 400
+
+#
+#    Currency.ConquestPointsArenaReward
+#        Description: Conquest points shown as the reward for winning an arena.
+#        Default:     180
+
+Currency.ConquestPointsArenaReward = 180
+
+#
 #    MinPetitionSigns
 #        Description: Number of required signatures on charters to create a guild.
 #        Range:       0-9

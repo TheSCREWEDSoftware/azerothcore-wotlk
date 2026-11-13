@@ -511,6 +511,9 @@ void WorldConfig::BuildConfigCache()
     SetConfigValue<uint32>(CONFIG_GUILD_EVENT_LOG_COUNT, "Guild.EventLogRecordsCount", GUILD_EVENTLOG_MAX_RECORDS, ConfigValueCache::Reloadable::Yes, [](uint32 const& value) { return value <= GUILD_EVENTLOG_MAX_RECORDS; }, "<= GUILD_EVENTLOG_MAX_RECORDS");
     SetConfigValue<uint32>(CONFIG_GUILD_BANK_EVENT_LOG_COUNT, "Guild.BankEventLogRecordsCount", GUILD_BANKLOG_MAX_RECORDS, ConfigValueCache::Reloadable::Yes, [](uint32 const& value) { return value <= GUILD_BANKLOG_MAX_RECORDS; }, "<= GUILD_BANKLOG_MAX_RECORDS");
     SetConfigValue<uint32>(CONFIG_GUILD_NEWS_LOG_COUNT, "Guild.NewsLogRecordsCount", GUILD_NEWSLOG_MAX_RECORDS, ConfigValueCache::Reloadable::No, [](uint32 const& value) { return value > 0 && value <= GUILD_NEWSLOG_MAX_RECORDS; }, "> 0 && <= GUILD_NEWSLOG_MAX_RECORDS");
+    SetConfigValue<uint32>(CONFIG_RATED_BATTLEGROUND_ENABLE, "RatedBattleground.Enable", 0, ConfigValueCache::Reloadable::Yes, [](uint32 const& value) { return value <= 3; }, "<= 3");
+    SetConfigValue<uint32>(CONFIG_RATED_BATTLEGROUND_REWARD, "RatedBattleground.Reward", 400);
+    SetConfigValue<uint32>(CONFIG_CURRENCY_CONQUEST_POINTS_ARENA_REWARD, "Currency.ConquestPointsArenaReward", 180, ConfigValueCache::Reloadable::Yes, [](uint32 const& value) { return value > 0; }, "> 0");
 
     ///- Load the CharDelete related config options
     SetConfigValue<uint32>(CONFIG_CHARDELETE_METHOD, "CharDelete.Method", 0);
