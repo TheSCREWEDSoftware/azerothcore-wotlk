@@ -22,6 +22,7 @@
 #include "Chat.h"
 #include "Config.h"
 #include "DatabaseEnv.h"
+#include "DBCStores.h"
 #include "GameTime.h"
 #include "GuildMgr.h"
 #include "GuildPackets.h"
@@ -2049,6 +2050,21 @@ void Guild::SendLoginInfo(WorldSession* session)
         member->SetStats(player);
         member->AddFlag(GUILDMEMBER_STATUS_ONLINE);
     }
+
+    // Cata Guild Perks: sync this player's client-visible guild level. Covers both a fresh guild
+    // join (AddMember calls SendLoginInfo) and reconnecting after being offline for guild level-ups
+    // (see Guild::GiveXP), which only pushes SetGuildLevel to members online at the moment of the
+    // level-up.
+    if (sWorld->getBoolConfig(CONFIG_GUILD_LEVELING_ENABLED))
+    {
+        player->SetGuildLevel(GetLevel());
+
+        // Learn every perk the guild has reached (new members and members who missed level-ups)
+        for (uint32 i = 0; i < sGuildPerkSpellsStore.GetNumRows(); ++i)
+            if (GuildPerkSpellsEntry const* entry = sGuildPerkSpellsStore.LookupEntry(i))
+                if (entry->GuildLevel <= GetLevel() && !player->HasSpell(entry->SpellID))
+                    player->learnSpell(entry->SpellID, false);
+    }
 }
 
 // Loading methods
@@ -2488,6 +2504,12 @@ void Guild::DeleteMember(ObjectGuid guid, bool isDisbanding, bool isKicked, bool
         player->SetInGuild(0);
         player->SetRank(0);
         player->SetGuildLevel(0);
+
+        // Revoke the guild perk spells granted while a member of this guild
+        if (sWorld->getBoolConfig(CONFIG_GUILD_LEVELING_ENABLED))
+            for (uint32 i = 0; i < sGuildPerkSpellsStore.GetNumRows(); ++i)
+                if (GuildPerkSpellsEntry const* entry = sGuildPerkSpellsStore.LookupEntry(i))
+                    player->removeSpell(entry->SpellID, SPEC_MASK_ALL, false);
     }
     else
     {
@@ -3183,6 +3205,8 @@ void Guild::GiveXP(uint32 xp, Player* source, bool rewardedByChallenge)
         if (Member* member = GetMember(source->GetGUID()))
             member->AddActivity(xp);
 
+    uint8 oldLevel = GetLevel();
+
     if (xp)
     {
         // Ding, mon! GetXPForGuildLevel(level) is the incremental XP cost of that level (not a
@@ -3205,6 +3229,32 @@ void Guild::GiveXP(uint32 xp, Player* source, bool rewardedByChallenge)
         stmt->SetData(2, _todayExperience);
         stmt->SetData(3, m_id);
         CharacterDatabase.Execute(stmt);
+    }
+
+    // Cata Guild Perks: sync every online member's client-visible guild level and learn any
+    // GuildPerkSpells.dbc entries newly crossed by this level-up (oldLevel exclusive, new GetLevel()
+    // inclusive) - ported from TrinityCore's Guild::GiveXP perk loop. Deliberate deviation: AC's
+    // Player::learnSpell(id, /*temporary*/false) is used instead of a literal copy of
+    // TrinityCore's LearnSpell(id, true) - the two APIs' second argument means something different
+    // (AC: temporary vs. permanent grant; TC: dependent-on-another-spell), and "permanent, not
+    // dependent" is what a guild perk actually is.
+    if (GetLevel() != oldLevel)
+    {
+        std::vector<uint32> perksToLearn;
+        for (uint32 i = 0; i < sGuildPerkSpellsStore.GetNumRows(); ++i)
+            if (GuildPerkSpellsEntry const* entry = sGuildPerkSpellsStore.LookupEntry(i))
+                if (entry->GuildLevel > oldLevel && entry->GuildLevel <= GetLevel())
+                    perksToLearn.push_back(entry->SpellID);
+
+        for (auto const& [guid, member] : m_members)
+        {
+            if (Player* player = member.FindPlayer())
+            {
+                player->SetGuildLevel(GetLevel());
+                for (uint32 spellId : perksToLearn)
+                    player->learnSpell(spellId, false);
+            }
+        }
     }
 
     for (auto const& [guid, member] : m_members)

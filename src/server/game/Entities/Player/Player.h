@@ -481,7 +481,7 @@ enum PlayerFlags : uint32
     PLAYER_FLAGS_NO_XP_GAIN        = 0x02000000,
     PLAYER_FLAGS_UNK26             = 0x04000000,
     PLAYER_FLAGS_UNK27             = 0x08000000,
-    PLAYER_FLAGS_UNK28             = 0x10000000,
+    PLAYER_FLAGS_GUILD_LEVEL_ENABLED = 0x10000000,              // enables the guild leveling UI (Cata)
     PLAYER_FLAGS_VOID_UNLOCKED     = 0x20000000,                // void storage (Cata)
     PLAYER_FLAGS_UNK30             = 0x40000000,
     PLAYER_FLAGS_UNK31             = 0x80000000,
@@ -1981,13 +1981,19 @@ public:
         SetGuidValue(OBJECT_FIELD_DATA, GuildId ? ObjectGuid(HighGuid::Guild, GuildId) : ObjectGuid::Empty);
         // xinef: update global storage
         sCharacterCache->UpdateCharacterGuildId(GetGUID(), GetGuildId());
+        // Cata Guild Perks: PLAYER_FLAGS_GUILD_LEVEL_ENABLED gates the client's guild-level/perk UI.
+        // Ported from TrinityCore's Player::SetInGuild, which sets this at the same choke point.
+        ApplyModFlag(PLAYER_FLAGS, PLAYER_FLAGS_GUILD_LEVEL_ENABLED, GuildId != 0 && sWorld->getBoolConfig(CONFIG_GUILD_LEVELING_ENABLED));
     }
     void SetRank(uint8 rankId) { SetUInt32Value(PLAYER_GUILDRANK, rankId); }
-    void SetGuildLevel(uint32 level) { SetUInt32Value(PLAYER_GUILDLEVEL, level); }
     [[nodiscard]] uint8 GetRank() const { return uint8(GetUInt32Value(PLAYER_GUILDRANK)); }
     void SetGuildIdInvited(uint32 GuildId) { m_GuildIdInvited = GuildId; }
     [[nodiscard]] uint32 GetGuildId() const { return GetGuidValue(OBJECT_FIELD_DATA).GetCounter(); }
     [[nodiscard]] Guild* GetGuild() const;
+    // Cata Guild Leveling/Perks: client-visible guild level, kept in sync by Guild::GiveXP (on
+    // level-up) and Guild::SendLoginInfo (on login/join); cleared by Guild::DeleteMember on leave.
+    void SetGuildLevel(uint32 level) { SetUInt32Value(PLAYER_GUILDLEVEL, level); }
+    [[nodiscard]] uint32 GetGuildLevel() const { return GetUInt32Value(PLAYER_GUILDLEVEL); }
     uint32 GetGuildIdInvited() { return m_GuildIdInvited; }
     static void RemovePetitionsAndSigns(ObjectGuid guid, uint32 type);
 

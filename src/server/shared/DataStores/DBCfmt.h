@@ -72,6 +72,7 @@ char constexpr GtOCTRegenHPfmt[] = "f";
 //char constexpr GtOCTRegenMPfmt[] = "f";
 char constexpr GtRegenHPPerSptfmt[] = "f";
 char constexpr GtRegenMPPerSptfmt[] = "f";
+char constexpr GuildPerkSpellsfmt[] = "dii";
 char constexpr Holidaysfmt[] = "niiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiixxsiix";
 char constexpr ImportPriceArmorfmt[] = "nffff";
 char constexpr ImportPriceQualityfmt[] = "nf";
