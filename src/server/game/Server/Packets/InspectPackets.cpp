@@ -19,50 +19,23 @@
 
 WorldPacket const* WorldPackets::Inspect::InspectHonorStats::Write()
 {
-    _worldPacket.WriteBit(PlayerGUID[4]);
-    _worldPacket.WriteBit(PlayerGUID[3]);
-    _worldPacket.WriteBit(PlayerGUID[6]);
-    _worldPacket.WriteBit(PlayerGUID[2]);
-    _worldPacket.WriteBit(PlayerGUID[5]);
-    _worldPacket.WriteBit(PlayerGUID[0]);
-    _worldPacket.WriteBit(PlayerGUID[7]);
-    _worldPacket.WriteBit(PlayerGUID[1]);
-
-    _worldPacket << uint8(LifetimeMaxRank);
+    // 5.4.8 18414, from Project SkyFire
+    _worldPacket << uint32(LifetimeHK);
     _worldPacket << uint16(YesterdayHK);
     _worldPacket << uint16(TodayHK);
-    _worldPacket.WriteByteSeq(PlayerGUID[2]);
-    _worldPacket.WriteByteSeq(PlayerGUID[0]);
-    _worldPacket.WriteByteSeq(PlayerGUID[6]);
-    _worldPacket.WriteByteSeq(PlayerGUID[3]);
-    _worldPacket.WriteByteSeq(PlayerGUID[4]);
-    _worldPacket.WriteByteSeq(PlayerGUID[1]);
-    _worldPacket.WriteByteSeq(PlayerGUID[5]);
-    _worldPacket << uint32(LifetimeHK);
-    _worldPacket.WriteByteSeq(PlayerGUID[7]);
+    _worldPacket << uint8(LifetimeMaxRank);
+    _worldPacket.WriteGuidMask(PlayerGUID, { 2, 1, 6, 4, 5, 3, 7, 0 });
+    _worldPacket.FlushBits();
+    _worldPacket.WriteGuidBytes(PlayerGUID, { 1, 3, 6, 7, 2, 4, 5, 0 });
 
     return &_worldPacket;
 }
 
 void WorldPackets::Inspect::RequestHonorStats::Read()
 {
-    TargetGUID[1] = _worldPacket.ReadBit();
-    TargetGUID[5] = _worldPacket.ReadBit();
-    TargetGUID[7] = _worldPacket.ReadBit();
-    TargetGUID[3] = _worldPacket.ReadBit();
-    TargetGUID[2] = _worldPacket.ReadBit();
-    TargetGUID[4] = _worldPacket.ReadBit();
-    TargetGUID[0] = _worldPacket.ReadBit();
-    TargetGUID[6] = _worldPacket.ReadBit();
-
-    _worldPacket.ReadByteSeq(TargetGUID[4]);
-    _worldPacket.ReadByteSeq(TargetGUID[7]);
-    _worldPacket.ReadByteSeq(TargetGUID[0]);
-    _worldPacket.ReadByteSeq(TargetGUID[5]);
-    _worldPacket.ReadByteSeq(TargetGUID[1]);
-    _worldPacket.ReadByteSeq(TargetGUID[6]);
-    _worldPacket.ReadByteSeq(TargetGUID[2]);
-    _worldPacket.ReadByteSeq(TargetGUID[3]);
+    // 5.4.8 18414, from Project SkyFire
+    _worldPacket.ReadGuidMask(TargetGUID, { 4, 3, 6, 1, 0, 2, 5, 7 });
+    _worldPacket.ReadGuidBytes(TargetGUID, { 0, 5, 1, 4, 2, 6, 7, 3 });
 }
 
 void WorldPackets::Inspect::RequestInspectRatedBgStats::Read()

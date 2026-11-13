@@ -183,9 +183,9 @@ void OpcodeTable::Initialize()
     /*0x1C5A*/ DEFINE_HANDLER(CMSG_CHALLENGE_MODE_REQUEST_MAP_STATS, STATUS_UNHANDLED, PROCESS_INPLACE, &WorldSession::Handle_NULL);
     /*0x0329*/ DEFINE_HANDLER(CMSG_CHAR_FACTION_OR_RACE_CHANGE,                                      STATUS_AUTHED, PROCESS_THREADUNSAFE,       &WorldSession::HandleCharFactionOrRaceChange            );
     /*0x0EAB*/ DEFINE_HANDLER(CMSG_CHAT_MESSAGE_AFK, STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleMessagechatOpcode);
-    /*0x0275*/ DEFINE_HANDLER(CMSG_CONFIRM_RESPEC_WIPE, STATUS_UNHANDLED, PROCESS_INPLACE, &WorldSession::Handle_NULL);
+    /*0x0275*/ DEFINE_HANDLER(CMSG_CONFIRM_RESPEC_WIPE,                                              STATUS_LOGGEDIN, PROCESS_INPLACE,          &WorldSession::HandleTalentWipeConfirmOpcode            );
     /*0x115B*/ DEFINE_HANDLER(CMSG_DISCARDED_TIME_SYNC_ACKS, STATUS_UNHANDLED, PROCESS_INPLACE, &WorldSession::Handle_NULL);
-    /*0x1A26*/ DEFINE_HANDLER(CMSG_DUEL_PROPOSED, STATUS_UNHANDLED, PROCESS_INPLACE, &WorldSession::Handle_NULL);
+    /*0x1A26*/ DEFINE_HANDLER(CMSG_DUEL_PROPOSED,                                                    STATUS_LOGGEDIN, PROCESS_THREADUNSAFE,     &WorldSession::HandleDuelProposedOpcode                 );
     /*0x06E7*/ DEFINE_HANDLER(CMSG_EJECT_PASSENGER, STATUS_UNHANDLED, PROCESS_INPLACE, &WorldSession::Handle_NULL);
     /*0x12B3*/ DEFINE_HANDLER(CMSG_ENABLE_NAGLE, STATUS_UNHANDLED, PROCESS_INPLACE, &WorldSession::Handle_NULL);
     /*0x1452*/ DEFINE_HANDLER(CMSG_GET_CHALLENGE_MODE_REWARDS, STATUS_UNHANDLED, PROCESS_INPLACE, &WorldSession::Handle_NULL);
@@ -224,7 +224,7 @@ void OpcodeTable::Initialize()
     /*0x1260*/ DEFINE_HANDLER(CMSG_SET_LOOT_SPECIALIZATION, STATUS_UNHANDLED, PROCESS_INPLACE, &WorldSession::Handle_NULL);
     /*0x1463*/ DEFINE_HANDLER(CMSG_SET_PET_TALENT_TREE, STATUS_UNHANDLED, PROCESS_INPLACE, &WorldSession::Handle_NULL);
     /*0x06C6*/ DEFINE_HANDLER(CMSG_SET_PRIMARY_TALENT_TREE, STATUS_UNHANDLED, PROCESS_INPLACE, &WorldSession::Handle_NULL);
-    /*0x02C5*/ DEFINE_HANDLER(CMSG_SET_PVP, STATUS_UNHANDLED, PROCESS_INPLACE, &WorldSession::Handle_NULL);
+    /*0x02C5*/ DEFINE_HANDLER(CMSG_SET_PVP,                                                          STATUS_LOGGEDIN, PROCESS_THREADUNSAFE,     &WorldSession::HandleSetPvP                             );
     /*0x0861*/ DEFINE_HANDLER(CMSG_SUBMIT_BUG, STATUS_UNHANDLED, PROCESS_INPLACE, &WorldSession::Handle_NULL);
     /*0x0A12*/ DEFINE_HANDLER(CMSG_SUGGESTION_SUBMIT, STATUS_UNHANDLED, PROCESS_INPLACE, &WorldSession::Handle_NULL);
     /*0x189E*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_ACCOUNT_CRITERIA_UPDATE, STATUS_NEVER);
@@ -841,8 +841,8 @@ void OpcodeTable::Initialize()
     /*0x163A*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_DUEL_INBOUNDS,                                      STATUS_NEVER);
     /*0x1C0A*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_DUEL_COMPLETE,                                      STATUS_NEVER);
     /*0x10E1*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_DUEL_WINNER,                                        STATUS_NEVER);
-    /*0x03E2*/ DEFINE_HANDLER(CMSG_DUEL_ACCEPTED,                                                    STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleDuelAcceptedOpcode                 );
-    /*0xF07F*/ DEFINE_HANDLER(CMSG_DUEL_CANCELLED,                                                   STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleDuelCancelledOpcode                );
+    /*0x03E2*/ DEFINE_HANDLER(CMSG_DUEL_ACCEPTED,                                                    STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleDuelResponseOpcode                 );
+    /*0xF07F*/ DEFINE_HANDLER(CMSG_DUEL_CANCELLED,                                                   STATUS_UNHANDLED,   PROCESS_INPLACE,       &WorldSession::Handle_NULL                              );
     /*0xF1C6*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_MOUNT_RESULT,                                        STATUS_NEVER);
     /*0xF1C7*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_DISMOUNTRESULT,                                     STATUS_NEVER);
     /*0xF1C8*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_REMOVED_FROM_PVP_QUEUE,                             STATUS_NEVER);
@@ -1231,7 +1231,7 @@ void OpcodeTable::Initialize()
     /*0xF1EF*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GAMEOBJECT_RESET_STATE,                             STATUS_NEVER);
     /*0x02C1*/ DEFINE_HANDLER(CMSG_REPAIR_ITEM,                                                      STATUS_LOGGEDIN,   PROCESS_INPLACE,        &WorldSession::HandleRepairItemOpcode                   );
     /*0x1082*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_CHAT_PLAYER_NOT_FOUND,                              STATUS_NEVER);
-    /*0xF0BD*/ DEFINE_HANDLER(MSG_TALENT_WIPE_CONFIRM,                                               STATUS_LOGGEDIN,   PROCESS_INPLACE,        &WorldSession::HandleTalentWipeConfirmOpcode            );
+    /*0xF0BD*/ DEFINE_HANDLER(MSG_TALENT_WIPE_CONFIRM,                                               STATUS_UNHANDLED,   PROCESS_INPLACE,       &WorldSession::Handle_NULL                              );
     DEFINE_BIDIRECTIONAL_OPCODE(MSG_TALENT_WIPE_CONFIRM, MSG_TALENT_WIPE_CONFIRM, MSG_TALENT_WIPE_CONFIRM_SERVER);
     /*0x081F*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_SUMMON_REQUEST,                                     STATUS_NEVER);
     /*0x0A33*/ DEFINE_HANDLER(CMSG_SUMMON_RESPONSE,                                                  STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleSummonResponseOpcode               );

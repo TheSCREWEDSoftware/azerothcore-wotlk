@@ -1020,8 +1020,11 @@ public:                                                 // opcodes handlers
     void HandleLoadActionsSwitchSpec(PreparedQueryResult result);
     void HandleCharacterAuraFrozen(PreparedQueryResult result);
 
-    void HandleDuelAcceptedOpcode(WorldPacket& recvPacket);
-    void HandleDuelCancelledOpcode(WorldPacket& recvPacket);
+    void HandleDuelProposedOpcode(WorldPacket& recvPacket);
+    void HandleDuelResponseOpcode(WorldPacket& recvPacket);
+    void HandleDuelAccepted(ObjectGuid guid);
+    void HandleDuelCancelled();
+    void HandleSetPvP(WorldPacket& recvData);
 
     void HandleAcceptTradeOpcode(WorldPacket& recvPacket);
     void HandleBeginTradeOpcode(WorldPacket& recvPacket);

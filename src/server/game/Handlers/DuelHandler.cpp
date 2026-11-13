@@ -21,15 +21,45 @@
 #include "Player.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
+#include "ObjectAccessor.h"
 
-void WorldSession::HandleDuelAcceptedOpcode(WorldPacket& recvPacket)
+enum DuelSpells
+{
+    SPELL_DUEL          = 7266,
+    SPELL_MOUNTED_DUEL  = 62875
+};
+
+// 5.4.8 18414, from Project SkyFire: the client asks for a duel instead of casting the spell itself
+void WorldSession::HandleDuelProposedOpcode(WorldPacket& recvPacket)
+{
+    ObjectGuid guid;
+    recvPacket.ReadGuidMask(guid, { 1, 5, 4, 6, 3, 2, 7, 0 });
+    recvPacket.ReadGuidBytes(guid, { 4, 2, 5, 7, 1, 3, 6, 0 });
+
+    if (Player* target = ObjectAccessor::GetPlayer(*GetPlayer(), guid))
+        GetPlayer()->CastSpell(target, GetPlayer()->IsMounted() ? SPELL_MOUNTED_DUEL : SPELL_DUEL, false);
+}
+
+// 5.4.8 18414, from Project SkyFire: accepting and declining share one opcode
+void WorldSession::HandleDuelResponseOpcode(WorldPacket& recvPacket)
+{
+    ObjectGuid guid;
+    recvPacket.ReadGuidMask(guid, { 7, 1, 3, 4, 0, 2, 6 });
+    bool accepted = recvPacket.ReadBit();
+    recvPacket.ReadGuidMask(guid, { 5 });
+    recvPacket.ReadGuidBytes(guid, { 6, 4, 5, 0, 1, 2, 7, 3 });
+
+    if (accepted)
+        HandleDuelAccepted(guid);
+    else
+        HandleDuelCancelled();
+}
+
+void WorldSession::HandleDuelAccepted(ObjectGuid guid)
 {
     Player* player = GetPlayer();
     if (!player->duel || player == player->duel->Initiator || player->duel->State != DUEL_STATE_CHALLENGED)
         return;
-
-    ObjectGuid guid;
-    recvPacket >> guid;
 
     Player* target = player->duel->Opponent;
     if (target->GetGuidValue(PLAYER_DUEL_ARBITER) != guid)
@@ -49,12 +79,9 @@ void WorldSession::HandleDuelAcceptedOpcode(WorldPacket& recvPacket)
     target->SendDuelCountdown(3000);
 }
 
-void WorldSession::HandleDuelCancelledOpcode(WorldPacket& recvPacket)
+void WorldSession::HandleDuelCancelled()
 {
     Player* player = GetPlayer();
-
-    ObjectGuid guid;
-    recvPacket >> guid;
 
     // no duel requested
     if (!player->duel || player->duel->State == DUEL_STATE_COMPLETED)

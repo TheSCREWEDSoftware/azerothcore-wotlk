@@ -613,6 +613,18 @@ void WorldSession::HandleTogglePvP(WorldPacket& recv_data)
     //    pvp->HandlePlayerActivityChanged(_player);
 }
 
+// 5.4.8 18414, from Project SkyFire: CMSG_SET_PVP carries the new state, CMSG_TOGGLE_PVP has none
+void WorldSession::HandleSetPvP(WorldPacket& recvData)
+{
+    bool newPvPStatus = recvData.ReadBit();
+    GetPlayer()->ApplyModFlag(PLAYER_FLAGS, PLAYER_FLAGS_IN_PVP, newPvPStatus);
+
+    if (GetPlayer()->HasPlayerFlag(PLAYER_FLAGS_IN_PVP))
+        GetPlayer()->UpdatePvP(true, true);
+    else if (!GetPlayer()->pvpInfo.IsHostile && GetPlayer()->IsPvP())
+        GetPlayer()->UpdatePvP(true, false);
+}
+
 void WorldSession::HandleZoneUpdateOpcode(WorldPacket& recv_data)
 {
     uint32 newZone;

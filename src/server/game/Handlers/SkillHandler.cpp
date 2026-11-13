@@ -65,9 +65,15 @@ void WorldSession::HandleLearnPreviewTalents(WorldPacket& recvPacket)
 
 void WorldSession::HandleTalentWipeConfirmOpcode(WorldPacket& recvData)
 {
-    LOG_DEBUG("network", "MSG_TALENT_WIPE_CONFIRM");
+    LOG_DEBUG("network", "CMSG_CONFIRM_RESPEC_WIPE");
+    // 5.4.8 18414, from Project SkyFire: 0 = talents, 1 = specialization (not reset yet)
+    uint8 respecType;
+    recvData >> respecType;
     ObjectGuid guid;
-    recvData >> guid;
+    recvData.ReadGuidMask(guid, { 7, 2, 6, 1, 4, 0, 3, 5 });
+    recvData.ReadGuidBytes(guid, { 2, 4, 1, 3, 0, 5, 7, 6 });
+    if (respecType != 0)
+        return;
 
     Creature* unit = GetPlayer()->GetNPCIfCanInteractWith(guid, UNIT_NPC_FLAG_TRAINER);
     if (!unit)
