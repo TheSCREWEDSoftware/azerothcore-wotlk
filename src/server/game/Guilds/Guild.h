@@ -688,6 +688,8 @@ public:
     // Getters
     uint32 GetId() const { return m_id; }
     ObjectGuid GetLeaderGUID() const { return m_leaderGuid; }
+    ObjectGuid GetGUID() const { return ObjectGuid::Create<HighGuid::Guild>(m_id); }
+    bool IsMember(ObjectGuid guid) const { return GetMember(guid) != nullptr; }
     std::string const& GetName() const { return m_name; }
     std::string const& GetMOTD() const { return m_motd; }
     std::string const& GetInfo() const { return m_info; }
@@ -717,6 +719,8 @@ public:
     void HandleUpdateMemberRank(WorldSession* session, std::string_view name, bool demote);
     void HandleAddNewRank(WorldSession* session, std::string_view name);
     void HandleRemoveRank(WorldSession* session, uint8 rankId);
+    void HandleSetMemberRank(WorldSession* session, ObjectGuid targetGuid, uint32 newRankId);
+    void SendGuildRankInfo(WorldSession* session) const;
     void HandleRemoveLowestRank(WorldSession* session);
     void HandleMemberDepositMoney(WorldSession* session, uint32 amount);
     bool HandleMemberWithdrawMoney(WorldSession* session, uint32 amount, bool repair = false);

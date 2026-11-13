@@ -107,13 +107,13 @@ enum OpcodeClient : uint16
     CMSG_GUILD_ACCEPT                               = 0x2531,
     CMSG_GUILD_DECLINE                              = 0x3231,
     CMSG_GUILD_INFO                                 = 0x0000,
-    CMSG_GUILD_ROSTER                               = 0x089,
+    CMSG_GUILD_GET_ROSTER                           = 0x1226,
     CMSG_GUILD_PROMOTE                              = 0x1030,
     CMSG_GUILD_DEMOTE                               = 0x1020,
     CMSG_GUILD_LEAVE                                = 0x1021,
     CMSG_GUILD_REMOVE                               = 0x1231,
     CMSG_GUILD_DISBAND                              = 0x3226,
-    CMSG_GUILD_LEADER                               = 0x090,
+    CMSG_GUILD_SET_GUILD_MASTER                     = 0x3034,
     CMSG_GUILD_MOTD                                 = 0x1035,
     UMSG_UPDATE_GUILD                               = 0x094,
     // Cata build 15595 splits WotLK's single CMSG_MESSAGECHAT into one opcode per chat type.
@@ -373,11 +373,13 @@ enum OpcodeClient : uint16
     CMSG_GM_FREEZE                                  = 0x22D,
     CMSG_GM_UBERINVIS                               = 0x22E,
     CMSG_GM_REQUEST_PLAYER_INFO                     = 0x22F,
-    CMSG_GUILD_RANK                                 = 0x231,
+    CMSG_GUILD_SET_RANK_PERMISSIONS                 = 0x1024,
+    CMSG_GUILD_QUERY_RANKS                          = 0x1026,
+    CMSG_GUILD_ASSIGN_MEMBER_RANK                   = 0x3032,
+    CMSG_GUILD_SWITCH_RANK                          = 0x1221,
     CMSG_GUILD_ADD_RANK                             = 0x3030,
     CMSG_GUILD_DEL_RANK                             = 0x3234,
     CMSG_GUILD_SET_NOTE                      = 0x1233,
-    CMSG_GUILD_SET_OFFICER_NOTE                     = 0x235,
     CMSG_SEND_MAIL                                  = 0x0523,
     CMSG_GET_MAIL_LIST                              = 0x4D37,
     CMSG_BATTLEFIELD_LIST                           = 0x3814,
@@ -630,10 +632,10 @@ enum OpcodeClient : uint16
     CMSG_SPELLCLICK                                 = 0x0805,
     CMSG_GM_CHARACTER_RESTORE                       = 0x3FA,
     CMSG_GM_CHARACTER_SAVE                          = 0x3FB,
-    MSG_GUILD_PERMISSIONS                           = 0x3FD,
+    CMSG_GUILD_PERMISSIONS_QUERY                    = 0x3022,
     CMSG_GUILD_BANK_REMAINING_WITHDRAW_MONEY_QUERY   = 0x1225,
     CMSG_GUILD_SET_ACHIEVEMENT_TRACKING              = 0x1027,
-    MSG_GUILD_EVENT_LOG_QUERY                       = 0x3FF,
+    CMSG_GUILD_EVENT_LOG_QUERY                      = 0x1220,
     CMSG_MAELSTROM_RENAME_GUILD                     = 0x400,
     CMSG_GET_MIRRORIMAGE_DATA                       = 0x0C25,
     CMSG_IGNORE_DIMINISHING_RETURNS_CHEAT           = 0x405,
@@ -823,7 +825,10 @@ enum OpcodeServer : uint16
     SMSG_LOGOUT_CANCEL_ACK                          = 0x6514,
     SMSG_NAME_QUERY_RESPONSE                        = 0x6E04, // Cata: SMSG_QUERY_PLAYER_NAME_RESPONSE
     SMSG_PET_NAME_QUERY_RESPONSE                    = 0x4C37,
-    SMSG_GUILD_QUERY_RESPONSE                       = 0x055, // DEPRECATED
+    SMSG_QUERY_GUILD_INFO_RESPONSE                  = 0x0E06,
+    SMSG_GUILD_PERMISSIONS_QUERY_RESULTS            = 0x34A3,
+    SMSG_GUILD_EVENT_LOG_QUERY_RESULTS              = 0x10B2,
+    SMSG_GUILD_RANKS                                = 0x30B4,
     SMSG_ITEM_QUERY_SINGLE_RESPONSE                 = 0x058, // DEPRECATED
     SMSG_ITEM_QUERY_MULTIPLE_RESPONSE               = 0x059, // DEPRECATED
     SMSG_PAGE_TEXT_QUERY_RESPONSE                   = 0x2B14,
@@ -1586,10 +1591,6 @@ inline constexpr OpcodeServer MSG_NOTIFY_PARTY_SQUELCH_SERVER =
     static_cast<OpcodeServer>(MSG_NOTIFY_PARTY_SQUELCH);
 inline constexpr OpcodeServer MSG_GUILD_BANK_LOG_QUERY_SERVER =
     static_cast<OpcodeServer>(MSG_GUILD_BANK_LOG_QUERY);
-inline constexpr OpcodeServer MSG_GUILD_PERMISSIONS_SERVER =
-    static_cast<OpcodeServer>(MSG_GUILD_PERMISSIONS);
-inline constexpr OpcodeServer MSG_GUILD_EVENT_LOG_QUERY_SERVER =
-    static_cast<OpcodeServer>(MSG_GUILD_EVENT_LOG_QUERY);
 inline constexpr OpcodeServer MSG_QUERY_GUILD_BANK_TEXT_SERVER =
     static_cast<OpcodeServer>(MSG_QUERY_GUILD_BANK_TEXT);
 inline constexpr OpcodeServer MSG_GM_CHANGE_ARENA_RATING_SERVER =

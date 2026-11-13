@@ -150,6 +150,9 @@ namespace WorldPackets
         class GuildBankRemainingWithdrawMoneyQuery;
         class GuildPermissionsQuery;
         class GuildSetRankPermissions;
+        class GuildQueryRanks;
+        class GuildAssignMemberRank;
+        class GuildSwitchRank;
         class GuildBankActivate;
         class GuildBankQueryTab;
         class GuildBankDepositMoney;
@@ -883,8 +886,10 @@ public:                                                 // opcodes handlers
     void HandleGuildLeaderOpcode(WorldPackets::Guild::GuildSetGuildMaster& packet);
     void HandleGuildMOTDOpcode(WorldPackets::Guild::GuildUpdateMotdText& packet);
     void HandleGuildSetPublicNoteOpcode(WorldPackets::Guild::GuildSetMemberNote& packet);
-    void HandleGuildSetOfficerNoteOpcode(WorldPackets::Guild::GuildSetMemberNote& packet);
     void HandleGuildRankOpcode(WorldPackets::Guild::GuildSetRankPermissions& packet);
+    void HandleGuildQueryRanksOpcode(WorldPackets::Guild::GuildQueryRanks& packet);
+    void HandleGuildAssignRankOpcode(WorldPackets::Guild::GuildAssignMemberRank& packet);
+    void HandleGuildSwitchRankOpcode(WorldPackets::Guild::GuildSwitchRank& packet);
     void HandleGuildAddRankOpcode(WorldPackets::Guild::GuildAddRank& packet);
     void HandleGuildDelRankOpcode(WorldPackets::Guild::GuildDeleteRank& packet);
     void HandleGuildChangeInfoTextOpcode(WorldPackets::Guild::GuildUpdateInfoText& packet);

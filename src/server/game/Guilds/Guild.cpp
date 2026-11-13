@@ -1209,20 +1209,8 @@ bool Guild::SetName(std::string_view const& name)
 void Guild::HandleRoster(WorldSession* session)
 {
     WorldPackets::Guild::GuildRoster roster;
-
-    roster.RankData.reserve(m_ranks.size());
-    for (RankInfo const& rank : m_ranks)
-    {
-        WorldPackets::Guild::GuildRankData& rankData =  roster.RankData.emplace_back();
-
-        rankData.Flags = rank.GetRights();
-        rankData.WithdrawGoldLimit = rank.GetBankMoneyPerDay();
-        for (uint8 i = 0; i < GUILD_BANK_MAX_TABS; ++i)
-        {
-            rankData.TabFlags[i] = rank.GetBankTabRights(i);
-            rankData.TabWithdrawItemLimit[i] = rank.GetBankTabSlotsPerDay(i);
-        }
-    }
+    roster.NumAccounts = m_accountsNumber;
+    roster.CreateDate = m_createdDate;
 
     bool sendOfficerNote = _HasRankRight(session->GetPlayer(), GR_RIGHT_VIEWOFFNOTE);
     roster.MemberData.reserve(m_members.size());
@@ -1251,12 +1239,42 @@ void Guild::HandleRoster(WorldSession* session)
 
     LOG_DEBUG("guild", "SMSG_GUILD_ROSTER [{}]", session->GetPlayerInfo());
     session->SendPacket(roster.Write());
+
+    // 4.3.4 moved the rank list out of the roster; the client asks for it with CMSG_GUILD_QUERY_RANKS,
+    // but sending it here keeps the roster window complete on the first open
+    SendGuildRankInfo(session);
+}
+
+void Guild::SendGuildRankInfo(WorldSession* session) const
+{
+    WorldPackets::Guild::GuildRanks ranks;
+    ranks.Ranks.reserve(m_ranks.size());
+
+    for (uint8 i = 0; i < _GetRanksSize(); ++i)
+    {
+        RankInfo const& rank = m_ranks[i];
+        WorldPackets::Guild::GuildRankData& rankData = ranks.Ranks.emplace_back();
+
+        rankData.RankID = rank.GetId();
+        rankData.RankOrder = i;
+        rankData.RankName = rank.GetName();
+        rankData.Flags = rank.GetRights();
+        rankData.WithdrawGoldLimit = rank.GetBankMoneyPerDay();
+        for (uint8 j = 0; j < GUILD_BANK_MAX_TABS; ++j)
+        {
+            rankData.TabFlags[j] = rank.GetBankTabRights(j);
+            rankData.TabWithdrawItemLimit[j] = rank.GetBankTabSlotsPerDay(j);
+        }
+    }
+
+    session->SendPacket(ranks.Write());
+    LOG_DEBUG("guild", "SMSG_GUILD_RANKS [{}]", session->GetPlayerInfo());
 }
 
 void Guild::HandleQuery(WorldSession* session)
 {
     WorldPackets::Guild::QueryGuildInfoResponse response;
-    response.GuildId = m_id;
+    response.GuildGuid = GetGUID();
 
     response.Info.EmblemStyle = m_emblemInfo.GetStyle();
     response.Info.EmblemColor = m_emblemInfo.GetColor();
@@ -1265,14 +1283,18 @@ void Guild::HandleQuery(WorldSession* session)
     response.Info.BackgroundColor = m_emblemInfo.GetBackgroundColor();
 
     for (uint8 i = 0; i < _GetRanksSize(); ++i)
+    {
         response.Info.Ranks[i] = m_ranks[i].GetName();
+        response.Info.RankOrders[i] = i;
+        response.Info.RankIds[i] = m_ranks[i].GetId();
+    }
 
     response.Info.RankCount = _GetRanksSize();
 
     response.Info.GuildName = m_name;
 
     session->SendPacket(response.Write());
-    LOG_DEBUG("guild", "SMSG_GUILD_QUERY_RESPONSE [{}]", session->GetPlayerInfo());
+    LOG_DEBUG("guild", "SMSG_QUERY_GUILD_INFO_RESPONSE [{}]", session->GetPlayerInfo());
 }
 
 void Guild::HandleSetMOTD(WorldSession* session, std::string_view motd)
@@ -1527,6 +1549,18 @@ void Guild::HandleInviteMember(WorldSession* session, std::string const& name)
 
     invite.InviterName = player->GetName();
     invite.GuildName = GetName();
+    invite.GuildGuid = GetGUID();
+    invite.GuildLevel = 1; // guild levels are not ported yet
+    invite.EmblemStyle = m_emblemInfo.GetStyle();
+    invite.EmblemColor = m_emblemInfo.GetColor();
+    invite.BorderStyle = m_emblemInfo.GetBorderStyle();
+    invite.BorderColor = m_emblemInfo.GetBorderColor();
+    invite.BackgroundColor = m_emblemInfo.GetBackgroundColor();
+    if (Guild const* oldGuild = pInvitee->GetGuild())
+    {
+        invite.OldGuildGuid = oldGuild->GetGUID();
+        invite.OldGuildName = oldGuild->GetName();
+    }
 
     pInvitee->SendDirectMessage(invite.Write());
     LOG_DEBUG("guild", "SMSG_GUILD_INVITE [{}]", pInvitee->GetName());
@@ -1684,10 +1718,54 @@ void Guild::HandleRemoveLowestRank(WorldSession* session)
     HandleRemoveRank(session, _GetLowestRankId());
 }
 
+// CMSG_GUILD_ASSIGN_MEMBER_RANK: the 4.3.4 roster lets the player pick the new rank directly
+void Guild::HandleSetMemberRank(WorldSession* session, ObjectGuid targetGuid, uint32 newRankId)
+{
+    Player* player = session->GetPlayer();
+    Member* member = GetMember(targetGuid);
+    Member const* memberMe = GetMember(player->GetGUID());
+    if (!member || !memberMe || newRankId >= _GetRanksSize() || newRankId == member->GetRankId())
+        return;
+
+    bool const demote = newRankId > member->GetRankId();
+    GuildCommandType type = demote ? GUILD_COMMAND_DEMOTE : GUILD_COMMAND_PROMOTE;
+
+    if (!_HasRankRight(player, demote ? GR_RIGHT_DEMOTE : GR_RIGHT_PROMOTE))
+    {
+        SendCommandResult(session, type, ERR_GUILD_PERMISSIONS);
+        return;
+    }
+
+    // Player cannot change his own rank
+    if (member->IsSamePlayer(player->GetGUID()))
+    {
+        SendCommandResult(session, type, ERR_GUILD_NAME_INVALID);
+        return;
+    }
+
+    // Player can only move members below his own rank, and only to ranks below his own
+    uint8 const myRankId = memberMe->GetRankId();
+    if (member->IsRankNotLower(myRankId) || newRankId <= myRankId)
+    {
+        SendCommandResult(session, type, ERR_GUILD_RANK_TOO_HIGH_S, member->GetName());
+        return;
+    }
+
+    member->ChangeRank(newRankId);
+    _LogEvent(demote ? GUILD_EVENT_LOG_DEMOTE_PLAYER : GUILD_EVENT_LOG_PROMOTE_PLAYER, player->GetGUID(), member->GetGUID(),
+        newRankId);
+    _BroadcastEvent(demote ? GE_DEMOTION : GE_PROMOTION, ObjectGuid::Empty, player->GetName(), member->GetName(),
+        _GetRankName(newRankId));
+}
+
 void Guild::HandleRemoveRank(WorldSession* session, uint8 rankId)
 {
     // Cannot remove rank if total count is minimum allowed by the client or is not leader
     if (_GetRanksSize() <= GUILD_RANKS_MIN_COUNT || rankId >= _GetRanksSize() || !_IsLeader(session->GetPlayer()))
+        return;
+
+    // The 4.3.4 client can pick any rank, but ranks are stored by order: only the lowest one can go
+    if (rankId != _GetLowestRankId())
         return;
 
     // Delete bank rights for rank
@@ -1851,7 +1929,7 @@ void Guild::SendEventLog(WorldSession* session) const
         entry.WritePacket(packet);
 
     session->SendPacket(packet.Write());
-    LOG_DEBUG("guild", "MSG_GUILD_EVENT_LOG_QUERY [{}]", session->GetPlayerInfo());
+    LOG_DEBUG("guild", "SMSG_GUILD_EVENT_LOG_QUERY_RESULTS [{}]", session->GetPlayerInfo());
 }
 
 void Guild::SendBankLog(WorldSession* session, uint8 tabId) const
@@ -1922,7 +2000,7 @@ void Guild::SendPermissions(WorldSession* session)
     }
 
     session->SendPacket(queryResult.Write());
-    LOG_DEBUG("guild", "MSG_GUILD_PERMISSIONS [{}] Rank: {}", session->GetPlayerInfo(), rankId);
+    LOG_DEBUG("guild", "SMSG_GUILD_PERMISSIONS_QUERY_RESULTS [{}] Rank: {}", session->GetPlayerInfo(), rankId);
 }
 
 void Guild::SendMoneyInfo(WorldSession* session) const

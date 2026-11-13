@@ -91,6 +91,13 @@ namespace WorldPackets
             return data;
         }
 
+        // Cata packets send the string length up front (often bit-packed) instead of a null terminator
+        void ReadWithLength(ByteBuffer& data, uint32 length)
+        {
+            _storage = data.ReadString(length);
+            Validate();
+        }
+
     private:
         bool Validate() const
         {
