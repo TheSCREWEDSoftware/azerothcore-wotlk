@@ -854,12 +854,24 @@ void ObjectMgr::LoadCreatureTemplateSpells()
     LOG_INFO("server.loading", " ");
 }
 
+// AnimKit.dbc id of a creature_addon/creature_template_addon anim kit column, 0 when unknown
+static uint16 LoadAnimKit(uint16 animKitId, char const* column)
+{
+    if (animKitId && !sAnimKitStore.LookupEntry(animKitId))
+    {
+        LOG_ERROR("sql.sql", "Creature addon {} {} does not exist in AnimKit.dbc, ignored.", column, animKitId);
+        return 0;
+    }
+
+    return animKitId;
+}
+
 void ObjectMgr::LoadCreatureTemplateAddons()
 {
     uint32 oldMSTime = getMSTime();
 
-    //                                                0       1       2      3       4       5              6               7
-    QueryResult result = WorldDatabase.Query("SELECT entry, path_id, mount, bytes1, bytes2, emote, visibilityDistanceType, auras FROM creature_template_addon");
+    //                                                0       1       2      3       4       5              6               7      8          9                10
+    QueryResult result = WorldDatabase.Query("SELECT entry, path_id, mount, bytes1, bytes2, emote, visibilityDistanceType, auras, aiAnimKit, movementAnimKit, meleeAnimKit FROM creature_template_addon");
 
     if (!result)
     {
@@ -889,6 +901,9 @@ void ObjectMgr::LoadCreatureTemplateAddons()
         creatureAddon.bytes2  = fields[4].Get<uint32>();
         creatureAddon.emote   = fields[5].Get<uint32>();
         creatureAddon.visibilityDistanceType = VisibilityDistanceType(fields[6].Get<uint8>());
+        creatureAddon.aiAnimKit       = LoadAnimKit(fields[8].Get<uint16>(), "aiAnimKit");
+        creatureAddon.movementAnimKit = LoadAnimKit(fields[9].Get<uint16>(), "movementAnimKit");
+        creatureAddon.meleeAnimKit    = LoadAnimKit(fields[10].Get<uint16>(), "meleeAnimKit");
 
         for (std::string_view aura : Acore::Tokenize(fields[7].Get<std::string_view>(), ' ', false))
         {
@@ -1265,7 +1280,7 @@ void ObjectMgr::LoadCreatureAddons()
     uint32 oldMSTime = getMSTime();
 
     //                                                0       1       2      3       4       5             6                7
-    QueryResult result = WorldDatabase.Query("SELECT guid, path_id, mount, bytes1, bytes2, emote, visibilityDistanceType, auras FROM creature_addon");
+    QueryResult result = WorldDatabase.Query("SELECT guid, path_id, mount, bytes1, bytes2, emote, visibilityDistanceType, auras, aiAnimKit, movementAnimKit, meleeAnimKit FROM creature_addon");
 
     if (!result)
     {
@@ -1302,6 +1317,9 @@ void ObjectMgr::LoadCreatureAddons()
         creatureAddon.bytes2  = fields[4].Get<uint32>();
         creatureAddon.emote   = fields[5].Get<uint32>();
         creatureAddon.visibilityDistanceType = VisibilityDistanceType(fields[6].Get<uint8>());
+        creatureAddon.aiAnimKit       = LoadAnimKit(fields[8].Get<uint16>(), "aiAnimKit");
+        creatureAddon.movementAnimKit = LoadAnimKit(fields[9].Get<uint16>(), "movementAnimKit");
+        creatureAddon.meleeAnimKit    = LoadAnimKit(fields[10].Get<uint16>(), "meleeAnimKit");
 
         for (std::string_view aura : Acore::Tokenize(fields[7].Get<std::string_view>(), ' ', false))
         {

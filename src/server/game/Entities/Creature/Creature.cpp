@@ -2824,6 +2824,15 @@ bool Creature::LoadCreaturesAddon(bool reload)
     SetUInt32Value(UNIT_NPC_EMOTESTATE, cainfo->emote);
 
     // Check if visibility distance different
+    if (cainfo->aiAnimKit)
+        SetAIAnimKitId(cainfo->aiAnimKit);
+
+    if (cainfo->movementAnimKit)
+        SetMovementAnimKitId(cainfo->movementAnimKit);
+
+    if (cainfo->meleeAnimKit)
+        SetMeleeAnimKitId(cainfo->meleeAnimKit);
+
     if (cainfo->visibilityDistanceType != VisibilityDistanceType::Normal)
     {
         SetVisibilityDistanceOverride(cainfo->visibilityDistanceType);
