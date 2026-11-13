@@ -244,6 +244,7 @@ void OpcodeTable::Initialize()
     /*0x34A3*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GUILD_PERMISSIONS_QUERY_RESULTS,                    STATUS_NEVER);
     /*0x10B2*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GUILD_EVENT_LOG_QUERY_RESULTS,                      STATUS_NEVER);
     /*0x30B4*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GUILD_RANKS,                                        STATUS_NEVER);
+    /*0x70B0*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_ROLE_POLL_BEGIN,                                    STATUS_NEVER);
     /*0x19A5*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_INSPECT_RATED_BG_STATS,                             STATUS_NEVER);
     /*0x79A5*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_INSPECT_HONOR_STATS,                                STATUS_NEVER);
     /*0x54B5*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_LFG_SLOT_INVALID,                                   STATUS_NEVER);
@@ -867,6 +868,7 @@ void OpcodeTable::Initialize()
     /*0x1026*/ DEFINE_HANDLER(CMSG_GUILD_QUERY_RANKS,                                                STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildQueryRanksOpcode              );
     /*0x3032*/ DEFINE_HANDLER(CMSG_GUILD_ASSIGN_MEMBER_RANK,                                         STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildAssignRankOpcode              );
     /*0x1221*/ DEFINE_HANDLER(CMSG_GUILD_SWITCH_RANK,                                                STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildSwitchRankOpcode              );
+    /*0x0430*/ DEFINE_HANDLER(CMSG_ROLE_POLL_BEGIN,                                                  STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleRolePollBeginOpcode                );
     /*0x7306*/ DEFINE_HANDLER(CMSG_SET_CURRENCY_FLAGS,                                               STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleSetCurrencyFlags                   );
     /*0x0593*/ DEFINE_HANDLER(CMSG_REORDER_CHARACTERS,                                               STATUS_AUTHED,     PROCESS_THREADUNSAFE,   &WorldSession::HandleReorderCharacters                  );
     /*0x3010*/ DEFINE_HANDLER(CMSG_REQUEST_INSPECT_RATED_BG_STATS,                                   STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleRequestInspectRatedBgStatsOpcode   );

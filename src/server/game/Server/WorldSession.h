@@ -906,6 +906,7 @@ public:                                                 // opcodes handlers
     void AcceptPartyInvite();
     void DeclinePartyInvite();
     void HandleSetRoleOpcode(WorldPackets::Party::SetRole& packet);
+    void HandleRolePollBeginOpcode(WorldPacket& recvData);
     void HandleSetEveryoneIsAssistant(WorldPackets::Party::SetEveryoneIsAssistant& packet);
     void HandleGroupUninviteOpcode(WorldPacket& recvPacket);
     void HandleGroupUninviteGuidOpcode(WorldPacket& recvPacket);

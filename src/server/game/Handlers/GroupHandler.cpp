@@ -964,3 +964,40 @@ void WorldSession::HandleGroupSwapSubGroupOpcode(WorldPacket& recv_data)
     group->ChangeMembersGroup(guid1, groupId2);
     group->ChangeMembersGroup(guid2, groupId1);
 }
+
+void WorldSession::HandleRolePollBeginOpcode(WorldPacket& recvData)
+{
+    Group* group = GetPlayer()->GetGroup();
+    if (!group)
+        return;
+
+    // the client sends a role index only when it asks for a poll in a dungeon finder group
+    if (!recvData.empty())
+        return;
+
+    if (!group->IsLeader(GetPlayer()->GetGUID()) && !group->IsAssistant(GetPlayer()->GetGUID()))
+        return;
+
+    ObjectGuid guid = GetPlayer()->GetGUID();
+
+    WorldPacket data(SMSG_ROLE_POLL_BEGIN, 9);
+    data.WriteBit(guid[1]);
+    data.WriteBit(guid[5]);
+    data.WriteBit(guid[7]);
+    data.WriteBit(guid[3]);
+    data.WriteBit(guid[2]);
+    data.WriteBit(guid[4]);
+    data.WriteBit(guid[0]);
+    data.WriteBit(guid[6]);
+    data.FlushBits();
+    data.WriteByteSeq(guid[4]);
+    data.WriteByteSeq(guid[7]);
+    data.WriteByteSeq(guid[0]);
+    data.WriteByteSeq(guid[5]);
+    data.WriteByteSeq(guid[1]);
+    data.WriteByteSeq(guid[6]);
+    data.WriteByteSeq(guid[2]);
+    data.WriteByteSeq(guid[3]);
+
+    group->BroadcastPacket(&data, true);
+}
