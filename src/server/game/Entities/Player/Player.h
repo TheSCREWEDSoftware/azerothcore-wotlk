@@ -1770,6 +1770,7 @@ public:
     }
     void ModifyCurrency(uint32 currencyId, int32 amount, bool suppressChatLog = false, bool ignoreModifiersAndTracking = false);
     void ResetCurrencyWeekCap();
+    void SetCurrencyFlags(uint32 currencyId, uint8 flags);
     void UpdateConquestCurrencyCap(uint32 currencyId);
     /// Rated battleground personal rating; rated battlegrounds are not implemented, as in TrinityCore
     [[nodiscard]] uint32 GetRBGPersonalRating() const { return 0; }

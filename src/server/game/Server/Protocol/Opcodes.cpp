@@ -867,6 +867,7 @@ void OpcodeTable::Initialize()
     /*0x1026*/ DEFINE_HANDLER(CMSG_GUILD_QUERY_RANKS,                                                STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildQueryRanksOpcode              );
     /*0x3032*/ DEFINE_HANDLER(CMSG_GUILD_ASSIGN_MEMBER_RANK,                                         STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildAssignRankOpcode              );
     /*0x1221*/ DEFINE_HANDLER(CMSG_GUILD_SWITCH_RANK,                                                STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildSwitchRankOpcode              );
+    /*0x7306*/ DEFINE_HANDLER(CMSG_SET_CURRENCY_FLAGS,                                               STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleSetCurrencyFlags                   );
     /*0x0593*/ DEFINE_HANDLER(CMSG_REORDER_CHARACTERS,                                               STATUS_AUTHED,     PROCESS_THREADUNSAFE,   &WorldSession::HandleReorderCharacters                  );
     /*0x3010*/ DEFINE_HANDLER(CMSG_REQUEST_INSPECT_RATED_BG_STATS,                                   STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleRequestInspectRatedBgStatsOpcode   );
     /*0x791E*/ DEFINE_HANDLER(CMSG_REQUEST_HONOR_STATS,                                              STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleRequestHonorStatsOpcode            );

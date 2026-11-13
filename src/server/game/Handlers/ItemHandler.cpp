@@ -1744,3 +1744,13 @@ void WorldSession::HandleItemTextQuery(WorldPacket& recvData )
 
     SendPacket(&data);
 }
+
+void WorldSession::HandleSetCurrencyFlags(WorldPacket& recvData)
+{
+    uint32 flags;
+    uint32 currencyId;
+    recvData >> flags >> currencyId;
+
+    // client flags: inactive (moved to the unused section) and shown in the backpack
+    GetPlayer()->SetCurrencyFlags(currencyId, uint8(flags));
+}

@@ -6534,6 +6534,16 @@ void Player::ModifyHonorPoints(int32 value, CharacterDatabaseTransaction trans)
     }
 }
 
+void Player::SetCurrencyFlags(uint32 currencyId, uint8 flags)
+{
+    // only currencies the player already has; the flags are saved with the currency on the next save
+    auto itr = _currencyStorage.find(currencyId);
+    if (itr == _currencyStorage.end())
+        return;
+
+    itr->second.Flags = flags;
+}
+
 void Player::ModifyArenaPoints(int32 value, CharacterDatabaseTransaction trans)
 {
     int64 newValue = int64(GetArenaPoints()) + value;

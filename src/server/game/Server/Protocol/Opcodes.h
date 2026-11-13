@@ -28,6 +28,7 @@
 /// Lists of opcodes by wire direction
 enum OpcodeClient : uint16
 {
+    CMSG_SET_CURRENCY_FLAGS                         = 0x7306,
     CMSG_REORDER_CHARACTERS                         = 0x0593,
     CMSG_REQUEST_INSPECT_RATED_BG_STATS             = 0x3010,
     CMSG_REQUEST_HONOR_STATS                        = 0x791E,
