@@ -65,8 +65,31 @@ WorldPacket const* WorldPackets::Spells::SendUnlearnSpells::Write()
 
 WorldPacket const* WorldPackets::Spells::UpdateActionButtons::Write()
 {
-    _worldPacket.append(ActionButtons.data(), ActionButtons.size());
-    _worldPacket << Reason;
+    // 5.4.8 18414 (SkyFire_548 Player::SendActionButtons): each button is the action and the
+    // type in the high byte of a second uint32, sent as 8 bytes per button, one bit
+    // block and one byte block per byte index
+    std::array<std::array<uint8, 8>, NumActionButtons> buttons = { };
+    for (std::size_t i = 0; i < NumActionButtons; ++i)
+    {
+        uint32 const action = ActionButtons[i] & 0x00FFFFFF;
+        uint32 const hiType = ActionButtons[i] & 0xFF000000;
+        for (uint8 b = 0; b < 4; ++b)
+        {
+            buttons[i][b] = uint8(action >> (b * 8));
+            buttons[i][b + 4] = uint8(hiType >> (b * 8));
+        }
+    }
+
+    for (uint8 byteIndex : { 4, 5, 3, 1, 6, 7, 0, 2 })
+        for (std::size_t i = 0; i < NumActionButtons; ++i)
+            _worldPacket.WriteBit(buttons[i][byteIndex] != 0);
+    _worldPacket.FlushBits();
+
+    for (uint8 byteIndex : { 0, 1, 4, 6, 7, 2, 5, 3 })
+        for (std::size_t i = 0; i < NumActionButtons; ++i)
+            _worldPacket.WriteByteSeq(buttons[i][byteIndex]);
+
+    _worldPacket << uint8(Reason);
 
     return &_worldPacket;
 }

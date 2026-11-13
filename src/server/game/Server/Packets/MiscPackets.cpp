@@ -38,31 +38,33 @@ WorldPacket const* WorldPackets::Misc::SetCurrency::Write()
 
 WorldPacket const* WorldPackets::Misc::SetupCurrency::Write()
 {
-    _worldPacket.WriteBits(Data.size(), 23);
+    // 5.4.8 18414 (SkyFire_548 Player::SendCurrencies)
+    _worldPacket.WriteBits(Data.size(), 21);
 
     for (Record const& record : Data)
     {
-        _worldPacket.WriteBit(record.WeeklyQuantity.has_value());
-        _worldPacket.WriteBits(record.Flags, 4);
-        _worldPacket.WriteBit(record.MaxWeeklyQuantity.has_value());
         _worldPacket.WriteBit(record.TrackedQuantity.has_value());
+        _worldPacket.WriteBits(record.Flags, 5);
+        _worldPacket.WriteBit(record.MaxWeeklyQuantity.has_value());
+        _worldPacket.WriteBit(record.WeeklyQuantity.has_value());
     }
 
     _worldPacket.FlushBits();
 
     for (Record const& record : Data)
     {
+        if (record.WeeklyQuantity)
+            _worldPacket << uint32(*record.WeeklyQuantity);
+
+        _worldPacket << uint32(record.Type);
+
+        if (record.TrackedQuantity)
+            _worldPacket << uint32(*record.TrackedQuantity);
+
         _worldPacket << uint32(record.Quantity);
 
         if (record.MaxWeeklyQuantity)
             _worldPacket << uint32(*record.MaxWeeklyQuantity);
-        if (record.TrackedQuantity)
-            _worldPacket << uint32(*record.TrackedQuantity);
-
-        _worldPacket << uint32(record.Type);
-
-        if (record.WeeklyQuantity)
-            _worldPacket << uint32(*record.WeeklyQuantity);
     }
 
     return &_worldPacket;

@@ -77,7 +77,7 @@ namespace WorldPackets
         class UpdateActionButtons final : public ServerPacket
         {
         public:
-            static std::size_t constexpr NumActionButtons = 144;
+            static std::size_t constexpr NumActionButtons = 132;   // 5.4.8
 
             UpdateActionButtons() : ServerPacket(SMSG_UPDATE_ACTION_BUTTONS, NumActionButtons * sizeof(uint32) + 1)
             {

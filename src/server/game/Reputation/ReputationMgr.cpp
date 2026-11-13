@@ -165,8 +165,9 @@ uint32 ReputationMgr::GetDefaultStateFlags(FactionEntry const* factionEntry) con
 void ReputationMgr::SendForceReactions()
 {
     WorldPacket data;
-    data.Initialize(SMSG_SET_FORCED_REACTIONS, 4 + _forcedReactions.size() * (4 + 4));
-    data << uint32(_forcedReactions.size());
+    data.Initialize(SMSG_SET_FORCED_REACTIONS, 1 + _forcedReactions.size() * (4 + 4));
+    data.WriteBits(_forcedReactions.size(), 6);
+    data.FlushBits();
     for (ForcedReactions::const_iterator itr = _forcedReactions.begin(); itr != _forcedReactions.end(); ++itr)
     {
         data << uint32(itr->first);                         // faction_id (Faction.dbc)
@@ -210,9 +211,10 @@ void ReputationMgr::SendState(FactionState const* faction)
 
 void ReputationMgr::SendInitialReputations()
 {
+    // 5.4.8 18414: 256 fixed entries, then one bonus reputation bit per entry
     uint16 constexpr count = 256;
-    WorldPacket data(SMSG_INITIALIZE_FACTIONS, 4 + count * 5);
-    data << uint32(count);
+    WorldPacket data(SMSG_INITIALIZE_FACTIONS, count * 5 + count / 8);
+    ByteBuffer bonusBits;
 
     RepListID a = 0;
 
@@ -221,13 +223,15 @@ void ReputationMgr::SendInitialReputations()
         // fill in absent fields
         for (; a != itr->first; a++)
         {
-            data << uint8  (0x00);
-            data << uint32 (0x00000000);
+            data << uint8(0x00);
+            data << uint32(0x00000000);
+            bonusBits.WriteBit(false);
         }
 
         // fill in encountered data
-        data << uint8  (itr->second.Flags);
-        data << uint32 (itr->second.Standing);
+        data << uint8(itr->second.Flags);
+        data << uint32(itr->second.Standing);
+        bonusBits.WriteBit(false);
 
         itr->second.needSend = false;
 
@@ -238,7 +242,11 @@ void ReputationMgr::SendInitialReputations()
     {
         data << uint8(0);
         data << uint32(0);
+        bonusBits.WriteBit(false);
     }
+
+    bonusBits.FlushBits();
+    data.append(bonusBits);
 
     _player->SendDirectMessage(&data);
 }
