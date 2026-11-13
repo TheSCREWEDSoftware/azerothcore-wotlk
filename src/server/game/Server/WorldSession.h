@@ -664,7 +664,7 @@ public:
     void HandleClientCastFlags(WorldPacket& recvPacket, uint8 castFlags, SpellCastTargets& targets);
 
     // Pet
-    void SendPetNameQuery(ObjectGuid guid, uint32 petnumber);
+    void SendPetNameQuery(ObjectGuid guid, uint64 petnumber);
     void SendStablePet(ObjectGuid guid);
     void SendStableResult(uint8 guid);
     bool CheckStableMaster(ObjectGuid guid);
@@ -879,6 +879,7 @@ public:                                                 // opcodes handlers
     void HandleNameQueryOpcode(WorldPackets::Query::NameQuery& packet);
 
     void HandleTimeQueryOpcode(WorldPackets::Query::TimeQuery& packet);
+    void HandleRealmNameQueryOpcode(WorldPacket& recvData);
 
     void HandleCreatureQueryOpcode(WorldPacket& recvPacket);
 

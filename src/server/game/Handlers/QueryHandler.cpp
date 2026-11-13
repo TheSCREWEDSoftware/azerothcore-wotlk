@@ -16,6 +16,7 @@
  */
 
 #include "Common.h"
+#include "Corpse.h"
 #include "GameTime.h"
 #include "Log.h"
 #include "MapMgr.h"
@@ -25,6 +26,7 @@
 #include "Pet.h"
 #include "Player.h"
 #include "QueryPackets.h"
+#include "Realm.h"
 #include "World.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
@@ -34,7 +36,7 @@ void WorldSession::SendNameQueryOpcode(ObjectGuid guid)
     CharacterCacheEntry const* playerData = sCharacterCache->GetCharacterCacheByGuid(guid);
 
     WorldPackets::Query::NameQueryResponse nameQueryResponse;
-    nameQueryResponse.Guid = guid.WriteAsPacked();
+    nameQueryResponse.Guid = guid;
     if (!playerData)
     {
         nameQueryResponse.NameUnknown = true;
@@ -46,9 +48,12 @@ void WorldSession::SendNameQueryOpcode(ObjectGuid guid)
 
     nameQueryResponse.NameUnknown = false;
     nameQueryResponse.Name = playerData->Name;
+    nameQueryResponse.VirtualRealmAddress = realm.Id.Realm;
+    nameQueryResponse.AccountID = playerData->AccountId;
     nameQueryResponse.Race = player ? player->getRace() : playerData->Race;
     nameQueryResponse.Sex = player ? player->getGender() : playerData->Sex;
     nameQueryResponse.Class = player ? player->getClass() : playerData->Class;
+    nameQueryResponse.Level = player ? player->GetLevel() : playerData->Level;
 
     if (DeclinedName const* names = (player ? player->GetDeclinedNames() : nullptr))
     {
@@ -74,6 +79,31 @@ void WorldSession::HandleTimeQueryOpcode(WorldPackets::Query::TimeQuery& /*packe
     SendTimeQueryResponse();
 }
 
+// 5.4.8 18414, from Project SkyFire (WorldSession::SendRealmNameQueryOpcode)
+void WorldSession::HandleRealmNameQueryOpcode(WorldPacket& recvData)
+{
+    uint32 realmId;
+    recvData >> realmId;
+
+    bool const found = realmId == realm.Id.Realm;
+
+    WorldPacket data(SMSG_REALM_NAME_QUERY_RESPONSE, 1 + 4 + 2 + realm.Name.size() * 2);
+    data << uint8(!found);
+    data << uint32(realmId);
+
+    if (found)
+    {
+        data.WriteBits(realm.Name.size(), 8);
+        data.WriteBit(true);                                // this is the player's realm
+        data.WriteBits(realm.Name.size(), 8);
+        data.FlushBits();
+        data.WriteString(realm.Name);
+        data.WriteString(realm.Name);
+    }
+
+    SendPacket(&data);
+}
+
 void WorldSession::SendTimeQueryResponse()
 {
     auto timeResponse = sWorld->GetNextDailyQuestsResetTime() - GameTime::GetGameTime();
@@ -87,10 +117,9 @@ void WorldSession::SendTimeQueryResponse()
 /// Only _static_ data is sent in this packet !!!
 void WorldSession::HandleCreatureQueryOpcode(WorldPacket& recvData)
 {
+    // 5.4.8 sends only the entry
     uint32 entry;
     recvData >> entry;
-    ObjectGuid guid;
-    recvData >> guid;
 
     CreatureTemplate const* ci = sObjectMgr->GetCreatureTemplate(entry);
     WorldPackets::Query::QueryCreatureResponse response;
@@ -140,12 +169,12 @@ void WorldSession::HandleCreatureQueryOpcode(WorldPacket& recvData)
                 response.Stats.QuestItems[i] = (*items)[i];
 
         response.Stats.CreatureMovementInfoID = ci->movementId;      // CreatureMovementInfo.dbc
-        // RequiredExpansion left zero: this fork does not yet port the Cataclysm expansion-gate column
+        response.Stats.RequiredExpansion = ci->expansion;
         SendPacket(response.Write());
     }
     else
     {
-        LOG_DEBUG("network", "WORLD: CMSG_CREATURE_QUERY - NO CREATURE INFO! ({})", guid.ToString());
+        LOG_DEBUG("network", "WORLD: CMSG_CREATURE_QUERY - NO CREATURE INFO! (entry {})", entry);
         SendPacket(response.Write());
         LOG_DEBUG("network", "WORLD: Sent SMSG_CREATURE_QUERY_RESPONSE");
     }
@@ -154,21 +183,30 @@ void WorldSession::HandleCreatureQueryOpcode(WorldPacket& recvData)
 /// Only _static_ data is sent in this packet !!!
 void WorldSession::HandleGameObjectQueryOpcode(WorldPacket& recvData)
 {
+    // 5.4.8 18414, from Project SkyFire (WorldSession::HandleGameObjectQueryOpcode)
     uint32 entry;
-    recvData >> entry;
     ObjectGuid guid;
-    recvData >> guid;
+    recvData >> entry;
+    for (uint8 index : { 5, 3, 6, 2, 7, 1, 0, 4 })
+        guid[index] = recvData.ReadBit();
+    for (uint8 index : { 1, 5, 3, 4, 6, 2, 7, 0 })
+        recvData.ReadByteSeq(guid[index]);
 
     GameObjectTemplate const* info = sObjectMgr->GetGameObjectTemplate(entry);
+
+    WorldPacket data(SMSG_GAMEOBJECT_QUERY_RESPONSE, 150);
+    data.WriteBit(info != nullptr);
+    data.FlushBits();
+    data << uint32(entry);
+
+    size_t const sizePos = data.wpos();
+    data << uint32(0);
+
     if (info)
     {
-        std::string Name;
-        std::string IconName;
-        std::string CastBarCaption;
-
-        Name = info->name;
-        IconName = info->IconName;
-        CastBarCaption = info->castBarCaption;
+        std::string Name = info->name;
+        std::string IconName = info->IconName;
+        std::string CastBarCaption = info->castBarCaption;
 
         LocaleConstant localeConstant = GetSessionDbLocaleIndex();
         if (localeConstant >= LOCALE_enUS)
@@ -179,49 +217,41 @@ void WorldSession::HandleGameObjectQueryOpcode(WorldPacket& recvData)
             }
 
         LOG_DEBUG("network", "WORLD: CMSG_GAMEOBJECT_QUERY '{}' - Entry: {}. ", info->name, entry);
-        WorldPacket data (SMSG_GAMEOBJECT_QUERY_RESPONSE, 150);
-        data << uint32(entry);
         data << uint32(info->type);
         data << uint32(info->displayId);
         data << Name;
         data << uint8(0) << uint8(0) << uint8(0);           // name2, name3, name4
-        data << IconName;                                   // 2.0.3, string. Icon name to use instead of default icon for go's (ex: "Attack" makes sword)
-        data << CastBarCaption;                             // 2.0.3, string. Text will appear in Cast Bar when using GO (ex: "Collecting")
-        data << info->unk1;                                 // 2.0.3, string
+        data << IconName;                                   // Icon name to use instead of default icon for go's (ex: "Attack" makes sword)
+        data << CastBarCaption;                             // Text will appear in Cast Bar when using GO (ex: "Collecting")
+        data << info->unk1;
         data.append(info->raw.data, MAX_GAMEOBJECT_DATA);
         data << float(info->size);                          // go size
 
+        data << uint8(MAX_GAMEOBJECT_QUEST_ITEMS);
         GameObjectQuestItemList const* items = sObjectMgr->GetGameObjectQuestItemList(entry);
-        if (items)
-            for (std::size_t i = 0; i < MAX_GAMEOBJECT_QUEST_ITEMS; ++i)
-                data << (i < items->size() ? uint32((*items)[i]) : uint32(0));
-        else
-            for (std::size_t i = 0; i < MAX_GAMEOBJECT_QUEST_ITEMS; ++i)
-                data << uint32(0);
+        for (std::size_t i = 0; i < MAX_GAMEOBJECT_QUEST_ITEMS; ++i)
+            data << uint32(items && i < items->size() ? (*items)[i] : 0);
 
-        // Build 15595 appends RequiredLevel after the quest-item array; this fork does not yet
-        // import that data column, so write zero to preserve the wire contract. See issue #109.
-        data << int32(0);                                    // RequiredLevel
-
-        SendPacket(&data);
-        LOG_DEBUG("network", "WORLD: Sent SMSG_GAMEOBJECT_QUERY_RESPONSE");
+        data << int32(0);                                   // RequiredLevel, not imported yet
+        data.put<uint32>(sizePos, uint32(data.wpos() - (sizePos + 4)));
     }
     else
-    {
-        LOG_DEBUG("network", "WORLD: CMSG_GAMEOBJECT_QUERY - Missing gameobject info for ({})", guid.ToString());
-        WorldPacket data (SMSG_GAMEOBJECT_QUERY_RESPONSE, 4);
-        data << uint32(entry | 0x80000000);
-        SendPacket(&data);
-        LOG_DEBUG("network", "WORLD: Sent SMSG_GAMEOBJECT_QUERY_RESPONSE");
-    }
+        LOG_DEBUG("network", "WORLD: CMSG_GAMEOBJECT_QUERY - Missing gameobject info for ({}, entry {})", guid.ToString(), entry);
+
+    SendPacket(&data);
 }
 
 void WorldSession::HandleCorpseQueryOpcode(WorldPacket& /*recvData*/)
 {
-    if (!_player->HasCorpse())
+    // 5.4.8 18414, from Project SkyFire (WorldSession::HandleCorpseQueryOpcode)
+    Corpse* corpse = _player->GetCorpse();
+    if (!corpse)
     {
-        WorldPacket data(MSG_CORPSE_QUERY, 1);
-        data << uint8(0);                                   // corpse not found
+        WorldPacket data(SMSG_CORPSE_QUERY, 1 + 5 * 4);
+        data.WriteBits(0, 9);                               // not found, no guid bytes
+        data.FlushBits();
+        for (uint8 i = 0; i < 5; ++i)
+            data << uint32(0);
         SendPacket(&data);
         return;
     }
@@ -253,98 +283,60 @@ void WorldSession::HandleCorpseQueryOpcode(WorldPacket& /*recvData*/)
         }
     }
 
-    WorldPacket data(MSG_CORPSE_QUERY, 1 + (6 * 4));
-    data << uint8(1);                                       // corpse found
-    data << int32(mapID);
-    data << float(x);
-    data << float(y);
+    ObjectGuid corpseGuid = corpse->GetGUID();
+
+    WorldPacket data(SMSG_CORPSE_QUERY, 9 + 1 + 4 * 5);
+    for (uint8 index : { 0, 3, 2 })
+        data.WriteBit(corpseGuid[index]);
+    data.WriteBit(true);                                    // corpse found
+    for (uint8 index : { 5, 4, 1, 7, 6 })
+        data.WriteBit(corpseGuid[index]);
+    data.FlushBits();
+
+    data.WriteByteSeq(corpseGuid[5]);
     data << float(z);
-    data << int32(corpseMapID);
-    data << uint32(0);                                      // unknown
+    data.WriteByteSeq(corpseGuid[1]);
+    data << uint32(corpseMapID);
+    data.WriteByteSeq(corpseGuid[6]);
+    data.WriteByteSeq(corpseGuid[4]);
+    data << float(x);
+    data.WriteByteSeq(corpseGuid[3]);
+    data.WriteByteSeq(corpseGuid[7]);
+    data.WriteByteSeq(corpseGuid[2]);
+    data.WriteByteSeq(corpseGuid[0]);
+    data << int32(mapID);
+    data << float(y);
     SendPacket(&data);
 }
 
 void WorldSession::HandleNpcTextQueryOpcode(WorldPacket& recvData)
 {
+    // 5.4.8 18414: the text itself comes from BroadcastText.db2, the server sends the
+    // probability and broadcast text id of each option.
     uint32 textID;
     ObjectGuid guid;
-
     recvData >> textID;
-    LOG_DEBUG("network", "WORLD: CMSG_NPC_TEXT_QUERY TextId: {}", textID);
+    for (uint8 index : { 4, 5, 1, 7, 0, 2, 6, 3 })
+        guid[index] = recvData.ReadBit();
+    for (uint8 index : { 4, 0, 2, 5, 1, 7, 3, 6 })
+        recvData.ReadByteSeq(guid[index]);
 
-    recvData >> guid;
+    LOG_DEBUG("network", "WORLD: CMSG_NPC_TEXT_QUERY TextId: {}", textID);
 
     GossipText const* gossip = sObjectMgr->GetGossipText(textID);
 
-    WorldPacket data(SMSG_NPC_TEXT_UPDATE, 100);          // guess size
-    data << textID;
+    ByteBuffer buffer(MAX_GOSSIP_TEXT_OPTIONS * 8);
+    for (uint8 i = 0; i < MAX_GOSSIP_TEXT_OPTIONS; ++i)
+        buffer << float(gossip ? gossip->Options[i].Probability : (i == 0 ? 1.0f : 0.0f));
+    for (uint8 i = 0; i < MAX_GOSSIP_TEXT_OPTIONS; ++i)
+        buffer << uint32(gossip ? gossip->Options[i].BroadcastTextID : 0);
 
-    if (!gossip)
-    {
-        for (uint8 i = 0; i < MAX_GOSSIP_TEXT_OPTIONS; ++i)
-        {
-            data << float(0);
-            data << "Greetings $N";
-            data << "Greetings $N";
-            data << uint32(0);
-            data << uint32(0);
-            data << uint32(0);
-            data << uint32(0);
-            data << uint32(0);
-            data << uint32(0);
-            data << uint32(0);
-        }
-    }
-    else
-    {
-        std::string text0[MAX_GOSSIP_TEXT_OPTIONS], text1[MAX_GOSSIP_TEXT_OPTIONS];
-        LocaleConstant locale = GetSessionDbLocaleIndex();
-
-        for (uint8 i = 0; i < MAX_GOSSIP_TEXT_OPTIONS; ++i)
-        {
-            BroadcastText const* bct = sObjectMgr->GetBroadcastText(gossip->Options[i].BroadcastTextID);
-            if (bct)
-            {
-                text0[i] = bct->GetText(locale, GENDER_MALE, true);
-                text1[i] = bct->GetText(locale, GENDER_FEMALE, true);
-            }
-            else
-            {
-                text0[i] = gossip->Options[i].Text_0;
-                text1[i] = gossip->Options[i].Text_1;
-            }
-
-            if (locale != DEFAULT_LOCALE && !bct)
-            {
-                if (NpcTextLocale const* npcTextLocale = sObjectMgr->GetNpcTextLocale(textID))
-                {
-                    ObjectMgr::GetLocaleString(npcTextLocale->Text_0[i], locale, text0[i]);
-                    ObjectMgr::GetLocaleString(npcTextLocale->Text_1[i], locale, text1[i]);
-                }
-            }
-
-            data << gossip->Options[i].Probability;
-
-            if (text0[i].empty())
-                data << text1[i];
-            else
-                data << text0[i];
-
-            if (text1[i].empty())
-                data << text0[i];
-            else
-                data << text1[i];
-
-            data << gossip->Options[i].Language;
-
-            for (uint8 j = 0; j < MAX_GOSSIP_TEXT_EMOTES; ++j)
-            {
-                data << gossip->Options[i].Emotes[j]._Delay;
-                data << gossip->Options[i].Emotes[j]._Emote;
-            }
-        }
-    }
-
+    WorldPacket data(SMSG_NPC_TEXT_UPDATE, 4 + 4 + buffer.size() + 1);
+    data << uint32(textID);
+    data << uint32(buffer.size());
+    data.append(buffer);
+    data.WriteBit(gossip != nullptr);                      // allow caching
+    data.FlushBits();
     SendPacket(&data);
 
     LOG_DEBUG("network", "WORLD: Sent SMSG_NPC_TEXT_UPDATE");
@@ -353,21 +345,26 @@ void WorldSession::HandleNpcTextQueryOpcode(WorldPacket& recvData)
 /// Only _static_ data is sent in this packet !!!
 void WorldSession::HandlePageTextQueryOpcode(WorldPacket& recvData)
 {
+    // 5.4.8 18414, from Project SkyFire (WorldSession::HandlePageTextQueryOpcode)
     uint32 pageID;
+    ObjectGuid guid;
     recvData >> pageID;
-    recvData.read_skip<uint64>();                          // guid
+    for (uint8 index : { 2, 1, 3, 7, 6, 4, 0, 5 })
+        guid[index] = recvData.ReadBit();
+    for (uint8 index : { 1, 6, 3, 5, 0, 7, 4, 2 })
+        recvData.ReadByteSeq(guid[index]);
 
     while (pageID)
     {
         PageText const* pageText = sObjectMgr->GetPageText(pageID);
-        // guess size
+
         WorldPacket data(SMSG_PAGE_TEXT_QUERY_RESPONSE, 50);
-        data << pageID;
+        data.WriteBit(pageText != nullptr);
 
         if (!pageText)
         {
-            data << "Item page missing.";
-            data << uint32(0);
+            data.FlushBits();
+            data << uint32(pageID);
             pageID = 0;
         }
         else
@@ -379,12 +376,16 @@ void WorldSession::HandlePageTextQueryOpcode(WorldPacket& recvData)
                 if (PageTextLocale const* player = sObjectMgr->GetPageTextLocale(pageID))
                     ObjectMgr::GetLocaleString(player->Text, loc_idx, Text);
 
-            data << Text;
-            data << pageText->NextPage;
+            data.WriteBits(Text.size(), 12);
+            data.FlushBits();
+            data << uint32(pageText->NextPage);
+            data << uint32(pageID);
+            data.WriteString(Text);
+            data << uint32(pageID);
             pageID = pageText->NextPage;
         }
-        SendPacket(&data);
 
+        SendPacket(&data);
         LOG_DEBUG("network", "WORLD: Sent SMSG_PAGE_TEXT_QUERY_RESPONSE");
     }
 }
@@ -403,18 +404,20 @@ void WorldSession::HandleCorpseMapPositionQuery(WorldPackets::Query::CorpseMapPo
 
 void WorldSession::HandleQuestNPCQuery(WorldPacket& recvData)
 {
-    uint32 count = recvData.ReadBits(24);
-    if (count > MAX_QUEST_LOG_SIZE || count > (recvData.size() - recvData.rpos()) / sizeof(uint32))
-    {
-        recvData.rfinish();
-        return;
-    }
+    // 5.4.8 18414: a fixed array of 50 quest ids followed by the used count
+    std::array<uint32, 50> questList;
+    for (uint32& questId : questList)
+        recvData >> questId;
+
+    uint32 count;
+    recvData >> count;
+    count = std::min<uint32>(count, questList.size());
 
     WorldPackets::Query::QuestNPCQueryResponse response;
     std::unordered_set<uint32> questIds;
     for (uint32 i = 0; i < count; ++i)
     {
-        uint32 questId = recvData.read<uint32>();
+        uint32 questId = questList[i];
         if (!questIds.insert(questId).second || !sObjectMgr->GetQuestTemplate(questId))
             continue;
 
@@ -431,72 +434,69 @@ void WorldSession::HandleQuestNPCQuery(WorldPacket& recvData)
 
 void WorldSession::HandleQuestPOIQuery(WorldPacket& recvData)
 {
-    uint32 count;
-    recvData >> count; // quest count, max=25
-
+    // 5.4.8 18414, from Project SkyFire (WorldSession::HandleQuestPOIQuery)
+    uint32 count = recvData.ReadBits(22);
     if (count > MAX_QUEST_LOG_SIZE)
     {
         recvData.rfinish();
         return;
     }
 
-    // Read quest ids and add the in a unordered_set so we don't send POIs for the same quest multiple times
-    std::unordered_set<uint32> questIds;
-    for (uint32 i = 0; i < count; ++i)
-        questIds.insert(recvData.read<uint32>()); // quest id
+    std::vector<uint32> questIds(count);
+    for (uint32& questId : questIds)
+        recvData >> questId;
 
-    WorldPacket data(SMSG_QUEST_POI_QUERY_RESPONSE, 4 + (4 + 4)*questIds.size());
-    data << uint32(questIds.size()); // count
+    WorldPacket data(SMSG_QUEST_POI_QUERY_RESPONSE, 4 + (4 + 4) * count);
+    ByteBuffer poiData;
+    data.WriteBits(count, 20);
 
-    for (std::unordered_set<uint32>::const_iterator itr = questIds.begin(); itr != questIds.end(); ++itr)
+    for (uint32 questId : questIds)
     {
-        uint32 questId = *itr;
         bool questOk = false;
-
         uint16 questSlot = _player->FindQuestSlot(questId);
-
         if (questSlot != MAX_QUEST_LOG_SIZE)
             questOk = _player->GetQuestSlotQuestId(questSlot) == questId;
 
-        if (questOk)
+        QuestPOIVector const* POI = questOk ? sObjectMgr->GetQuestPOIVector(questId) : nullptr;
+        if (!POI)
         {
-            QuestPOIVector const* POI = sObjectMgr->GetQuestPOIVector(questId);
-
-            if (POI)
-            {
-                data << uint32(questId); // quest ID
-                data << uint32(POI->size()); // POI count
-
-                for (QuestPOIVector::const_iterator itr = POI->begin(); itr != POI->end(); ++itr)
-                {
-                    data << uint32(itr->Id);                // POI index
-                    data << int32(itr->ObjectiveIndex);     // objective index
-                    data << uint32(itr->MapId);             // mapid
-                    data << uint32(itr->AreaId);            // areaid
-                    data << uint32(itr->FloorId);           // floorid
-                    data << uint32(itr->Unk3);              // unknown
-                    data << uint32(itr->Unk4);              // unknown
-                    data << uint32(itr->points.size());     // POI points count
-
-                    for (std::vector<QuestPOIPoint>::const_iterator itr2 = itr->points.begin(); itr2 != itr->points.end(); ++itr2)
-                    {
-                        data << int32(itr2->x); // POI point x
-                        data << int32(itr2->y); // POI point y
-                    }
-                }
-            }
-            else
-            {
-                data << uint32(questId); // quest ID
-                data << uint32(0); // POI count
-            }
+            data.WriteBits(0, 18);
+            poiData << uint32(questId);
+            poiData << uint32(0);
+            continue;
         }
-        else
+
+        data.WriteBits(POI->size(), 18);
+        for (QuestPOI const& poi : *POI)
         {
-            data << uint32(questId); // quest ID
-            data << uint32(0); // POI count
+            data.WriteBits(poi.points.size(), 21);
+
+            poiData << uint32(poi.FloorId);
+            for (QuestPOIPoint const& point : poi.points)
+            {
+                poiData << int32(point.x);
+                poiData << int32(point.y);
+            }
+
+            poiData << int32(poi.ObjectiveIndex);
+            poiData << uint32(poi.Id);
+            poiData << uint32(0);                           // unknown, new in 5.x
+            poiData << uint32(0);                           // unknown, new in 5.x
+            poiData << uint32(poi.MapId);
+            poiData << uint32(poi.points.size());
+            poiData << uint32(poi.AreaId);
+            poiData << uint32(0);                           // unknown, new in 5.x
+            poiData << uint32(poi.Unk4);
+            poiData << uint32(poi.Unk3);
         }
+
+        poiData << uint32(questId);
+        poiData << uint32(POI->size());
     }
 
+    poiData << uint32(count);
+
+    data.FlushBits();
+    data.append(poiData);
     SendPacket(&data);
 }

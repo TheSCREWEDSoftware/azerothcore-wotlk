@@ -613,29 +613,60 @@ void WorldSession::HandlePetActionHelper(Unit* pet, ObjectGuid guid1, uint32 spe
     }
 }
 
+// 5.4.8 18414, from Project SkyFire (ReadPetNameQueryRequest, WorldSession::SendPetNameQuery)
 void WorldSession::HandlePetNameQuery(WorldPacket& recvData)
 {
     LOG_DEBUG("network.opcode", "HandlePetNameQuery. CMSG_PET_NAME_QUERY");
 
-    uint32 petnumber;
-    ObjectGuid petguid;
+    ObjectGuid petNumber;
+    ObjectGuid petGuid;
 
-    recvData >> petnumber;
-    recvData >> petguid;
+    petNumber[0] = recvData.ReadBit();
+    petNumber[5] = recvData.ReadBit();
+    petGuid[1] = recvData.ReadBit();
+    petGuid[7] = recvData.ReadBit();
+    petNumber[7] = recvData.ReadBit();
+    petGuid[6] = recvData.ReadBit();
+    petGuid[4] = recvData.ReadBit();
+    petGuid[5] = recvData.ReadBit();
+    petGuid[0] = recvData.ReadBit();
+    petNumber[3] = recvData.ReadBit();
+    petNumber[6] = recvData.ReadBit();
+    petNumber[2] = recvData.ReadBit();
+    petGuid[3] = recvData.ReadBit();
+    petGuid[2] = recvData.ReadBit();
+    petNumber[1] = recvData.ReadBit();
+    petNumber[4] = recvData.ReadBit();
 
-    SendPetNameQuery(petguid, petnumber);
+    recvData.ReadByteSeq(petNumber[2]);
+    recvData.ReadByteSeq(petNumber[1]);
+    recvData.ReadByteSeq(petNumber[0]);
+    recvData.ReadByteSeq(petNumber[7]);
+    recvData.ReadByteSeq(petGuid[5]);
+    recvData.ReadByteSeq(petGuid[0]);
+    recvData.ReadByteSeq(petNumber[6]);
+    recvData.ReadByteSeq(petGuid[4]);
+    recvData.ReadByteSeq(petNumber[5]);
+    recvData.ReadByteSeq(petGuid[2]);
+    recvData.ReadByteSeq(petGuid[6]);
+    recvData.ReadByteSeq(petNumber[3]);
+    recvData.ReadByteSeq(petGuid[3]);
+    recvData.ReadByteSeq(petNumber[4]);
+    recvData.ReadByteSeq(petGuid[1]);
+    recvData.ReadByteSeq(petGuid[7]);
+
+    SendPetNameQuery(petGuid, petNumber.GetRawValue());
 }
 
-void WorldSession::SendPetNameQuery(ObjectGuid petguid, uint32 petnumber)
+void WorldSession::SendPetNameQuery(ObjectGuid petguid, uint64 petnumber)
 {
     Creature* pet = ObjectAccessor::GetCreatureOrPetOrVehicle(*_player, petguid);
     if (!pet)
     {
-        WorldPacket data(SMSG_PET_NAME_QUERY_RESPONSE, (4 + 1 + 4 + 1));
-        data << uint32(petnumber);
-        data << uint8(0);
-        data << uint32(0);
-        data << uint8(0);
+        WorldPacket data(SMSG_PET_NAME_QUERY_RESPONSE, 1 + 8);
+        data.WriteBit(false);
+        data.FlushBits();
+        data << uint64(petnumber);
         SendPacket(&data);
         return;
     }
@@ -653,20 +684,23 @@ void WorldSession::SendPetNameQuery(ObjectGuid petguid, uint32 petnumber)
     else
         name = pet->GetName();
 
-    WorldPacket data(SMSG_PET_NAME_QUERY_RESPONSE, (4 + 4 + name.size() + 1));
-    data << uint32(petnumber);
-    data << name.c_str();
-    data << uint32(pet->GetUInt32Value(UNIT_FIELD_PET_NAME_TIMESTAMP));
+    DeclinedName const* declinedNames = pet->IsPet() ? static_cast<Pet*>(pet)->GetDeclinedNames() : nullptr;
 
-    if (pet->IsPet() && ((Pet*)pet)->GetDeclinedNames())
-    {
-        data << uint8(1);
+    WorldPacket data(SMSG_PET_NAME_QUERY_RESPONSE, 1 + 5 + 1 + name.size() + 4 + 8);
+    data.WriteBit(true);                                    // has data
+    for (uint8 i = 0; i < MAX_DECLINED_NAME_CASES; ++i)
+        data.WriteBits(declinedNames ? declinedNames->name[i].size() : 0, 7);
+    data.WriteBit(false);                                   // unknown
+    data.WriteBits(name.size(), 8);
+    data.FlushBits();
+
+    if (declinedNames)
         for (uint8 i = 0; i < MAX_DECLINED_NAME_CASES; ++i)
-            data << ((Pet*)pet)->GetDeclinedNames()->name[i];
-    }
-    else
-        data << uint8(0);
+            data.WriteString(declinedNames->name[i]);
 
+    data.WriteString(name);
+    data << uint32(pet->GetUInt32Value(UNIT_FIELD_PET_NAME_TIMESTAMP));
+    data << uint64(petnumber);
     SendPacket(&data);
 }
 

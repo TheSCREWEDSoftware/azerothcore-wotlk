@@ -19,9 +19,10 @@
 
 WorldPacket const* WorldPackets::Query::QuestNPCQueryResponse::Write()
 {
-    _worldPacket.WriteBits(Quests.size(), 23);
+    // 5.4.8 18414
+    _worldPacket.WriteBits(Quests.size(), 21);
     for (auto const& [quest, entries] : Quests)
-        _worldPacket.WriteBits(entries.size(), 24);
+        _worldPacket.WriteBits(entries.size(), 22);
     _worldPacket.FlushBits();
 
     for (auto const& [quest, entries] : Quests)
@@ -49,60 +50,154 @@ WorldPacket const* WorldPackets::Query::HotfixNotifyBlob::Write()
     return &_worldPacket;
 }
 
+// 5.4.8 18414, from Project SkyFire (WorldSession::HandleNameQueryOpcode)
 void WorldPackets::Query::NameQuery::Read()
 {
-    _worldPacket >> Guid;
+    Guid[4] = _worldPacket.ReadBit();
+    bool hasVirtualRealm = _worldPacket.ReadBit();
+    for (uint8 index : { 6, 0, 7, 1 })
+        Guid[index] = _worldPacket.ReadBit();
+    bool hasNativeRealm = _worldPacket.ReadBit();
+    for (uint8 index : { 5, 2, 3 })
+        Guid[index] = _worldPacket.ReadBit();
+
+    for (uint8 index : { 7, 5, 1, 2, 6, 3, 0, 4 })
+        _worldPacket.ReadByteSeq(Guid[index]);
+
+    if (hasVirtualRealm)
+        VirtualRealmAddress = _worldPacket.read<uint32>();
+
+    if (hasNativeRealm)
+        NativeRealmAddress = _worldPacket.read<uint32>();
 }
 
+// 5.4.8 18414, from Project SkyFire (WorldSession::SendNameQueryOpcode)
 WorldPacket const* WorldPackets::Query::NameQueryResponse::Write()
 {
-    _worldPacket << Guid;
-    _worldPacket << NameUnknown;
+    ObjectGuid const accountGuid;                           // battle.net account guid, not used
+    for (uint8 index : { 3, 6, 7, 2, 5, 4, 0, 1 })
+        _worldPacket.WriteBit(Guid[index]);
+    _worldPacket.FlushBits();
+
+    for (uint8 index : { 5, 4, 7, 6, 1, 2 })
+        _worldPacket.WriteByteSeq(Guid[index]);
+
+    _worldPacket << uint8(NameUnknown);
+
+    if (!NameUnknown)
+    {
+        _worldPacket << uint32(VirtualRealmAddress);
+        _worldPacket << uint32(AccountID);
+        _worldPacket << uint8(Class);
+        _worldPacket << uint8(Race);
+        _worldPacket << uint8(Level);
+        _worldPacket << uint8(Sex);
+    }
+
+    _worldPacket.WriteByteSeq(Guid[0]);
+    _worldPacket.WriteByteSeq(Guid[3]);
+
     if (NameUnknown)
         return &_worldPacket;
 
-    _worldPacket << Name;
-    _worldPacket << RealmName;
-    _worldPacket << Race;
-    _worldPacket << Sex;
-    _worldPacket << Class;
-    _worldPacket << Declined;
+    _worldPacket.WriteBit(accountGuid[2]);
+    _worldPacket.WriteBit(accountGuid[7]);
+    _worldPacket.WriteBit(Guid[7]);
+    _worldPacket.WriteBit(Guid[2]);
+    _worldPacket.WriteBit(Guid[0]);
+    _worldPacket.WriteBit(false);                           // deleted
+    _worldPacket.WriteBit(accountGuid[4]);
+    _worldPacket.WriteBit(Guid[5]);
+    _worldPacket.WriteBit(accountGuid[1]);
+    _worldPacket.WriteBit(accountGuid[3]);
+    _worldPacket.WriteBit(accountGuid[0]);
+
+    for (uint8 i = 0; i < MAX_DECLINED_NAME_CASES; ++i)
+        _worldPacket.WriteBits(Declined ? DeclinedNames.name[i].size() : 0, 7);
+
+    _worldPacket.WriteBit(Guid[6]);
+    _worldPacket.WriteBit(Guid[3]);
+    _worldPacket.WriteBit(accountGuid[5]);
+    _worldPacket.WriteBit(Guid[1]);
+    _worldPacket.WriteBit(Guid[4]);
+    _worldPacket.WriteBits(Name.size(), 6);
+    _worldPacket.WriteBit(accountGuid[6]);
+    _worldPacket.FlushBits();
+
+    _worldPacket.WriteByteSeq(Guid[6]);
+    _worldPacket.WriteByteSeq(Guid[0]);
+    _worldPacket.WriteString(Name);
+    _worldPacket.WriteByteSeq(accountGuid[5]);
+    _worldPacket.WriteByteSeq(accountGuid[2]);
+    _worldPacket.WriteByteSeq(Guid[3]);
+    _worldPacket.WriteByteSeq(accountGuid[4]);
+    _worldPacket.WriteByteSeq(accountGuid[3]);
+    _worldPacket.WriteByteSeq(Guid[4]);
+    _worldPacket.WriteByteSeq(Guid[2]);
+    _worldPacket.WriteByteSeq(accountGuid[7]);
+
     if (Declined)
-    {
         for (uint8 i = 0; i < MAX_DECLINED_NAME_CASES; ++i)
-            _worldPacket << DeclinedNames.name[i];
-    }
+            _worldPacket.WriteString(DeclinedNames.name[i]);
+
+    _worldPacket.WriteByteSeq(accountGuid[6]);
+    _worldPacket.WriteByteSeq(Guid[7]);
+    _worldPacket.WriteByteSeq(Guid[1]);
+    _worldPacket.WriteByteSeq(accountGuid[1]);
+    _worldPacket.WriteByteSeq(Guid[5]);
+    _worldPacket.WriteByteSeq(accountGuid[0]);
 
     return &_worldPacket;
 }
 
+// 5.4.8 18414, from Project SkyFire (WorldSession::HandleCreatureQueryOpcode)
 WorldPacket const* WorldPackets::Query::QueryCreatureResponse::Write()
 {
-    _worldPacket << uint32(CreatureID | (Allow ? 0x00000000 : 0x80000000)); // creature entry
+    _worldPacket << uint32(CreatureID);
+    _worldPacket.WriteBit(Allow);
 
-    if (Allow)
+    if (!Allow)
     {
-        for (std::string const& name : Stats.Name)
-            _worldPacket << name;
-
-        for (std::string const& nameAlt : Stats.NameAlt)
-            _worldPacket << nameAlt;
-
-        _worldPacket << Stats.Title;
-        _worldPacket << Stats.CursorName;                                     // "Directions" for guard, string for Icons 2.3.0
-        _worldPacket.append(Stats.Flags.data(), Stats.Flags.size());          // flags
-        _worldPacket << uint32(Stats.CreatureType);                           // CreatureType.dbc
-        _worldPacket << uint32(Stats.CreatureFamily);                         // CreatureFamily.dbc
-        _worldPacket << uint32(Stats.Classification);                         // Creature Rank (elite, boss, etc)
-        _worldPacket.append(Stats.ProxyCreatureID.data(), Stats.ProxyCreatureID.size());
-        _worldPacket.append(Stats.CreatureDisplayID.data(), Stats.CreatureDisplayID.size()); // Modelid1-4
-        _worldPacket << float(Stats.HpMulti);                                 // dmg/hp modifier
-        _worldPacket << float(Stats.EnergyMulti);                             // dmg/mana modifier
-        _worldPacket << uint8(Stats.Leader);
-        _worldPacket.append(Stats.QuestItems.data(), Stats.QuestItems.size());
-        _worldPacket << uint32(Stats.CreatureMovementInfoID);                 // CreatureMovementInfo.dbc
-        _worldPacket << uint32(Stats.RequiredExpansion);
+        _worldPacket.FlushBits();
+        return &_worldPacket;
     }
+
+    _worldPacket.WriteBits(Stats.Title.empty() ? 0 : Stats.Title.size() + 1, 11);
+    _worldPacket.WriteBits(Stats.QuestItems.size(), 22);
+    _worldPacket.WriteBits(0, 11);                          // title alt
+    // Name[0..3] and NameAlt[0..3], only the first name is filled
+    _worldPacket.WriteBits(Stats.Name[0].size() + 1, 11);
+    for (std::size_t i = 1; i < 8; ++i)
+        _worldPacket.WriteBits(0, 11);
+    _worldPacket.WriteBit(Stats.Leader);
+    _worldPacket.WriteBits(Stats.CursorName.size() + 1, 6);
+    _worldPacket.FlushBits();
+
+    _worldPacket << uint32(Stats.ProxyCreatureID[0]);
+    _worldPacket << uint32(Stats.CreatureDisplayID[3]);
+    _worldPacket << uint32(Stats.CreatureDisplayID[1]);
+    _worldPacket << uint32(Stats.RequiredExpansion);
+    _worldPacket << uint32(Stats.CreatureType);
+    _worldPacket << float(Stats.HpMulti);
+    _worldPacket << uint32(Stats.Flags[0]);
+    _worldPacket << uint32(Stats.Flags[1]);
+    _worldPacket << uint32(Stats.Classification);
+    _worldPacket << uint32(Stats.CreatureMovementInfoID);
+    _worldPacket << Stats.Name[0];
+
+    if (!Stats.Title.empty())
+        _worldPacket << Stats.Title;
+
+    _worldPacket << uint32(Stats.CreatureDisplayID[0]);
+    _worldPacket << uint32(Stats.CreatureDisplayID[2]);
+    _worldPacket << Stats.CursorName;
+
+    for (uint32 item : Stats.QuestItems)
+        _worldPacket << uint32(item);
+
+    _worldPacket << uint32(Stats.ProxyCreatureID[1]);
+    _worldPacket << float(Stats.EnergyMulti);
+    _worldPacket << uint32(Stats.CreatureFamily);
 
     return &_worldPacket;
 }
@@ -117,5 +212,9 @@ WorldPacket const* WorldPackets::Query::TimeQueryResponse::Write()
 
 void WorldPackets::Query::CorpseMapPositionQuery::Read()
 {
-    _worldPacket >> unk;
+    // 5.4.8 18414
+    for (uint8 index : { 7, 6, 3, 0, 4, 1, 5, 2 })
+        CorpseGuid[index] = _worldPacket.ReadBit();
+    for (uint8 index : { 1, 6, 0, 5, 3, 2, 4, 7 })
+        _worldPacket.ReadByteSeq(CorpseGuid[index]);
 }

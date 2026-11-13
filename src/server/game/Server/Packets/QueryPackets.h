@@ -63,23 +63,27 @@ namespace WorldPackets
             void Read() override;
 
             ObjectGuid Guid;
+            Optional<uint32> VirtualRealmAddress;
+            Optional<uint32> NativeRealmAddress;
         };
 
         class NameQueryResponse final : public ServerPacket
         {
         public:
-            NameQueryResponse() : ServerPacket(SMSG_NAME_QUERY_RESPONSE, 8 + 1 + 1 + 1 + 1 + 1 + 10) {}
+            NameQueryResponse() : ServerPacket(SMSG_QUERY_PLAYER_NAME_RESPONSE, 8 + 1 + 4 + 4 + 4 + 12) {}
 
             WorldPacket const* Write() override;
 
-            PackedGuid Guid;
-            uint8 NameUnknown = false;
+            ObjectGuid Guid;
+            bool NameUnknown = false;
             std::string_view Name;
-            std::string_view RealmName = ""; // Only set for cross realm interaction (such as Battlegrounds)
+            uint32 VirtualRealmAddress = 0;
+            uint32 AccountID = 0;
             uint8 Race = RACE_NONE;
             uint8 Sex = GENDER_MALE;
             uint8 Class = CLASS_NONE;
-            uint8 Declined = false;
+            uint8 Level = 0;
+            bool Declined = false;
             DeclinedName DeclinedNames;
         };
 
@@ -141,7 +145,7 @@ namespace WorldPackets
 
             void Read() override;
 
-            uint32 unk;
+            ObjectGuid CorpseGuid;
         };
     }
 }
