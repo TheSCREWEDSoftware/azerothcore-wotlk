@@ -441,16 +441,15 @@ void WorldSession::HandleCharCreateOpcode(WorldPacket& recvData)
 {
     std::shared_ptr<CharacterCreateInfo> createInfo = std::make_shared<CharacterCreateInfo>();
 
-    recvData >> createInfo->Name
-             >> createInfo->Race
-             >> createInfo->Class
-             >> createInfo->Gender
-             >> createInfo->Skin
-             >> createInfo->Face
-             >> createInfo->HairStyle
-             >> createInfo->HairColor
-             >> createInfo->FacialHair
-             >> createInfo->OutfitId;
+    // 5.4.8 18414 (SkyFire_548 WorldSession::HandleCharCreateOpcode)
+    recvData >> createInfo->OutfitId >> createInfo->HairStyle >> createInfo->Class >> createInfo->Skin;
+    recvData >> createInfo->Face >> createInfo->Race >> createInfo->FacialHair >> createInfo->Gender >> createInfo->HairColor;
+
+    uint32 nameLength = recvData.ReadBits(6);
+    bool hasTemplate = recvData.ReadBit();
+    createInfo->Name = recvData.ReadString(nameLength);
+    if (hasTemplate)
+        recvData.read_skip<uint32>();                       // character template set (boost)
 
     if (!HasPermission(rbac::RBAC_PERM_SKIP_CHECK_CHARACTER_CREATION_TEAMMASK))
     {
@@ -789,8 +788,25 @@ void WorldSession::HandleCharCreateOpcode(WorldPacket& recvData)
 
 void WorldSession::HandleCharDeleteOpcode(WorldPacket& recvData)
 {
+    // 5.4.8 18414 (SkyFire_548 ReadCharacterDeleteRequest)
     ObjectGuid guid;
-    recvData >> guid;
+    guid[1] = recvData.ReadBit();
+    guid[3] = recvData.ReadBit();
+    guid[2] = recvData.ReadBit();
+    guid[7] = recvData.ReadBit();
+    guid[4] = recvData.ReadBit();
+    guid[6] = recvData.ReadBit();
+    guid[0] = recvData.ReadBit();
+    guid[5] = recvData.ReadBit();
+
+    recvData.ReadByteSeq(guid[7]);
+    recvData.ReadByteSeq(guid[1]);
+    recvData.ReadByteSeq(guid[6]);
+    recvData.ReadByteSeq(guid[0]);
+    recvData.ReadByteSeq(guid[3]);
+    recvData.ReadByteSeq(guid[4]);
+    recvData.ReadByteSeq(guid[2]);
+    recvData.ReadByteSeq(guid[5]);
 
     // Initiating
     uint32 initAccountId = GetAccountId();
