@@ -1276,6 +1276,8 @@ void Guild::Disband()
     stmt->SetData(0, m_id);
     trans->Append(stmt);
 
+    m_achievementMgr.DeleteFromDB(trans);
+
     // Free bank tab used memory and delete items stored in them
     _DeleteBankItems(trans, true);
 
@@ -1811,6 +1813,7 @@ void Guild::HandleBuyBankTab(WorldSession* session, uint8 tabId, bool unlockedBy
 
     _CreateNewBankTab();
     _BroadcastEvent(GE_BANK_TAB_PURCHASED);
+    m_achievementMgr.UpdateCriteria(ACHIEVEMENT_CRITERIA_TYPE_BUY_GUILD_BANK_SLOTS, _GetPurchasedTabsSize(), 0, nullptr, session->GetPlayer());
     SendPermissions(session); /// Hack to force client to update permissions
 }
 
@@ -2191,6 +2194,8 @@ bool Guild::HandleMemberWithdrawMoney(WorldSession* session, uint32 amount, bool
 
         player->SaveGoldToDB(trans);
     }
+    else
+        m_achievementMgr.UpdateCriteria(ACHIEVEMENT_CRITERIA_TYPE_SPENT_GOLD_GUILD_REPAIRS, amount, 0, nullptr, player);
 
     // Update remaining money amount
     member->UpdateBankWithdrawValue(trans, GUILD_BANK_MAX_TABS, amount);
@@ -2363,6 +2368,7 @@ void Guild::SendLoginInfo(WorldSession* session)
 
     HandleRoster(session);
     _BroadcastEvent(GE_SIGNED_ON, player->GetGUID(), player->GetName());
+    m_achievementMgr.SendAllData(player);
 
     if (Member* member = GetMember(player->GetGUID()))
     {
@@ -3618,6 +3624,7 @@ void Guild::GiveXP(uint32 xp, Player* source, bool rewardedByChallenge)
             ++_level;
 
             AddGuildNews(GUILD_NEWS_LEVEL_UP, ObjectGuid::Empty, 0, _level);
+            m_achievementMgr.UpdateCriteria(ACHIEVEMENT_CRITERIA_TYPE_REACH_GUILD_LEVEL, _level, 0, nullptr, source);
 
             // Notify all online members that the guild level changed
             for (auto const& [guid, member] : m_members)
@@ -3737,6 +3744,9 @@ void Guild::CompleteChallenge(uint8 challengeType, Player* source)
 
     // Reward: XP via the existing guild-leveling GiveXP path (rewardedByChallenge=true keeps
     // this out of the today-XP daily cap, matching upstream), gold straight into the guild bank.
+    m_achievementMgr.UpdateCriteria(ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_GUILD_CHALLENGE_TYPE, challengeType, 0, nullptr, source);
+    m_achievementMgr.UpdateCriteria(ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_GUILD_CHALLENGE, 0, 0, nullptr, source);
+
     GiveXP(xp, source, true);
 
     CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();

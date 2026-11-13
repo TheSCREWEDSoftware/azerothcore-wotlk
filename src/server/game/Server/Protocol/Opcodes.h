@@ -28,6 +28,8 @@
 /// Lists of opcodes by wire direction
 enum OpcodeClient : uint16
 {
+    CMSG_GUILD_ACHIEVEMENT_PROGRESS_QUERY           = 0x3235,
+    CMSG_GUILD_SET_ACHIEVEMENT_TRACKING             = 0x1027,
     CMSG_GUILD_CHANGE_NAME_REQUEST                  = 0x1232,
     CMSG_ADDON_REGISTERED_PREFIXES                  = 0x0954,
     CMSG_CLEAR_RAID_MARKER                          = 0x7300,
@@ -657,7 +659,6 @@ enum OpcodeClient : uint16
     CMSG_GM_CHARACTER_SAVE                          = 0x3FB,
     CMSG_GUILD_PERMISSIONS_QUERY                    = 0x3022,
     CMSG_GUILD_BANK_REMAINING_WITHDRAW_MONEY_QUERY   = 0x1225,
-    CMSG_GUILD_SET_ACHIEVEMENT_TRACKING              = 0x1027,
     CMSG_GUILD_EVENT_LOG_QUERY                      = 0x1220,
     CMSG_MAELSTROM_RENAME_GUILD                     = 0x400,
     CMSG_GET_MIRRORIMAGE_DATA                       = 0x0C25,
@@ -811,6 +812,9 @@ enum OpcodeClient : uint16
 
 enum OpcodeServer : uint16
 {
+    SMSG_GUILD_CRITERIA_DATA                        = 0x14B4,
+    SMSG_GUILD_ACHIEVEMENT_EARNED                   = 0x50B5,
+    SMSG_GUILD_ACHIEVEMENT_DATA                     = 0x54B7,
     SMSG_GUILD_NAME_CHANGED                         = 0x74A6,
     SMSG_GUILD_CHANGE_NAME_RESULT                   = 0x3CB1,
     SMSG_RAID_MARKERS_CHANGED                       = 0x10A1,

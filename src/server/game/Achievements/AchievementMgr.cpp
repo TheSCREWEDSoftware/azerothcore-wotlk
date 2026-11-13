@@ -2312,6 +2312,10 @@ void AchievementMgr::RemoveTimedAchievement(AchievementCriteriaTimedTypes type, 
 
 void AchievementMgr::CompletedAchievement(AchievementEntry const* achievement)
 {
+    // guild achievements are completed by the guild (GuildAchievementMgr)
+    if (achievement->flags & ACHIEVEMENT_FLAG_GUILD)
+        return;
+
     // disable for gamemasters with GM-mode enabled
     if (_player->IsGameMaster())
     {
@@ -2605,6 +2609,10 @@ bool AchievementMgr::HasAchieved(uint32 achievementId) const
 
 bool AchievementMgr::CanUpdateCriteria(AchievementCriteriaEntry const* criteria, AchievementEntry const* achievement)
 {
+    // guild achievements are tracked by the guild (GuildAchievementMgr)
+    if (achievement->flags & ACHIEVEMENT_FLAG_GUILD)
+        return false;
+
     if (sDisableMgr->IsDisabledFor(DISABLE_TYPE_ACHIEVEMENT_CRITERIA, criteria->ID, nullptr))
         return false;
 

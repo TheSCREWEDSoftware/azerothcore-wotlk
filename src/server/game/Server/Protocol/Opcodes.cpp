@@ -244,6 +244,9 @@ void OpcodeTable::Initialize()
     /*0x34A3*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GUILD_PERMISSIONS_QUERY_RESULTS,                    STATUS_NEVER);
     /*0x10B2*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GUILD_EVENT_LOG_QUERY_RESULTS,                      STATUS_NEVER);
     /*0x30B4*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GUILD_RANKS,                                        STATUS_NEVER);
+    /*0x14B4*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GUILD_CRITERIA_DATA,                                STATUS_NEVER);
+    /*0x50B5*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GUILD_ACHIEVEMENT_EARNED,                           STATUS_NEVER);
+    /*0x54B7*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GUILD_ACHIEVEMENT_DATA,                             STATUS_NEVER);
     /*0x74A6*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GUILD_NAME_CHANGED,                                 STATUS_NEVER);
     /*0x3CB1*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GUILD_CHANGE_NAME_RESULT,                           STATUS_NEVER);
     /*0x10A1*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_RAID_MARKERS_CHANGED,                               STATUS_NEVER);
@@ -872,6 +875,8 @@ void OpcodeTable::Initialize()
     /*0x1026*/ DEFINE_HANDLER(CMSG_GUILD_QUERY_RANKS,                                                STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildQueryRanksOpcode              );
     /*0x3032*/ DEFINE_HANDLER(CMSG_GUILD_ASSIGN_MEMBER_RANK,                                         STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildAssignRankOpcode              );
     /*0x1221*/ DEFINE_HANDLER(CMSG_GUILD_SWITCH_RANK,                                                STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildSwitchRankOpcode              );
+    /*0x3235*/ DEFINE_HANDLER(CMSG_GUILD_ACHIEVEMENT_PROGRESS_QUERY,                                 STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildAchievementProgressQuery      );
+    /*0x1027*/ DEFINE_HANDLER(CMSG_GUILD_SET_ACHIEVEMENT_TRACKING,                                   STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildSetAchievementTracking        );
     /*0x1232*/ DEFINE_HANDLER(CMSG_GUILD_CHANGE_NAME_REQUEST,                                        STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildRenameRequest                 );
     /*0x0954*/ DEFINE_HANDLER(CMSG_ADDON_REGISTERED_PREFIXES,                                        STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleAddonRegisteredPrefixesOpcode      );
     /*0x7300*/ DEFINE_HANDLER(CMSG_CLEAR_RAID_MARKER,                                                STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleClearRaidMarkerOpcode              );
@@ -1391,7 +1396,6 @@ void OpcodeTable::Initialize()
     DEFINE_HANDLER(CMSG_GUILD_BANK_REMAINING_WITHDRAW_MONEY_QUERY, STATUS_LOGGEDIN, PROCESS_THREADUNSAFE,
         &WorldSession::HandleGuildBankMoneyWithdrawn);
     DEFINE_SERVER_OPCODE_HANDLER(SMSG_GUILD_BANK_MONEY_WITHDRAWN, STATUS_NEVER);
-    DEFINE_HANDLER(CMSG_GUILD_SET_ACHIEVEMENT_TRACKING, STATUS_UNHANDLED, PROCESS_INPLACE, &WorldSession::Handle_NULL);
     /*0x1220*/ DEFINE_HANDLER(CMSG_GUILD_EVENT_LOG_QUERY,                                            STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildEventLogQueryOpcode           );
     /*0x0400*/ DEFINE_HANDLER(CMSG_MAELSTROM_RENAME_GUILD,                                           STATUS_NEVER,      PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );
     /*0x0C25*/ DEFINE_HANDLER(CMSG_GET_MIRRORIMAGE_DATA,                                             STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleMirrorImageDataRequest             );

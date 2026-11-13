@@ -431,6 +431,41 @@ void GuildMgr::LoadGuilds()
         }
     }
 
+    // 8b. Load guild achievements and criteria progress
+    LOG_INFO("server.loading", "Loading Guild Achievements...");
+    {
+        uint32 oldMSTime = getMSTime();
+        uint32 count = 0;
+
+        //          0          1            2     3
+        // SELECT guildId, achievement, date, guids FROM guild_achievement
+        if (PreparedQueryResult result = CharacterDatabase.Query(CharacterDatabase.GetPreparedStatement(CHAR_SEL_GUILD_ACHIEVEMENTS)))
+        {
+            do
+            {
+                Field* fields = result->Fetch();
+                if (Guild* guild = GetGuildById(fields[0].Get<uint32>()))
+                    guild->GetAchievementMgr().LoadAchievementFromDB(fields);
+                ++count;
+            } while (result->NextRow());
+        }
+
+        //          0        1         2       3        4
+        // SELECT guildId, criteria, counter, date, completedGuid FROM guild_achievement_progress
+        if (PreparedQueryResult result = CharacterDatabase.Query(CharacterDatabase.GetPreparedStatement(CHAR_SEL_GUILD_ACHIEVEMENT_CRITERIA)))
+        {
+            do
+            {
+                Field* fields = result->Fetch();
+                if (Guild* guild = GetGuildById(fields[0].Get<uint32>()))
+                    guild->GetAchievementMgr().LoadCriteriaFromDB(fields);
+            } while (result->NextRow());
+        }
+
+        LOG_INFO("server.loading", ">> Loaded {} guild achievements in {} ms", count, GetMSTimeDiffToNow(oldMSTime));
+        LOG_INFO("server.loading", " ");
+    }
+
     // 9. Validate loaded guild data
     LOG_INFO("server.loading", "Validating data of loaded guilds...");
     {

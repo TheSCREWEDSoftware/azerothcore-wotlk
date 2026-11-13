@@ -2433,6 +2433,11 @@ void Player::UpdateLootAchievements(LootItem* item, Loot* loot)
                               loot->loot_type, item->count);
     UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_LOOT_EPIC_ITEM,
                               item->itemid, item->count);
+
+    // fish caught from a pool counts for the guild
+    if (loot->loot_type == LOOT_FISHINGHOLE)
+        if (Guild* guild = GetGuild())
+            guild->GetAchievementMgr().UpdateCriteria(ACHIEVEMENT_CRITERIA_TYPE_CATCH_FROM_POOL, item->itemid, item->count, nullptr, this);
 }
 
 void Player::UpdateAchievementCriteria(AchievementCriteriaTypes type,

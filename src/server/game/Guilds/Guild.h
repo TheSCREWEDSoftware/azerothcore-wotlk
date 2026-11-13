@@ -18,6 +18,7 @@
 #ifndef AZEROTHCORE_GUILD_H
 #define AZEROTHCORE_GUILD_H
 
+#include "GuildAchievementMgr.h"
 #include "Item.h"
 #include "ObjectMgr.h"
 #include "Optional.h"
@@ -831,6 +832,9 @@ public:
     // Cata guild news
     static bool IsNewsworthyItem(ItemTemplate const* proto);
     void AddGuildNews(GuildNewsType type, ObjectGuid playerGuid, uint32 flags, uint32 value);
+
+    GuildAchievementMgr& GetAchievementMgr() { return m_achievementMgr; }
+    GuildAchievementMgr const& GetAchievementMgr() const { return m_achievementMgr; }
     void SendNewsUpdate(WorldSession* session);
     void HandleNewsSetSticky(WorldSession* session, uint32 newsId, bool sticky);
     void ClearExpiredNews();
@@ -977,6 +981,7 @@ protected:
     LogHolder<EventLogEntry> m_eventLog;
     std::array<LogHolder<BankEventLogEntry>, GUILD_BANK_MAX_TABS + 1> m_bankEventLog = {};
     LogHolder<NewsLogEntry> m_newsLog;
+    GuildAchievementMgr m_achievementMgr{ this };
 
 private:
     inline uint8 _GetRanksSize() const { return uint8(m_ranks.size()); }

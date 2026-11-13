@@ -946,6 +946,8 @@ public:                                                 // opcodes handlers
     void HandleGuildAcceptOpcode(WorldPackets::Guild::AcceptGuildInvite& invite);
     void HandleGuildDeclineOpcode(WorldPackets::Guild::GuildDeclineInvitation& decline);
     void HandleGuildRenameRequest(WorldPacket& recvData);
+    void HandleGuildAchievementProgressQuery(WorldPacket& recvData);
+    void HandleGuildSetAchievementTracking(WorldPacket& recvData);
     void HandleGuildInfoOpcode(WorldPackets::Guild::GuildGetInfo& packet);
     void HandleGuildEventLogQueryOpcode(WorldPackets::Guild::GuildEventLogQuery& packet);
     void HandleGuildRosterOpcode(WorldPackets::Guild::GuildGetRoster& packet);

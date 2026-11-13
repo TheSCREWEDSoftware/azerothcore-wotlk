@@ -15,6 +15,7 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "AchievementMgr.h"
 #include "Guild.h"
 #include "GameTime.h"
 #include "GuildMgr.h"
@@ -283,7 +284,10 @@ void WorldSession::HandleSaveGuildEmblemOpcode(WorldPackets::Guild::SaveGuildEmb
             GetPlayer()->RemoveAurasByType(SPELL_AURA_FEIGN_DEATH);
 
         if (Guild* guild = GetPlayer()->GetGuild())
+        {
+            guild->GetAchievementMgr().UpdateCriteria(ACHIEVEMENT_CRITERIA_TYPE_BUY_GUILD_TABARD, 0, 0, nullptr, GetPlayer());
             guild->HandleSetEmblem(this, emblemInfo);
+        }
         else
             Guild::SendSaveEmblemResult(this, ERR_GUILDEMBLEM_NOGUILD); // "You are not part of a guild!";
     }
@@ -581,4 +585,34 @@ void WorldSession::HandleGuildRenameRequest(WorldPacket& recvData)
     data.WriteBit(renamed);
     data.FlushBits();
     SendPacket(&data);
+}
+
+void WorldSession::HandleGuildAchievementProgressQuery(WorldPacket& recvData)
+{
+    uint32 achievementId;
+    recvData >> achievementId;
+
+    if (Guild* guild = GetPlayer()->GetGuild())
+        guild->GetAchievementMgr().SendCriteriaData(GetPlayer(), achievementId);
+}
+
+void WorldSession::HandleGuildSetAchievementTracking(WorldPacket& recvData)
+{
+    uint32 count = recvData.ReadBits(24);
+    std::set<uint32> achievementIds;
+    for (uint32 i = 0; i < count; ++i)
+    {
+        uint32 achievementId;
+        recvData >> achievementId;
+        achievementIds.insert(achievementId);
+    }
+
+    // the tracked achievements are not kept, the client gets their current progress
+    Guild* guild = GetPlayer()->GetGuild();
+    if (!guild)
+        return;
+
+    for (uint32 achievementId : achievementIds)
+        if (sAchievementMgr->GetAchievement(achievementId))
+            guild->GetAchievementMgr().SendCriteriaData(GetPlayer(), achievementId);
 }

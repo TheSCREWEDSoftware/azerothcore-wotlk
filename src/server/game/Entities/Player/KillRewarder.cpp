@@ -341,6 +341,31 @@ void KillRewarder::Reward()
                 _RewardPlayer(_killer, false);
     }
 
+    // 4. Guild achievement credit, once per guild among the killer and the group members nearby
+    if (Creature* victim = _victim->ToCreature())
+    {
+        std::set<uint32> creditedGuilds;
+        auto creditGuild = [&](Player* player)
+        {
+            Guild* guild = player->GetGuild();
+            if (!guild || !creditedGuilds.insert(guild->GetId()).second)
+                return;
+
+            guild->GetAchievementMgr().UpdateCriteria(ACHIEVEMENT_CRITERIA_TYPE_KILL_CREATURE, victim->GetEntry(), 1, victim, player);
+            guild->GetAchievementMgr().UpdateCriteria(ACHIEVEMENT_CRITERIA_TYPE_KILL_CREATURE_TYPE_GUILD, 0, 0, victim, player);
+        };
+
+        if (_group)
+        {
+            for (GroupReference* itr = _group->GetFirstMember(); itr != nullptr; itr = itr->next())
+                if (Player* member = itr->GetSource())
+                    if (member->IsAtGroupRewardDistance(_victim))
+                        creditGuild(member);
+        }
+        else if (_killer->IsInMap(_victim))
+            creditGuild(_killer);
+    }
+
     // 5. Credit instance encounter.
     if (Creature* victim = _victim->ToCreature())
         if (victim->IsDungeonBoss())

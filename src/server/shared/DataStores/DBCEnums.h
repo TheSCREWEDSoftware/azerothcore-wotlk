@@ -80,6 +80,9 @@ enum AchievementFlags
     ACHIEVEMENT_FLAG_REALM_FIRST_KILL  = 0x00000200,        //
     ACHIEVEMENT_FLAG_SHOW_IN_GUILD_NEWS   = 0x00001000,     // Shows in guild news
     ACHIEVEMENT_FLAG_SHOW_IN_GUILD_HEADER = 0x00002000,     // Shows in guild news header
+    ACHIEVEMENT_FLAG_GUILD                = 0x00004000,     // Guild achievement, tracked by the guild
+    ACHIEVEMENT_FLAG_SHOW_GUILD_MEMBERS   = 0x00008000,
+    ACHIEVEMENT_FLAG_SHOW_CRITERIA_MEMBERS = 0x00010000,
 };
 
 #define MAX_CRITERIA_REQUIREMENTS 3 // Cata's AdditionalConditionType/Value columns, was 2 pre-Cata

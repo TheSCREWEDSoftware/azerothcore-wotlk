@@ -822,6 +822,7 @@ void Player::RewardQuest(Quest const* quest, uint32 reward, Object* questGiver, 
             // Guild::GiveReputation has no such gate either, only GiveXP does.
             uint32 guildRep = std::max<uint32>(1, quest->XPValue(GetLevel()) / sWorld->getIntConfig(CONFIG_GUILD_REPUTATION_QUEST_DIVIDER));
             guild->GiveReputation(guildRep, this);
+            guild->GetAchievementMgr().UpdateCriteria(ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_QUESTS_GUILD, 0, 0, nullptr, this);
         }
     }
 
