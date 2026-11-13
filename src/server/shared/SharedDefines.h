@@ -672,6 +672,7 @@ enum SpellAttr7 : uint32
 
 enum SpellAttr8 : uint32
 {
+    SPELL_ATTR8_USE_TARGETS_LEVEL_FOR_SPELL_SCALING           = 0x00000100, // TITLE Use Target's Level for Spell Scaling
     SPELL_ATTR8_MASTERY_AFFECTS_POINTS                        = 0x20000000  // TITLE Mastery Affects Points
 };
 

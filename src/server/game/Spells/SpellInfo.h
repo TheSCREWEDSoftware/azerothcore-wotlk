@@ -278,6 +278,10 @@ public:
     float     RealPointsPerLevel;
     int32     BasePoints;
     float     PointsPerComboPoint;
+    // SpellScaling.dbc
+    float     ScalingCoefficient;
+    float     ScalingVariance;
+    float     ScalingComboPointsCoefficient;
     float     ValueMultiplier;
     float     DamageMultiplier;
     float     BonusMultiplier;
@@ -294,7 +298,8 @@ public:
     std::list<Condition*>* ImplicitTargetConditions;
 
     SpellEffectInfo() : _spellInfo(nullptr), EffectIndex(0), Effect(0), ApplyAuraName(SPELL_AURA_NONE), Amplitude(0), DieSides(0),
-        RealPointsPerLevel(0), BasePoints(0), PointsPerComboPoint(0), ValueMultiplier(0), DamageMultiplier(0),
+        RealPointsPerLevel(0), BasePoints(0), PointsPerComboPoint(0), ScalingCoefficient(0.0f),
+        ScalingVariance(0.0f), ScalingComboPointsCoefficient(0.0f), ValueMultiplier(0), DamageMultiplier(0),
         BonusMultiplier(0), MiscValue(0), MiscValueB(0), Mechanic(MECHANIC_NONE), RadiusEntry(nullptr), ChainTarget(0),
         ItemType(0), TriggerSpell(0), ImplicitTargetConditions(nullptr) {}
     SpellEffectInfo(SpellEffectEntry const* effect, SpellInfo const* spellInfo, uint8 effIndex);
@@ -311,6 +316,8 @@ public:
 
     int32 CalcValue(WorldObject const* caster = nullptr, int32 const* basePoints = nullptr, Unit const* target = nullptr) const;
     int32 CalcBaseValue(int32 value) const;
+    int32 CalcScaledBaseValue(WorldObject const* caster, Unit const* target) const;
+    float CalcScaledPointsPerComboPoint(Unit const* caster) const;
     float CalcValueMultiplier(WorldObject* caster, Spell* spell = nullptr) const;
     float CalcDamageMultiplier(WorldObject* caster, Spell* spell = nullptr) const;
 
@@ -554,6 +561,8 @@ public:
     uint32 GetMaxTicks() const;
 
     uint32 CalcCastTime(WorldObject* caster = nullptr, Spell* spell = nullptr) const;
+    float GetSpellScalingMultiplier(int32 level) const;
+    float GetSpellScalingValue(int32 level) const;
     uint32 GetRecoveryTime() const;
 
     int32 CalcPowerCost(WorldObject const* caster, SpellSchoolMask schoolMask, Spell* spell = nullptr) const;

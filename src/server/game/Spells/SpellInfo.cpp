@@ -354,6 +354,16 @@ SpellEffectInfo::SpellEffectInfo(SpellEffectEntry const* effect, SpellInfo const
     TriggerSpell = effect->EffectTriggerSpell;
     SpellClassMask = effect->EffectSpellClassMask;
     RadiusEntry = effect->EffectRadiusIndex ? sSpellRadiusStore.LookupEntry(effect->EffectRadiusIndex) : nullptr;
+
+    if (SpellScalingEntry const* scaling = spellInfo->ScalingEntry)
+    {
+        if (effIndex < scaling->Coefficient.size())
+        {
+            ScalingCoefficient = scaling->Coefficient[effIndex];
+            ScalingVariance = scaling->Variance[effIndex];
+            ScalingComboPointsCoefficient = scaling->ComboPointsCoefficient[effIndex];
+        }
+    }
 }
 
 bool SpellEffectInfo::IsEffect() const
@@ -412,13 +422,47 @@ bool SpellEffectInfo::IsUnitOwnedAuraEffect() const
     return IsAreaAuraEffect() || Effect == SPELL_EFFECT_APPLY_AURA;
 }
 
-int32 SpellEffectInfo::CalcValue(WorldObject const* caster, int32 const* bp, Unit const* /*target*/) const
+int32 SpellEffectInfo::CalcValue(WorldObject const* caster, int32 const* bp, Unit const* target) const
 {
     float basePointsPerLevel = RealPointsPerLevel;
+    Unit const* casterUnit = caster ? caster->ToUnit() : nullptr;
+
+    // Spells with a SpellScaling entry take their value from gtSpellScaling instead of
+    // the effect base points, and roll a variance instead of the die sides
+    if (ScalingCoefficient != 0.0f)
+    {
+        int32 scaledPoints = CalcScaledBaseValue(caster, target);
+        float scaledValue = float(bp ? *bp : scaledPoints);
+
+        if (ScalingVariance != 0.0f)
+        {
+            float delta = std::fabs(ScalingVariance * 0.5f);
+            scaledValue += float(scaledPoints) * frand(-delta, delta);
+        }
+
+        if (casterUnit)
+        {
+            if (uint8 comboPoints = casterUnit->GetComboPoints())
+            {
+                float pointsPerComboPoint = CalcScaledPointsPerComboPoint(casterUnit);
+                if (std::fabs(pointsPerComboPoint) < 0.00000023841858f)
+                    pointsPerComboPoint = PointsPerComboPoint;
+
+                scaledValue += pointsPerComboPoint * comboPoints;
+            }
+
+            if (_spellInfo->HasAttribute(SPELL_ATTR8_MASTERY_AFFECTS_POINTS))
+                if (Player const* player = casterUnit->ToPlayer())
+                    scaledValue += player->GetFloatValue(PLAYER_MASTERY) * BonusMultiplier;
+
+            scaledValue = casterUnit->ApplyEffectModifiers(_spellInfo, EffectIndex, scaledValue);
+        }
+
+        return int32(std::round(scaledValue));
+    }
+
     int32 basePoints = bp ? *bp : BasePoints;
     int32 randomPoints = int32(DieSides);
-
-    Unit const* casterUnit = caster ? caster->ToUnit() : nullptr;
 
     // base amount modification based on spell lvl vs caster lvl
     // xinef: added basePointsPerLevel check
@@ -540,6 +584,40 @@ int32 SpellEffectInfo::CalcBaseValue(int32 value) const
         return value;
     else
         return value - 1;
+}
+
+int32 SpellEffectInfo::CalcScaledBaseValue(WorldObject const* caster, Unit const* target) const
+{
+    int32 level = int32(_spellInfo->SpellLevel);
+    if (target && _spellInfo->HasAttribute(SPELL_ATTR8_USE_TARGETS_LEVEL_FOR_SPELL_SCALING))
+        level = int32(target->GetLevel());
+    else if (Unit const* casterUnit = caster ? caster->ToUnit() : nullptr)
+        level = int32(casterUnit->GetLevel());
+
+    float value = 0.0f;
+    if (level > 0)
+    {
+        if (!_spellInfo->ScalingEntry || !_spellInfo->ScalingEntry->Class)
+            return 0;
+
+        value = _spellInfo->GetSpellScalingValue(level) * _spellInfo->GetSpellScalingMultiplier(level);
+    }
+
+    value *= ScalingCoefficient;
+    if (value > 0.0f)
+        value = std::max(value, 1.0f);
+
+    return int32(std::round(value));
+}
+
+// Based on client function QuestTextParser::Spell_C_GetPointsPerResource (build 15595)
+float SpellEffectInfo::CalcScaledPointsPerComboPoint(Unit const* caster) const
+{
+    if (!caster || ScalingCoefficient == 0.0f || !_spellInfo->ScalingEntry || !_spellInfo->ScalingEntry->Class)
+        return 0.0f;
+
+    int32 level = int32(caster->GetLevel());
+    return _spellInfo->GetSpellScalingValue(level) * _spellInfo->GetSpellScalingMultiplier(level) * ScalingComboPointsCoefficient;
 }
 
 float SpellEffectInfo::CalcValueMultiplier(WorldObject* caster, Spell* spell) const
@@ -2861,11 +2939,23 @@ int32 SpellInfo::GetMaxDuration() const
 
 uint32 SpellInfo::CalcCastTime(WorldObject* caster, Spell* spell) const
 {
-    // not all spells have cast time index and this is all is pasiive abilities
-    if (!CastTimeEntry)
-        return 0;
+    Unit const* casterUnit = caster ? caster->ToUnit() : nullptr;
 
-    int32 castTime = CastTimeEntry->CastTime;
+    int32 castTime = 0;
+    // spells with a SpellScaling entry scale their cast time up to CastTimeMaxLevel
+    if (casterUnit && ScalingEntry && ScalingEntry->CastTimeMax > 0)
+    {
+        int32 level = int32(casterUnit->GetLevel());
+        castTime = ScalingEntry->CastTimeMax;
+        if (ScalingEntry->CastTimeMaxLevel > level)
+            castTime = ScalingEntry->CastTimeMin + (level - 1) * (ScalingEntry->CastTimeMax - ScalingEntry->CastTimeMin) / (ScalingEntry->CastTimeMaxLevel - 1);
+    }
+    // not all spells have cast time index and this is all is pasiive abilities
+    else if (CastTimeEntry)
+        castTime = CastTimeEntry->CastTime;
+
+    if (!castTime)
+        return 0;
     if (HasAttribute(SPELL_ATTR0_USES_RANGED_SLOT) && (!IsAutoRepeatRangedSpell()))
         castTime += 500;
 
@@ -2873,6 +2963,39 @@ uint32 SpellInfo::CalcCastTime(WorldObject* caster, Spell* spell) const
         caster->ModSpellCastTime(this, castTime, spell);
 
     return (castTime > 0) ? uint32(castTime) : 0;
+}
+
+float SpellInfo::GetSpellScalingMultiplier(int32 level) const
+{
+    if (level <= 0 || !ScalingEntry || !ScalingEntry->Class)
+        return 1.0f;
+
+    float multiplier = 1.0f;
+    float scalingMultiplier = 1.0f;
+
+    if (level < ScalingEntry->CastTimeMaxLevel && ScalingEntry->CastTimeMax)
+    {
+        int32 castTime = ScalingEntry->CastTimeMin + ((level - 1) * (ScalingEntry->CastTimeMax - ScalingEntry->CastTimeMin)) / (ScalingEntry->CastTimeMaxLevel - 1);
+        multiplier = castTime / float(ScalingEntry->CastTimeMax);
+        scalingMultiplier = multiplier;
+    }
+
+    if (level < ScalingEntry->NerfMaxLevel)
+        scalingMultiplier = ((((1.0f - ScalingEntry->NerfFactor) * (level - 1)) / (ScalingEntry->NerfMaxLevel - 1)) + ScalingEntry->NerfFactor) * multiplier;
+
+    return scalingMultiplier;
+}
+
+float SpellInfo::GetSpellScalingValue(int32 level) const
+{
+    if (!ScalingEntry || !ScalingEntry->Class || level <= 0 || level > GT_MAX_LEVEL)
+        return 0.0f;
+
+    // negative classes index the generic rows that follow the player classes
+    int32 scalingClass = ScalingEntry->Class > 0 ? ScalingEntry->Class : (MAX_CLASSES - 1) - ScalingEntry->Class;
+
+    GtSpellScalingEntry const* gt = sGtSpellScalingStore.LookupEntry((scalingClass - 1) * GT_MAX_LEVEL + level - 1);
+    return gt ? gt->value : 0.0f;
 }
 
 uint32 SpellInfo::GetMaxTicks() const
