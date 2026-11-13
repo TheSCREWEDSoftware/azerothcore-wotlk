@@ -607,13 +607,13 @@ bool Guild::Member::LoadFromDB(Field* fields)
     for (uint8 i = 0; i <= GUILD_BANK_MAX_TABS; ++i)
         m_bankWithdraw[i] = fields[5 + i].Get<uint32>();
 
-    SetStats(fields[12].Get<std::string>(),
-             fields[13].Get<uint8>(),                         // characters.level
-             fields[14].Get<uint8>(),                         // characters.class
-             fields[15].Get<uint8>(),                         // characters.gender
-             fields[16].Get<uint16>(),                        // characters.zone
-             fields[17].Get<uint32>());                       // characters.account
-    m_logoutTime = fields[18].Get<uint32>();                  // characters.logout_time
+    SetStats(fields[14].Get<std::string>(),
+             fields[15].Get<uint8>(),                         // characters.level
+             fields[16].Get<uint8>(),                         // characters.class
+             fields[17].Get<uint8>(),                         // characters.gender
+             fields[18].Get<uint16>(),                        // characters.zone
+             fields[19].Get<uint32>());                       // characters.account
+    m_logoutTime = fields[20].Get<uint32>();                  // characters.logout_time
 
     if (!CheckStats())
         return false;
