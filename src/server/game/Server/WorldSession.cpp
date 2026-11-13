@@ -1044,13 +1044,14 @@ void WorldSession::SetAccountData(AccountDataType type, time_t tm, std::string c
 
 void WorldSession::SendAccountDataTimes(uint32 mask)
 {
-    WorldPacket data(SMSG_ACCOUNT_DATA_TIMES, 4 + 1 + 4 + 8 * 4); // changed in WotLK
-    data << uint32(GameTime::GetGameTime().count());                             // unix time of something
-    data << uint8(1);
-    data << uint32(mask);                                   // type mask
+    // 5.4.8 18414: every data type's time, then the mask and the server time
+    WorldPacket data(SMSG_ACCOUNT_DATA_TIMES, 1 + NUM_ACCOUNT_DATA_TYPES * 4 + 4 + 4);
+    data.WriteBit(true);
+    data.FlushBits();
     for (uint32 i = 0; i < NUM_ACCOUNT_DATA_TYPES; ++i)
-        if (mask & (1 << i))
-            data << uint32(GetAccountData(AccountDataType(i))->Time);// also unix time
+        data << uint32(GetAccountData(AccountDataType(i))->Time);
+    data << uint32(mask);
+    data << uint32(GameTime::GetGameTime().count());
     SendPacket(&data);
 }
 

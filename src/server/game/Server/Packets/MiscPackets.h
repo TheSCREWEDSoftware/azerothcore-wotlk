@@ -115,6 +115,7 @@ namespace WorldPackets
             std::optional<uint32> IneligibleForLootMask;
             std::optional<uint32> RestrictedAccountMaxLevel;
             std::optional<uint32> RestrictedAccountMaxMoney;
+            std::optional<uint32> GroupSize;                // 5.4.8: raid size of the current difficulty
         };
 
         class LoginSetTimeSpeed final : public ServerPacket

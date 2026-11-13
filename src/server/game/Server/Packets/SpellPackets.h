@@ -39,6 +39,7 @@ namespace WorldPackets
             uint16 Category = 0;
             int32 RecoveryTime = 0;
             int32 CategoryRecoveryTime = 0;
+            bool OnHold = false;
         };
 
         class SendKnownSpells final : public ServerPacket
@@ -51,6 +52,16 @@ namespace WorldPackets
             bool InitialLogin = false;
             std::vector<uint32> KnownSpells;
             std::vector<SpellHistoryEntry> SpellHistoryEntries;
+        };
+
+        class SendSpellHistory final : public ServerPacket
+        {
+        public:
+            SendSpellHistory() : ServerPacket(SMSG_SEND_SPELL_HISTORY, 3) { }
+
+            WorldPacket const* Write() override;
+
+            std::vector<SpellHistoryEntry> Entries;
         };
 
         class SendUnlearnSpells final : public ServerPacket

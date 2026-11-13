@@ -35,14 +35,15 @@ WorldPacket const* WorldPackets::Query::QuestNPCQueryResponse::Write()
 
 WorldPacket const* WorldPackets::Query::HotfixNotifyBlob::Write()
 {
-    _worldPacket.WriteBits(Hotfixes.size(), 22);
+    // 5.4.8 18414
+    _worldPacket.WriteBits(Hotfixes.size(), 20);
     _worldPacket.FlushBits();
 
     for (Record const& hotfix : Hotfixes)
     {
-        _worldPacket << hotfix.TableHash;
         _worldPacket << hotfix.Timestamp;
         _worldPacket << hotfix.Entry;
+        _worldPacket << hotfix.TableHash;
     }
 
     return &_worldPacket;

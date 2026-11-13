@@ -20,24 +20,33 @@ WorldPacket const* WorldPackets::Spells::ResurrectRequest::Write()
 
 WorldPacket const* WorldPackets::Spells::SendKnownSpells::Write()
 {
-    _worldPacket.reserve(1 + 2 + 6 * KnownSpells.size() + 2 + 18 * SpellHistoryEntries.size());
-    _worldPacket << uint8(InitialLogin);
-    _worldPacket << uint16(KnownSpells.size());
+    // 5.4.8 18414: the spells only, cooldowns go out as SMSG_SEND_SPELL_HISTORY
+    _worldPacket.reserve(1 + 3 + 4 * KnownSpells.size());
+    _worldPacket.WriteBit(InitialLogin);
+    _worldPacket.WriteBits(KnownSpells.size(), 22);
+    _worldPacket.FlushBits();
 
     for (uint32 spellID : KnownSpells)
-    {
-        _worldPacket << spellID;
-        _worldPacket << int16(0);
-    }
+        _worldPacket << uint32(spellID);
 
-    _worldPacket << uint16(SpellHistoryEntries.size());
-    for (SpellHistoryEntry const& entry : SpellHistoryEntries)
+    return &_worldPacket;
+}
+
+WorldPacket const* WorldPackets::Spells::SendSpellHistory::Write()
+{
+    // 5.4.8 18414 (SkyFire_548 Player::SendSpellCooldowns)
+    _worldPacket.WriteBits(Entries.size(), 19);
+    for (SpellHistoryEntry const& entry : Entries)
+        _worldPacket.WriteBit(entry.OnHold);
+    _worldPacket.FlushBits();
+
+    for (SpellHistoryEntry const& entry : Entries)
     {
-        _worldPacket << entry.SpellID;
-        _worldPacket << entry.ItemID;
-        _worldPacket << entry.Category;
-        _worldPacket << entry.RecoveryTime;
-        _worldPacket << entry.CategoryRecoveryTime;
+        _worldPacket << int32(entry.CategoryRecoveryTime);
+        _worldPacket << uint32(entry.ItemID);
+        _worldPacket << int32(entry.RecoveryTime);
+        _worldPacket << uint32(entry.Category);
+        _worldPacket << uint32(entry.SpellID);
     }
 
     return &_worldPacket;
@@ -45,7 +54,9 @@ WorldPacket const* WorldPackets::Spells::SendKnownSpells::Write()
 
 WorldPacket const* WorldPackets::Spells::SendUnlearnSpells::Write()
 {
-    _worldPacket << uint32(Spells.size());
+    // 5.4.8 18414
+    _worldPacket.WriteBits(Spells.size(), 22);
+    _worldPacket.FlushBits();
     for (uint32 spellID : Spells)
         _worldPacket << spellID;
 

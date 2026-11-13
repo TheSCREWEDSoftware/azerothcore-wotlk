@@ -175,11 +175,12 @@ WorldPacket const* WorldPackets::Character::PlayedTime::Write()
 
 WorldPacket const* WorldPackets::Character::LoginVerifyWorld::Write()
 {
-    _worldPacket << int32(MapID);
+    // 5.4.8 18414
     _worldPacket << float(Pos.GetPositionX());
-    _worldPacket << float(Pos.GetPositionY());
-    _worldPacket << float(Pos.GetPositionZ());
     _worldPacket << float(Pos.GetOrientation());
+    _worldPacket << float(Pos.GetPositionY());
+    _worldPacket << int32(MapID);
+    _worldPacket << float(Pos.GetPositionZ());
 
     return &_worldPacket;
 }

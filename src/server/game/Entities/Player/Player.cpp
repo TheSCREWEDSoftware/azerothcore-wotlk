@@ -2837,6 +2837,10 @@ void Player::SendKnownSpells(bool firstLogin)
     }
 
     SendDirectMessage(packet.Write());
+
+    WorldPackets::Spells::SendSpellHistory history;
+    history.Entries = std::move(packet.SpellHistoryEntries);
+    SendDirectMessage(history.Write());
 }
 
 void Player::SendUnlearnSpells()

@@ -103,44 +103,44 @@ WorldPacket const* WorldPackets::Misc::SetPlayHoverAnim::Write()
 
 WorldPacket const* WorldPackets::Misc::BindPointUpdate::Write()
 {
+    // 5.4.8 18414
     _worldPacket << X;
-    _worldPacket << Y;
     _worldPacket << Z;
-    _worldPacket << MapID;
+    _worldPacket << Y;
     _worldPacket << AreaID;
+    _worldPacket << MapID;
 
     return &_worldPacket;
 }
 
 WorldPacket const* WorldPackets::Misc::WorldServerInfo::Write()
 {
-    _worldPacket.WriteBit(RestrictedAccountMaxLevel.has_value());
-    _worldPacket.WriteBit(RestrictedAccountMaxMoney.has_value());
-    _worldPacket.WriteBit(IneligibleForLootMask.has_value());
+    // 5.4.8 18414 (SkyFire_548 Player::SendInitialPacketsBeforeAddToMap); SkyFire never sends
+    // the restriction values, so only the group size is written
+    _worldPacket.WriteBit(GroupSize.has_value());
+    _worldPacket.WriteBit(false);                           // ineligible for loot
+    _worldPacket.WriteBit(false);                           // restricted level
+    _worldPacket.WriteBit(false);                           // restricted money
     _worldPacket.FlushBits();
 
-    if (IneligibleForLootMask)
-        _worldPacket << *IneligibleForLootMask;
+    _worldPacket << uint8(IsTournamentRealm);
+    _worldPacket << uint32(WeeklyReset);
+    _worldPacket << uint32(DifficultyID);
 
-    _worldPacket << IsTournamentRealm;
-
-    if (RestrictedAccountMaxMoney)
-        _worldPacket << *RestrictedAccountMaxMoney;
-
-    if (RestrictedAccountMaxLevel)
-        _worldPacket << *RestrictedAccountMaxLevel;
-
-    _worldPacket << WeeklyReset;
-    _worldPacket << DifficultyID;
+    if (GroupSize)
+        _worldPacket << uint32(*GroupSize);
 
     return &_worldPacket;
 }
 
 WorldPacket const* WorldPackets::Misc::LoginSetTimeSpeed::Write()
 {
+    // 5.4.8 18414
+    _worldPacket << uint32(0);
+    _worldPacket.AppendPackedTime(GameTime);
+    _worldPacket << uint32(GameTimeHolidayOffset);
     _worldPacket.AppendPackedTime(GameTime);
     _worldPacket << NewSpeed;
-    _worldPacket << GameTimeHolidayOffset;
 
     return &_worldPacket;
 }
