@@ -380,7 +380,7 @@ namespace lfg
                     RestoreState(guid, "Remove Obsolete RoleCheck");
                     SendLfgRoleCheckUpdate(guid, roleCheck);
                     if (guid == roleCheck.leader)
-                        SendLfgJoinResult(guid, LfgJoinResultData(LFG_JOIN_FAILED, LFG_ROLECHECK_MISSING_ROLE));
+                        SendLfgJoinResult(guid, LfgJoinResultData(LFG_JOIN_ROLE_CHECK_FAILED, LFG_ROLECHECK_MISSING_ROLE));
                 }
 
                 RestoreState(itRoleCheck->first, "Remove Obsolete RoleCheck");
@@ -1553,7 +1553,7 @@ namespace lfg
         else
             dungeons = roleCheck.dungeons;
 
-        LfgJoinResultData joinData = LfgJoinResultData(LFG_JOIN_FAILED, roleCheck.state);
+        LfgJoinResultData joinData = LfgJoinResultData(LFG_JOIN_ROLE_CHECK_FAILED, roleCheck.state);
         for (LfgRolesMap::const_iterator it = roleCheck.roles.begin(); it != roleCheck.roles.end(); ++it)
         {
             ObjectGuid pguid = it->first;

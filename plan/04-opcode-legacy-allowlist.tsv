@@ -95,8 +95,6 @@ c2s	CMSG_ITEM_QUERY_SINGLE	#188	item DB query wire format is ported separately
 c2s	CMSG_LEARN_DANCE_MOVE	#186	movement packet layout is ported with the movement work
 c2s	CMSG_LEARN_SPELL	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
 c2s	CMSG_LEAVE_BATTLEFIELD	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
-c2s	CMSG_LFD_PARTY_LOCK_INFO_REQUEST	#182	grouping and social packets are ported with phase 9
-c2s	CMSG_LFG_SET_NEEDS	#183	Dungeon Finder is ported with phase 10
 c2s	CMSG_LOTTERY_QUERY_OBSOLETE	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
 c2s	CMSG_LUA_USAGE	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
 c2s	CMSG_MAELSTROM_GM_SENT_MAIL	#182	grouping and social packets are ported with phase 9
@@ -252,9 +250,6 @@ s2c	SMSG_INSTANCE_LOCK_WARNING_QUERY	#168	WotLK-only opcode with no 4.3.4 counte
 s2c	SMSG_ITEM_NAME_QUERY_RESPONSE	#188	item DB query wire format is ported separately
 s2c	SMSG_ITEM_QUERY_MULTIPLE_RESPONSE	#188	item DB query wire format is ported separately
 s2c	SMSG_ITEM_QUERY_SINGLE_RESPONSE	#188	item DB query wire format is ported separately
-s2c	SMSG_LFG_UPDATE_PARTY	#183	Dungeon Finder is ported with phase 10
-s2c	SMSG_LFG_UPDATE_PLAYER	#183	Dungeon Finder is ported with phase 10
-s2c	SMSG_LFG_UPDATE_SEARCH	#183	Dungeon Finder is ported with phase 10
 s2c	SMSG_LOTTERY_QUERY_RESULT_OBSOLETE	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
 s2c	SMSG_LOTTERY_RESULT_OBSOLETE	#168	WotLK-only opcode with no 4.3.4 counterpart in the pin
 s2c	SMSG_MINIGAME_MOVE_FAILED	#186	movement packet layout is ported with the movement work

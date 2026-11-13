@@ -94,8 +94,14 @@ namespace WorldPackets
 
     namespace LFG
     {
+        class LFGBootPlayerVote;
+        class LFGGetSystemInfo;
         class LFGJoin;
         class LFGLeave;
+        class LFGProposalResponse;
+        class LFGSetComment;
+        class LFGSetRoles;
+        class LFGTeleport;
     }
 
     namespace GuildFinder
@@ -1208,21 +1214,23 @@ public:                                                 // opcodes handlers
     void HandleBfQueueRequest(WorldPacket& recvData);
 
     // Looking for Dungeon/Raid
-    void HandleLfgSetCommentOpcode(WorldPacket& recvData);
-    void HandleLfgPlayerLockInfoRequestOpcode(WorldPacket& recvData);
-    void HandleLfgPartyLockInfoRequestOpcode(WorldPacket& recvData);
+    void HandleLfgSetCommentOpcode(WorldPackets::LFG::LFGSetComment& packet);
+    void HandleLfgGetLockInfoOpcode(WorldPackets::LFG::LFGGetSystemInfo& packet);
+    void SendLfgPlayerLockInfo();
+    void SendLfgPartyLockInfo();
     void HandleLfgJoinOpcode(WorldPackets::LFG::LFGJoin& lfgJoin);
     void HandleLfgLeaveOpcode(WorldPackets::LFG::LFGLeave& lfgleave);
-    void HandleLfgSetRolesOpcode(WorldPacket& recvData);
-    void HandleLfgProposalResultOpcode(WorldPacket& recvData);
-    void HandleLfgSetBootVoteOpcode(WorldPacket& recvData);
-    void HandleLfgTeleportOpcode(WorldPacket& recvData);
+    void HandleLfgSetRolesOpcode(WorldPackets::LFG::LFGSetRoles& packet);
+    void HandleLfgProposalResultOpcode(WorldPackets::LFG::LFGProposalResponse& packet);
+    void HandleLfgSetBootVoteOpcode(WorldPackets::LFG::LFGBootPlayerVote& packet);
+    void HandleLfgTeleportOpcode(WorldPackets::LFG::LFGTeleport& packet);
     void HandleLfrSearchJoinOpcode(WorldPacket& recvData);
     void HandleLfrSearchLeaveOpcode(WorldPacket& recvData);
     void HandleLfgGetStatus(WorldPacket& recvData);
 
     void SendLfgUpdatePlayer(lfg::LfgUpdateData const& updateData);
     void SendLfgUpdateParty(lfg::LfgUpdateData const& updateData);
+    void SendLfgUpdateStatus(lfg::LfgUpdateData const& updateData, bool party);
     void SendLfgRoleChosen(ObjectGuid guid, uint8 roles);
     void SendLfgRoleCheckUpdate(lfg::LfgRoleCheck const& pRoleCheck);
     void SendLfgLfrList(bool update);

@@ -570,15 +570,13 @@ enum OpcodeClient : uint16
     MSG_MOVE_STOP_ASCEND                            = 0x7B00,
     CMSG_LFG_JOIN                                   = 0x2430,
     CMSG_LFG_LEAVE                                  = 0x2433,
-    CMSG_SEARCH_LFG_JOIN                            = 0x0000,
-    CMSG_SEARCH_LFG_LEAVE                           = 0x0000,
+    CMSG_LFG_LFR_JOIN                               = 0x0531,
+    CMSG_LFG_LFR_LEAVE                              = 0x0500,
     CMSG_LFG_PROPOSAL_RESULT                        = 0x0403,
-    CMSG_SET_LFG_COMMENT                            = 0x0000,
+    CMSG_LFG_SET_COMMENT                            = 0x0530,
     CMSG_LFG_SET_ROLES                              = 0x0480,
-    CMSG_LFG_SET_NEEDS                              = 0x36B,
     CMSG_LFG_SET_BOOT_VOTE                          = 0x04B3,
     CMSG_LFG_TELEPORT                               = 0x2482,
-    CMSG_LFD_PARTY_LOCK_INFO_REQUEST                = 0x371,
     CMSG_SET_TITLE                                  = 0x2117,
     CMSG_CANCEL_MOUNT_AURA                          = 0x0635,
     MSG_INSPECT_ARENA_TEAMS                         = 0x2704,
@@ -809,6 +807,10 @@ enum OpcodeClient : uint16
 
 enum OpcodeServer : uint16
 {
+    SMSG_LFG_SLOT_INVALID                           = 0x54B5,
+    SMSG_LFG_SEARCH_RESULT                          = 0x54A1,
+    SMSG_LFG_UPDATE_STATUS_NONE                     = 0x7CA1,
+    SMSG_LFG_UPDATE_STATUS                          = 0x31A4,
     SMSG_BATTLEFIELD_STATUS_FAILED                  = 0x71A7,
     SMSG_BATTLEFIELD_STATUS_WAITFORGROUPS           = 0x75A2,
     SMSG_BATTLEFIELD_STATUS_NEEDCONFIRMATION        = 0x59A0,
@@ -1259,9 +1261,6 @@ enum OpcodeServer : uint16
     SMSG_LFG_ROLE_CHECK_UPDATE                      = 0x0336,    // uint32, uint8, for (uint8) uint32, uint8, for (uint8) { uint64, uint8, uint32, uint8, }
     SMSG_LFG_JOIN_RESULT                            = 0x38B6,    // uint32 unk, uint32, if (unk == 6) { uint8 count, for (count) uint64 }
     SMSG_LFG_QUEUE_STATUS                           = 0x78B4,    // uint32 dungeon, uint32 lfgtype, uint32, uint32, uint32, uint32, uint8, uint8, uint8, uint8
-    SMSG_LFG_UPDATE_PLAYER                          = 0x367,    // uint8, if (uint8) { uint8, uint8, uint8, uint8, if (uint8) for (uint8) uint32, string}
-    SMSG_LFG_UPDATE_PARTY                           = 0x368,    // uint8, if (uint8) { uint8, uint8, uint8, for (3) uint8, uint8, if (uint8) for (uint8) uint32, string}
-    SMSG_LFG_UPDATE_SEARCH                          = 0x369,    // uint8
     SMSG_LFG_BOOT_PROPOSAL_UPDATE                   = 0x0F05,    // uint8, uint8, uint8, uint64, uint32, uint32, uint32, uint32
     SMSG_LFG_PLAYER_INFO                            = 0x4B36,    // uint8, for (uint8) { uint32, uint8, uint32, uint32, uint32, uint32, uint8, for (uint8) {uint32, uint32, uint32}}, uint32, for (uint32) {uint32, uint32}
     SMSG_LFG_PARTY_INFO                             = 0x2325,    // uint8, for (uint8) uint64
