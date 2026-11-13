@@ -1052,10 +1052,7 @@ void WorldSession::HandleMoveTimeSkippedOpcode(WorldPacket& recvData)
     }
 
     mover->m_movementInfo.time += timeSkipped;
-
-    WorldPacket data(MSG_MOVE_TIME_SKIPPED, recvData.size());
-    WorldPackets::Movement::WriteTimeSkipped(data, guid, timeSkipped);
-    GetPlayer()->SendMessageToSet(&data, false);
+    // 5.4.8 has no known server opcode for relaying the skipped time to observers.
 }
 
 void WorldSession::HandleTimeSyncResp(WorldPacket& recvData)

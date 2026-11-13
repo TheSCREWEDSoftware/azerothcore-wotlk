@@ -20,6 +20,7 @@
 
 #include "Errors.h"
 #include "ObjectGuid.h"
+#include <vector>
 
 class WorldPacket;
 
@@ -100,8 +101,8 @@ struct AC_GAME_API BattlegroundScore
         }
     }
 
-    virtual void AppendToPacket(WorldPacket& data);
-    virtual void BuildObjectivesBlock(WorldPacket& /*data*/) = 0;
+    // battleground specific statistics, sent in SMSG_PVP_LOG_DATA
+    virtual void BuildObjectivesBlock(std::vector<uint32>& stats) const = 0;
 
     // For Logging purpose
     virtual std::string ToString() const { return ""; }

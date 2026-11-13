@@ -29,23 +29,6 @@
 #include "WorldStateDefines.h"
 #include "WorldStatePackets.h"
 
-void ArenaScore::AppendToPacket(WorldPacket& data)
-{
-    data << PlayerGuid;
-
-    data << uint32(KillingBlows);
-    data << uint8(PvPTeamId);
-    data << uint32(DamageDone);
-    data << uint32(HealingDone);
-
-    BuildObjectivesBlock(data);
-}
-
-void ArenaScore::BuildObjectivesBlock(WorldPacket& data)
-{
-    data << uint32(0); // Objectives Count
-}
-
 void ArenaTeamScore::BuildRatingInfoBlock(WorldPacket& data)
 {
     uint32 ratingLost = std::abs(std::min(RatingChange, 0));

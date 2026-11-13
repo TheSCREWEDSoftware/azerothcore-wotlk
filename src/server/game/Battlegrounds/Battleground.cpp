@@ -124,20 +124,6 @@ void Battleground::BroadcastWorker(Do& _do)
         _do(itr->second);
 }
 
-void BattlegroundScore::AppendToPacket(WorldPacket& data)
-{
-    data << PlayerGuid;
-
-    data << uint32(KillingBlows);
-    data << uint32(HonorableKills);
-    data << uint32(Deaths);
-    data << uint32(BonusHonor);
-    data << uint32(DamageDone);
-    data << uint32(HealingDone);
-
-    BuildObjectivesBlock(data);
-}
-
 Battleground::Battleground()
 {
     m_RealTypeID        = BATTLEGROUND_TYPE_NONE;
@@ -1375,32 +1361,70 @@ void Battleground::SpectatorsSendPacket(WorldPacket& data)
 
 void Battleground::BuildPvPLogDataPacket(WorldPacket& data)
 {
-    uint8 type = (isArena() ? 1 : 0);
+    // 5.4.8 18414, from Project SkyFire. Players that are no longer online are left out,
+    // the client needs their team and the count is written up front.
+    bool const arena = isArena();
+    std::vector<std::pair<BattlegroundScore const*, Player const*>> entries;
+    entries.reserve(PlayerScores.size());
+    for (auto const& [lowGuid, score] : PlayerScores)
+        if (Player const* player = ObjectAccessor::FindPlayer(score->GetPlayerGuid()))
+            entries.emplace_back(score, player);
 
-    data.Initialize(MSG_PVP_LOG_DATA, 1 + 1 + 4 + 40 * GetPlayerScores()->size());
-    data << uint8(type); // type (battleground = 0 / arena = 1)
+    data.Initialize(SMSG_PVP_LOG_DATA, 2 + 4 + entries.size() * 64);
+    data << uint8(GetPlayersCountByTeam(TEAM_ALLIANCE));
+    data << uint8(GetPlayersCountByTeam(TEAM_HORDE));
 
-    if (type) // arena
+    data.WriteBit(GetStatus() == STATUS_WAIT_LEAVE);
+    data.WriteBit(false);
+    data.WriteBit(false);                                   // rated
+    data.WriteBits(entries.size(), 19);
+
+    ByteBuffer buff;
+    std::vector<uint32> stats;
+    for (auto const& [score, player] : entries)
     {
-        for (uint8 i = 0; i < PVP_TEAMS_COUNT; ++i)
-            _arenaTeamScores[i].BuildRatingInfoBlock(data);
+        ObjectGuid guid = score->GetPlayerGuid();
+        stats.clear();
+        score->BuildObjectivesBlock(stats);
 
-        for (uint8 i = 0; i < PVP_TEAMS_COUNT; ++i)
-            _arenaTeamScores[i].BuildTeamInfoBlock(data);
+        data.WriteGuidMask(guid, { 6 });
+        data.WriteBit(player->GetBgTeamId() == TEAM_ALLIANCE);
+        data.WriteBit(false);                               // rating change
+        data.WriteGuidMask(guid, { 0 });
+        data.WriteBit(false);                               // mmr change
+        data.WriteGuidMask(guid, { 7 });
+        data.WriteBit(false);                               // pre-match mmr
+        data.WriteGuidMask(guid, { 3 });
+        data.WriteBit(false);                               // pre-match rating
+        data.WriteGuidMask(guid, { 4, 1 });
+        data.WriteBits(stats.size(), 22);
+        data.WriteBit(player->IsInWorld());
+        data.WriteBit(!arena);                              // has honor block
+        data.WriteGuidMask(guid, { 5, 2 });
+
+        buff << uint32(score->GetHealingDone());
+        buff.WriteGuidBytes(guid, { 4, 5, 2 });
+        if (!arena)
+        {
+            buff << uint32(score->GetDeaths());
+            buff << uint32(score->GetHonorableKills());
+            buff << uint32(score->GetBonusHonor());
+        }
+
+        buff.WriteGuidBytes(guid, { 3 });
+        buff << uint32(score->GetDamageDone());
+        buff << uint32(score->GetKillingBlows());
+        buff.WriteGuidBytes(guid, { 1, 6, 7, 0 });
+        buff << int32(0);                                   // specialization id, pending the 5.4.8 talent rework
+        for (uint32 stat : stats)
+            buff << uint32(stat);
     }
+
+    data.FlushBits();
+    data.append(buff);
 
     if (GetStatus() == STATUS_WAIT_LEAVE)
-    {
-        data << uint8(1);                      // bg ended
-        data << uint8(GetWinner());            // who win
-    }
-    else
-        data << uint8(0);                      // bg not ended
-
-    data << uint32(GetPlayerScores()->size());
-
-    for (auto const& score : PlayerScores)
-        score.second->AppendToPacket(data);
+        data << uint8(GetWinner());
 }
 
 bool Battleground::UpdatePlayerScore(Player* player, uint32 type, uint32 value, bool doAddHonor)

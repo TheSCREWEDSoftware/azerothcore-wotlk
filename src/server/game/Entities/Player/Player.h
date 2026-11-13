@@ -1649,6 +1649,7 @@ public:
 
     void SetBindPoint(ObjectGuid guid);
     void SendTalentWipeConfirm(ObjectGuid guid);
+    static WorldPacket BuildRespecWipeConfirm(ObjectGuid guid, uint32 cost);
     void ResetPetTalents();
     void RegenerateAll();
     void Regenerate(Powers power);

@@ -30,8 +30,7 @@ protected:
     ArenaScore(ObjectGuid playerGuid, TeamId team) :
         BattlegroundScore(playerGuid), PvPTeamId(team == TEAM_ALLIANCE ? PVP_TEAM_ALLIANCE : PVP_TEAM_HORDE) { }
 
-    void AppendToPacket(WorldPacket& data) final;
-    void BuildObjectivesBlock(WorldPacket& data) final;
+    void BuildObjectivesBlock(std::vector<uint32>& /*stats*/) const final { }
 
     // For Logging purpose
     std::string ToString() const override

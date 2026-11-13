@@ -341,7 +341,7 @@ protected:
         }
     }
 
-    void BuildObjectivesBlock(WorldPacket& data) final;
+    void BuildObjectivesBlock(std::vector<uint32>& stats) const final;
 
     uint32 GetAttr1() const override { return FlagCaptures; }
 

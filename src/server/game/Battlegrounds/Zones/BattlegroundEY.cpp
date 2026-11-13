@@ -29,10 +29,9 @@
 #include "WorldSession.h"
 #include "WorldStatePackets.h"
 
-void BattlegroundEYScore::BuildObjectivesBlock(WorldPacket& data)
+void BattlegroundEYScore::BuildObjectivesBlock(std::vector<uint32>& stats) const
 {
-    data << uint32(1); // Objectives Count
-    data << uint32(FlagCaptures);
+    stats.push_back(FlagCaptures);
 }
 
 BattlegroundEY::BattlegroundEY()

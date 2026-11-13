@@ -158,7 +158,6 @@ namespace WorldPackets
             ObjectGuid transport = ObjectGuid::Empty);
         void ReadTeleportAck(WorldPacket& packet, ObjectGuid& guid, uint32& counter, uint32& time);
         void ReadTimeSkipped(WorldPacket& packet, ObjectGuid& guid, uint32& time);
-        void WriteTimeSkipped(WorldPacket& packet, ObjectGuid const& guid, uint32 time);
         void WriteTeleportUpdate(WorldPacket& packet, MovementInfo const& info);
 
         void WriteRunSpeedChange(WorldPacket& packet, ObjectGuid const& guid, uint32 counter, float speed);

@@ -1370,7 +1370,7 @@ void Player::SendTeleportAckPacket()
     Position pos = GetPosition();
     if (TransportBase* transport = GetDirectTransport())
         transport->CalculatePassengerOffset(pos.m_positionX, pos.m_positionY, pos.m_positionZ, &pos.m_orientation);
-    WorldPacket data(MSG_MOVE_TELEPORT, 30);
+    WorldPacket data(SMSG_MOVE_TELEPORT, 30);
     WorldPackets::Movement::WriteTeleport(data, GetGUID(), GetSession()->GetOrderCounter(), pos, GetTransGUID());
     SendDirectMessage(&data);
     GetSession()->IncrementOrderCounter();
@@ -9292,11 +9292,22 @@ void Player::SetBindPoint(ObjectGuid guid)
 
 void Player::SendTalentWipeConfirm(ObjectGuid guid)
 {
-    WorldPacket data(MSG_TALENT_WIPE_CONFIRM, (8 + 4));
-    data << guid;
     uint32 cost = sWorld->getBoolConfig(CONFIG_NO_RESET_TALENT_COST) ? 0 : resetTalentsCost();
-    data << cost;
+    WorldPacket data = BuildRespecWipeConfirm(guid, cost);
     SendDirectMessage(&data);
+}
+
+// 5.4.8 18414, from Project SkyFire
+WorldPacket Player::BuildRespecWipeConfirm(ObjectGuid guid, uint32 cost)
+{
+    WorldPacket data(SMSG_RESPEC_WIPE_CONFIRM, 1 + 8 + 1 + 4);
+    data.WriteGuidMask(guid, { 5, 7, 3, 2, 1, 0, 4, 6 });
+    data.FlushBits();
+    data.WriteGuidBytes(guid, { 1, 0 });
+    data << uint8(0);                                       // 0 = talents, 1 = specialization
+    data.WriteGuidBytes(guid, { 7, 3, 2, 5, 6, 4 });
+    data << uint32(cost);
+    return data;
 }
 
 void Player::ResetPetTalents()

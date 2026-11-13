@@ -30,11 +30,10 @@ constexpr Milliseconds BG_SA_BOAT_START    = 1min;
 constexpr Milliseconds BG_SA_WARMUPLENGTH  = 2min;
 constexpr Milliseconds BG_SA_ROUNDLENGTH   = 10min;
 
-void BattlegroundSAScore::BuildObjectivesBlock(WorldPacket& data)
+void BattlegroundSAScore::BuildObjectivesBlock(std::vector<uint32>& stats) const
 {
-    data << uint32(2); // Objectives Count
-    data << uint32(DemolishersDestroyed);
-    data << uint32(GatesDestroyed);
+    stats.push_back(DemolishersDestroyed);
+    stats.push_back(GatesDestroyed);
 }
 
 BattlegroundSA::BattlegroundSA()

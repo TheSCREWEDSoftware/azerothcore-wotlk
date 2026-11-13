@@ -10520,12 +10520,6 @@ WorldPackets::Movement::GetMovementFlagSequence(uint16 opcode)
     }
 }
 
-void WorldPackets::Movement::WriteTimeSkipped(WorldPacket& packet, ObjectGuid const& guid, uint32 time)
-{
-    packet << time;
-    packet << guid.WriteAsPacked();
-}
-
 // The 5.4.8 packets below use the sequences from Project SkyFire (MovementStructures.cpp).
 void WorldPackets::Movement::ReadHeartbeat(WorldPacket& packet, MovementInfo& info)
 {

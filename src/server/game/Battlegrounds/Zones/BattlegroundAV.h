@@ -1742,7 +1742,7 @@ protected:
         }
     }
 
-    void BuildObjectivesBlock(WorldPacket& data) final;
+    void BuildObjectivesBlock(std::vector<uint32>& stats) const final;
 
     uint32 GraveyardsAssaulted = 0;
     uint32 GraveyardsDefended = 0;

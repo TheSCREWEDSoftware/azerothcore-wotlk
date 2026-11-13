@@ -289,11 +289,6 @@ TEST(MovementPacketsTest, ReadsAndWritesMoveTimeSkipped)
     EXPECT_EQ(guid, ObjectGuid(uint64(0x01020304)));
     EXPECT_EQ(time, 360u);
     EXPECT_EQ(packet.rpos(), packet.size());
-
-    WorldPacket relay(MSG_MOVE_TIME_SKIPPED);
-    WorldPackets::Movement::WriteTimeSkipped(relay, guid, time);
-    EXPECT_EQ(ByteArrayToHexStr(std::span<uint8 const>(relay.contents(), relay.size())),
-        "680100000F04030201");
 }
 
 using GroundMovementRoutingTest = IntegrationTestFixture;

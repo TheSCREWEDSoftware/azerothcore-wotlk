@@ -26,11 +26,10 @@
 #include "WorldPacket.h"
 #include "WorldStateDefines.h"
 
-void BattlegroundTPScore::BuildObjectivesBlock(WorldPacket& data)
+void BattlegroundTPScore::BuildObjectivesBlock(std::vector<uint32>& stats) const
 {
-    data << uint32(2); // Objectives Count
-    data << uint32(FlagCaptures);
-    data << uint32(FlagReturns);
+    stats.push_back(FlagCaptures);
+    stats.push_back(FlagReturns);
 }
 
 BattlegroundTP::BattlegroundTP()

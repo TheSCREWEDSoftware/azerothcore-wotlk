@@ -28,14 +28,13 @@
 #include "WorldPacket.h"
 #include "WorldStatePackets.h"
 
-void BattlegroundAVScore::BuildObjectivesBlock(WorldPacket& data)
+void BattlegroundAVScore::BuildObjectivesBlock(std::vector<uint32>& stats) const
 {
-    data << uint32(5); // Objectives Count
-    data << uint32(GraveyardsAssaulted);
-    data << uint32(GraveyardsDefended);
-    data << uint32(TowersAssaulted);
-    data << uint32(TowersDefended);
-    data << uint32(MinesCaptured);
+    stats.push_back(GraveyardsAssaulted);
+    stats.push_back(GraveyardsDefended);
+    stats.push_back(TowersAssaulted);
+    stats.push_back(TowersDefended);
+    stats.push_back(MinesCaptured);
 }
 
 BattlegroundAV::BattlegroundAV()

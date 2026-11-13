@@ -26,11 +26,10 @@
 #include "WorldStatePackets.h"
 #include "WorldStateDefines.h"
 
-void BattlegroundBFGScore::BuildObjectivesBlock(WorldPacket& data)
+void BattlegroundBFGScore::BuildObjectivesBlock(std::vector<uint32>& stats) const
 {
-    data << uint32(2);
-    data << uint32(BasesAssaulted);
-    data << uint32(BasesDefended);
+    stats.push_back(BasesAssaulted);
+    stats.push_back(BasesDefended);
 }
 
 BattlegroundBFG::BattlegroundBFG()

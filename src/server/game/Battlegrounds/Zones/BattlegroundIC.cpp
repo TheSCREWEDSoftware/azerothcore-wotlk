@@ -28,11 +28,10 @@
 #include "WorldPacket.h"
 #include "WorldStatePackets.h"
 
-void BattlegroundICScore::BuildObjectivesBlock(WorldPacket& data)
+void BattlegroundICScore::BuildObjectivesBlock(std::vector<uint32>& stats) const
 {
-    data << uint32(2); // Objectives Count
-    data << uint32(BasesAssaulted);
-    data << uint32(BasesDefended);
+    stats.push_back(BasesAssaulted);
+    stats.push_back(BasesDefended);
 }
 
 BattlegroundIC::BattlegroundIC()
