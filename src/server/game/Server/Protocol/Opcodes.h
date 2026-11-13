@@ -812,6 +812,7 @@ enum OpcodeClient : uint16
 
 enum OpcodeServer : uint16
 {
+    SMSG_PET_SLOT_UPDATED                           = 0x51A3,
     SMSG_GUILD_CRITERIA_DATA                        = 0x14B4,
     SMSG_GUILD_ACHIEVEMENT_EARNED                   = 0x50B5,
     SMSG_GUILD_ACHIEVEMENT_DATA                     = 0x54B7,

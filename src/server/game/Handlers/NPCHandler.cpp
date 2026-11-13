@@ -593,7 +593,18 @@ void WorldSession::HandleSetPetSlot(WorldPacket& recvData)
     if (occupant)
         place(std::move(*occupant), fromSlot, occupantWasCurrent);
 
+    SendPetSlotUpdated(petNumber, newSlot, occupantNumber, fromSlot);
     SendStableResult(STABLE_SUCCESS_STABLE);
+}
+
+void WorldSession::SendPetSlotUpdated(int32 petNumberA, int32 petSlotA, int32 petNumberB, int32 petSlotB)
+{
+    WorldPacket data(SMSG_PET_SLOT_UPDATED, 4 + 4 + 4 + 4);
+    data << int32(petSlotA);
+    data << uint32(petNumberA);
+    data << uint32(petNumberB);
+    data << int32(petSlotB);
+    SendPacket(&data);
 }
 
 void WorldSession::HandleRepairItemOpcode(WorldPacket& recvData)

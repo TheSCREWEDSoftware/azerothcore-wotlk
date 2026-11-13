@@ -667,6 +667,7 @@ public:
     void SendPetNameQuery(ObjectGuid guid, uint32 petnumber);
     void SendStablePet(ObjectGuid guid);
     void SendStableResult(uint8 guid);
+    void SendPetSlotUpdated(int32 petNumberA, int32 petSlotA, int32 petNumberB, int32 petSlotB);
     bool CheckStableMaster(ObjectGuid guid);
 
     // Account Data
