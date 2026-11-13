@@ -438,13 +438,16 @@ void SearchableAuctionEntry::BuildAuctionInfo(WorldPacket& data) const
     data << uint32(Id);
     data << uint32(item.entry);
 
-    for (uint8 i = 0; i < MAX_INSPECTED_ENCHANTMENT_SLOT; ++i)
+    // 5.4.8 18414, from Project SkyFire: eight enchantment slots and a field before the random property
+    static constexpr uint8 AUCTION_ITEM_ENCHANTMENT_SLOTS = 8;
+    for (uint8 i = 0; i < AUCTION_ITEM_ENCHANTMENT_SLOTS; ++i)
     {
         data << uint32(item.enchants[i].id);
         data << uint32(item.enchants[i].duration);
         data << uint32(item.enchants[i].charges);
     }
 
+    data << int32(0);
     data << int32(item.randomPropertyId);                           // Random item property id
     data << uint32(item.suffixFactor);                              // SuffixFactor
     data << uint32(item.count);                                     // item->count

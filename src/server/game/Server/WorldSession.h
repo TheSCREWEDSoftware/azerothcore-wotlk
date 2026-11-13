@@ -40,6 +40,7 @@
 #include <utility>
 
 class Creature;
+struct Signatures;
 class GameObject;
 class InstanceSave;
 class Item;
@@ -709,6 +710,8 @@ public:
     void SendArenaTeamCommandResult(uint32 team_action, std::string const& team, std::string const& player, uint32 error_id = 0);
     void SendNotInArenaTeamPacket(uint8 type);
     void SendPetitionShowList(ObjectGuid guid);
+    static WorldPacket BuildPetitionShowSignatures(ObjectGuid petitionGuid, ObjectGuid ownerGuid, uint32 petitionId, Signatures const* signatures);
+    static WorldPacket BuildPetitionSignResults(ObjectGuid petitionGuid, ObjectGuid playerGuid, uint32 result);
 
     void DoLootRelease(ObjectGuid lguid);
 

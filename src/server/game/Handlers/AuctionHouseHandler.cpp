@@ -84,57 +84,57 @@ void WorldSession::SendAuctionHello(ObjectGuid guid, Creature* unit)
 //call this method when player bids, creates, or deletes auction
 void WorldSession::SendAuctionCommandResult(AuctionEntry const* auction, uint32 action, uint32 errorCode, uint32 bidError)
 {
-    WorldPacket data(SMSG_AUCTION_COMMAND_RESULT, 4 + 4 + 4 + 8 * 3);
-    data << uint32(auction ? auction->Id : 0);
-    data << uint32(action);
+    // 5.4.8 18414, from Project SkyFire. The optional bidder GUID, bid and outbid blocks are not
+    // known, SkyFire sends them as absent.
+    ObjectGuid guid = GetPlayer()->GetGUID();
+    WorldPacket data(SMSG_AUCTION_COMMAND_RESULT, 1 + 1 + 8 + 4 * 4);
+    data.WriteBit(true);
+    data.WriteBit(true);
+    data.WriteBit(true);
+    data.WriteGuidMask(guid, { 1, 4, 0, 6, 3, 5, 2, 7 });
+    data.FlushBits();
+    data.WriteGuidBytes(guid, { 3, 0, 7, 1, 4, 6, 5, 2 });
     data << uint32(errorCode);
-
-    switch (errorCode)
-    {
-        case ERR_AUCTION_OK:
-            if (action == AUCTION_PLACE_BID)
-                data << uint64(auction && auction->bid ? auction->GetAuctionOutBid() : 0);
-            break;
-        case ERR_AUCTION_INVENTORY:
-            data << uint32(bidError);
-            break;
-        case ERR_AUCTION_HIGHER_BID:
-            data << (auction ? auction->bidder : ObjectGuid::Empty);
-            data << uint64(auction ? auction->bid : 0);
-            data << uint64(auction && auction->bid ? auction->GetAuctionOutBid() : 0);
-            break;
-        default:
-            break;
-    }
-
+    data << uint32(action);
+    data << uint32(auction ? auction->Id : 0);
+    data << uint32(errorCode == ERR_AUCTION_INVENTORY ? bidError : 40); // bag result
     SendPacket(&data);
 }
 
 //this function sends notification, if bidder is online
 void WorldSession::SendAuctionBidderNotification(uint32 location, uint32 auctionId, ObjectGuid bidder, uint64 bidSum, uint64 diff, uint32 itemEntry)
 {
-    WorldPacket data(SMSG_AUCTION_BIDDER_NOTIFICATION, 4 + 4 + 8 * 3 + 4 + 4);
-    data << uint32(location);
-    data << uint32(auctionId);
-    data << bidder;
-    data << uint64(bidSum);
-    data << uint64(diff);
+    // 5.4.8 18414, from Project SkyFire
+    WorldPacket data(SMSG_AUCTION_BIDDER_NOTIFICATION, 1 + 8 + 4 * 5);
+    data.WriteGuidMask(bidder, { 5, 4, 7, 6, 0, 1, 2, 3 });
+    data.FlushBits();
+    data.WriteGuidBytes(bidder, { 7, 3 });
     data << uint32(itemEntry);
+    data.WriteGuidBytes(bidder, { 1, 2 });
+    data << uint32(location);
+    data.WriteGuidBytes(bidder, { 0 });
     data << uint32(0);
+    data.WriteGuidBytes(bidder, { 5, 4, 6 });
+    data << uint32(0);
+    data << uint32(auctionId);
+    (void)bidSum;
+    (void)diff;
     SendPacket(&data);
 }
 
 //this void causes on client to display: "Your auction sold"
 void WorldSession::SendAuctionOwnerNotification(AuctionEntry* auction)
 {
-    WorldPacket data(SMSG_AUCTION_OWNER_NOTIFICATION, 4 + 8 * 3 + 4 + 4 + 4);
+    // 5.4.8 18414, from Project SkyFire
+    WorldPacket data(SMSG_AUCTION_OWNER_NOTIFICATION, 4 * 5 + 8 + 1);
+    data << uint32(0);
     data << uint32(auction->Id);
-    data << uint64(auction->bid);
-    data << uint64(0);                                      //unk
-    data << uint64(0);                                      //unk (bidder guid?)
     data << uint32(auction->item_template);
-    data << uint32(0);                                      //unk
-    data << float(0);                                       //unk (time?)
+    data << uint32(0);
+    data << float(3600);                                    // mail delay
+    data << uint64(auction->bid);
+    data.WriteBit(true);                                    // sold
+    data.FlushBits();
     SendPacket(&data);
 }
 
@@ -144,12 +144,17 @@ void WorldSession::HandleAuctionSellItem(WorldPacket& recvData)
     ObjectGuid auctioneer;
     uint32 itemsCount, etime;
     uint64 bidMoney, buyoutMoney;
-    recvData >> auctioneer;
-    recvData >> itemsCount;
 
     ObjectGuid itemGUIDs[MAX_AUCTION_ITEMS]; // 160 slot = 4x 36 slot bag + backpack 16 slot
     uint32 count[MAX_AUCTION_ITEMS];
     memset(count, 0, sizeof(count));
+
+    // 5.4.8 18414, from Project SkyFire
+    recvData >> buyoutMoney >> bidMoney;
+    recvData >> etime;
+
+    recvData.ReadGuidMask(auctioneer, { 3 });
+    itemsCount = recvData.ReadBits(5);
 
     if (itemsCount > MAX_AUCTION_ITEMS)
     {
@@ -158,17 +163,16 @@ void WorldSession::HandleAuctionSellItem(WorldPacket& recvData)
         return;
     }
 
-    if (sWorld->getBoolConfig(CONFIG_TRIAL_RESTRICTION_AUCTION) && IsTrialAccount())
-    {
-        SendAuctionCommandResult(nullptr, AUCTION_SELL_ITEM, ERR_AUCTION_RESTRICTED_ACCOUNT);
-        recvData.rfinish();
-        return;
-    }
+    recvData.ReadGuidMask(auctioneer, { 0 });
+    for (uint32 i = 0; i < itemsCount; ++i)
+        recvData.ReadGuidMask(itemGUIDs[i], { 4, 6, 2, 3, 5, 7, 1, 0 });
+    recvData.ReadGuidMask(auctioneer, { 6, 2, 1, 4, 5, 7 });
 
     for (uint32 i = 0; i < itemsCount; ++i)
     {
-        recvData >> itemGUIDs[i];
+        recvData.ReadGuidBytes(itemGUIDs[i], { 3, 1 });
         recvData >> count[i];
+        recvData.ReadGuidBytes(itemGUIDs[i], { 6, 4, 5, 0, 2, 7 });
 
         if (!itemGUIDs[i] || !count[i] || count[i] > 1000)
         {
@@ -177,9 +181,13 @@ void WorldSession::HandleAuctionSellItem(WorldPacket& recvData)
         }
     }
 
-    recvData >> bidMoney;
-    recvData >> buyoutMoney;
-    recvData >> etime;
+    recvData.ReadGuidBytes(auctioneer, { 3, 7, 2, 5, 6, 1, 0, 4 });
+
+    if (sWorld->getBoolConfig(CONFIG_TRIAL_RESTRICTION_AUCTION) && IsTrialAccount())
+    {
+        SendAuctionCommandResult(nullptr, AUCTION_SELL_ITEM, ERR_AUCTION_RESTRICTED_ACCOUNT);
+        return;
+    }
 
     if (!bidMoney || !etime)
         return;
@@ -455,8 +463,10 @@ void WorldSession::HandleAuctionPlaceBid(WorldPacket& recvData)
     ObjectGuid auctioneer;
     uint32 auctionId;
     uint64 priceMoney;
-    recvData >> auctioneer;
+    // 5.4.8 18414, from Project SkyFire
     recvData >> auctionId >> priceMoney;
+    recvData.ReadGuidMask(auctioneer, { 1, 6, 3, 7, 2, 4, 0, 5 });
+    recvData.ReadGuidBytes(auctioneer, { 3, 2, 1, 4, 6, 5, 7, 0 });
 
     if (!auctionId || !priceMoney || priceMoney > std::numeric_limits<uint32>::max())
         return;                                             //check for cheaters
@@ -625,8 +635,10 @@ void WorldSession::HandleAuctionRemoveItem(WorldPacket& recvData)
 {
     ObjectGuid auctioneer;
     uint32 auctionId;
-    recvData >> auctioneer;
+    // 5.4.8 18414, from Project SkyFire
     recvData >> auctionId;
+    recvData.ReadGuidMask(auctioneer, { 6, 4, 2, 3, 7, 5, 1, 0 });
+    recvData.ReadGuidBytes(auctioneer, { 3, 2, 6, 5, 4, 7, 0, 1 });
 
     if (sWorld->getBoolConfig(CONFIG_TRIAL_RESTRICTION_AUCTION) && IsTrialAccount())
     {
@@ -704,14 +716,19 @@ void WorldSession::HandleAuctionListBidderItems(WorldPacket& recvData)
     uint32 listfrom;                                        //page of auctions
     uint32 outbiddedCount;                                  //count of outbidded auctions
 
-    recvData >> guid;
+    // 5.4.8 18414, from Project SkyFire; the outbid auction ids sit between the GUID bytes
     recvData >> listfrom;                                  // not used in fact (this list not have page control in client)
-    recvData >> outbiddedCount;
-    if (recvData.size() != (16 + outbiddedCount * 4))
-    {
-        LOG_ERROR("network.opcode", "Client sent bad opcode!!! with count: {} and size : {} (must be: {})", outbiddedCount, (unsigned long)recvData.size(), (16 + outbiddedCount * 4));
-        outbiddedCount = 0;
-    }
+    recvData.ReadGuidMask(guid, { 3, 4, 1, 5, 6, 2 });
+    outbiddedCount = recvData.ReadBits(7);
+    recvData.ReadGuidMask(guid, { 7, 0 });
+    recvData.ReadGuidBytes(guid, { 3, 4, 1, 0, 2, 5 });
+
+    std::vector<uint32> auctionIds;
+    auctionIds.reserve(outbiddedCount);
+    for (uint32 i = 0; i < outbiddedCount; ++i)
+        auctionIds.push_back(recvData.read<uint32>());
+
+    recvData.ReadGuidBytes(guid, { 7, 6 });
 
     Creature* creature = GetPlayer()->GetNPCIfCanInteractWith(guid, UNIT_NPC_FLAG_AUCTIONEER);
     if (!creature)
@@ -720,10 +737,6 @@ void WorldSession::HandleAuctionListBidderItems(WorldPacket& recvData)
         recvData.rfinish();
         return;
     }
-
-    // Arbitrary cap, can be adjusted if needed
-    if (outbiddedCount > 1000)
-        return;
 
     // remove fake death
     if (GetPlayer()->HasUnitState(UNIT_STATE_DIED))
@@ -735,17 +748,6 @@ void WorldSession::HandleAuctionListBidderItems(WorldPacket& recvData)
 
     AuctionHouseFaction auctionHouseFaction = AuctionHouseMgr::GetAuctionHouseFactionFromHouseId(AuctionHouseId(ahEntry->houseId));
 
-    // Client sends this list, which I'm honestly not entirely sure why?
-    std::vector<uint32> auctionIds;
-    auctionIds.reserve(outbiddedCount);
-    while (outbiddedCount > 0) // add all data, which client requires
-    {
-        --outbiddedCount;
-        uint32 outbiddedAuctionId;
-        recvData >> outbiddedAuctionId;
-        auctionIds.push_back(outbiddedAuctionId);
-    }
-
     sAuctionMgr->GetAuctionHouseSearcher()->QueueSearchRequest(new AuctionSearchBidderListRequest(auctionHouseFaction, std::move(auctionIds), GetPlayer()->GetGUID()));
 }
 
@@ -755,8 +757,10 @@ void WorldSession::HandleAuctionListOwnerItems(WorldPacket& recvData)
     ObjectGuid guid;
     uint32 listfrom;
 
-    recvData >> guid;
+    // 5.4.8 18414, from Project SkyFire
     recvData >> listfrom;       // not used in fact (this list does not have page control in client)
+    recvData.ReadGuidMask(guid, { 4, 5, 2, 1, 7, 0, 3, 6 });
+    recvData.ReadGuidBytes(guid, { 5, 7, 3, 6, 4, 2, 0, 1 });
 
     Creature* creature = GetPlayer()->GetNPCIfCanInteractWith(guid, UNIT_NPC_FLAG_AUCTIONEER);
     if (!creature)
@@ -783,37 +787,37 @@ void WorldSession::HandleAuctionListItems(WorldPacket& recvData)
     uint32 listfrom, auctionSlotID, auctionMainCategory, auctionSubCategory, quality;
     ObjectGuid guid;
 
-    recvData >> guid;
+    // 5.4.8 18414, from Project SkyFire. The sort entries are single bytes whose meaning is not
+    // known, so the results keep AC's default order.
+    recvData >> auctionSlotID;
     recvData >> listfrom;                                  // start, used for page control listing by 50 elements
-    recvData >> searchedname;
+    recvData >> auctionMainCategory;
+    recvData.read_skip<uint8>();
+    recvData >> levelmax >> levelmin;
+    recvData >> quality;
+    recvData >> auctionSubCategory;
 
-    recvData >> levelmin >> levelmax;
-    recvData >> auctionSlotID >> auctionMainCategory >> auctionSubCategory;
-    recvData >> quality >> usable;
-
-    uint8 getAll;
-    recvData >> getAll;
-    recvData.read_skip<uint8>();                            // unk
-
-    // Read sort block
-    uint8 sortOrderCount;
-    recvData >> sortOrderCount;
-
-    if (sortOrderCount > AUCTION_SORT_MAX)
-        return;
-
-    AuctionSortOrderVector sortOrder;
-    for (uint8 i = 0; i < sortOrderCount; i++)
+    uint32 sortCount = recvData.read<uint32>();
+    if (sortCount > AUCTION_SORT_MAX)
     {
-        uint8 sortMode;
-        uint8 isDesc;
-        recvData >> sortMode;
-        recvData >> isDesc;
-        AuctionSortInfo sortInfo;
-        sortInfo.isDesc = (isDesc == 1);
-        sortInfo.sortOrder = static_cast<AuctionSortOrder>(sortMode);
-        sortOrder.push_back(std::move(sortInfo));
+        recvData.rfinish();
+        return;
     }
+
+    recvData.read_skip(sortCount);
+
+    recvData.ReadGuidMask(guid, { 3, 4, 5, 2 });
+    recvData.ReadBit();                                    // exact match
+    usable = recvData.ReadBit();
+    recvData.ReadGuidMask(guid, { 7, 0 });
+    uint32 searchedNameLength = recvData.ReadBits(8);
+    recvData.ReadGuidMask(guid, { 1, 6 });
+    recvData.ReadGuidBytes(guid, { 6, 3, 4, 0, 7, 2 });
+    searchedname = recvData.ReadString(searchedNameLength);
+    recvData.ReadGuidBytes(guid, { 1, 5 });
+
+    uint8 getAll = 0;
+    AuctionSortOrderVector sortOrder;
 
     // converting string that we try to find to lower case
     std::wstring wsearchedname;
@@ -879,7 +883,7 @@ void WorldSession::HandleAuctionListItems(WorldPacket& recvData)
 
 void WorldSession::HandleAuctionListPendingSales(WorldPacket& recvData)
 {
-    recvData.read_skip<uint64>();
+    recvData.rfinish();                                     // 5.4.8 sends no auctioneer
 
     uint32 count = 0;
 
