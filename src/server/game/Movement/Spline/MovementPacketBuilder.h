@@ -19,6 +19,7 @@
 #define AC_PACKET_BUILDER_H
 
 #include "Define.h"
+#include "ObjectGuid.h"
 
 class ByteBuffer;
 namespace G3D
@@ -34,8 +35,10 @@ namespace Movement
     class PacketBuilder
     {
     public:
-        static void WriteMonsterMove(MoveSpline const& mov, ByteBuffer& data);
-        static void WriteStopMovement(uint32 splineId, ByteBuffer& data);
+        static void WriteMonsterMove(MoveSpline const& mov, ByteBuffer& data, ObjectGuid const& guid,
+            ObjectGuid const& transport, Vector3 const& transportOffset, int8 seat, bool hasSeat, Vector3 const& start);
+        static void WriteStopMovement(uint32 splineId, ByteBuffer& data, ObjectGuid const& guid,
+            ObjectGuid const& transport, Vector3 const& transportOffset, int8 seat, bool hasSeat, Vector3 const& position);
         static void WriteCreateBits(MoveSpline const& mov, ByteBuffer& data);
         static void WriteCreateData(MoveSpline const& mov, ByteBuffer& data);
         static void WriteFacingTargetPart(MoveSpline const& mov, ByteBuffer& data);

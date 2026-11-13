@@ -112,18 +112,9 @@ namespace Movement
         move_spline.Initialize(args);
 
         WorldPacket data(SMSG_ON_MONSTER_MOVE, 64);
-        data << unit->GetPackGUID();
-        if (transport)
-        {
-            data.SetOpcode(SMSG_ON_MONSTER_MOVE_TRANSPORT);
-            data << unit->GetTransGUID().WriteAsPacked();
-            data << int8(unit->GetTransSeat());
-        }
-
-        data << int8(0);   // VehicleExitVoluntary
-        data << real_position.x << real_position.y << real_position.z;
-
-        PacketBuilder::WriteMonsterMove(move_spline, data);
+        Vector3 const transportOffset(unit->GetTransOffsetX(), unit->GetTransOffsetY(), unit->GetTransOffsetZ());
+        PacketBuilder::WriteMonsterMove(move_spline, data, unit->GetGUID(), transport ? unit->GetTransGUID() : ObjectGuid::Empty,
+            transportOffset, unit->GetTransSeat(), unit->GetVehicle() != nullptr, real_position);
         unit->SendMessageToSet(&data, true);
 
         return move_spline.Duration();
@@ -161,18 +152,9 @@ namespace Movement
         move_spline.Initialize(args);
 
         WorldPacket data(SMSG_ON_MONSTER_MOVE, 64);
-        data << unit->GetPackGUID();
-        if (transport)
-        {
-            data.SetOpcode(SMSG_ON_MONSTER_MOVE_TRANSPORT);
-            data << unit->GetTransGUID().WriteAsPacked();
-            data << int8(unit->GetTransSeat());
-        }
-
-        data << int8(0);   // VehicleExitVoluntary
-        data << loc.x << loc.y << loc.z;
-
-        PacketBuilder::WriteStopMovement(args.splineId, data);
+        Vector3 const transportOffset(unit->GetTransOffsetX(), unit->GetTransOffsetY(), unit->GetTransOffsetZ());
+        PacketBuilder::WriteStopMovement(args.splineId, data, unit->GetGUID(), transport ? unit->GetTransGUID() : ObjectGuid::Empty,
+            transportOffset, unit->GetTransSeat(), unit->GetVehicle() != nullptr, Vector3(loc.x, loc.y, loc.z));
         unit->SendMessageToSet(&data, true);
     }
 
