@@ -43,6 +43,7 @@
 #include "Object.h"
 #include "ObjectAccessor.h"
 #include "ObjectMgr.h"
+#include "Realm.h"
 #include "Opcodes.h"
 #include "OutdoorPvP.h"
 #include "Pet.h"
@@ -242,40 +243,38 @@ void WorldSession::HandleWhoOpcode(WorldPacket& recvData)
     std::array<uint32, 10> zoneids = {};                    // 10 is client limit
     std::string packetPlayerName, packetGuildName;
 
-    recvData >> levelMin;                                   // maximal player level, default 0
+    // 5.4.8 18414, from Project SkyFire (which read the words as C strings; they are sized by the bits)
+    recvData >> classmask;
+    recvData >> racemask;
     recvData >> levelMax;                                   // minimal player level, default 100 (MAX_LEVEL)
-    recvData >> packetPlayerName;                           // player name, case sensitive...
+    recvData >> levelMin;                                   // maximal player level, default 0
 
-    recvData >> packetGuildName;                            // guild name, case sensitive...
-
-    recvData >> racemask;                                   // race mask
-    recvData >> classmask;                                  // class mask
-    recvData >> zonesCount;                                 // zones count, client limit = 10 (2.0.10)
+    recvData.ReadBit();                                     // show enemies
+    recvData.ReadBit();                                     // exact name
+    bool requestServerInfo = recvData.ReadBit();
+    uint32 guildRealmNameLength = recvData.ReadBits(9);
+    recvData.ReadBit();                                     // show arena players
+    uint32 playerNameLength = recvData.ReadBits(6);
+    zonesCount = recvData.ReadBits(4);                      // zones count, client limit = 10 (2.0.10)
 
     if (zonesCount > 10)
         return;                                             // can't be received from real client or broken packet
 
-    for (uint32 i = 0; i < zonesCount; ++i)
-    {
-        uint32 temp;
-        recvData >> temp;                                   // zone id, 0 if zone is unknown...
-        zoneids[i] = temp;
-        LOG_DEBUG("network.who", "Zone {}: {}", i, zoneids[i]);
-    }
-
-    recvData >> strCount;                                   // user entered strings count, client limit=4 (checked on 2.0.10)
+    uint32 realmNameLength = recvData.ReadBits(9);
+    uint32 guildNameLength = recvData.ReadBits(7);
+    strCount = recvData.ReadBits(3);                        // user entered strings count, client limit=4 (checked on 2.0.10)
 
     if (strCount > 4)
         return;                                             // can't be received from real client or broken packet
 
-    LOG_DEBUG("network.who", "Minlvl {}, maxlvl {}, name {}, guild {}, racemask {}, classmask {}, zones {}, strings {}",
-        levelMin, levelMax, packetPlayerName, packetGuildName, racemask, classmask, zonesCount, strCount);
+    std::array<uint32, 4> wordLengths = {};
+    for (uint32 i = 0; i < strCount; ++i)
+        wordLengths[i] = recvData.ReadBits(7);
 
     std::wstring str[4];                                    // 4 is client limit
     for (uint32 i = 0; i < strCount; ++i)
     {
-        std::string temp;
-        recvData >> temp;                                   // user entered string, it used as universal search pattern(guild+player name)?
+        std::string temp = recvData.ReadString(wordLengths[i]); // user entered string, it used as universal search pattern(guild+player name)?
 
         if (!Utf8toWStr(temp, str[i]))
             continue;
@@ -284,6 +283,28 @@ void WorldSession::HandleWhoOpcode(WorldPacket& recvData)
 
         LOG_DEBUG("network.who", "String {}: {}", i, temp);
     }
+
+    recvData.ReadString(guildRealmNameLength);
+
+    for (uint32 i = 0; i < zonesCount; ++i)
+    {
+        zoneids[i] = recvData.read<uint32>();               // zone id, 0 if zone is unknown...
+        LOG_DEBUG("network.who", "Zone {}: {}", i, zoneids[i]);
+    }
+
+    packetPlayerName = recvData.ReadString(playerNameLength);
+    recvData.ReadString(realmNameLength);
+    packetGuildName = recvData.ReadString(guildNameLength);
+
+    if (requestServerInfo)
+    {
+        recvData.read_skip<int32>();                        // locale
+        recvData.read_skip<uint32>();                       // virtual realm address
+        recvData.read_skip<int32>();                        // faction
+    }
+
+    LOG_DEBUG("network.who", "Minlvl {}, maxlvl {}, name {}, guild {}, racemask {}, classmask {}, zones {}, strings {}",
+        levelMin, levelMax, packetPlayerName, packetGuildName, racemask, classmask, zonesCount, strCount);
 
     std::wstring wpacketPlayerName;
     std::wstring wpacketGuildName;
@@ -302,9 +323,11 @@ void WorldSession::HandleWhoOpcode(WorldPacket& recvData)
     uint32 gmLevelInWhoList = sWorld->getIntConfig(CONFIG_GM_LEVEL_IN_WHO_LIST);
     uint32 displaycount = 0;
 
+    // 5.4.8 18414, from Project SkyFire
     WorldPacket data(SMSG_WHO, 50);     // guess size
-    data << uint32(matchCount);         // placeholder, count of players matching criteria
-    data << uint32(displaycount);       // placeholder, count of players displayed
+    std::size_t countPos = data.bitwpos();
+    data.WriteBits(0, 6);               // count of players displayed
+    ByteBuffer bytesData;
 
     for (auto const& target : sWhoListCacheMgr->GetWhoList())
     {
@@ -410,19 +433,76 @@ void WorldSession::HandleWhoOpcode(WorldPacket& recvData)
             continue;
         }
 
-        data << target.GetPlayerName();                   // player name
-        data << target.GetGuildName();                    // guild name
-        data << uint32(lvl);                              // player level
-        data << uint32(class_);                           // player class
-        data << uint32(race);                             // player race
-        data << uint8(gender);                            // player gender
-        data << uint32(playerZoneId);                     // player zone id
+        ObjectGuid playerGuid = target.GetGuid();
+        ObjectGuid accountId = ObjectGuid(uint64(target.GetAccountId()));
+        ObjectGuid guildGuid = target.GetGuildId() ? ObjectGuid::Create<HighGuid::Guild>(target.GetGuildId()) : ObjectGuid::Empty;
+        std::string const& playerName = target.GetPlayerName();
+        std::string const& guildName = target.GetGuildName();
 
-        ++displaycount;
+        data.WriteGuidMask(accountId, { 2 });
+        data.WriteGuidMask(playerGuid, { 2 });
+        data.WriteGuidMask(accountId, { 7 });
+        data.WriteGuidMask(guildGuid, { 5 });
+        data.WriteBits(guildName.size(), 7);
+        data.WriteGuidMask(accountId, { 1, 5 });
+        data.WriteGuidMask(guildGuid, { 7 });
+        data.WriteGuidMask(playerGuid, { 5 });
+        data.WriteBit(false);
+        data.WriteGuidMask(guildGuid, { 1 });
+        data.WriteGuidMask(playerGuid, { 6 });
+        data.WriteGuidMask(guildGuid, { 2 });
+        data.WriteGuidMask(playerGuid, { 4 });
+        data.WriteGuidMask(guildGuid, { 0, 3 });
+        data.WriteGuidMask(accountId, { 6 });
+        data.WriteBit(false);
+        data.WriteGuidMask(playerGuid, { 1 });
+        data.WriteGuidMask(guildGuid, { 4 });
+        data.WriteGuidMask(accountId, { 0 });
+        for (uint8 i = 0; i < MAX_DECLINED_NAME_CASES; ++i)
+            data.WriteBits(0, 7);                           // declined names
+        data.WriteGuidMask(playerGuid, { 3 });
+        data.WriteGuidMask(guildGuid, { 6 });
+        data.WriteGuidMask(playerGuid, { 0 });
+        data.WriteGuidMask(accountId, { 4, 3 });
+        data.WriteGuidMask(playerGuid, { 7 });
+        data.WriteBits(playerName.size(), 6);
+
+        bytesData.WriteGuidBytes(playerGuid, { 1 });
+        bytesData << uint32(realm.Id.Realm);                // virtual realm id
+        bytesData.WriteGuidBytes(playerGuid, { 7 });
+        bytesData << uint32(realm.Id.Realm);                // guild virtual realm id
+        bytesData.WriteGuidBytes(playerGuid, { 4 });
+        bytesData.WriteString(playerName);
+        bytesData.WriteGuidBytes(guildGuid, { 1 });
+        bytesData.WriteGuidBytes(playerGuid, { 0 });
+        bytesData.WriteGuidBytes(guildGuid, { 2, 0, 4 });
+        bytesData.WriteGuidBytes(playerGuid, { 3 });
+        bytesData.WriteGuidBytes(guildGuid, { 6 });
+        bytesData << uint32(target.GetAccountId());
+        bytesData.WriteString(guildName);
+        bytesData.WriteGuidBytes(guildGuid, { 3 });
+        bytesData.WriteGuidBytes(accountId, { 4 });
+        bytesData << uint8(class_);
+        bytesData.WriteGuidBytes(accountId, { 7 });
+        bytesData.WriteGuidBytes(playerGuid, { 6, 2 });
+        bytesData.WriteGuidBytes(accountId, { 2, 3 });
+        bytesData << uint8(race);
+        bytesData.WriteGuidBytes(guildGuid, { 7 });
+        bytesData.WriteGuidBytes(accountId, { 1, 5, 6 });
+        bytesData.WriteGuidBytes(playerGuid, { 5 });
+        bytesData.WriteGuidBytes(accountId, { 0 });
+        bytesData << uint8(gender);
+        bytesData.WriteGuidBytes(guildGuid, { 5 });
+        bytesData << uint8(lvl);
+        bytesData << int32(playerZoneId);
+
+        if (++displaycount >= 63)                         // the count has 6 bits
+            break;
     }
 
-    data.put(0, displaycount);                            // insert right count, count displayed
-    data.put(4, matchCount);                              // insert right count, count of matches
+    data.FlushBits();
+    data.PutBits(countPos, displaycount, 6);
+    data.append(bytesData);
 
     SendPacket(&data);
     LOG_DEBUG("network", "WORLD: Send SMSG_WHO Message");
@@ -549,7 +629,9 @@ void WorldSession::HandleZoneUpdateOpcode(WorldPacket& recv_data)
 void WorldSession::HandleSetSelectionOpcode(WorldPacket& recv_data)
 {
     ObjectGuid guid;
-    recv_data >> guid;
+    // 5.4.8 18414, from Project SkyFire
+    recv_data.ReadGuidMask(guid, { 7, 6, 5, 4, 3, 2, 1, 0 });
+    recv_data.ReadGuidBytes(guid, { 0, 7, 3, 5, 1, 4, 6, 2 });
 
     _player->SetSelection(guid);
 
@@ -633,9 +715,12 @@ void WorldSession::HandleBugOpcode(WorldPacket& recv_data)
     uint32 suggestion, contentlen, typelen;
     std::string content, type;
 
-    recv_data >> suggestion >> contentlen >> content;
+    // 5.4.8 18414, from Project SkyFire: the strings are sized, not terminated
+    recv_data >> suggestion >> contentlen;
+    content = recv_data.ReadString(contentlen);
 
-    recv_data >> typelen >> type;
+    recv_data >> typelen;
+    type = recv_data.ReadString(typelen);
 
     CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_INS_BUG_REPORT);
 
@@ -648,7 +733,9 @@ void WorldSession::HandleBugOpcode(WorldPacket& recv_data)
 void WorldSession::HandleReclaimCorpseOpcode(WorldPacket& recv_data)
 {
     ObjectGuid guid;
-    recv_data >> guid;
+    // 5.4.8 18414, from Project SkyFire
+    recv_data.ReadGuidMask(guid, { 1, 5, 7, 2, 6, 3, 0, 4 });
+    recv_data.ReadGuidBytes(guid, { 2, 5, 4, 6, 1, 0, 7, 3 });
 
     if (_player->IsAlive())
         return;
@@ -683,9 +770,11 @@ void WorldSession::HandleReclaimCorpseOpcode(WorldPacket& recv_data)
 void WorldSession::HandleResurrectResponseOpcode(WorldPacket& recv_data)
 {
     ObjectGuid guid;
-    uint8 status;
-    recv_data >> guid;
+    uint32 status;
+    // 5.4.8 18414, from Project SkyFire
     recv_data >> status;
+    recv_data.ReadGuidMask(guid, { 3, 0, 6, 4, 5, 2, 1, 7 });
+    recv_data.ReadGuidBytes(guid, { 7, 0, 1, 3, 4, 6, 2, 5 });
 
     // Xinef: Prevent resurrect with prevent resurrection aura
     if (GetPlayer()->IsAlive() || GetPlayer()->HasPreventResurectionAura())
@@ -706,7 +795,10 @@ void WorldSession::HandleResurrectResponseOpcode(WorldPacket& recv_data)
 void WorldSession::HandleAreaTriggerOpcode(WorldPacket& recv_data)
 {
     uint32 triggerId;
+    // 5.4.8 18414, from Project SkyFire
     recv_data >> triggerId;
+    recv_data.ReadBit();                                    // entered
+    recv_data.ReadBit();                                    // from client
 
     LOG_DEBUG("network", "CMSG_AREATRIGGER. Trigger ID: {}", triggerId);
 
@@ -824,61 +916,49 @@ void WorldSession::HandleAreaTriggerOpcode(WorldPacket& recv_data)
 
 void WorldSession::HandleUpdateAccountData(WorldPacket& recv_data)
 {
-    uint32 type, timestamp, decompressedSize;
-    recv_data >> type >> timestamp >> decompressedSize;
+    // 5.4.8 18414, from Project SkyFire: the type follows the compressed data
+    uint32 timestamp, decompressedSize, compressedSize;
+    recv_data >> decompressedSize >> timestamp >> compressedSize;
 
-    LOG_DEBUG("network", "UAD: type {}, time {}, decompressedSize {}", type, timestamp, decompressedSize);
+    LOG_DEBUG("network", "UAD: time {}, decompressedSize {}", timestamp, decompressedSize);
 
-    if (type >= NUM_ACCOUNT_DATA_TYPES)
-        return;
-
-    if (decompressedSize == 0)                               // erase
-    {
-        SetAccountData(AccountDataType(type), 0, "");
-
-        WorldPacket data(SMSG_UPDATE_ACCOUNT_DATA_COMPLETE, 4 + 4);
-        data << uint32(type);
-        data << uint32(0);
-        SendPacket(&data);
-
-        return;
-    }
-
-    if (decompressedSize > 0xFFFF)
+    if (decompressedSize > 0xFFFF || compressedSize > recv_data.size() - recv_data.rpos())
     {
         recv_data.rfinish();                   // unnneded warning spam in this case
         LOG_ERROR("network.opcode", "UAD: Account data packet too big, size {}", decompressedSize);
         return;
     }
 
-    ByteBuffer dest;
-    dest.resize(decompressedSize);
-
-    uLongf realSize = decompressedSize;
-    if (uncompress(dest.contents(), &realSize, recv_data.contents() + recv_data.rpos(), recv_data.size() - recv_data.rpos()) != Z_OK)
+    std::string adata;
+    if (decompressedSize)
     {
-        recv_data.rfinish();                   // unnneded warning spam in this case
-        LOG_ERROR("network.opcode", "UAD: Failed to decompress account data");
-        return;
+        ByteBuffer dest;
+        dest.resize(decompressedSize);
+
+        uLongf realSize = decompressedSize;
+        if (uncompress(dest.contents(), &realSize, recv_data.contents() + recv_data.rpos(), compressedSize) != Z_OK)
+        {
+            recv_data.rfinish();                   // unnneded warning spam in this case
+            LOG_ERROR("network.opcode", "UAD: Failed to decompress account data");
+            return;
+        }
+
+        adata = dest.ReadString(realSize);
     }
 
-    recv_data.rfinish();                       // uncompress read (recv_data.size() - recv_data.rpos())
+    recv_data.read_skip(compressedSize);
+    uint32 type = recv_data.ReadBits(3);
 
-    std::string adata;
-    dest >> adata;
+    if (type >= NUM_ACCOUNT_DATA_TYPES)
+        return;
 
-    SetAccountData(AccountDataType(type), timestamp, adata);
+    SetAccountData(AccountDataType(type), decompressedSize ? timestamp : 0, adata);
 
-    WorldPacket data(SMSG_UPDATE_ACCOUNT_DATA_COMPLETE, 4 + 4);
-    data << uint32(type);
-    data << uint32(0);
-    SendPacket(&data);
 }
 
 void WorldSession::HandleRequestAccountData(WorldPacket& recv_data)
 {
-    uint32 type;
-    recv_data >> type;
+    uint32 type = recv_data.ReadBits(3);                    // 5.4.8, from Project SkyFire
 
     LOG_DEBUG("network", "RAD: type {}", type);
 
@@ -902,23 +982,33 @@ void WorldSession::HandleRequestAccountData(WorldPacket& recv_data)
 
     dest.resize(destSize);
 
-    WorldPacket data(SMSG_UPDATE_ACCOUNT_DATA, 8 + 4 + 4 + 4 + destSize);
-    data << (_player ? _player->GetGUID() : ObjectGuid::Empty); // player guid
-    data << uint32(type);                                       // type (0-7)
-    data << uint32(adata->Time);                                // unix time
+    // 5.4.8 18414, from Project SkyFire
+    ObjectGuid guid = _player ? _player->GetGUID() : ObjectGuid::Empty;
+    WorldPacket data(SMSG_UPDATE_ACCOUNT_DATA, 1 + 8 + 4 + 4 + 4 + destSize);
+    data.WriteBits(type, 3);                                    // type (0-7)
+    data.WriteGuidMask(guid, { 5, 1, 3, 7, 0, 4, 2, 6 });
+    data.FlushBits();
+    data.WriteGuidBytes(guid, { 3, 1, 5 });
     data << uint32(size);                                       // decompressed length
+    data << uint32(destSize);
     data.append(dest);                                          // compressed data
+    data.WriteGuidBytes(guid, { 7, 4, 0, 6, 2 });
+    data << uint32(adata->Time);                                // unix time
     SendPacket(&data);
 }
 
 void WorldSession::HandleSetActionButtonOpcode(WorldPacket& recv_data)
 {
+    // 5.4.8 18414, from Project SkyFire: the action in the low four bytes, the type in the high byte
     uint8 button;
-    uint32 packetData;
-    recv_data >> button >> packetData;
+    ObjectGuid buttonStream;
+    recv_data >> button;
+    recv_data.ReadGuidMask(buttonStream, { 7, 0, 5, 2, 1, 6, 3, 4 });
+    recv_data.ReadGuidBytes(buttonStream, { 6, 7, 3, 5, 2, 1, 4, 0 });
 
-    uint32 action = ACTION_BUTTON_ACTION(packetData);
-    uint8  type   = ACTION_BUTTON_TYPE(packetData);
+    uint64 packetData = buttonStream.GetRawValue();
+    uint32 action = uint32(packetData);
+    uint8  type   = uint8(packetData >> 56);
 
     LOG_DEBUG("network.opcode", "BUTTON: {} ACTION: {} TYPE: {}", button, action, type);
     if (!packetData)
@@ -1000,7 +1090,9 @@ void WorldSession::HandlePlayedTime(WorldPackets::Character::PlayedTimeClient& p
 void WorldSession::HandleInspectOpcode(WorldPacket& recv_data)
 {
     ObjectGuid guid;
-    recv_data >> guid;
+    // 5.4.8 18414, from Project SkyFire
+    recv_data.ReadGuidMask(guid, { 0, 3, 7, 2, 5, 1, 4, 6 });
+    recv_data.ReadGuidBytes(guid, { 3, 5, 2, 4, 1, 6, 0, 7 });
 
     Player* player = ObjectAccessor::GetPlayer(*_player, guid);
     if (!player)
@@ -1172,8 +1264,11 @@ void WorldSession::HandleWhoisOpcode(WorldPacket& recv_data)
 
     std::string msg = charname + "'s " + "account is " + acc + ", e-mail: " + email + ", last ip: " + lastip;
 
-    WorldPacket data(SMSG_WHOIS, msg.size() + 1);
-    data << msg;
+    // 5.4.8 18414, from Project SkyFire
+    WorldPacket data(SMSG_WHOIS, 2 + msg.size());
+    data.WriteBits(msg.size(), 11);
+    data.FlushBits();
+    data.WriteString(msg);
     SendPacket(&data);
 
     LOG_DEBUG("network", "Received whois command from player {} for character {}", GetPlayer()->GetName(), charname);
@@ -1214,14 +1309,17 @@ void WorldSession::HandleRealmSplitOpcode(WorldPacket& recv_data)
     std::string split_date = "01/01/01";
     recv_data >> unk;
 
-    WorldPacket data(SMSG_REALM_SPLIT, 4 + 4 + split_date.size() + 1);
-    data << unk;
+    // 5.4.8 18414, from Project SkyFire
+    WorldPacket data(SMSG_REALM_SPLIT, 1 + 4 + 4 + split_date.size());
+    data.WriteBits(split_date.size(), 7);
+    data.FlushBits();
     data << uint32(0x00000000);                             // realm split state
     // split states:
     // 0x0 realm normal
     // 0x1 realm split
     // 0x2 realm split pending
-    data << split_date;
+    data << unk;
+    data.WriteString(split_date);
     SendPacket(&data);
 }
 
@@ -1229,8 +1327,7 @@ void WorldSession::HandleFarSightOpcode(WorldPacket& recvData)
 {
     LOG_DEBUG("network", "WORLD: CMSG_FAR_SIGHT");
 
-    bool apply;
-    recvData >> apply;
+    bool apply = recvData.ReadBit();                        // 5.4.8, from Project SkyFire
 
     if (apply)
     {
@@ -1607,7 +1704,9 @@ void WorldSession::HandleSetTaxiBenchmarkOpcode(WorldPacket& recv_data)
 void WorldSession::HandleQueryInspectAchievements(WorldPacket& recv_data)
 {
     ObjectGuid guid;
-    recv_data >> guid.ReadAsPacked();
+    // 5.4.8 18414, from Project SkyFire
+    recv_data.ReadGuidMask(guid, { 2, 7, 1, 5, 4, 0, 3, 6 });
+    recv_data.ReadGuidBytes(guid, { 7, 2, 0, 4, 1, 5, 6, 3 });
 
     Player* player = ObjectAccessor::GetPlayer(*_player, guid);
     if (!player)
@@ -1654,7 +1753,9 @@ void WorldSession::HandleAreaSpiritHealerQueryOpcode(WorldPacket& recv_data)
     Battleground* bg = _player->GetBattleground();
 
     ObjectGuid guid;
-    recv_data >> guid;
+    // 5.4.8 18414, from Project SkyFire
+    recv_data.ReadGuidMask(guid, { 5, 6, 0, 4, 1, 2, 7, 3 });
+    recv_data.ReadGuidBytes(guid, { 0, 2, 6, 7, 1, 5, 3, 4 });
 
     Creature* unit = GetPlayer()->GetMap()->GetCreature(guid);
     if (!unit)
@@ -1677,7 +1778,9 @@ void WorldSession::HandleAreaSpiritHealerQueueOpcode(WorldPacket& recv_data)
     Battleground* bg = _player->GetBattleground();
 
     ObjectGuid guid;
-    recv_data >> guid;
+    // 5.4.8 18414, from Project SkyFire
+    recv_data.ReadGuidMask(guid, { 5, 4, 0, 2, 7, 1, 6, 3 });
+    recv_data.ReadGuidBytes(guid, { 1, 7, 6, 2, 4, 3, 0, 5 });
 
     Creature* unit = GetPlayer()->GetMap()->GetCreature(guid);
     if (!unit)

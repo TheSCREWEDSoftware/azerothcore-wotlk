@@ -449,8 +449,8 @@ WorldPacket const* WorldPackets::Party::PartyUpdate::Write()
     _worldPacket.WriteGuidBytes(LeaderGUID, { 0 });
     if (hasSettings)
     {
-        _worldPacket << uint32(DifficultySettings.RaidDifficulty);
-        _worldPacket << uint32(DifficultySettings.DungeonDifficulty);
+        _worldPacket << uint32(GetClientRaidDifficulty(Difficulty(DifficultySettings.RaidDifficulty)));
+        _worldPacket << uint32(GetClientDungeonDifficulty(Difficulty(DifficultySettings.DungeonDifficulty)));
     }
     _worldPacket.append(memberData);
     _worldPacket.WriteGuidBytes(PartyGUID, { 1 });

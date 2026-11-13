@@ -34,16 +34,16 @@ WorldPacket const* WorldPackets::Instance::InstanceResetFailed::Write()
 
 WorldPacket const* WorldPackets::Instance::SetDungeonDifficulty::Write()
 {
-    _worldPacket << Difficulty;
-    _worldPacket << Unk;
-    _worldPacket << IsInGroup;
+    // 5.4.8 18414, from Project SkyFire: the Difficulty.dbc id only
+    _worldPacket << uint32(GetClientDungeonDifficulty(::Difficulty(Difficulty)));
 
     return &_worldPacket;
 }
 
 void WorldPackets::Instance::SetDungeonDifficultyClient::Read()
 {
-    _worldPacket >> Mode;
+    // 5.4.8 sends the Difficulty.dbc id
+    Mode = GetDifficultyFromClient(_worldPacket.read<uint32>());
 }
 
 WorldPacket const* WorldPackets::Instance::ResetFailedNotify::Write()
@@ -55,19 +55,19 @@ WorldPacket const* WorldPackets::Instance::ResetFailedNotify::Write()
 
 WorldPacket const* WorldPackets::Instance::SetRaidDifficulty::Write()
 {
-    _worldPacket << Difficulty;
-    _worldPacket << Unk;
-    _worldPacket << IsInGroup;
+    // 5.4.8 18414, from Project SkyFire: the Difficulty.dbc id only
+    _worldPacket << uint32(GetClientRaidDifficulty(::Difficulty(Difficulty)));
 
     return &_worldPacket;
 }
 
 void WorldPackets::Instance::SetRaidDifficultyClient::Read()
 {
-    _worldPacket >> Mode;
+    // 5.4.8 sends the Difficulty.dbc id
+    Mode = GetDifficultyFromClient(_worldPacket.read<uint32>());
 }
 
 void WorldPackets::Instance::InstanceLockResponse::Read()
 {
-    _worldPacket >> Accept;
+    Accept = _worldPacket.ReadBit();                        // 5.4.8, from Project SkyFire
 }

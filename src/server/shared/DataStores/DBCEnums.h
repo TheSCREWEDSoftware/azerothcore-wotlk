@@ -317,6 +317,61 @@ enum Difficulty : uint8
 #define MAX_RAID_DIFFICULTY        4
 #define MAX_DIFFICULTY             4
 
+// 5.4.8 sends Difficulty.dbc ids, from Project SkyFire's DifficultyID
+enum ClientDifficultyID : uint32
+{
+    CLIENT_DIFFICULTY_NONE           = 0,
+    CLIENT_DIFFICULTY_NORMAL         = 1,
+    CLIENT_DIFFICULTY_HEROIC         = 2,
+    CLIENT_DIFFICULTY_10MAN_NORMAL   = 3,
+    CLIENT_DIFFICULTY_25MAN_NORMAL   = 4,
+    CLIENT_DIFFICULTY_10MAN_HEROIC   = 5,
+    CLIENT_DIFFICULTY_25MAN_HEROIC   = 6,
+    CLIENT_DIFFICULTY_25MAN_LFR      = 7,
+    CLIENT_DIFFICULTY_CHALLENGE      = 8,
+    CLIENT_DIFFICULTY_40MAN          = 9,
+    CLIENT_DIFFICULTY_SCENARIO_HEROIC = 11,
+    CLIENT_DIFFICULTY_SCENARIO_NORMAL = 12,
+    CLIENT_DIFFICULTY_FLEX           = 14,
+};
+
+inline uint32 GetClientDungeonDifficulty(Difficulty difficulty)
+{
+    switch (difficulty)
+    {
+        case DUNGEON_DIFFICULTY_HEROIC: return CLIENT_DIFFICULTY_HEROIC;
+        case DUNGEON_DIFFICULTY_EPIC:   return CLIENT_DIFFICULTY_CHALLENGE;
+        default:                        return CLIENT_DIFFICULTY_NORMAL;
+    }
+}
+
+inline uint32 GetClientRaidDifficulty(Difficulty difficulty)
+{
+    switch (difficulty)
+    {
+        case RAID_DIFFICULTY_25MAN_NORMAL: return CLIENT_DIFFICULTY_25MAN_NORMAL;
+        case RAID_DIFFICULTY_10MAN_HEROIC: return CLIENT_DIFFICULTY_10MAN_HEROIC;
+        case RAID_DIFFICULTY_25MAN_HEROIC: return CLIENT_DIFFICULTY_25MAN_HEROIC;
+        default:                           return CLIENT_DIFFICULTY_10MAN_NORMAL;
+    }
+}
+
+// MAX_DIFFICULTY when the client id has no AC counterpart
+inline uint32 GetDifficultyFromClient(uint32 clientDifficulty)
+{
+    switch (clientDifficulty)
+    {
+        case CLIENT_DIFFICULTY_NORMAL:       return DUNGEON_DIFFICULTY_NORMAL;
+        case CLIENT_DIFFICULTY_HEROIC:       return DUNGEON_DIFFICULTY_HEROIC;
+        case CLIENT_DIFFICULTY_CHALLENGE:    return DUNGEON_DIFFICULTY_EPIC;
+        case CLIENT_DIFFICULTY_10MAN_NORMAL: return RAID_DIFFICULTY_10MAN_NORMAL;
+        case CLIENT_DIFFICULTY_25MAN_NORMAL: return RAID_DIFFICULTY_25MAN_NORMAL;
+        case CLIENT_DIFFICULTY_10MAN_HEROIC: return RAID_DIFFICULTY_10MAN_HEROIC;
+        case CLIENT_DIFFICULTY_25MAN_HEROIC: return RAID_DIFFICULTY_25MAN_HEROIC;
+        default:                             return MAX_DIFFICULTY;
+    }
+}
+
 enum SpawnMask
 {
     SPAWNMASK_CONTINENT         = (1 << REGULAR_DIFFICULTY), // any any maps without spawn modes
