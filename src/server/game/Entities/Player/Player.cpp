@@ -16547,18 +16547,97 @@ void Player::SendRefundInfo(Item* item)
         return;
     }
 
-    WorldPacket data(SMSG_ITEM_REFUND_INFO_RESPONSE, 8 + 4 + 4 + 4 + 4 * 4 + 4 * 4 + 4 + 4);
-    data << item->GetGUID();                            // item guid
-    data << uint32(item->GetPaidMoney());               // money cost
-    data << uint32(iece->reqhonorpoints);               // honor point cost
-    data << uint32(iece->reqarenapoints);               // arena point cost
-    for (uint8 i = 0; i < MAX_ITEM_EXTENDED_COST_REQUIREMENTS; ++i)                       // item cost data
+    uint32 const elapsedSeconds = GetTotalPlayedTime() - item->GetPlayedTime();
+    uint32 const timeLeftMs = elapsedSeconds < 2 * HOUR ? (2 * HOUR - elapsedSeconds) * IN_MILLISECONDS : 0;
+
+    ObjectGuid guid = item->GetGUID();
+    WorldPacket data(SMSG_ITEM_REFUND_INFO_RESPONSE, 1 + 8 + 4 + 5 * 8 + 5 * 8 + 4 + 4);
+    data.WriteBit(guid[3]);
+    data.WriteBit(guid[5]);
+    data.WriteBit(guid[7]);
+    data.WriteBit(guid[6]);
+    data.WriteBit(guid[2]);
+    data.WriteBit(guid[4]);
+    data.WriteBit(guid[0]);
+    data.WriteBit(guid[1]);
+    data.FlushBits();
+
+    data.WriteByteSeq(guid[7]);
+    data << uint32(timeLeftMs);
+    for (uint8 i = 0; i < MAX_ITEM_EXTENDED_COST_REQUIREMENTS; ++i)
     {
-        data << uint32(iece->reqitem[i]);
         data << uint32(iece->reqitemcount[i]);
+        data << uint32(iece->reqitem[i]);
     }
+
+    data.WriteByteSeq(guid[6]);
+    data.WriteByteSeq(guid[4]);
+    data.WriteByteSeq(guid[3]);
+    data.WriteByteSeq(guid[2]);
+    WriteRefundCurrencies(data, iece);
+    data.WriteByteSeq(guid[1]);
+    data.WriteByteSeq(guid[5]);
     data << uint32(0);
-    data << uint32(GetTotalPlayedTime() - item->GetPlayedTime());
+    data.WriteByteSeq(guid[0]);
+    data << uint32(item->GetPaidMoney());
+    SendDirectMessage(&data);
+}
+
+void Player::WriteRefundCurrencies(WorldPacket& data, ItemExtendedCostEntry const* iece) const
+{
+    for (uint8 i = 0; i < MAX_ITEM_EXTENDED_COST_CURRENCIES; ++i)
+    {
+        // Season-earned requirements are not spent, so nothing comes back
+        if (iece->requirementflags & (ITEM_EXT_COST_CURRENCY_REQ_IS_SEASON_EARNED_1 << i))
+        {
+            data << uint32(0);
+            data << uint32(0);
+            continue;
+        }
+
+        CurrencyTypesEntry const* currency = sCurrencyTypesStore.LookupEntry(iece->reqcurrency[i]);
+        uint32 const precision = currency && currency->UsesPrecision() ? CURRENCY_PRECISION : 1;
+        data << uint32(iece->reqcurrencycount[i] / precision);
+        data << uint32(iece->reqcurrency[i]);
+    }
+}
+
+void Player::SendItemRefundResult(Item* item, ItemExtendedCostEntry const* iece, uint8 error) const
+{
+    ObjectGuid guid = item->GetGUID();
+    WorldPacket data(SMSG_ITEM_REFUND_RESULT, 2 + 8 + 5 * 8 + 4 + 5 * 8 + 1);
+    data.WriteBit(guid[4]);
+    data.WriteBit(guid[5]);
+    data.WriteBit(guid[1]);
+    data.WriteBit(guid[6]);
+    data.WriteBit(guid[7]);
+    data.WriteBit(guid[0]);
+    data.WriteBit(guid[3]);
+    data.WriteBit(guid[2]);
+    data.WriteBit(!error);
+    data.WriteBit(item->GetPaidMoney() > 0);
+    data.FlushBits();
+
+    if (!error)
+    {
+        WriteRefundCurrencies(data, iece);
+        data << uint32(item->GetPaidMoney());
+        for (uint8 i = 0; i < MAX_ITEM_EXTENDED_COST_REQUIREMENTS; ++i)
+        {
+            data << uint32(iece->reqitemcount[i]);
+            data << uint32(iece->reqitem[i]);
+        }
+    }
+
+    data.WriteByteSeq(guid[0]);
+    data.WriteByteSeq(guid[3]);
+    data.WriteByteSeq(guid[1]);
+    data.WriteByteSeq(guid[6]);
+    data.WriteByteSeq(guid[4]);
+    data.WriteByteSeq(guid[2]);
+    data.WriteByteSeq(guid[7]);
+    data.WriteByteSeq(guid[5]);
+    data << uint8(error);
     SendDirectMessage(&data);
 }
 
@@ -16604,10 +16683,7 @@ void Player::RefundItem(Item* item)
     if (item->IsRefundExpired())    // item refund has expired
     {
         item->SetNotRefundable(this);
-        WorldPacket data(SMSG_ITEM_REFUND_RESULT, 8 + 4);
-        data << item->GetGUID();                     // Guid
-        data << uint32(10);                          // Error!
-        SendDirectMessage(&data);
+        SendItemRefundResult(item, nullptr, 10);
         return;
     }
 
@@ -16645,25 +16721,11 @@ void Player::RefundItem(Item* item)
 
     if (store_error)
     {
-        WorldPacket data(SMSG_ITEM_REFUND_RESULT, 8 + 4);
-        data << item->GetGUID();                         // Guid
-        data << uint32(10);                              // Error!
-        SendDirectMessage(&data);
+        SendItemRefundResult(item, iece, 10);
         return;
     }
 
-    WorldPacket data(SMSG_ITEM_REFUND_RESULT, 8 + 4 + 4 + 4 + 4 + 4 * 4 + 4 * 4);
-    data << item->GetGUID();                            // item guid
-    data << uint32(0);                                  // 0, or error code
-    data << uint32(item->GetPaidMoney());               // money cost
-    data << uint32(iece->reqhonorpoints);               // honor point cost
-    data << uint32(iece->reqarenapoints);               // arena point cost
-    for (uint8 i = 0; i < MAX_ITEM_EXTENDED_COST_REQUIREMENTS; ++i) // item cost data
-    {
-        data << uint32(iece->reqitem[i]);
-        data << uint32(iece->reqitemcount[i]);
-    }
-    SendDirectMessage(&data);
+    SendItemRefundResult(item, iece, 0);
 
     uint32 moneyRefund = item->GetPaidMoney();  // item-> will be invalidated in DestroyItem
 
@@ -16702,6 +16764,11 @@ void Player::RefundItem(Item* item)
     // Grant back Arena points
     if (uint32 arenaRefund = iece->reqarenapoints)
         ModifyArenaPoints(arenaRefund, trans);
+
+    // Grant back currencies; season-earned requirements were not spent
+    for (uint8 i = 0; i < MAX_ITEM_EXTENDED_COST_CURRENCIES; ++i)
+        if (iece->reqcurrency[i] && iece->reqcurrencycount[i] && !(iece->requirementflags & (ITEM_EXT_COST_CURRENCY_REQ_IS_SEASON_EARNED_1 << i)))
+            ModifyCurrency(iece->reqcurrency[i], int32(iece->reqcurrencycount[i]), true, true);
 
     SaveInventoryAndGoldToDB(trans);
 

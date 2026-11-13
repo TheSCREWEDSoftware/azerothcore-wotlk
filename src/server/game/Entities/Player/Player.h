@@ -50,6 +50,7 @@
 struct CreatureTemplate;
 class Archaeology;
 struct ArchData;
+struct ItemExtendedCostEntry;
 struct Mail;
 struct TrainerSpell;
 struct VendorItem;
@@ -3158,6 +3159,8 @@ private:
     typedef GuidSet RefundableItemsSet;
     RefundableItemsSet m_refundableItems;
     void SendRefundInfo(Item* item);
+    void SendItemRefundResult(Item* item, ItemExtendedCostEntry const* iece, uint8 error) const;
+    void WriteRefundCurrencies(WorldPacket& data, ItemExtendedCostEntry const* iece) const;
     void RefundItem(Item* item);
 
     // know currencies are not removed at any point (0 displayed)
