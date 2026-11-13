@@ -1340,6 +1340,10 @@ public:
 
     void BuildCooldownPacket(WorldPacket& data, uint8 flags, uint32 spellId, uint32 cooldown);
     void BuildCooldownPacket(WorldPacket& data, uint8 flags, PacketCooldowns const& cooldowns);
+    // 5.4.8 SMSG_CLEAR_COOLDOWN, SMSG_COOLDOWN_EVENT and SMSG_MODIFY_COOLDOWN
+    static WorldPacket BuildClearCooldownPacket(ObjectGuid guid, uint32 spellId);
+    static WorldPacket BuildCooldownEventPacket(ObjectGuid guid, uint32 spellId);
+    static WorldPacket BuildModifyCooldownPacket(ObjectGuid guid, uint32 spellId, int32 delta);
 
     /*********************************************************/
     /***            METHODS RELATED TO AURAS               ***/
@@ -1643,6 +1647,7 @@ public:
     static bool IsImmuneMaskFully(SpellSchoolMask immuneMask, SpellSchoolMask schoolMask) { return (immuneMask & schoolMask) == schoolMask; }
 
     [[nodiscard]] uint32 GetSchoolImmunityMask() const;
+    [[nodiscard]] uint32 GetMechanicImmunityMask() const;
     [[nodiscard]] uint32 GetDamageImmunityMask() const;
 
     [[nodiscard]] bool IsImmunedToDamageOrSchool(SpellSchoolMask schoolMask) const;

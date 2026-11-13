@@ -75,7 +75,10 @@ public:
 
     void SetNeedClientUpdate() { _needClientUpdate = true;}
     bool IsNeedClientUpdate() const { return _needClientUpdate;}
-    void BuildUpdatePacket(ByteBuffer& data, bool remove) const;
+    // 5.4.8 SMSG_AURA_UPDATE: the bit block and the data block of one aura
+    void BuildUpdatePacket(ByteBuffer& bits, ByteBuffer& data, bool remove) const;
+    // a whole SMSG_AURA_UPDATE for the given auras of one unit, all = the full list on first sight
+    static WorldPacket BuildAuraUpdate(ObjectGuid targetGuid, std::vector<std::pair<AuraApplication const*, bool>> const& auras, bool all);
     void ClientUpdate(bool remove = false);
 
     // xinef: stacking

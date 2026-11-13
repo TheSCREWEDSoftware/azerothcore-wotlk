@@ -3100,9 +3100,7 @@ void Creature::RemoveSpellCooldown(uint32 spell_id, bool update /* = false */)
     {
         if (Player* playerOwner = GetCharmerOrOwnerPlayerOrPlayerItself())
         {
-            WorldPacket data(SMSG_CLEAR_COOLDOWN, 4 + 8);
-            data << uint32(spell_id);
-            data << GetGUID();
+            WorldPacket data = BuildClearCooldownPacket(GetGUID(), spell_id);
             playerOwner->SendDirectMessage(&data);
         }
     }

@@ -11778,10 +11778,7 @@ void Player::ModifySpellCooldown(uint32 spellId, int32 cooldown)
 
     itr->second.end += cooldown;
 
-    WorldPacket data(SMSG_MODIFY_COOLDOWN, 4 + 8 + 4);
-    data << uint32(spellId);            // Spell ID
-    data << GetGUID();                  // Player GUID
-    data << int32(cooldown);            // Cooldown mod in milliseconds
+    WorldPacket data = BuildModifyCooldownPacket(GetGUID(), spellId, cooldown);
     SendDirectMessage(&data);
 }
 
@@ -11792,9 +11789,7 @@ void Player::SendCooldownEvent(SpellInfo const* spellInfo, uint32 itemId /*= 0*/
         AddSpellAndCategoryCooldowns(spellInfo, itemId, spell);
 
     // Send activate cooldown timer (possible 0) at client side
-    WorldPacket data(SMSG_COOLDOWN_EVENT, 4 + 8);
-    data << uint32(spellInfo->Id);
-    data << GetGUID();
+    WorldPacket data = BuildCooldownEventPacket(GetGUID(), spellInfo->Id);
     SendDirectMessage(&data);
 }
 
@@ -12841,16 +12836,12 @@ void Player::GetAurasForTarget(Unit* target, bool force /*= false*/)
     if (!target || (!force && target->GetVisibleAuras()->empty()))    // speedup things
         return;
 
-    WorldPacket data(SMSG_AURA_UPDATE_ALL);
-    data<< target->GetPackGUID();
+    // 5.4.8 sends the full list as SMSG_AURA_UPDATE with the "all" bit
+    std::vector<std::pair<AuraApplication const*, bool>> auras;
+    for (auto const& [slot, auraApp] : *target->GetVisibleAuras())
+        auras.emplace_back(auraApp, false);
 
-    Unit::VisibleAuraMap const* visibleAuras = target->GetVisibleAuras();
-    for (Unit::VisibleAuraMap::const_iterator itr = visibleAuras->begin(); itr != visibleAuras->end(); ++itr)
-    {
-        AuraApplication* auraApp = itr->second;
-        auraApp->BuildUpdatePacket(data, false);
-    }
-
+    WorldPacket data = AuraApplication::BuildAuraUpdate(target->GetGUID(), auras, true);
     SendDirectMessage(&data);
 }
 
@@ -15680,9 +15671,7 @@ void Player::RemoveAtLoginFlag(AtLoginFlags flags, bool persist /*= false*/)
 
 void Player::SendClearCooldown(uint32 spell_id, Unit* target)
 {
-    WorldPacket data(SMSG_CLEAR_COOLDOWN, 4 + 8);
-    data << uint32(spell_id);
-    data << target->GetGUID();
+    WorldPacket data = BuildClearCooldownPacket(target->GetGUID(), spell_id);
     SendDirectMessage(&data);
 
     if (target == this && NeedSendSpectatorData())

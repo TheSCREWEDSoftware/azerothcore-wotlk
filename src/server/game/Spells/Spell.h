@@ -176,6 +176,7 @@ public:
     void ModDst(SpellDestination const& spellDest);
     void RemoveDst();
 
+    std::string const& GetTargetString() const { return m_strTarget; }
     bool HasSrc() const { return GetTargetMask() & TARGET_FLAG_SOURCE_LOCATION; }
     bool HasDst() const { return GetTargetMask() & TARGET_FLAG_DEST_LOCATION; }
     bool HasTraj() const { return m_speed != 0; }

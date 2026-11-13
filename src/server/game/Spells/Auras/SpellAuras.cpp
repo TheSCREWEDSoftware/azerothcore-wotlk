@@ -184,55 +184,109 @@ void AuraApplication::_HandleEffect(uint8 effIndex, bool apply)
     SetNeedClientUpdate();
 }
 
-void AuraApplication::BuildUpdatePacket(ByteBuffer& data, bool remove) const
+void AuraApplication::BuildUpdatePacket(ByteBuffer& bits, ByteBuffer& data, bool remove) const
 {
-    data << uint8(_slot);
+    // 5.4.8 18414, from Project SkyFire
+    bits.WriteBit(!remove);
 
-    if (remove)
+    if (!remove)
     {
+        ASSERT(_target->GetVisibleAura(_slot));
+
+        Aura const* aura = GetBase();
+        uint32 flags = _flags;
+        if (aura->GetType() != DYNOBJ_AURA_TYPE && aura->GetMaxDuration() > 0 && !aura->GetSpellInfo()->HasAttribute(SPELL_ATTR5_DO_NOT_DISPLAY_DURATION))
+            flags |= AFLAG_DURATION;
+
+        // paladin auras are positive for self-cast only
+        if (!IsSelfcasted() && aura->GetSpellInfo()->GetSpellSpecific() == SPELL_SPECIFIC_AURA)
+            flags &= ~AFLAG_POSITIVE;
+
+        // the client indexes the amounts by effect index: highest effect + 1, gaps sent as 0
+        uint8 effCount = 0;
+        if (flags & AFLAG_ANY_EFFECT_AMOUNT_SENT)
+            for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
+                if (HasEffect(i))
+                    effCount = i + 1;
+
+        bool hasCaster = !(flags & AFLAG_CASTER);
+        bool hasDuration = flags & AFLAG_DURATION;
+        ObjectGuid casterGuid = aura->GetCasterGUID();
+
+        bits.WriteBits(effCount, 22);
+        bits.WriteBit(hasCaster);
+        if (hasCaster)
+            bits.WriteGuidMask(casterGuid, { 3, 4, 6, 1, 5, 2, 0, 7 });
+        bits.WriteBits(0, 22);
+        bits.WriteBit(hasDuration);
+        bits.WriteBit(hasDuration);                         // max duration
+
+        // 5.4.8 aura flags: caster 0x01, positive 0x02, duration 0x04, amounts 0x08, negative 0x10
+        uint8 clientFlags = 0;
+        if (flags & AFLAG_CASTER)
+            clientFlags |= 0x01;
+        if (flags & AFLAG_POSITIVE)
+            clientFlags |= 0x02;
+        if (flags & AFLAG_DURATION)
+            clientFlags |= 0x04;
+        if (flags & AFLAG_ANY_EFFECT_AMOUNT_SENT)
+            clientFlags |= 0x08;
+        if (flags & AFLAG_NEGATIVE)
+            clientFlags |= 0x10;
+
+        if (hasCaster)
+            data.WriteGuidBytes(casterGuid, { 3, 2, 1, 6, 4, 0, 5, 7 });
+        data << uint8(clientFlags);
+        data << uint16(aura->GetCasterLevel());
+        data << uint32(aura->GetId());
+        if (hasDuration)
+        {
+            data << uint32(aura->GetMaxDuration());
+            data << uint32(aura->GetDuration());
+        }
+        // send stack amount for aura which could be stacked (never 0 - causes incorrect display) or charges
+        // stack amount has priority over charges (checked on retail with spell 50262)
+        data << uint8(aura->GetSpellInfo()->StackAmount ? aura->GetStackAmount() : aura->GetCharges());
+        data << uint32(GetEffectMask());
+        for (uint8 i = 0; i < effCount; ++i)
+        {
+            float amount = 0.0f;
+            if (HasEffect(i))
+                if (AuraEffect const* effect = aura->GetEffect(i))
+                    amount = float(effect->GetAmount());
+            data << float(amount);
+        }
+    }
+    else
         ASSERT(!_target->GetVisibleAura(_slot));
-        data << uint32(0);
-        return;
-    }
-    ASSERT(_target->GetVisibleAura(_slot));
 
-    Aura const* aura = GetBase();
-    data << uint32(aura->GetId());
-    uint32 flags = _flags;
-    if (aura->GetType() != DYNOBJ_AURA_TYPE && aura->GetMaxDuration() > 0 && !aura->GetSpellInfo()->HasAttribute(SPELL_ATTR5_DO_NOT_DISPLAY_DURATION))
-        flags |= AFLAG_DURATION;
+    data << uint8(_slot);
+}
 
-    // paladin auras are positive for self-cast only
-    if (!IsSelfcasted() && aura->GetSpellInfo()->GetSpellSpecific() == SPELL_SPECIFIC_AURA)
-        flags &= ~AFLAG_POSITIVE;
+WorldPacket AuraApplication::BuildAuraUpdate(ObjectGuid targetGuid, std::vector<std::pair<AuraApplication const*, bool>> const& auras, bool all)
+{
+    // 5.4.8 18414, from Project SkyFire
+    WorldPacket packet(SMSG_AURA_UPDATE, 20 + auras.size() * 30);
+    packet.WriteGuidMask(targetGuid, { 7 });
+    packet.WriteBit(all);
+    packet.WriteBits(auras.size(), 24);
+    packet.WriteGuidMask(targetGuid, { 6, 1, 3, 0, 4, 2, 5 });
 
-    data << uint16(flags);
-    data << uint8(aura->GetCasterLevel());
-    // send stack amount for aura which could be stacked (never 0 - causes incorrect display) or charges
-    // stack amount has priority over charges (checked on retail with spell 50262)
-    data << uint8(aura->GetSpellInfo()->StackAmount ? aura->GetStackAmount() : aura->GetCharges());
+    ByteBuffer data;
+    for (auto const& [auraApp, remove] : auras)
+        auraApp->BuildUpdatePacket(packet, data, remove);
 
-    // Cata 4.3.4: client always expects a caster-GUID field for non-Unit casters (GameObject/Item/etc.),
-    // even when AFLAG_CASTER is set; a real caster GUID is sent only for Unit casters when the flag is clear.
-    if (!aura->GetCasterGUID().IsUnit())
-        data << ObjectGuid::Empty.WriteAsPacked();
-    else if (!(flags & AFLAG_CASTER))
-        data << aura->GetCasterGUID().WriteAsPacked();
-
-    if (flags & AFLAG_DURATION)
-    {
-        data << uint32(aura->GetMaxDuration());
-        data << uint32(aura->GetDuration());
-    }
+    packet.FlushBits();
+    packet.append(data);
+    packet.WriteGuidBytes(targetGuid, { 2, 6, 7, 1, 3, 4, 0, 5 });
+    return packet;
 }
 
 void AuraApplication::ClientUpdate(bool remove)
 {
     _needClientUpdate = false;
 
-    WorldPacket data(SMSG_AURA_UPDATE);
-    data << GetTarget()->GetPackGUID();
-    BuildUpdatePacket(data, remove);
+    WorldPacket data = BuildAuraUpdate(GetTarget()->GetGUID(), { { this, remove } }, false);
 
     if (GetSlot() < MAX_AURAS)
         if (Player const* plr = GetTarget()->ToPlayer())
@@ -514,9 +568,7 @@ void Aura::_UnapplyForTarget(Unit* target, Unit* caster, AuraApplication* auraAp
             {
                 if (Player* playerOwner = owner->ToPlayer())
                 {
-                    WorldPacket data(SMSG_COOLDOWN_EVENT, 4 + 8);
-                    data << uint32(m_spellInfo->Id);
-                    data << caster->GetGUID();
+                    WorldPacket data = Unit::BuildCooldownEventPacket(caster->GetGUID(), m_spellInfo->Id);
                     playerOwner->SendDirectMessage(&data);
                 }
             }
@@ -1856,10 +1908,7 @@ void Aura::HandleAuraSpecificMods(AuraApplication const* aurApp, Unit* caster, b
 
                             player->AddSpellCooldown(GetSpellInfo()->Id, 0, aurEff->GetAmount()*IN_MILLISECONDS);
 
-                            WorldPacket data(SMSG_MODIFY_COOLDOWN, 4 + 8 + 4);
-                            data << uint32(GetId());                  // Spell ID
-                            data << player->GetGUID();                // Player GUID
-                            data << int32(-110000);                   // Cooldown mod in milliseconds
+                            WorldPacket data = Unit::BuildModifyCooldownPacket(player->GetGUID(), GetId(), -110000);
                             player->SendDirectMessage(&data);
                         }
                         break;

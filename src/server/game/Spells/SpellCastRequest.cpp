@@ -462,7 +462,6 @@ namespace WorldPackets::Spells
             request.destTransportGuid[4] = recvPacket.ReadBit();
         }
 
-
         if (hasMovement)
         {
             unkMovementLoopCounter = recvPacket.ReadBits(22);

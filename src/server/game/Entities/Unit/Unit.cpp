@@ -9696,6 +9696,23 @@ bool Unit::IsImmunedToDamage(Unit const* caster, SpellInfo const* spellInfo) con
     return false;
 }
 
+uint32 Unit::GetSchoolImmunityMask() const
+{
+    uint32 mask = 0;
+    for (auto const& [schoolMask, spellId] : m_spellImmune[IMMUNITY_SCHOOL])
+        mask |= schoolMask;
+    return mask;
+}
+
+uint32 Unit::GetMechanicImmunityMask() const
+{
+    uint32 mask = 0;
+    for (auto const& [mechanic, spellId] : m_spellImmune[IMMUNITY_MECHANIC])
+        if (mechanic < 32)
+            mask |= 1 << mechanic;
+    return mask;
+}
+
 bool Unit::IsImmunedToSchool(SpellSchoolMask schoolMask) const
 {
     if (schoolMask == SPELL_SCHOOL_MASK_NONE)
@@ -16887,23 +16904,69 @@ void Unit::PatchValuesUpdate(ByteBuffer& valuesUpdateBuf, BuildValuesCachePosPoi
 
 void Unit::BuildCooldownPacket(WorldPacket& data, uint8 flags, uint32 spellId, uint32 cooldown)
 {
-    data.Initialize(SMSG_SPELL_COOLDOWN, 8 + 1 + 4 + 4);
-    data << GetGUID();
-    data << uint8(flags);
-    data << uint32(spellId);
-    data << uint32(cooldown);
+    PacketCooldowns cooldowns;
+    cooldowns[spellId] = cooldown;
+    BuildCooldownPacket(data, flags, cooldowns);
 }
 
-void Unit::BuildCooldownPacket(WorldPacket& data, uint8 flags, PacketCooldowns const& cooldowns)
+void Unit::BuildCooldownPacket(WorldPacket& data, uint8 /*flags*/, PacketCooldowns const& cooldowns)
 {
-    data.Initialize(SMSG_SPELL_COOLDOWN, 8 + 1 + (4 + 4) * cooldowns.size());
-    data << GetGUID();
-    data << uint8(flags);
-    for (std::unordered_map<uint32, uint32>::const_iterator itr = cooldowns.begin(); itr != cooldowns.end(); ++itr)
+    // 5.4.8 18414, from Project SkyFire. Where the optional flags byte sits is not known, SkyFire
+    // never sends it, so the cooldowns go without it.
+    ObjectGuid guid = GetGUID();
+    data.Initialize(SMSG_SPELL_COOLDOWN, 1 + 8 + 3 + (4 + 4) * cooldowns.size());
+    data.WriteGuidMask(guid, { 0, 6 });
+    data.WriteBit(true);                                    // no flags
+    data.WriteGuidMask(guid, { 7, 3, 1, 5 });
+    data.WriteBits(cooldowns.size(), 21);
+    data.WriteGuidMask(guid, { 2, 4 });
+    data.FlushBits();
+    for (auto const& [spellId, cooldown] : cooldowns)
     {
-        data << uint32(itr->first);
-        data << uint32(itr->second);
+        data << uint32(spellId);
+        data << uint32(cooldown);
     }
+    data.WriteGuidBytes(guid, { 5, 3, 7, 4, 1, 0, 2, 6 });
+}
+
+WorldPacket Unit::BuildClearCooldownPacket(ObjectGuid guid, uint32 spellId)
+{
+    // 5.4.8 18414, from Project SkyFire
+    WorldPacket data(SMSG_CLEAR_COOLDOWN, 1 + 8 + 4);
+    data.WriteGuidMask(guid, { 3, 6, 2 });
+    data.WriteBit(false);                                   // clear on hold
+    data.WriteGuidMask(guid, { 7, 0, 1, 5, 4 });
+    data.FlushBits();
+    data.WriteGuidBytes(guid, { 0, 1, 2, 7, 3, 6, 5 });
+    data << uint32(spellId);
+    data.WriteGuidBytes(guid, { 4 });
+    return data;
+}
+
+WorldPacket Unit::BuildCooldownEventPacket(ObjectGuid guid, uint32 spellId)
+{
+    // 5.4.8 18414, from Project SkyFire
+    WorldPacket data(SMSG_COOLDOWN_EVENT, 1 + 8 + 4);
+    data.WriteGuidMask(guid, { 4, 7, 1, 5, 6, 0, 2, 3 });
+    data.FlushBits();
+    data.WriteGuidBytes(guid, { 5, 7 });
+    data << uint32(spellId);
+    data.WriteGuidBytes(guid, { 3, 1, 2, 4, 6, 0 });
+    return data;
+}
+
+WorldPacket Unit::BuildModifyCooldownPacket(ObjectGuid guid, uint32 spellId, int32 delta)
+{
+    // 5.4.8 18414, from Project SkyFire
+    WorldPacket data(SMSG_MODIFY_COOLDOWN, 1 + 8 + 4 + 4);
+    data.WriteGuidMask(guid, { 2, 1, 0, 4, 7, 3, 6, 5 });
+    data.FlushBits();
+    data.WriteGuidBytes(guid, { 4, 1 });
+    data << int32(delta);                                   // cooldown mod in milliseconds
+    data.WriteGuidBytes(guid, { 3, 6, 7, 5, 0 });
+    data << uint32(spellId);
+    data.WriteGuidBytes(guid, { 2 });
+    return data;
 }
 
 uint8 Unit::getRace(bool original) const
