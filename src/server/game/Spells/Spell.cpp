@@ -1749,7 +1749,7 @@ void Spell::SelectImplicitCasterDestTargets(SpellEffIndex effIndex, SpellImplici
                     break;
                 case TARGET_DEST_CASTER_RANDOM:
                     if (dist > objSize)
-                        dist = objSize + (dist - objSize) * float(rand_norm());
+                        dist = objSize + (dist - objSize) * std::sqrt(float(rand_norm())); // uniform over the area
                     break;
                 case TARGET_DEST_CASTER_FRONT_LEFT:
                 case TARGET_DEST_CASTER_BACK_LEFT:
@@ -1799,7 +1799,7 @@ void Spell::SelectImplicitTargetDestTargets(SpellEffIndex effIndex, SpellImplici
             float dist = m_spellInfo->Effects[effIndex].CalcRadius(nullptr);
             if (targetType.GetTarget() == TARGET_DEST_TARGET_RANDOM)
             {
-                dist *= float(rand_norm());
+                dist *= std::sqrt(float(rand_norm()));      // uniform over the area
             }
 
             if (targetType.GetTarget() == TARGET_DEST_TARGET_BACK)
@@ -1841,7 +1841,7 @@ void Spell::SelectImplicitDestDestTargets(SpellEffIndex effIndex, SpellImplicitT
             float angle = targetType.CalcDirectionAngle();
             float dist = m_spellInfo->Effects[effIndex].CalcRadius(m_caster);
             if (targetType.GetTarget() == TARGET_DEST_DEST_RANDOM)
-                dist *= float(rand_norm());
+                dist *= std::sqrt(float(rand_norm()));          // uniform over the area
 
             Position pos = dest._position;
             m_caster->MovePositionToFirstCollision(pos, dist, angle);
