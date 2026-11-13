@@ -16,6 +16,7 @@
  */
 
 #include "GuildFinderPackets.h"
+#include "GameTime.h"
 
 // The Guild Finder opcodes carry their ObjectGuid using real Cata's bit-packed wire format (a
 // per-byte "is this byte present" bitmask written/read in one client-chosen order, followed by the
@@ -66,110 +67,80 @@ namespace
     }
 }
 
+// 5.4.8 18414 layouts, from Project SkyFire
 void WorldPackets::GuildFinder::AddRecruit::Read()
 {
     uint32 classRoles = 0;
-    uint32 interests = 0;
     uint32 availability = 0;
-    _worldPacket >> classRoles >> interests >> availability;
+    uint32 interests = 0;
+    _worldPacket >> classRoles >> availability >> interests;
     ClassRoles = classRoles;
-    Interests = interests;
     Availability = availability;
+    Interests = interests;
 
-    // The two string bit-lengths are interleaved with the guid's presence-mask bits in the real
-    // capture, so this one packet reads its guid by hand instead of via ReadGuidBits/ReadGuidBytes.
     bool mask[8] = {};
-    mask[3] = _worldPacket.ReadBit();
-    mask[0] = _worldPacket.ReadBit();
-    mask[6] = _worldPacket.ReadBit();
-    mask[1] = _worldPacket.ReadBit();
-    uint16 commentLength = _worldPacket.ReadBits(11);
-    mask[5] = _worldPacket.ReadBit();
-    mask[4] = _worldPacket.ReadBit();
-    mask[7] = _worldPacket.ReadBit();
-    uint8 nameLength = _worldPacket.ReadBits(7);
-    mask[2] = _worldPacket.ReadBit();
+    ReadGuidBits(_worldPacket, mask, { 7, 5, 2, 6, 1, 0 });
+    uint16 commentLength = _worldPacket.ReadBits(10);
+    ReadGuidBits(_worldPacket, mask, { 3, 4 });
 
     uint8 bytes[8] = {};
-    if (mask[4]) _worldPacket >> bytes[4];
-    if (mask[5]) _worldPacket >> bytes[5];
+    ReadGuidBytes(_worldPacket, bytes, mask, { 4, 0, 2 });
     Comment = _worldPacket.ReadString(commentLength);
-    _worldPacket.ReadString(nameLength); // applicant's own name, unused server-side (see header)
-    if (mask[7]) _worldPacket >> bytes[7];
-    if (mask[2]) _worldPacket >> bytes[2];
-    if (mask[0]) _worldPacket >> bytes[0];
-    if (mask[6]) _worldPacket >> bytes[6];
-    if (mask[1]) _worldPacket >> bytes[1];
-    if (mask[3]) _worldPacket >> bytes[3];
+    ReadGuidBytes(_worldPacket, bytes, mask, { 6, 1, 5, 7, 3 });
 
     GuildGuid = AssembleGuid(bytes);
 }
 
 void WorldPackets::GuildFinder::Browse::Read()
 {
-    uint32 classRoles = 0;
-    uint32 availability = 0;
-    uint32 interests = 0;
     uint32 level = 0;
-    _worldPacket >> classRoles >> availability >> interests >> level;
-    ClassRoles = classRoles;
-    Availability = availability;
-    Interests = interests;
+    uint32 availability = 0;
+    uint32 classRoles = 0;
+    uint32 interests = 0;
+    _worldPacket >> level >> availability >> classRoles >> interests;
     PlayerLevel = level;
+    Availability = availability;
+    ClassRoles = classRoles;
+    Interests = interests;
 }
 
 WorldPacket const* WorldPackets::GuildFinder::BrowseUpdated::Write()
 {
-    _worldPacket.WriteBits(Guilds.size(), 19);
+    _worldPacket.WriteBits(Guilds.size(), 18);
 
     ByteBuffer bufferData;
     for (BrowseEntry const& entry : Guilds)
     {
-        WriteGuidBits(_worldPacket, entry.GuildGuid, { 7, 5 });
-        _worldPacket.WriteBits(entry.GuildName.size(), 8);
-        WriteGuidBits(_worldPacket, entry.GuildGuid, { 0 });
-        _worldPacket.WriteBits(entry.Comment.size(), 11);
-        WriteGuidBits(_worldPacket, entry.GuildGuid, { 4, 1, 2, 6, 3 });
-
-        bufferData << uint32(entry.EmblemColor);
-        bufferData << uint32(entry.BorderStyle);
-        bufferData << uint32(entry.EmblemStyle);
-
-        bufferData.WriteString(entry.Comment);
-
-        bufferData << uint8(0); // Unk
-
-        WriteGuidBytes(bufferData, entry.GuildGuid, { 5 });
-
-        bufferData << uint32(entry.Interests);
-
-        WriteGuidBytes(bufferData, entry.GuildGuid, { 6, 4 });
-
-        bufferData << uint32(entry.GuildLevel);
-
-        bufferData.WriteString(entry.GuildName);
-
-        bufferData << uint32(entry.AchievementPoints);
-
-        WriteGuidBytes(bufferData, entry.GuildGuid, { 7 });
-
-        bufferData << uint8(entry.RequestPending);
-
-        WriteGuidBytes(bufferData, entry.GuildGuid, { 2, 0 });
-
-        bufferData << uint32(entry.Availability);
-
-        WriteGuidBytes(bufferData, entry.GuildGuid, { 1 });
-
-        bufferData << uint32(entry.BackgroundColor);
-        bufferData << uint32(0); // Unk Int (+128) - always 0 or 1 in TrinityCore's own capture; its
-                                  // meaning was never identified upstream either, sent as 0.
-        bufferData << uint32(entry.BorderColor);
-        bufferData << uint32(entry.ClassRoles);
+        WriteGuidBits(_worldPacket, entry.GuildGuid, { 6, 5, 4, 0, 1 });
+        _worldPacket.WriteBits(entry.Comment.size(), 10);
+        WriteGuidBits(_worldPacket, entry.GuildGuid, { 3 });
+        _worldPacket.WriteBits(entry.GuildName.size(), 7);
+        WriteGuidBits(_worldPacket, entry.GuildGuid, { 7, 2 });
 
         WriteGuidBytes(bufferData, entry.GuildGuid, { 3 });
-
+        bufferData << uint32(entry.EmblemStyle);
+        bufferData << uint8(entry.RequestPending);
+        WriteGuidBytes(bufferData, entry.GuildGuid, { 0 });
+        bufferData << uint32(entry.AchievementPoints);
+        WriteGuidBytes(bufferData, entry.GuildGuid, { 2 });
+        bufferData << uint32(entry.Interests);
+        bufferData << uint32(entry.BackgroundColor);
+        bufferData << uint32(entry.GuildLevel);
+        bufferData << uint32(entry.Availability);
+        bufferData << uint32(entry.ClassRoles);
+        WriteGuidBytes(bufferData, entry.GuildGuid, { 5 });
+        bufferData << uint8(0);                                 // unknown
+        bufferData.WriteString(entry.GuildName);
+        bufferData << uint32(0);                                // unknown
+        bufferData << uint32(entry.BorderStyle);
+        WriteGuidBytes(bufferData, entry.GuildGuid, { 7 });
+        bufferData << uint32(entry.EmblemColor);
+        WriteGuidBytes(bufferData, entry.GuildGuid, { 6 });
+        bufferData << uint32(0);                                // unknown
+        bufferData.WriteString(entry.Comment);
+        bufferData << uint32(entry.BorderColor);
         bufferData << uint32(entry.MemberCount);
+        WriteGuidBytes(bufferData, entry.GuildGuid, { 1, 4 });
     }
 
     _worldPacket.FlushBits();
@@ -181,10 +152,10 @@ WorldPacket const* WorldPackets::GuildFinder::BrowseUpdated::Write()
 void WorldPackets::GuildFinder::DeclineRecruit::Read()
 {
     bool mask[8] = {};
-    ReadGuidBits(_worldPacket, mask, { 1, 4, 5, 2, 6, 7, 0, 3 });
+    ReadGuidBits(_worldPacket, mask, { 6, 7, 3, 1, 2, 0, 4, 5 });
 
     uint8 bytes[8] = {};
-    ReadGuidBytes(_worldPacket, bytes, mask, { 5, 7, 2, 3, 4, 1, 0, 6 });
+    ReadGuidBytes(_worldPacket, bytes, mask, { 0, 7, 1, 6, 4, 3, 5, 2 });
 
     PlayerGuid = AssembleGuid(bytes);
 }
@@ -193,38 +164,31 @@ WorldPacket const* WorldPackets::GuildFinder::MembershipListUpdated::Write()
 {
     _worldPacket.WriteBits(Applications.size(), 20);
 
-    if (!Applications.empty())
+    ByteBuffer bufferData;
+    for (MembershipApplication const& app : Applications)
     {
-        ByteBuffer bufferData;
-        for (MembershipApplication const& app : Applications)
-        {
-            WriteGuidBits(_worldPacket, app.GuildGuid, { 1, 0, 5 });
-            _worldPacket.WriteBits(app.Comment.size(), 11);
-            WriteGuidBits(_worldPacket, app.GuildGuid, { 3, 7, 4, 6, 2 });
-            _worldPacket.WriteBits(app.GuildName.size(), 8);
+        // SkyFire lists guid bit 2 twice and never bit 1; the second one is taken as bit 1
+        WriteGuidBits(_worldPacket, app.GuildGuid, { 0, 4, 2, 7 });
+        _worldPacket.WriteBits(app.GuildName.size(), 7);
+        WriteGuidBits(_worldPacket, app.GuildGuid, { 1, 3 });
+        _worldPacket.WriteBits(app.Comment.size(), 10);
+        WriteGuidBits(_worldPacket, app.GuildGuid, { 6, 5 });
 
-            WriteGuidBytes(bufferData, app.GuildGuid, { 2 });
-            bufferData.WriteString(app.Comment);
-            WriteGuidBytes(bufferData, app.GuildGuid, { 5 });
-            bufferData.WriteString(app.GuildName);
-
-            bufferData << uint32(app.Availability);
-            bufferData << uint32(app.SecondsUntilExpiry);
-
-            WriteGuidBytes(bufferData, app.GuildGuid, { 0, 6, 3, 7 });
-
-            bufferData << uint32(app.ClassRoles);
-
-            WriteGuidBytes(bufferData, app.GuildGuid, { 4, 1 });
-
-            bufferData << uint32(app.SecondsSinceSubmit);
-            bufferData << uint32(app.Interests);
-        }
-
-        _worldPacket.FlushBits();
-        _worldPacket.append(bufferData);
+        bufferData << uint32(app.Interests);
+        bufferData << uint32(0);                                // unknown
+        bufferData.WriteString(app.GuildName);
+        WriteGuidBytes(bufferData, app.GuildGuid, { 4 });
+        bufferData << uint32(app.ClassRoles);
+        WriteGuidBytes(bufferData, app.GuildGuid, { 6, 5 });
+        bufferData << uint32(app.SecondsSinceSubmit);
+        WriteGuidBytes(bufferData, app.GuildGuid, { 1, 3, 0, 7, 2 });
+        bufferData << uint32(app.SecondsUntilExpiry);
+        bufferData << uint32(app.Availability);
+        bufferData.WriteString(app.Comment);
     }
 
+    _worldPacket.FlushBits();
+    _worldPacket.append(bufferData);
     _worldPacket << uint32(ApplicationsLeft);
 
     return &_worldPacket;
@@ -250,36 +214,24 @@ WorldPacket const* WorldPackets::GuildFinder::RecruitListUpdated::Write()
         WriteGuidBits(_worldPacket, recruit.PlayerGuid, { 5, 1, 6 });
 
         WriteGuidBytes(dataBuffer, recruit.PlayerGuid, { 4 });
-
         dataBuffer << int32(recruit.Available);
-
         WriteGuidBytes(dataBuffer, recruit.PlayerGuid, { 3, 0, 1 });
-
         dataBuffer << int32(recruit.Level);
-
         WriteGuidBytes(dataBuffer, recruit.PlayerGuid, { 6, 7, 2 });
-
         dataBuffer << int32(recruit.SecondsSinceSubmit);
         dataBuffer << int32(recruit.Availability);
         dataBuffer << int32(recruit.ClassRoles);
         dataBuffer << int32(recruit.Interests);
         dataBuffer << int32(recruit.SecondsUntilExpiry);
-
         dataBuffer.WriteString(recruit.Name);
         dataBuffer.WriteString(recruit.Comment);
-
         dataBuffer << int32(recruit.Class);
-
         WriteGuidBytes(dataBuffer, recruit.PlayerGuid, { 5 });
     }
 
     _worldPacket.FlushBits();
     _worldPacket.append(dataBuffer);
-    _worldPacket << uint32(0); // "Unk time" in TrinityCore's own capture - always sent as the
-                                // current server time there; the client-side meaning was never
-                                // identified upstream, and nothing here depends on a caller-visible
-                                // value, so this is a fixed placeholder rather than plumbing
-                                // GameTime through a packet field for a value nothing consumes.
+    _worldPacket << uint32(GameTime::GetGameTime().count());
 
     return &_worldPacket;
 }
@@ -290,20 +242,13 @@ WorldPacket const* WorldPackets::GuildFinder::PostUpdated::Write()
 
     if (IsGuildMaster)
     {
-        _worldPacket.WriteBits(Comment.size(), 11);
+        // SkyFire writes the comment before these bits; it goes after them here, the first byte field
         _worldPacket.WriteBit(Listed);
-        // TrinityCore's own capture goes straight from WriteBit() into raw '<<' writes here without
-        // an intervening FlushBits(). That leaves a partial bit-byte (11+1=12 bits, not
-        // byte-aligned) sitting in ByteBuffer's internal bit accumulator, never appended to the
-        // wire, when this packet's other fields are plain '<<' writes into the very same buffer
-        // (unlike BrowseUpdated/MembershipListUpdated/RecruitListUpdated below, which only ever
-        // write bits into _worldPacket and put every raw-byte field into a *separate* ByteBuffer
-        // appended afterward - a pattern that sidesteps this issue entirely). Flushing explicitly
-        // here fixes what looks like an upstream oversight rather than reproducing it.
+        _worldPacket.WriteBits(Comment.size(), 11);
         _worldPacket.FlushBits();
-        _worldPacket << uint32(Level);
         _worldPacket.WriteString(Comment);
-        _worldPacket << uint32(0); // Unk Int32 - unidentified upstream, always 0 there too.
+        _worldPacket << uint32(Level);
+        _worldPacket << uint32(0);                              // unknown
         _worldPacket << uint32(Availability);
         _worldPacket << uint32(ClassRoles);
         _worldPacket << uint32(Interests);
@@ -317,10 +262,10 @@ WorldPacket const* WorldPackets::GuildFinder::PostUpdated::Write()
 void WorldPackets::GuildFinder::RemoveRecruit::Read()
 {
     bool mask[8] = {};
-    ReadGuidBits(_worldPacket, mask, { 0, 4, 3, 5, 7, 6, 2, 1 });
+    ReadGuidBits(_worldPacket, mask, { 7, 5, 4, 1, 6, 3, 2, 0 });
 
     uint8 bytes[8] = {};
-    ReadGuidBytes(_worldPacket, bytes, mask, { 4, 0, 3, 6, 5, 1, 2, 7 });
+    ReadGuidBytes(_worldPacket, bytes, mask, { 6, 3, 7, 1, 2, 0, 5, 4 });
 
     GuildGuid = AssembleGuid(bytes);
 }
@@ -329,15 +274,15 @@ void WorldPackets::GuildFinder::SetGuildPost::Read()
 {
     uint32 level = 0;
     uint32 availability = 0;
-    uint32 interests = 0;
     uint32 classRoles = 0;
-    _worldPacket >> level >> availability >> interests >> classRoles;
+    uint32 interests = 0;
+    _worldPacket >> level >> availability >> classRoles >> interests;
     Level = level;
     Availability = availability;
-    Interests = interests;
     ClassRoles = classRoles;
+    Interests = interests;
 
-    uint16 length = _worldPacket.ReadBits(11);
+    uint16 length = _worldPacket.ReadBits(10);
     Listed = _worldPacket.ReadBit();
     Comment = _worldPacket.ReadString(length);
 }

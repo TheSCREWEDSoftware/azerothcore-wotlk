@@ -27,11 +27,11 @@ namespace WorldPackets
 {
     namespace GuildFinder
     {
-        // CMSG_LF_GUILD_ADD_RECRUIT - a guildless player files a membership request against a guild.
+        // CMSG_LF_GUILD_ADD_APPLICATION (CMSG_LF_GUILD_ADD_RECRUIT before 5.x) - a guildless player files a membership request against a guild.
         class AddRecruit final : public ClientPacket
         {
         public:
-            AddRecruit(WorldPacket&& packet) : ClientPacket(CMSG_LF_GUILD_ADD_RECRUIT, std::move(packet)) { }
+            AddRecruit(WorldPacket&& packet) : ClientPacket(CMSG_LF_GUILD_ADD_APPLICATION, std::move(packet)) { }
 
             void Read() override;
 
@@ -200,11 +200,11 @@ namespace WorldPackets
             uint32 Interests = 0;
         };
 
-        // CMSG_LF_GUILD_REMOVE_RECRUIT - an applicant withdraws their own pending application.
+        // CMSG_LF_GUILD_REMOVE_APPLICATION (CMSG_LF_GUILD_REMOVE_RECRUIT before 5.x) - an applicant withdraws their own pending application.
         class RemoveRecruit final : public ClientPacket
         {
         public:
-            RemoveRecruit(WorldPacket&& packet) : ClientPacket(CMSG_LF_GUILD_REMOVE_RECRUIT, std::move(packet)) { }
+            RemoveRecruit(WorldPacket&& packet) : ClientPacket(CMSG_LF_GUILD_REMOVE_APPLICATION, std::move(packet)) { }
 
             void Read() override;
 
