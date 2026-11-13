@@ -555,8 +555,9 @@ void OpcodeTable::Initialize()
     /*0x7B0C*/ DEFINE_HANDLER(CMSG_SET_TRADE_ITEM,                                                   STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleSetTradeItemOpcode                 );
     /*0x7018*/ DEFINE_HANDLER(CMSG_CLEAR_TRADE_ITEM,                                                 STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleClearTradeItemOpcode               );
     /*0x3008*/ DEFINE_HANDLER(CMSG_SET_TRADE_GOLD,                                                   STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleSetTradeGoldOpcode                 );
+    /*0x3312*/ DEFINE_HANDLER(CMSG_SET_TRADE_CURRENCY,                                               STATUS_NEVER,      PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );
     /*0x5CA3*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_TRADE_STATUS,                                       STATUS_NEVER);
-    /*0x0121*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_TRADE_STATUS_EXTENDED,                              STATUS_NEVER);
+    /*0x70A2*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_TRADE_UPDATED,                                      STATUS_NEVER);
     /*0x4634*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_INITIALIZE_FACTIONS,                                STATUS_NEVER);
     /*0x2525*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_SET_FACTION_VISIBLE,                                STATUS_NEVER);
     /*0x0126*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_SET_FACTION_STANDING,                               STATUS_NEVER);

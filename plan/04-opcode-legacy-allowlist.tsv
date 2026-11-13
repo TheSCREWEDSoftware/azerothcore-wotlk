@@ -284,7 +284,6 @@ s2c	SMSG_SPELL_CHANCE_RESIST_PUSHBACK	#168	WotLK-only opcode with no 4.3.4 count
 s2c	SMSG_SPLINE_MOVE_FEATHER_FALL	#186	movement packet layout is ported with the movement work
 s2c	SMSG_SPLINE_MOVE_LAND_WALK	#186	movement packet layout is ported with the movement work
 s2c	SMSG_SPLINE_MOVE_NORMAL_FALL	#186	movement packet layout is ported with the movement work
-s2c	SMSG_TRADE_STATUS_EXTENDED	#182	grouping and social packets are ported with phase 9
 s2c	SMSG_UPDATE_LFG_LIST	#183	Dungeon Finder is ported with phase 10
 s2c	SMSG_VOICE_SESSION_ADJUST_PRIORITY	#182	grouping and social packets are ported with phase 9
 s2c	SMSG_VOICE_SESSION_ENABLE	#182	grouping and social packets are ported with phase 9

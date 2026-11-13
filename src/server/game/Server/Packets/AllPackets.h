@@ -42,6 +42,7 @@
 #include "SpellPackets.h"
 #include "SystemPackets.h"
 #include "TotemPackets.h"
+#include "TradePackets.h"
 #include "WorldStatePackets.h"
 
 #endif // AllPackets_h__
