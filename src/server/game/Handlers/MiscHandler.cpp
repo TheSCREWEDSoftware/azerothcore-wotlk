@@ -1757,42 +1757,177 @@ void WorldSession::HandleUpdateMissileTrajectory(WorldPacket& recvPacket)
 
     ObjectGuid guid;
     uint32 spellId;
-    float elevation, speed;
-    float curX, curY, curZ;
-    float targetX, targetY, targetZ;
-    uint8 moveStop;
+    uint32 moveMsgId;
+    float pitch, speed;
+    Position firePos, impactPos;
 
-    recvPacket >> guid >> spellId >> elevation >> speed;
-    recvPacket >> curX >> curY >> curZ;
-    recvPacket >> targetX >> targetY >> targetZ;
-    recvPacket >> moveStop;
+    recvPacket >> firePos.m_positionZ;
+    recvPacket >> firePos.m_positionX;
+    recvPacket >> pitch;
+    recvPacket >> impactPos.m_positionX;
+    recvPacket >> firePos.m_positionY;
+    recvPacket >> speed;
+    recvPacket >> impactPos.m_positionY;
+    recvPacket >> moveMsgId;
+    recvPacket >> spellId;
+    recvPacket >> impactPos.m_positionZ;
+
+    guid[5] = recvPacket.ReadBit();
+    guid[6] = recvPacket.ReadBit();
+    guid[0] = recvPacket.ReadBit();
+    guid[7] = recvPacket.ReadBit();
+    guid[1] = recvPacket.ReadBit();
+    guid[3] = recvPacket.ReadBit();
+    guid[2] = recvPacket.ReadBit();
+    guid[4] = recvPacket.ReadBit();
+
+    // The caster's movement status follows. Its layout only exists here, so it is read inline
+    // and, as in TrinityCore, dropped afterwards.
+    bool const hasStatus = recvPacket.ReadBit();
+    MovementInfo status;
+    bool hasFallData = false;
+    bool hasFallVelocity = false;
+    bool hasFacing = false;
+    bool hasTransportData = false;
+    bool hasTransportTime2 = false;
+    bool hasVehicleId = false;
+    bool hasSplineElevation = false;
+    bool hasPitch = false;
+    bool hasMoveTime = false;
+
+    if (hasStatus)
+    {
+        status.guid[2] = recvPacket.ReadBit();
+        recvPacket.ReadBit();                               // heightChangeFailed
+        bool const hasMovementFlags = !recvPacket.ReadBit();
+        recvPacket.ReadBit();                               // hasSpline
+        status.guid[4] = recvPacket.ReadBit();
+
+        if (hasMovementFlags)
+            recvPacket.ReadBits(30);
+
+        status.guid[3] = recvPacket.ReadBit();
+        hasPitch = recvPacket.ReadBit();
+        bool const hasMovementFlags2 = recvPacket.ReadBit();
+        hasTransportData = recvPacket.ReadBit();
+        status.guid[7] = recvPacket.ReadBit();
+
+        if (hasTransportData)
+        {
+            status.transport.guid[0] = recvPacket.ReadBit();
+            status.transport.guid[7] = recvPacket.ReadBit();
+            status.transport.guid[2] = recvPacket.ReadBit();
+            status.transport.guid[4] = recvPacket.ReadBit();
+            hasVehicleId = recvPacket.ReadBit();
+            status.transport.guid[5] = recvPacket.ReadBit();
+            status.transport.guid[3] = recvPacket.ReadBit();
+            status.transport.guid[6] = recvPacket.ReadBit();
+            hasTransportTime2 = recvPacket.ReadBit();
+            status.transport.guid[1] = recvPacket.ReadBit();
+        }
+
+        status.guid[6] = recvPacket.ReadBit();
+        hasFacing = !recvPacket.ReadBit();
+        hasMoveTime = !recvPacket.ReadBit();
+        status.guid[5] = recvPacket.ReadBit();
+        hasSplineElevation = !recvPacket.ReadBit();
+        status.guid[1] = recvPacket.ReadBit();
+        hasFallData = recvPacket.ReadBit();
+        status.guid[0] = recvPacket.ReadBit();
+
+        if (hasFallData)
+            hasFallVelocity = recvPacket.ReadBit();
+
+        if (hasMovementFlags2)
+            recvPacket.ReadBits(12);
+    }
+
+    recvPacket.ReadByteSeq(guid[2]);
+    recvPacket.ReadByteSeq(guid[1]);
+    recvPacket.ReadByteSeq(guid[3]);
+    recvPacket.ReadByteSeq(guid[7]);
+    recvPacket.ReadByteSeq(guid[6]);
+    recvPacket.ReadByteSeq(guid[4]);
+    recvPacket.ReadByteSeq(guid[0]);
+    recvPacket.ReadByteSeq(guid[5]);
+
+    if (hasStatus)
+    {
+        if (hasFallData)
+        {
+            if (hasFallVelocity)
+                recvPacket.read_skip(3 * sizeof(float));           // cos, sin, horizontal speed
+
+            recvPacket.read_skip<float>();                  // vertical speed
+            recvPacket.read_skip<uint32>();                 // fall time
+        }
+
+        if (hasFacing)
+            recvPacket.read_skip<float>();
+
+        if (hasTransportData)
+        {
+            recvPacket.read_skip<float>();                  // transport z
+            recvPacket.ReadByteSeq(status.transport.guid[3]);
+            recvPacket.ReadByteSeq(status.transport.guid[7]);
+            recvPacket.read_skip(2 * sizeof(float));               // transport x, orientation
+
+            if (hasTransportTime2)
+                recvPacket.read_skip<uint32>();
+
+            recvPacket.ReadByteSeq(status.transport.guid[2]);
+            recvPacket.read_skip<uint32>();                 // transport time
+            recvPacket.ReadByteSeq(status.transport.guid[0]);
+            recvPacket.read_skip<float>();                  // transport y
+
+            if (hasVehicleId)
+                recvPacket.read_skip<uint32>();
+
+            recvPacket.ReadByteSeq(status.transport.guid[4]);
+            recvPacket.ReadByteSeq(status.transport.guid[6]);
+            recvPacket.ReadByteSeq(status.transport.guid[1]);
+            recvPacket.read_skip<int8>();                   // seat
+            recvPacket.ReadByteSeq(status.transport.guid[5]);
+        }
+
+        if (hasSplineElevation)
+            recvPacket.read_skip<float>();
+
+        recvPacket.ReadByteSeq(status.guid[4]);
+
+        if (hasPitch)
+            recvPacket.read_skip<float>();
+
+        recvPacket.ReadByteSeq(status.guid[7]);
+        recvPacket.ReadByteSeq(status.guid[2]);
+
+        if (hasMoveTime)
+            recvPacket.read_skip<uint32>();
+
+        recvPacket.read_skip<float>();                      // x
+        recvPacket.ReadByteSeq(status.guid[5]);
+        recvPacket.ReadByteSeq(status.guid[3]);
+        recvPacket.ReadByteSeq(status.guid[1]);
+        recvPacket.ReadByteSeq(status.guid[0]);
+        recvPacket.read_skip(2 * sizeof(float));                   // y, z
+        recvPacket.ReadByteSeq(status.guid[6]);
+    }
 
     Unit* caster = ObjectAccessor::GetUnit(*_player, guid);
     Spell* spell = caster ? caster->GetCurrentSpell(CURRENT_GENERIC_SPELL) : nullptr;
     if (!spell || spell->m_spellInfo->Id != spellId || !spell->m_targets.HasDst() || !spell->m_targets.HasSrc())
-    {
-        recvPacket.rfinish();
         return;
-    }
 
     Position pos = *spell->m_targets.GetSrcPos();
-    pos.Relocate(curX, curY, curZ);
+    pos.Relocate(firePos.GetPositionX(), firePos.GetPositionY(), firePos.GetPositionZ());
     spell->m_targets.ModSrc(pos);
 
     pos = *spell->m_targets.GetDstPos();
-    pos.Relocate(targetX, targetY, targetZ);
+    pos.Relocate(impactPos.GetPositionX(), impactPos.GetPositionY(), impactPos.GetPositionZ());
     spell->m_targets.ModDst(pos);
 
-    spell->m_targets.SetElevation(elevation);
+    spell->m_targets.SetElevation(pitch);
     spell->m_targets.SetSpeed(speed);
-
-    if (moveStop)
-    {
-        uint32 opcode;
-        recvPacket >> opcode;
-        recvPacket.SetOpcode(opcode);
-        HandleMovementOpcodes(recvPacket);
-    }
 }
 
 void WorldSession::HandleRequestResearchHistory(WorldPackets::Archaeology::RequestResearchHistory& /*packet*/)
