@@ -24,8 +24,10 @@ void WorldSession::HandleGrantLevel(WorldPacket& recvData)
 {
     LOG_DEBUG("network", "WORLD: CMSG_GRANT_LEVEL");
 
+    // 5.4.8 18414, from Project SkyFire
     ObjectGuid guid;
-    recvData >> guid.ReadAsPacked();
+    recvData.ReadGuidMask(guid, { 2, 1, 5, 3, 7, 4, 0, 6 });
+    recvData.ReadGuidBytes(guid, { 1, 4, 2, 7, 5, 3, 6, 0 });
 
     Player* target = ObjectAccessor::GetPlayer(*_player, guid);
 
@@ -58,8 +60,11 @@ void WorldSession::HandleGrantLevel(WorldPacket& recvData)
         return;
     }
 
-    WorldPacket data2(SMSG_PROPOSE_LEVEL_GRANT, 8);
-    data2 << _player->GetPackGUID();
+    ObjectGuid granterGuid = _player->GetGUID();
+    WorldPacket data2(SMSG_PROPOSE_LEVEL_GRANT, 1 + 8);
+    data2.WriteGuidMask(granterGuid, { 6, 7, 2, 5, 3, 0, 1, 4 });
+    data2.FlushBits();
+    data2.WriteGuidBytes(granterGuid, { 2, 5, 6, 7, 1, 4, 3, 0 });
     target->SendDirectMessage(&data2);
 }
 
@@ -67,8 +72,10 @@ void WorldSession::HandleAcceptGrantLevel(WorldPacket& recvData)
 {
     LOG_DEBUG("network", "WORLD: CMSG_ACCEPT_LEVEL_GRANT");
 
+    // 5.4.8 18414, from Project SkyFire
     ObjectGuid guid;
-    recvData >> guid.ReadAsPacked();
+    recvData.ReadGuidMask(guid, { 2, 7, 5, 4, 3, 0, 1, 6 });
+    recvData.ReadGuidBytes(guid, { 5, 3, 2, 7, 4, 1, 0, 6 });
 
     Player* other = ObjectAccessor::GetPlayer(*_player, guid);
     if (!other)
