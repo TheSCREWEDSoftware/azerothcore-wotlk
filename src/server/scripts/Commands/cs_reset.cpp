@@ -291,6 +291,10 @@ public:
         {
             CharacterDatabase.Execute(CharacterDatabase.GetPreparedStatement(CHAR_UPD_ALL_HONOR_POINTS));
 
+            CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_ALL_CHAR_CURRENCY);
+            stmt->SetData(0, uint16(CURRENCY_TYPE_HONOR_POINTS));
+            CharacterDatabase.Execute(stmt);
+
             sWorldSessionMgr->DoForAllOnlinePlayers([](Player* player)
             {
                 player->SetHonorPoints(0);

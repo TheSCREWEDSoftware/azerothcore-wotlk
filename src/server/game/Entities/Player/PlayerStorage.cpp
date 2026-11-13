@@ -5375,7 +5375,7 @@ bool Player::LoadFromDB(ObjectGuid playerGuid, CharacterDatabaseQueryHolder cons
 
     _LoadArenaTeamInfo();
 
-    SetArenaPoints(fields[44].Get<uint32>());
+    uint32 const legacyArenaPoints = fields[44].Get<uint32>();
 
     // Honor lives in the currency storage; the characters column only seeds characters saved before that
     uint32 const legacyHonorPoints = fields[45].Get<uint32>();
@@ -5799,8 +5799,13 @@ bool Player::LoadFromDB(ObjectGuid playerGuid, CharacterDatabaseQueryHolder cons
         } while (currencyResult->NextRow());
     }
 
-    if (!_currencyStorage.contains(CURRENCY_TYPE_HONOR_POINTS) && legacyHonorPoints)
-        SetHonorPoints(legacyHonorPoints);
+    // The legacy characters columns hold honor/arena points granted while offline (or not migrated yet);
+    // fold them into the currencies, the next save clears them
+    if (legacyHonorPoints)
+        SetHonorPoints(GetHonorPoints() + legacyHonorPoints);
+
+    if (legacyArenaPoints)
+        SetArenaPoints(GetArenaPoints() + legacyArenaPoints);
 
     if (IsVoidStorageUnlocked())
         _LoadVoidStorage(holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_VOID_STORAGE));

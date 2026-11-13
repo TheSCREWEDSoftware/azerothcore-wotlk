@@ -6482,13 +6482,20 @@ void Player::SetHonorPoints(uint32 value)
         ModifyCurrency(CURRENCY_TYPE_HONOR_POINTS, int32(change), true, true);
 }
 
+uint32 Player::GetArenaPoints() const
+{
+    return GetCurrency(CURRENCY_TYPE_CONQUEST_POINTS, true);
+}
+
 void Player::SetArenaPoints(uint32 value)
 {
     if (value > sWorld->getIntConfig(CONFIG_MAX_ARENA_POINTS))
         value = sWorld->getIntConfig(CONFIG_MAX_ARENA_POINTS);
-    m_arenaPoints = value;
-    if (value)
-        AddKnownCurrency(ITEM_ARENA_POINTS_ID);
+
+    // Arena points became conquest points (currency 390), stored with 1/100 precision
+    int64 const change = int64(value) * CURRENCY_PRECISION - int64(GetCurrency(CURRENCY_TYPE_CONQUEST_POINTS, false));
+    if (change)
+        ModifyCurrency(CURRENCY_TYPE_CONQUEST_POINTS, int32(change), true, true);
 }
 
 void Player::ModifyHonorPoints(int32 value, CharacterDatabaseTransaction trans)
@@ -6519,16 +6526,28 @@ void Player::ModifyHonorPoints(int32 value, CharacterDatabaseTransaction trans)
 
 void Player::ModifyArenaPoints(int32 value, CharacterDatabaseTransaction trans)
 {
-    int32 newValue = int32(GetArenaPoints()) + value;
+    int64 newValue = int64(GetArenaPoints()) + value;
     if (newValue < 0)
-        newValue = 0;
-    SetArenaPoints(uint32(newValue));
+        value = -int32(GetArenaPoints());
+    else if (newValue > int64(sWorld->getIntConfig(CONFIG_MAX_ARENA_POINTS)))
+        value = int32(int64(sWorld->getIntConfig(CONFIG_MAX_ARENA_POINTS)) - int64(GetArenaPoints()));
+
+    // Gains are earned conquest (weekly cap and tracking apply); spending and refunds bypass that
+    ModifyCurrency(CURRENCY_TYPE_CONQUEST_POINTS, value * int32(CURRENCY_PRECISION), false, value < 0);
 
     if (trans)
     {
-        CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_UDP_CHAR_ARENA_POINTS);
-        stmt->SetData(0, newValue);
-        stmt->SetData(1, GetGUID().GetRawValue());
+        auto itr = _currencyStorage.find(CURRENCY_TYPE_CONQUEST_POINTS);
+        if (itr == _currencyStorage.end())
+            return;
+
+        CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_INS_CHAR_CURRENCY);
+        stmt->SetData(0, GetGUID().GetCounter());
+        stmt->SetData(1, uint16(CURRENCY_TYPE_CONQUEST_POINTS));
+        stmt->SetData(2, itr->second.Quantity);
+        stmt->SetData(3, itr->second.WeeklyQuantity);
+        stmt->SetData(4, itr->second.TrackedQuantity);
+        stmt->SetData(5, itr->second.Flags);
         trans->Append(stmt);
     }
 }
@@ -15673,8 +15692,8 @@ void Player::_SaveCharacter(bool create, CharacterDatabaseTransaction trans)
         ss << m_taxi.SaveTaxiDestinationsToString();
 
         stmt->SetData(index++, ss.str());
-        stmt->SetData(index++, GetArenaPoints());
-        stmt->SetData(index++, GetHonorPoints());
+        stmt->SetData(index++, 0); // arenaPoints: conquest lives in character_currency, the column only queues offline grants
+        stmt->SetData(index++, 0); // totalHonorPoints: honor lives in character_currency, the column only queues offline grants
         stmt->SetData(index++, GetTodayContribution());
         stmt->SetData(index++, GetYesterdayContribution());
         stmt->SetData(index++, GetUInt32Value(PLAYER_FIELD_LIFETIME_HONORABLE_KILLS));
@@ -15813,8 +15832,8 @@ void Player::_SaveCharacter(bool create, CharacterDatabaseTransaction trans)
         ss << m_taxi.SaveTaxiDestinationsToString();
 
         stmt->SetData(index++, ss.str());
-        stmt->SetData(index++, GetArenaPoints());
-        stmt->SetData(index++, GetHonorPoints());
+        stmt->SetData(index++, 0); // arenaPoints: conquest lives in character_currency, the column only queues offline grants
+        stmt->SetData(index++, 0); // totalHonorPoints: honor lives in character_currency, the column only queues offline grants
         stmt->SetData(index++, GetTodayContribution());
         stmt->SetData(index++, GetYesterdayContribution());
         stmt->SetData(index++, GetUInt32Value(PLAYER_FIELD_LIFETIME_HONORABLE_KILLS));
