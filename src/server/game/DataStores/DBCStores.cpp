@@ -102,6 +102,7 @@ DBCStorage <GtOCTRegenHPEntry>            sGtOCTRegenHPStore(GtOCTRegenHPfmt);
 //DBCStorage <GtOCTRegenMPEntry>            sGtOCTRegenMPStore(GtOCTRegenMPfmt);  -- not used currently
 DBCStorage <GtRegenHPPerSptEntry>         sGtRegenHPPerSptStore(GtRegenHPPerSptfmt);
 DBCStorage <GtRegenMPPerSptEntry>         sGtRegenMPPerSptStore(GtRegenMPPerSptfmt);
+DBCStorage <GtSpellScalingEntry>          sGtSpellScalingStore(GtSpellScalingfmt);
 
 DBCStorage <GuildPerkSpellsEntry>         sGuildPerkSpellsStore(GuildPerkSpellsfmt);
 
@@ -370,6 +371,7 @@ void LoadDBCStores(std::string const& dataPath)
     //LOAD_DBC(sGtOCTRegenMPStore,                  "gtOCTRegenMP.dbc",                     "gtoctregenmp_dbc");
     //LOAD_GT_DBC(sGtRegenHPPerSptStore,             "gtRegenHPPerSpt.dbc",                  "gtregenhpperspt_dbc");
     LOAD_GT_DBC(sGtRegenMPPerSptStore,              "gtRegenMPPerSpt.dbc",                  "gtregenmpperspt_dbc");
+    LOAD_DBC(sGtSpellScalingStore,                  "gtSpellScaling.dbc",                   nullptr);
     LOAD_DBC(sGuildPerkSpellsStore,                 "GuildPerkSpells.dbc",                  nullptr);
     LOAD_DBC(sHolidaysStore,                        "Holidays.dbc",                         "holidays_dbc");
     LOAD_DBC(sImportPriceArmorStore,                "ImportPriceArmor.dbc",                 nullptr);

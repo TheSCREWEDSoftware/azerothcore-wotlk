@@ -1171,6 +1171,11 @@ struct GtRegenMPPerSptEntry
     float    ratio;
 };
 
+struct GtSpellScalingEntry
+{
+    float    value;
+};
+
 // Cata Guild Leveling: real binary GuildPerkSpells.dbc, loaded like any other DBC (see
 // DBCStores.cpp). ID (index) is FT_SORT ('d'), elided per the real client format like
 // ItemReforgeEntry's neighbours - only GuildLevel/SpellID are actually stored.
