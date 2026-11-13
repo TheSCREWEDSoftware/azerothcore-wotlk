@@ -20,6 +20,7 @@
 #include "GameObjectAI.h"
 #include "Log.h"
 #include "ObjectMgr.h"
+#include "MovementPackets.h"
 #include "Opcodes.h"
 #include "Player.h"
 #include "ScriptMgr.h"
@@ -46,12 +47,14 @@ void WorldSession::HandleClientCastFlags(WorldPacket& recvPacket, uint8 castFlag
         targets.SetElevation(elevation);
         targets.SetSpeed(speed);
 
-        uint8 hasMovementData;
+        bool hasMovementData;
         recvPacket >> hasMovementData;
         if (hasMovementData)
         {
-            recvPacket.SetOpcode(recvPacket.read<uint32>());
-            HandleMovementOpcodes(recvPacket);
+            // 4.3.4 sends the caster's movement without an opcode; TrinityCore reads and drops it too
+            MovementInfo movementInfo;
+            WorldPackets::Movement::ReadGroundMovement(recvPacket, movementInfo,
+                WorldPackets::Movement::GetSpellCastMovementSequence());
         }
     }
     else if (castFlags & 0x8)   // Archaeology: fragment/keystone reagent substitution data
@@ -562,7 +565,7 @@ void WorldSession::HandleCastSpellOpcode(WorldPacket& recvPacket)
         return;
     }
 
-    // pussywizard: HandleClientCastFlags calls HandleMovementOpcodes, which can result in pretty much anything. Caster not in map will crash at GetMap() for spell difficulty in Spell constructor.
+    // pussywizard: caster not in map will crash at GetMap() for spell difficulty in Spell constructor.
     if (!mover->FindMap())
     {
         recvPacket.rfinish(); // prevent spam at ignore packet

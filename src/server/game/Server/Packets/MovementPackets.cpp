@@ -4301,6 +4301,80 @@ namespace
         MSEEnd,
     };
 
+    // Movement update embedded in CMSG_CAST_SPELL, CMSG_USE_ITEM and the pet cast packet
+    // when the cast carries a missile trajectory
+    MovementStatusElements const SpellCastMovement[] =
+    {
+        MSEPositionZ,
+        MSEPositionY,
+        MSEPositionX,
+        MSEHasFallData,
+        MSEHasTimestamp,
+        MSEHasOrientation,
+        MSEHasSpline,
+        MSEHasHeightChangeFailed,
+        MSEHasGuidByte6,
+        MSEHasGuidByte4,
+        MSEHasMovementFlags2,
+        MSEHasGuidByte3,
+        MSEHasGuidByte5,
+        MSEHasSplineElevation,
+        MSEHasPitch,
+        MSEHasGuidByte7,
+        MSEHasTransportData,
+        MSEHasGuidByte2,
+        MSEHasMovementFlags,
+        MSEHasGuidByte1,
+        MSEHasGuidByte0,
+        MSEHasTransportGuidByte6,
+        MSEHasTransportGuidByte2,
+        MSEHasTransportGuidByte5,
+        MSEHasTransportTime2,
+        MSEHasTransportGuidByte7,
+        MSEHasTransportGuidByte4,
+        MSEHasVehicleId,
+        MSEHasTransportGuidByte0,
+        MSEHasTransportGuidByte1,
+        MSEHasTransportGuidByte3,
+        MSEMovementFlags2,
+        MSEMovementFlags,
+        MSEHasFallDirection,
+        MSEGuidByte1,
+        MSEGuidByte4,
+        MSEGuidByte7,
+        MSEGuidByte3,
+        MSEGuidByte0,
+        MSEGuidByte2,
+        MSEGuidByte5,
+        MSEGuidByte6,
+        MSETransportSeat,
+        MSETransportOrientation,
+        MSETransportTime,
+        MSETransportGuidByte6,
+        MSETransportGuidByte5,
+        MSETransportTime2,
+        MSETransportPositionX,
+        MSETransportGuidByte4,
+        MSETransportPositionZ,
+        MSETransportGuidByte2,
+        MSETransportGuidByte0,
+        MSETransportVehicleId,
+        MSETransportGuidByte1,
+        MSETransportGuidByte3,
+        MSETransportPositionY,
+        MSETransportGuidByte7,
+        MSEOrientation,
+        MSESplineElevation,
+        MSEFallTime,
+        MSEFallSinAngle,
+        MSEFallCosAngle,
+        MSEFallHorizontalSpeed,
+        MSEFallVerticalSpeed,
+        MSETimestamp,
+        MSEPitch,
+        MSEEnd,
+    };
+
     MovementStatusElements const MovementKnockBackAck[] =
     {
         MSEPositionY,
@@ -4818,6 +4892,12 @@ WorldPackets::Movement::GetKnockBackSequence(uint16 opcode)
         case SMSG_MOVE_UPDATE_KNOCK_BACK: return MovementUpdateKnockBack;
         default: return nullptr;
     }
+}
+
+WorldPackets::Movement::MovementStatusElements const*
+WorldPackets::Movement::GetSpellCastMovementSequence()
+{
+    return SpellCastMovement;
 }
 
 WorldPacket const* WorldPackets::Movement::MoveKnockBack::Write()

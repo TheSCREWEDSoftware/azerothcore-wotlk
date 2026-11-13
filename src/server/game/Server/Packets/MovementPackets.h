@@ -137,6 +137,7 @@ namespace WorldPackets
         uint8 GetSpeedChangeAckMoveType(uint16 opcode);
         MovementStatusElements const* GetCollisionHeightSequence(uint16 opcode);
         MovementStatusElements const* GetKnockBackSequence(uint16 opcode);
+        MovementStatusElements const* GetSpellCastMovementSequence();
         MovementStatusElements const* GetMovementFlagSequence(uint16 opcode);
         void WriteTeleport(WorldPacket& packet, ObjectGuid guid, uint32 counter, Position const& pos,
             ObjectGuid transport = ObjectGuid::Empty);
