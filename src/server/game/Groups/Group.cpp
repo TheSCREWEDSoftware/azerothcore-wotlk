@@ -16,6 +16,7 @@
  */
 
 #include "Group.h"
+#include "DynamicObject.h"
 #include "AreaDefines.h"
 #include "Battleground.h"
 #include "BattlegroundMgr.h"
@@ -538,6 +539,9 @@ bool Group::AddMember(Player* player, uint8 roles /* = 0 */)
     SendUpdate();
 
     if (player)
+        SendRaidMarkersChanged(player);
+
+    if (player)
     {
         sScriptMgr->OnGroupAddMember(this, player->GetGUID());
 
@@ -780,6 +784,9 @@ bool Group::RemoveMember(ObjectGuid guid, RemoveMethod const& method /*= GROUP_R
 
         sScriptMgr->OnGroupRemoveMember(this, guid, method, kicker, reason);
 
+        if (player)
+            SendRaidMarkersChanged(player, true);
+
         SendUpdate();
 
         if (!validLeader)
@@ -866,6 +873,9 @@ void Group::ChangeLeader(ObjectGuid newLeaderGuid)
 void Group::ForcedDisband(bool hideDestroy /* = false */)
 {
     sScriptMgr->OnGroupDisband(this);
+
+    for (uint8 slot = 0; slot < MAX_RAID_MARKERS; ++slot)
+        ClearRaidMarker(slot);
 
     // Settle open rolls: only CountTheRoll unblocks a rolled item, and the looted object's roll timer
     // can't once the group is gone, so the item would stay locked
@@ -2919,4 +2929,71 @@ float Group::GetGuildXpRateForPlayer(Player* player) const
     }
 
     return 1.0f;
+}
+
+void Group::SetRaidMarker(uint8 slot, Player* summoner, ObjectGuid markerGuid)
+{
+    if (slot >= MAX_RAID_MARKERS)
+        return;
+
+    // a new marker in the same slot replaces the old one
+    ClearRaidMarker(slot);
+
+    m_raidMarkers[slot].SummonerGuid = summoner->GetGUID();
+    m_raidMarkers[slot].MarkerGuid = markerGuid;
+    SendRaidMarkersChanged();
+}
+
+void Group::ClearRaidMarker(uint8 slot)
+{
+    if (slot >= MAX_RAID_MARKERS || !m_raidMarkers[slot].MarkerGuid)
+        return;
+
+    RaidMarker const marker = m_raidMarkers[slot];
+    m_raidMarkers[slot] = RaidMarker();
+
+    if (Player* summoner = ObjectAccessor::FindPlayer(marker.SummonerGuid))
+        if (DynamicObject* dynObject = ObjectAccessor::GetDynamicObject(*summoner, marker.MarkerGuid))
+            dynObject->Remove();
+
+    SendRaidMarkersChanged();
+}
+
+void Group::OnRaidMarkerRemoved(ObjectGuid markerGuid)
+{
+    for (RaidMarker& marker : m_raidMarkers)
+    {
+        if (marker.MarkerGuid == markerGuid)
+        {
+            marker = RaidMarker();
+            SendRaidMarkersChanged();
+            return;
+        }
+    }
+}
+
+uint32 Group::GetRaidMarkerMask() const
+{
+    uint32 mask = 0;
+    for (uint8 slot = 0; slot < MAX_RAID_MARKERS; ++slot)
+        if (m_raidMarkers[slot].MarkerGuid)
+            mask |= 1 << slot;
+
+    return mask;
+}
+
+void Group::SendRaidMarkersChanged(Player* player /*= nullptr*/, bool clear /*= false*/) const
+{
+    WorldPacket data(SMSG_RAID_MARKERS_CHANGED, 4);
+    data << uint32(clear ? 0 : GetRaidMarkerMask());
+
+    if (player)
+    {
+        player->SendDirectMessage(&data);
+        return;
+    }
+
+    for (MemberSlot const& member : m_memberSlots)
+        if (Player* memberPlayer = ObjectAccessor::FindConnectedPlayer(member.guid))
+            memberPlayer->SendDirectMessage(&data);
 }

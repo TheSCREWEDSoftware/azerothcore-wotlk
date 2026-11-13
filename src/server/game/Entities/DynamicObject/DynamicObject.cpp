@@ -115,6 +115,7 @@ bool DynamicObject::CreateDynamicObject(ObjectGuid::LowType guidlow, Unit* caste
     SetGuidValue(DYNAMICOBJECT_CASTER, caster->GetGUID());
 
     SetUInt32Value(DYNAMICOBJECT_BYTES, spellInfo->SpellVisual[0] | (uint32(type) << 28));
+    _type = type;
     SetUInt32Value(DYNAMICOBJECT_SPELLID, spellInfo->Id);
     SetFloatValue(DYNAMICOBJECT_RADIUS, radius);
     SetUInt32Value(DYNAMICOBJECT_CASTTIME, GameTime::GetGameTimeMS().count());
@@ -178,6 +179,12 @@ void DynamicObject::Remove()
 {
     if (IsInWorld())
     {
+        // expired or replaced raid markers leave the group's marker list
+        if (_type == DYNAMIC_OBJECT_RAID_MARKER && _caster)
+            if (Player* player = _caster->ToPlayer())
+                if (Group* group = player->GetGroup())
+                    group->OnRaidMarkerRemoved(GetGUID());
+
         SendObjectDeSpawnAnim(GetGUID());
         RemoveFromWorld();
         AddObjectToRemoveList();

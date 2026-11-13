@@ -174,6 +174,8 @@ public:
 
 /** request member stats checken **/
 /** todo: uninvite people that not accepted invite **/
+constexpr uint8 MAX_RAID_MARKERS = 5;                       // world markers placed with spells 84996-85000
+
 class Group
 {
     friend class ToCloud9GroupHooks;
@@ -295,6 +297,13 @@ public:
     void SendTargetIconList(WorldSession* session);
     void SendUpdate();
     void SendUpdateToPlayer(ObjectGuid playerGUID, MemberSlot* slot = nullptr);
+
+    // raid world markers
+    void SetRaidMarker(uint8 slot, Player* summoner, ObjectGuid markerGuid);
+    void ClearRaidMarker(uint8 slot);
+    void OnRaidMarkerRemoved(ObjectGuid markerGuid);
+    [[nodiscard]] uint32 GetRaidMarkerMask() const;
+    void SendRaidMarkersChanged(Player* player = nullptr, bool clear = false) const;
     void UpdatePlayerOutOfRange(Player* player);
     // ignore: GUID of player that will be ignored
     void BroadcastPacket(WorldPacket const* packet, bool ignorePlayersInBGRaid, int group = -1, ObjectGuid ignore = ObjectGuid::Empty);
@@ -374,6 +383,12 @@ protected:
     Battlefield*        m_bfGroup;
     Battleground*       m_bgGroup;
     ObjectGuid          m_targetIcons[TARGETICONCOUNT];
+    struct RaidMarker
+    {
+        ObjectGuid SummonerGuid;
+        ObjectGuid MarkerGuid;                              // the marker dynamic object
+    };
+    std::array<RaidMarker, MAX_RAID_MARKERS> m_raidMarkers;
     LootMethod          m_lootMethod;
     ItemQualities       m_lootThreshold;
     ObjectGuid          m_looterGuid;

@@ -29,6 +29,7 @@ enum DynamicObjectType
     DYNAMIC_OBJECT_PORTAL           = 0x0,      // unused
     DYNAMIC_OBJECT_AREA_SPELL       = 0x1,
     DYNAMIC_OBJECT_FARSIGHT_FOCUS   = 0x2,
+    DYNAMIC_OBJECT_RAID_MARKER      = 0x3,
 };
 
 class DynamicObject : public WorldObject, public GridObject<DynamicObject>, public MovableMapObject, public UpdatableMapObject
@@ -71,6 +72,7 @@ protected:
     Aura* _aura;
     Aura* _removedAura;
     Unit* _caster;
+    DynamicObjectType _type = DYNAMIC_OBJECT_PORTAL;
     int32 _duration; // for non-aura dynobjects
     bool _isViewpoint;
     uint32 _updateViewerVisibilityTimer;

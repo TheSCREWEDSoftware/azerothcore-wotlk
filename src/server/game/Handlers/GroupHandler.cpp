@@ -1001,3 +1001,25 @@ void WorldSession::HandleRolePollBeginOpcode(WorldPacket& recvData)
 
     group->BroadcastPacket(&data, true);
 }
+
+void WorldSession::HandleClearRaidMarkerOpcode(WorldPacket& recvData)
+{
+    uint8 slot;
+    recvData >> slot;
+
+    Group* group = GetPlayer()->GetGroup();
+    if (!group)
+        return;
+
+    if (group->isRaidGroup() && !group->IsLeader(GetPlayer()->GetGUID()) && !group->IsAssistant(GetPlayer()->GetGUID()))
+        return;
+
+    // any slot past the last marker clears all of them
+    if (slot >= MAX_RAID_MARKERS)
+    {
+        for (uint8 i = 0; i < MAX_RAID_MARKERS; ++i)
+            group->ClearRaidMarker(i);
+    }
+    else
+        group->ClearRaidMarker(slot);
+}

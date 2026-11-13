@@ -1132,6 +1132,7 @@ void WorldSession::HandlePlayerLoginFromDB(LoginQueryHolder const& holder)
     {
         group->SendUpdate();
         group->ResetMaxEnchantingLevel();
+        group->SendRaidMarkersChanged(pCurrChar);
     }
 
     // pussywizard: send instance welcome message as when entering the instance through a portal
