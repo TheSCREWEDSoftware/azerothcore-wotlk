@@ -193,6 +193,43 @@ namespace WorldPackets
             int64 GuildCurrentXP = 0;
         };
 
+        // Cata Guild Challenges
+        class GuildChallengeUpdateRequest final : public ClientPacket
+        {
+        public:
+            GuildChallengeUpdateRequest(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_REQUEST_CHALLENGE_UPDATE, std::move(packet)) { }
+
+            void Read() override { }
+        };
+
+        class GuildChallengeUpdate final : public ServerPacket
+        {
+        public:
+            GuildChallengeUpdate() : ServerPacket(SMSG_GUILD_CHALLENGE_UPDATE, 80) { }
+
+            WorldPacket const* Write() override;
+
+            std::array<int32, MAX_GUILD_CHALLENGE_TYPES> Xp = { };
+            std::array<int32, MAX_GUILD_CHALLENGE_TYPES> CurrentCount = { };
+            std::array<int32, MAX_GUILD_CHALLENGE_TYPES> MaxCount = { };
+            std::array<int32, MAX_GUILD_CHALLENGE_TYPES> Gold = { };
+            std::array<int32, MAX_GUILD_CHALLENGE_TYPES> MaxLevelGold = { };
+        };
+
+        class GuildChallengeCompleted final : public ServerPacket
+        {
+        public:
+            GuildChallengeCompleted() : ServerPacket(SMSG_GUILD_CHALLENGE_COMPLETED, 20) { }
+
+            WorldPacket const* Write() override;
+
+            int32 ChallengeType = 0;
+            int32 GoldAwarded = 0;
+            int32 CurrentCount = 0;
+            int32 XpAwarded = 0;
+            int32 MaxCount = 0;
+        };
+
         class GuildRoster final : public ServerPacket
         {
         public:

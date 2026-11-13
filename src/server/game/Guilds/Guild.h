@@ -54,6 +54,17 @@ enum GuildMisc
 
 constexpr uint64 GUILD_BANK_MONEY_LIMIT = UI64LIT(0x7FFFFFFFFFFFF);
 
+// Cata Guild Challenges (see .agents/docs/porting-from-trinitycore.md). Types 1-3 match
+// TrinityCore's wire values exactly - index 0 is unused (matches upstream's array layout, where
+// _currChallengeCount[0] etc. are simply never touched).
+enum GuildChallengeType
+{
+    GUILD_CHALLENGE_TYPE_DUNGEON      = 1,
+    GUILD_CHALLENGE_TYPE_RAID         = 2,
+    GUILD_CHALLENGE_TYPE_RATED_BG     = 3,
+    MAX_GUILD_CHALLENGE_TYPES
+};
+
 enum GuildMemberData
 {
     GUILD_MEMBER_DATA_ZONEID,
@@ -714,6 +725,8 @@ public:
     uint64 GetTodayExperience() const { return _todayExperience; }
     void GiveXP(uint32 xp, Player* source, bool rewardedByChallenge = false);
     void SendGuildXP(WorldSession* session);
+    void CompleteChallenge(uint8 challengeType, Player* source);
+    void HandleGuildRequestChallengeUpdate(WorldSession* session) const;
 
     // Handle client commands
     void HandleRoster(WorldSession* session);
@@ -804,6 +817,7 @@ public:
     void SetBankTabText(uint8 tabId, std::string_view text);
 
     void ResetTimes(bool weekly = false);
+    void InitializeGuildChallengeRewards();
 
     [[nodiscard]] bool ModifyBankMoney(CharacterDatabaseTransaction trans, uint64 const& amount, bool add) { return _ModifyBankMoney(trans, amount, add); }
     [[nodiscard]] uint32 GetMemberSize() const { return m_members.size(); }
@@ -829,6 +843,13 @@ protected:
     uint8 _level = 1;
     uint64 _experience = 0;
     uint64 _todayExperience = 0;
+
+    // Cata Guild Challenges
+    uint32 _currChallengeCount[MAX_GUILD_CHALLENGE_TYPES] = { };
+    uint32 _maxChallengeCount[MAX_GUILD_CHALLENGE_TYPES] = { };
+    uint32 _challengeGold[MAX_GUILD_CHALLENGE_TYPES] = { };
+    uint32 _challengeGoldMaxLevel[MAX_GUILD_CHALLENGE_TYPES] = { };
+    uint32 _challengeXp[MAX_GUILD_CHALLENGE_TYPES] = { };
 
     std::vector<RankInfo> m_ranks;
     std::unordered_map<uint32, Member> m_members;

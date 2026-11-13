@@ -28,6 +28,7 @@
 /// Lists of opcodes by wire direction
 enum OpcodeClient : uint16
 {
+    CMSG_GUILD_REQUEST_CHALLENGE_UPDATE             = 0x1224,
     CMSG_BOOTME                                     = 0x001, // DEPRECATED
     CMSG_DBLOOKUP                                   = 0x002, // DEPRECATED
     CMSG_QUERY_OBJECT_POSITION                      = 0x004, // DEPRECATED
@@ -795,6 +796,11 @@ enum OpcodeClient : uint16
 
 enum OpcodeServer : uint16
 {
+    SMSG_GUILD_REWARD_LIST                          = 0x1DB0,
+    SMSG_GUILD_REPUTATION_REACTION_CHANGED          = 0x74B0,
+    SMSG_GUILD_REPUTATION_WEEKLY_CAP                = 0x30B7,
+    SMSG_GUILD_CHALLENGE_UPDATE                     = 0x18B1,
+    SMSG_GUILD_CHALLENGE_COMPLETED                  = 0x39A3,
     SMSG_DBLOOKUP                                   = 0x003, // DEPRECATED
     SMSG_QUERY_OBJECT_POSITION                      = 0x005, // DEPRECATED
     SMSG_QUERY_OBJECT_ROTATION                      = 0x007, // DEPRECATED

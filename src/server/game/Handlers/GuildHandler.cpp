@@ -475,3 +475,9 @@ void WorldSession::HandleGuildRequestMaxDailyXP(WorldPackets::Guild::GuildReques
         }
     }
 }
+
+void WorldSession::HandleGuildRequestChallengeUpdate(WorldPackets::Guild::GuildChallengeUpdateRequest& /*packet*/)
+{
+    if (Guild* guild = GetPlayer()->GetGuild())
+        guild->HandleGuildRequestChallengeUpdate(this);
+}

@@ -1053,6 +1053,12 @@ Guild::Guild():
     m_accountsNumber(0),
     m_bankMoney(0)
 {
+    // Cata Guild Challenges: seed max-count/reward tables from the world-table data GuildMgr
+    // loaded at startup. Safe to call unconditionally here (both the LoadFromDB and Create()
+    // paths go through this constructor first) - it only touches the reward-table-derived
+    // fields, never _currChallengeCount, so LoadFromDB's later restore of the persisted
+    // per-guild counters below is untouched.
+    InitializeGuildChallengeRewards();
 }
 
 Guild::~Guild()
@@ -2094,6 +2100,11 @@ bool Guild::LoadFromDB(Field* fields)
     _todayExperience = fields[15].Get<uint64>();
     if (_level < 1)
         _level = 1;
+
+    // Cata Guild Challenges: weekly-cycle completion counters, persisted per-guild.
+    _currChallengeCount[GUILD_CHALLENGE_TYPE_DUNGEON]  = fields[16].Get<uint32>();
+    _currChallengeCount[GUILD_CHALLENGE_TYPE_RAID]     = fields[17].Get<uint32>();
+    _currChallengeCount[GUILD_CHALLENGE_TYPE_RATED_BG] = fields[18].Get<uint32>();
 
     return true;
 }
@@ -3144,6 +3155,18 @@ void Guild::ResetTimes(bool weekly)
 {
     _todayExperience = 0;
 
+    if (weekly)
+    {
+        // Cata Guild Challenges: weekly-capped completion counters reset alongside the
+        // world-table-derived max-count/reward values (the latter also picks up any
+        // guild_challenges/Guild.MaxLevel config edits made since the last weekly reset).
+        InitializeGuildChallengeRewards();
+
+        CharacterDatabasePreparedStatement* resetStmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_GUILD_RESET_CHALLENGE);
+        resetStmt->SetData(0, m_id);
+        CharacterDatabase.Execute(resetStmt);
+    }
+
     for (auto& [guid, member] : m_members)
     {
         member.ResetValues(weekly);
@@ -3165,6 +3188,29 @@ void Guild::ResetTimes(bool weekly)
     CharacterDatabase.Execute(stmt);
 
     _BroadcastEvent(GE_BANK_TAB_AND_MONEY_UPDATED, ObjectGuid::Empty);
+}
+
+// Cata Guild Challenges: (re)seed the reward-table-derived fields from GuildMgr's in-memory
+// guild_challenges data. Always zeroes _currChallengeCount too - the only callers are the
+// constructor (nothing completed yet) and the weekly reset (which is supposed to zero it).
+void Guild::InitializeGuildChallengeRewards()
+{
+    for (uint8 i = 0; i < MAX_GUILD_CHALLENGE_TYPES; ++i)
+    {
+        _currChallengeCount[i] = 0;
+        _maxChallengeCount[i] = 0;
+        _challengeGold[i] = 0;
+        _challengeGoldMaxLevel[i] = 0;
+        _challengeXp[i] = 0;
+    }
+
+    for (GuildChallenge const& challenge : sGuildMgr->GetGuildChallengeData())
+    {
+        _maxChallengeCount[challenge.ChallengeType] = challenge.ChallengeCount;
+        _challengeGold[challenge.ChallengeType] = challenge.Gold;
+        _challengeGoldMaxLevel[challenge.ChallengeType] = challenge.GoldMaxLevel;
+        _challengeXp[challenge.ChallengeType] = challenge.Experience;
+    }
 }
 
 // Cata guild leveling. Ported from TrinityCore's Guild::GiveXP/SendGuildXP with the following
@@ -3276,4 +3322,63 @@ void Guild::SendGuildXP(WorldSession* session)
     packet.WeeklyXP = int64(member ? member->GetWeekActivity() : 0);
     packet.GuildCurrentXP = int64(GetExperience());
     session->SendPacket(packet.Write());
+}
+
+// Cata Guild Challenges. Ported from TrinityCore's Guild::CompleteChallenge with one
+// deliberate simplification vs. upstream: the uint64 gold-overflow clamp
+// (money = gold*10000 overflow guard via std::numeric_limits) is dropped - the multiplicand
+// comes from the guild_challenges world table (an admin-authored, small config value), never
+// from anything a player controls, so the overflow this guarded against cannot occur here.
+void Guild::CompleteChallenge(uint8 challengeType, Player* source)
+{
+    if (challengeType >= MAX_GUILD_CHALLENGE_TYPES)
+        return;
+
+    if (_currChallengeCount[challengeType] >= _maxChallengeCount[challengeType])
+        return;
+
+    _currChallengeCount[challengeType]++;
+
+    bool const maxLevel = GetLevel() >= sWorld->getIntConfig(CONFIG_GUILD_MAX_LEVEL);
+    uint64 gold = maxLevel ? _challengeGoldMaxLevel[challengeType] : _challengeGold[challengeType];
+    uint32 xp   = maxLevel ? _challengeXp[challengeType] : 0;
+
+    WorldPackets::Guild::GuildChallengeCompleted completed;
+    completed.ChallengeType = challengeType;
+    completed.GoldAwarded = int32(gold);
+    completed.CurrentCount = int32(_currChallengeCount[challengeType]);
+    completed.XpAwarded = int32(xp);
+    completed.MaxCount = int32(_maxChallengeCount[challengeType]);
+    BroadcastPacket(completed.Write());
+
+    // Reward: XP via the existing guild-leveling GiveXP path (rewardedByChallenge=true keeps
+    // this out of the today-XP daily cap, matching upstream), gold straight into the guild bank.
+    GiveXP(xp, source, true);
+
+    CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
+    _ModifyBankMoney(trans, gold * GOLD, true);
+
+    CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_GUILD_CHALLENGE);
+    stmt->SetData(0, _currChallengeCount[GUILD_CHALLENGE_TYPE_DUNGEON]);
+    stmt->SetData(1, _currChallengeCount[GUILD_CHALLENGE_TYPE_RAID]);
+    stmt->SetData(2, _currChallengeCount[GUILD_CHALLENGE_TYPE_RATED_BG]);
+    stmt->SetData(3, m_id);
+    trans->Append(stmt);
+    CharacterDatabase.CommitTransaction(trans);
+}
+
+void Guild::HandleGuildRequestChallengeUpdate(WorldSession* session) const
+{
+    WorldPackets::Guild::GuildChallengeUpdate update;
+
+    for (uint8 i = 0; i < MAX_GUILD_CHALLENGE_TYPES; ++i)
+    {
+        update.CurrentCount[i] = int32(_currChallengeCount[i]);
+        update.MaxCount[i] = int32(_maxChallengeCount[i]);
+        update.Gold[i] = int32(_challengeGold[i]);
+        update.MaxLevelGold[i] = int32(_challengeGoldMaxLevel[i]);
+        update.Xp[i] = int32(_challengeXp[i]);
+    }
+
+    session->SendPacket(update.Write());
 }

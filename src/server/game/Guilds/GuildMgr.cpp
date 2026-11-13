@@ -104,7 +104,9 @@ void GuildMgr::LoadGuilds()
         //          0          1       2             3              4              5              6
         QueryResult result = CharacterDatabase.Query("SELECT g.guildid, g.name, g.leaderguid, g.EmblemStyle, g.EmblemColor, g.BorderStyle, g.BorderColor, "
                              //   7                  8       9       10            11           12                        13        14            15
-                             "g.BackgroundColor, g.info, g.motd, g.createdate, g.BankMoney, COUNT(gbt.guildid), g.level, g.experience, g.todayExperience "
+                             "g.BackgroundColor, g.info, g.motd, g.createdate, g.BankMoney, COUNT(gbt.guildid), g.level, g.experience, g.todayExperience, "
+                             //   16                             17                          18
+                             "g.completedDungeonChallenges, g.completedRaidChallenges, g.completedRatedBattlegroundChallenges "
                              "FROM guild g LEFT JOIN guild_bank_tab gbt ON g.guildid = gbt.guildid GROUP BY g.guildid ORDER BY g.guildid ASC");
 
         if (!result)
@@ -460,5 +462,49 @@ void GuildMgr::LoadGuildXpForLevel()
             GuildXPperLevel[level] = GuildXPperLevel[level - 1] + 1660000;
 
     LOG_INFO("server.loading", ">> Loaded {} guild level XP requirements in {} ms", count, GetMSTimeDiffToNow(oldMSTime));
+    LOG_INFO("server.loading", " ");
+}
+
+// Cata Guild Challenges. Ported from TrinityCore's GuildMgr::LoadGuildChallenges. Must run
+// before LoadGuilds() - every Guild's constructor calls InitializeGuildChallengeRewards(),
+// which reads GuildChallenges immediately.
+void GuildMgr::LoadGuildChallenges()
+{
+    uint32 oldMSTime = getMSTime();
+
+    GuildChallenges.clear();
+
+    //                                                     0              1               2           3     4
+    QueryResult result = WorldDatabase.Query("SELECT ChallengeType, ChallengeCount, Experience, Gold, GoldMaxLevel FROM guild_challenges");
+
+    if (!result)
+    {
+        LOG_ERROR("server.loading", ">> Loaded 0 guild challenge definitions. DB table `guild_challenges` is empty.");
+        return;
+    }
+
+    uint32 count = 0;
+    do
+    {
+        Field* fields = result->Fetch();
+
+        GuildChallenge challenge;
+        challenge.ChallengeType = fields[0].Get<uint32>();
+        challenge.ChallengeCount = fields[1].Get<uint32>();
+        challenge.Experience = fields[2].Get<uint32>();
+        challenge.Gold = fields[3].Get<uint32>();
+        challenge.GoldMaxLevel = fields[4].Get<uint32>();
+
+        if (challenge.ChallengeType == 0 || challenge.ChallengeType >= MAX_GUILD_CHALLENGE_TYPES)
+        {
+            LOG_ERROR("server.loading", "Guild challenge type {} is invalid. Skipped.", challenge.ChallengeType);
+            continue;
+        }
+
+        GuildChallenges.push_back(challenge);
+        ++count;
+    } while (result->NextRow());
+
+    LOG_INFO("server.loading", ">> Loaded {} guild challenge definitions in {} ms", count, GetMSTimeDiffToNow(oldMSTime));
     LOG_INFO("server.loading", " ");
 }

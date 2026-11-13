@@ -770,6 +770,9 @@ void World::SetInitialWorldSettings()
     LOG_INFO("server.loading", "Loading Guild Level XP...");
     sGuildMgr->LoadGuildXpForLevel();
 
+    LOG_INFO("server.loading", "Loading Guild Challenges...");
+    sGuildMgr->LoadGuildChallenges();
+
     sGuildMgr->LoadGuilds();
 
     LOG_INFO("server.loading", "Loading ArenaTeams...");

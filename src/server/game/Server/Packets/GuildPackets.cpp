@@ -17,6 +17,20 @@
 
 #include "GuildPackets.h"
 
+// Cata Guild Challenges. Field order matches TrinityCore's real wire layout exactly
+// (ChallengeType, GoldAwarded, CurrentCount, XpAwarded, MaxCount) - it does not match the
+// struct's declaration order above, which is cosmetic only.
+WorldPacket const* WorldPackets::Guild::GuildChallengeCompleted::Write()
+{
+    _worldPacket << int32(ChallengeType);
+    _worldPacket << int32(GoldAwarded);
+    _worldPacket << int32(CurrentCount);
+    _worldPacket << int32(XpAwarded);
+    _worldPacket << int32(MaxCount);
+
+    return &_worldPacket;
+}
+
 void WorldPackets::Guild::QueryGuildInfo::Read()
 {
     _worldPacket >> GuildGuid;
@@ -846,6 +860,26 @@ void WorldPackets::Guild::SaveGuildEmblem::Read()
 WorldPacket const* WorldPackets::Guild::PlayerSaveGuildEmblem::Write()
 {
     _worldPacket << int32(Error);
+
+    return &_worldPacket;
+}
+
+WorldPacket const* WorldPackets::Guild::GuildChallengeUpdate::Write()
+{
+    for (int32 xp : Xp)
+        _worldPacket << int32(xp);
+
+    for (int32 gold : MaxLevelGold)
+        _worldPacket << int32(gold);
+
+    for (int32 count : MaxCount)
+        _worldPacket << int32(count);
+
+    for (int32 gold : Gold)
+        _worldPacket << int32(gold);
+
+    for (int32 count : CurrentCount)
+        _worldPacket << int32(count);
 
     return &_worldPacket;
 }

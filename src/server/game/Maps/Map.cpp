@@ -19,12 +19,14 @@
 #include "Battleground.h"
 #include "CellImpl.h"
 #include "Chat.h"
+#include "DBCStores.h"
 #include "DisableMgr.h"
 #include "DynamicTree.h"
 #include "GameTime.h"
 #include "Geometry.h"
 #include "GridNotifiers.h"
 #include "Group.h"
+#include "GuildMgr.h"
 #include "InstanceScript.h"
 #include "IVMapMgr.h"
 #include "LFGMgr.h"
@@ -3253,6 +3255,55 @@ void Map::UpdateEncounterState(EncounterCreditType type, uint32 creditEntry, Uni
     if (dungeonId)
     {
         Map::PlayerList const& players = GetPlayers();
+
+        // Cata Guild Challenges (see .agents/docs/porting-from-trinitycore.md). Ported from
+        // TrinityCore's InstanceScript::UpdateEncounterState guild-challenge block, which lives
+        // here instead - this fork's dungeon/raid completion signal is Map::UpdateEncounterState,
+        // not InstanceScript::UpdateEncounterState (this fork's InstanceScript has no such
+        // function; Map is where the completedEncounters mask and dungeonId are actually
+        // resolved). Deliberate simplification vs. upstream: TrinityCore only credits a "guild
+        // group" via Group::IsGuildGroupFor(), which requires a configurable percentage of the
+        // group to share one guild (Group::GetNeededMembersOfSameGuild()). This fork's Group has
+        // no guildId-per-slot tracking or that threshold machinery at all - a separate, larger
+        // gap already noted in the roadmap doc's Guild Leveling entry (kill-reward guild XP hit
+        // the same wall) - so this simply credits any non-GM grouped player's guild once,
+        // gated on the same "nobody in that guild's subset outlevels the dungeon" check upstream
+        // uses (LFGDungeonEntry::MaxLevel), using the highest level seen among that guild's
+        // members present rather than a percentage-of-group threshold.
+        if (LFGDungeonEntry const* lfgEntry = sLFGDungeonStore.LookupEntry(dungeonId))
+        {
+            std::unordered_map<uint32 /*guildId*/, uint8 /*maxMemberLevel*/> maxLevelByGuild;
+            std::unordered_map<uint32 /*guildId*/, Player*> creditPlayerByGuild;
+
+            for (Map::PlayerList::const_iterator i = players.begin(); i != players.end(); ++i)
+            {
+                Player* player = i->GetSource();
+                if (!player || player->IsGameMaster() || !player->GetGroup())
+                    continue;
+
+                if (Guild* guild = player->GetGuild())
+                {
+                    uint32 guildId = guild->GetId();
+                    creditPlayerByGuild[guildId] = player;
+
+                    auto it = maxLevelByGuild.find(guildId);
+                    if (it == maxLevelByGuild.end())
+                        maxLevelByGuild[guildId] = player->GetLevel();
+                    else if (player->GetLevel() > it->second)
+                        it->second = player->GetLevel();
+                }
+            }
+
+            for (auto const& [guildId, maxLevel] : maxLevelByGuild)
+            {
+                if (maxLevel > lfgEntry->MaxLevel)
+                    continue;
+
+                if (Guild* guild = sGuildMgr->GetGuildById(guildId))
+                    guild->CompleteChallenge(IsNonRaidDungeon() ? GUILD_CHALLENGE_TYPE_DUNGEON : GUILD_CHALLENGE_TYPE_RAID, creditPlayerByGuild[guildId]);
+            }
+        }
+
         for (Map::PlayerList::const_iterator i = players.begin(); i != players.end(); ++i)
         {
             if (Player* player = i->GetSource())

@@ -20,6 +20,16 @@
 
 #include "Guild.h"
 
+// Cata Guild Challenges: one row per GuildChallengeType from the world table `guild_challenges`.
+struct GuildChallenge
+{
+    uint32 ChallengeType = 0;
+    uint32 ChallengeCount = 0;
+    uint32 Experience = 0;
+    uint32 Gold = 0;
+    uint32 GoldMaxLevel = 0;
+};
+
 class GuildMgr
 {
 private:
@@ -46,12 +56,17 @@ public:
     // Cata guild leveling
     uint64 GetXPForGuildLevel(uint8 level) const;
     void LoadGuildXpForLevel();
+
+    // Cata Guild Challenges
+    void LoadGuildChallenges();
+    std::vector<GuildChallenge> const& GetGuildChallengeData() const { return GuildChallenges; }
 protected:
     typedef std::unordered_map<uint32, Guild*> GuildContainer;
     uint32 NextGuildId;
     GuildContainer GuildStore;
 
     std::vector<uint64> GuildXPperLevel;
+    std::vector<GuildChallenge> GuildChallenges;
 };
 
 #define sGuildMgr GuildMgr::instance()
