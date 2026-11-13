@@ -204,6 +204,31 @@ namespace WorldPackets
             uint32 Cap = 0;
         };
 
+        class GuildMemberUpdateNote final : public ServerPacket
+        {
+        public:
+            GuildMemberUpdateNote() : ServerPacket(SMSG_GUILD_MEMBER_UPDATE_NOTE, 1 + 1 + 1 + 8 + 256) { }
+
+            WorldPacket const* Write() override;
+
+            ObjectGuid Member;
+            bool IsPublic = false;
+            std::string Note;
+        };
+
+        class GuildRanksUpdate final : public ServerPacket
+        {
+        public:
+            GuildRanksUpdate() : ServerPacket(SMSG_GUILD_RANKS_UPDATE, 2 + 4 + 16) { }
+
+            WorldPacket const* Write() override;
+
+            ObjectGuid Officer;
+            ObjectGuid Other;
+            int32 RankID = 0;
+            bool Promote = false;
+        };
+
         class GuildRequestPartyState final : public ClientPacket
         {
         public:
@@ -405,7 +430,8 @@ namespace WorldPackets
         class GuildCommandResult final : public ServerPacket
         {
         public:
-            GuildCommandResult() : ServerPacket(SMSG_GUILD_COMMAND_RESULT, 9) { }
+            // SMSG_GUILD_COMMAND_RESULT has the same layout; the client handles _2 as soon as it is read
+            GuildCommandResult() : ServerPacket(SMSG_GUILD_COMMAND_RESULT_2, 9) { }
 
             WorldPacket const* Write() override;
 

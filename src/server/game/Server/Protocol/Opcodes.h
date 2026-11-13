@@ -818,6 +818,9 @@ enum OpcodeClient : uint16
 
 enum OpcodeServer : uint16
 {
+    SMSG_GUILD_RANKS_UPDATE                         = 0x5DA0,
+    SMSG_GUILD_MEMBER_UPDATE_NOTE                   = 0x7CA0,
+    SMSG_GUILD_COMMAND_RESULT_2                     = 0x2707,
     SMSG_GUILD_MEMBER_RECIPES                       = 0x1CB0,
     SMSG_GUILD_MEMBERS_WITH_RECIPE                  = 0x1CB7,
     SMSG_GUILD_PARTY_STATE_RESPONSE                 = 0x50A6,

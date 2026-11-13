@@ -1713,7 +1713,17 @@ void Guild::HandleSetMemberNote(WorldSession* session, std::string_view name, st
         else
             member->SetOfficerNote(note);
 
-        HandleRoster(session);
+        WorldPackets::Guild::GuildMemberUpdateNote updateNote;
+        updateNote.Member = member->GetGUID();
+        updateNote.IsPublic = isPublic;
+        updateNote.Note = note;
+        updateNote.Write();
+
+        // Officer notes only go to the ranks that may read them
+        for (auto const& [guid, other] : m_members)
+            if (isPublic || (_GetRankRights(other.GetRankId()) & GR_RIGHT_VIEWOFFNOTE))
+                if (Player* otherPlayer = other.FindPlayer())
+                    otherPlayer->SendDirectMessage(updateNote.GetRawPacket());
     }
 }
 
@@ -2051,6 +2061,13 @@ void Guild::HandleSetMemberRank(WorldSession* session, ObjectGuid targetGuid, ui
         SendCommandResult(session, type, ERR_GUILD_RANK_TOO_HIGH_S, member->GetName());
         return;
     }
+
+    WorldPackets::Guild::GuildRanksUpdate ranksUpdate;
+    ranksUpdate.Officer = player->GetGUID();
+    ranksUpdate.Other = member->GetGUID();
+    ranksUpdate.RankID = int32(newRankId);
+    ranksUpdate.Promote = !demote;
+    BroadcastPacket(ranksUpdate.Write());
 
     member->ChangeRank(newRankId);
     _LogEvent(demote ? GUILD_EVENT_LOG_DEMOTE_PLAYER : GUILD_EVENT_LOG_PROMOTE_PLAYER, player->GetGUID(), member->GetGUID(),

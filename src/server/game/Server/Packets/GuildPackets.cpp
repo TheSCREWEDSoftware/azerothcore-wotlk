@@ -884,6 +884,75 @@ WorldPacket const* WorldPackets::Guild::PlayerSaveGuildEmblem::Write()
     return &_worldPacket;
 }
 
+WorldPacket const* WorldPackets::Guild::GuildMemberUpdateNote::Write()
+{
+    _worldPacket.WriteBit(Member[7]);
+    _worldPacket.WriteBit(Member[2]);
+    _worldPacket.WriteBit(Member[3]);
+    _worldPacket.WriteBits(Note.length(), 8);
+    _worldPacket.WriteBit(Member[5]);
+    _worldPacket.WriteBit(Member[0]);
+    _worldPacket.WriteBit(Member[6]);
+    _worldPacket.WriteBit(Member[4]);
+    _worldPacket.WriteBit(IsPublic);
+    _worldPacket.WriteBit(Member[1]);
+    _worldPacket.FlushBits();
+
+    _worldPacket.WriteByteSeq(Member[3]);
+    _worldPacket.WriteByteSeq(Member[0]);
+    _worldPacket.WriteByteSeq(Member[2]);
+    _worldPacket.WriteByteSeq(Member[5]);
+    _worldPacket.WriteString(Note);
+    _worldPacket.WriteByteSeq(Member[7]);
+    _worldPacket.WriteByteSeq(Member[6]);
+    _worldPacket.WriteByteSeq(Member[1]);
+    _worldPacket.WriteByteSeq(Member[4]);
+
+    return &_worldPacket;
+}
+
+WorldPacket const* WorldPackets::Guild::GuildRanksUpdate::Write()
+{
+    _worldPacket.WriteBit(Officer[7]);
+    _worldPacket.WriteBit(Officer[2]);
+    _worldPacket.WriteBit(Other[2]);
+    _worldPacket.WriteBit(Officer[1]);
+    _worldPacket.WriteBit(Other[1]);
+    _worldPacket.WriteBit(Other[7]);
+    _worldPacket.WriteBit(Other[0]);
+    _worldPacket.WriteBit(Other[5]);
+    _worldPacket.WriteBit(Other[4]);
+    _worldPacket.WriteBit(Promote);
+    _worldPacket.WriteBit(Officer[5]);
+    _worldPacket.WriteBit(Officer[0]);
+    _worldPacket.WriteBit(Other[6]);
+    _worldPacket.WriteBit(Officer[3]);
+    _worldPacket.WriteBit(Officer[6]);
+    _worldPacket.WriteBit(Other[3]);
+    _worldPacket.WriteBit(Officer[4]);
+    _worldPacket.FlushBits();
+
+    _worldPacket << int32(RankID);
+    _worldPacket.WriteByteSeq(Officer[3]);
+    _worldPacket.WriteByteSeq(Other[7]);
+    _worldPacket.WriteByteSeq(Officer[6]);
+    _worldPacket.WriteByteSeq(Officer[2]);
+    _worldPacket.WriteByteSeq(Other[5]);
+    _worldPacket.WriteByteSeq(Other[0]);
+    _worldPacket.WriteByteSeq(Officer[7]);
+    _worldPacket.WriteByteSeq(Officer[5]);
+    _worldPacket.WriteByteSeq(Other[2]);
+    _worldPacket.WriteByteSeq(Other[1]);
+    _worldPacket.WriteByteSeq(Officer[0]);
+    _worldPacket.WriteByteSeq(Officer[4]);
+    _worldPacket.WriteByteSeq(Officer[1]);
+    _worldPacket.WriteByteSeq(Other[3]);
+    _worldPacket.WriteByteSeq(Other[6]);
+    _worldPacket.WriteByteSeq(Other[4]);
+
+    return &_worldPacket;
+}
+
 void WorldPackets::Guild::GuildRequestPartyState::Read()
 {
     GuildGUID[0] = _worldPacket.ReadBit();
