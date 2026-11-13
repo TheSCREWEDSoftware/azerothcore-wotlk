@@ -1102,8 +1102,11 @@ namespace lfg
             return player->GetUInt32Value(PLAYER_FIELD_COMBAT_RATING_1 + static_cast<uint16>(cr));
         };
 
+        // 5.4.8 has no talent trees; mark the tab of the chosen specialization
         uint8 talents[3] = { 0, 0, 0 };
-        player->GetTalentTreePoints(talents);
+        if (player->GetSpecializationId(player->GetActiveSpec()))
+            if (uint8 tab = player->GetMostPointsTalentTree(); tab < 3)
+                talents[tab] = 1;
 
         int32 spellDamage = player->SpellBaseDamageBonusDone(SPELL_SCHOOL_MASK_ALL);
         int32 spellHeal = player->SpellBaseHealingBonusDone(SPELL_SCHOOL_MASK_ALL);

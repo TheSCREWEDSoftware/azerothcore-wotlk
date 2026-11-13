@@ -804,8 +804,12 @@ void LoadDBCStores(std::string const& dataPath)
     }
 
     // fill data
-    for (MapDifficultyEntry const* entry : sMapDifficultyStore)
-        sMapDifficultyMap[MAKE_PAIR32(entry->MapId, entry->Difficulty)] = MapDifficulty(entry->resetTime, entry->maxPlayers, entry->areaTriggerText[0] != '\0');
+    // 5.4.8: Difficulty.dbc ids; the raid finder, flexible and scenario rows only fill difficulties
+    // that have no row of their own
+    for (bool native : { true, false })
+        for (MapDifficultyEntry const* entry : sMapDifficultyStore)
+            if (IsNativeDifficultyId(entry->Difficulty) == native)
+                sMapDifficultyMap.emplace(MAKE_PAIR32(entry->MapId, GetDifficultyFromDbc(entry->Difficulty)), MapDifficulty(entry->resetTime, entry->maxPlayers, entry->areaTriggerText[0] != '\0'));
 
     for (PvPDifficultyEntry const* entry : sPvPDifficultyStore)
         if (entry->bracketId > MAX_BATTLEGROUND_BRACKETS)
@@ -1414,7 +1418,7 @@ LFGDungeonEntry const* GetLFGDungeon(uint32 mapId, Difficulty difficulty)
         if (!dungeon)
             continue;
 
-        if (dungeon->MapID == uint32(mapId) && Difficulty(dungeon->Difficulty) == difficulty)
+        if (dungeon->MapID == uint32(mapId) && GetDifficultyFromDbc(dungeon->Difficulty) == difficulty)
             return dungeon;
     }
 

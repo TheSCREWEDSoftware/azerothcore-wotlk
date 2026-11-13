@@ -411,7 +411,7 @@ namespace lfg
         { }
         LFGDungeonData(LFGDungeonEntry const* dbc) : id(dbc->ID), name(dbc->Name[0]), map(dbc->MapID),
             type(dbc->TypeID), expansion(uint8(dbc->ExpansionLevel)), group(uint8(dbc->GroupID)),
-            minlevel(uint8(dbc->MinLevel)), maxlevel(uint8(dbc->MaxLevel)), difficulty(Difficulty(dbc->Difficulty)),
+            minlevel(uint8(dbc->MinLevel)), maxlevel(uint8(dbc->MaxLevel)), difficulty(GetDifficultyFromDbc(dbc->Difficulty)),
             seasonal((dbc->Flags & LFG_FLAG_SEASONAL) != 0), requiredTanks(uint8(dbc->CountTank)),
             requiredHealers(uint8(dbc->CountHealer)), requiredDamageDealers(uint8(dbc->CountDamage)), x(0.0f), y(0.0f), z(0.0f), o(0.0f)
         {

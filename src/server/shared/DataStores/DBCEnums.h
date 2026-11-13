@@ -372,6 +372,38 @@ inline uint32 GetDifficultyFromClient(uint32 clientDifficulty)
     }
 }
 
+// 5.4.8 DBC files (MapDifficulty, LfgDungeons, DungeonEncounter, PvpDifficulty) store Difficulty.dbc ids
+inline bool IsNativeDifficultyId(uint32 dbcDifficulty)
+{
+    switch (dbcDifficulty)
+    {
+        case CLIENT_DIFFICULTY_25MAN_LFR:
+        case CLIENT_DIFFICULTY_SCENARIO_HEROIC:
+        case CLIENT_DIFFICULTY_SCENARIO_NORMAL:
+        case CLIENT_DIFFICULTY_FLEX:
+            return false;
+        default:
+            return true;
+    }
+}
+
+inline Difficulty GetDifficultyFromDbc(uint32 dbcDifficulty)
+{
+    switch (dbcDifficulty)
+    {
+        case CLIENT_DIFFICULTY_25MAN_LFR:        return RAID_DIFFICULTY_25MAN_NORMAL;
+        case CLIENT_DIFFICULTY_40MAN:            return RAID_DIFFICULTY_10MAN_NORMAL;
+        case CLIENT_DIFFICULTY_SCENARIO_HEROIC:  return DUNGEON_DIFFICULTY_HEROIC;
+        case CLIENT_DIFFICULTY_SCENARIO_NORMAL:  return DUNGEON_DIFFICULTY_NORMAL;
+        case CLIENT_DIFFICULTY_FLEX:             return RAID_DIFFICULTY_10MAN_NORMAL;
+        default:
+        {
+            uint32 difficulty = GetDifficultyFromClient(dbcDifficulty);
+            return difficulty < MAX_DIFFICULTY ? Difficulty(difficulty) : REGULAR_DIFFICULTY;
+        }
+    }
+}
+
 enum SpawnMask
 {
     SPAWNMASK_CONTINENT         = (1 << REGULAR_DIFFICULTY), // any any maps without spawn modes
