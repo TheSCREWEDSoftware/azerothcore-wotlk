@@ -28,7 +28,8 @@ from item_derived_stats import (disenchant_fields, effective_armor, load_tables,
 
 SIMPLE = {  # AC column <- Item-sparse field
     "Quality": "Quality", "Flags": "Flags", "FlagsExtra": "Flags2", "BuyCount": "BuyCount",
-    "BuyPrice": "BuyPrice", "SellPrice": "SellPrice", "InventoryType": "InventoryType",
+    "BuyPrice": "BuyPrice", "SellPrice": "SellPrice", "PriceRandomValue": "PriceRandomValue",
+    "PriceVariance": "PriceVariance", "InventoryType": "InventoryType",
     "AllowableClass": "AllowableClass", "AllowableRace": "AllowableRace", "ItemLevel": "ItemLevel",
     "RequiredLevel": "RequiredLevel", "RequiredSkill": "RequiredSkill",
     "RequiredSkillRank": "RequiredSkillRank", "requiredspell": "RequiredSpell",

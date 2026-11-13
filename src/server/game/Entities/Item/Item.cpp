@@ -1314,3 +1314,152 @@ std::string Item::GetDebugInfo() const
         << " BagSlot: " << std::to_string(GetBagSlot()) << " Slot: " << std::to_string(GetSlot()) << " Equipped: " << IsEquipped();
     return sstr.str();
 }
+
+uint32 Item::GetSellPrice(ItemTemplate const* proto, bool& normalSellPrice)
+{
+    normalSellPrice = true;
+
+    if (proto->HasFlag2(ITEM_FLAG2_OVERRIDE_GOLD_COST))
+        return uint32(proto->BuyPrice);
+
+    ImportPriceQualityEntry const* qualityPrice = sImportPriceQualityStore.LookupEntry(proto->Quality + 1);
+    ItemPriceBaseEntry const* basePrice = sItemPriceBaseStore.LookupEntry(proto->ItemLevel);
+
+    if (!qualityPrice || !basePrice)
+        return 0;
+
+    float qualityFactor = qualityPrice->Factor;
+    float baseFactor = 0.0f;
+
+    uint32 inventoryType = proto->InventoryType;
+
+    if (inventoryType == INVTYPE_WEAPON ||
+        inventoryType == INVTYPE_2HWEAPON ||
+        inventoryType == INVTYPE_WEAPONMAINHAND ||
+        inventoryType == INVTYPE_WEAPONOFFHAND ||
+        inventoryType == INVTYPE_RANGED ||
+        inventoryType == INVTYPE_THROWN ||
+        inventoryType == INVTYPE_RANGEDRIGHT)
+        baseFactor = basePrice->Weapon;
+    else
+        baseFactor = basePrice->Armor;
+
+    if (inventoryType == INVTYPE_ROBE)
+        inventoryType = INVTYPE_CHEST;
+
+    float typeFactor = 0.0f;
+    int8 weapType = -1;
+
+    switch (inventoryType)
+    {
+        case INVTYPE_HEAD:
+        case INVTYPE_SHOULDERS:
+        case INVTYPE_CHEST:
+        case INVTYPE_WAIST:
+        case INVTYPE_LEGS:
+        case INVTYPE_FEET:
+        case INVTYPE_WRISTS:
+        case INVTYPE_HANDS:
+        case INVTYPE_CLOAK:
+        {
+            ImportPriceArmorEntry const* armorPrice = sImportPriceArmorStore.LookupEntry(inventoryType);
+            if (!armorPrice)
+                return 0;
+
+            switch (proto->SubClass)
+            {
+                case ITEM_SUBCLASS_ARMOR_MISC:
+                case ITEM_SUBCLASS_ARMOR_CLOTH:
+                    typeFactor = armorPrice->ClothModifier;
+                    break;
+                case ITEM_SUBCLASS_ARMOR_LEATHER:
+                    typeFactor = armorPrice->LeatherModifier;
+                    break;
+                case ITEM_SUBCLASS_ARMOR_MAIL:
+                    typeFactor = armorPrice->ChainModifier;
+                    break;
+                case ITEM_SUBCLASS_ARMOR_PLATE:
+                    typeFactor = armorPrice->PlateModifier;
+                    break;
+                default:
+                    return 0;
+            }
+
+            break;
+        }
+        case INVTYPE_SHIELD:
+        {
+            // It only has two rows; which one the client uses is unclear.
+            ImportPriceShieldEntry const* shieldPrice = sImportPriceShieldStore.LookupEntry(1);
+            if (!shieldPrice)
+                return 0;
+
+            typeFactor = shieldPrice->Data;
+            break;
+        }
+        case INVTYPE_WEAPONMAINHAND:
+            weapType = 0;
+            break;
+        case INVTYPE_WEAPONOFFHAND:
+            weapType = 1;
+            break;
+        case INVTYPE_WEAPON:
+            weapType = 2;
+            break;
+        case INVTYPE_2HWEAPON:
+            weapType = 3;
+            break;
+        case INVTYPE_RANGED:
+        case INVTYPE_RANGEDRIGHT:
+        case INVTYPE_RELIC:
+            weapType = 4;
+            break;
+        default:
+            return uint32(proto->BuyPrice);
+    }
+
+    if (weapType != -1)
+    {
+        ImportPriceWeaponEntry const* weaponPrice = sImportPriceWeaponStore.LookupEntry(weapType + 1);
+        if (!weaponPrice)
+            return 0;
+
+        typeFactor = weaponPrice->Data;
+    }
+
+    normalSellPrice = false;
+    return uint32(qualityFactor * proto->PriceRandomValue * proto->PriceVariance * typeFactor * baseFactor);
+}
+
+uint32 Item::GetSpecialPrice(ItemTemplate const* proto, uint32 minimumPrice /*= 10000*/)
+{
+    uint32 cost = 0;
+
+    if (proto->HasFlag2(ITEM_FLAG2_OVERRIDE_GOLD_COST))
+        cost = proto->SellPrice;
+    else
+    {
+        bool normalPrice;
+        cost = Item::GetSellPrice(proto, normalPrice);
+
+        if (!normalPrice)
+        {
+            if (proto->BuyCount <= 1)
+            {
+                if (ItemClassEntry const* classEntry = sItemClassStore.LookupEntry(proto->Class))
+                    cost = uint32(cost * classEntry->PriceModifier);
+                else
+                    cost = 0;
+            }
+            else
+                cost /= 4 * proto->BuyCount;
+        }
+        else
+            cost = proto->SellPrice;
+    }
+
+    if (cost < minimumPrice)
+        cost = minimumPrice;
+
+    return cost;
+}

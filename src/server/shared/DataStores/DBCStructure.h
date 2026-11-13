@@ -1191,6 +1191,33 @@ struct HolidaysEntry
     //uint32 flags;                                         // 54       m_flags (0 = Darkmoon Faire, Fishing Contest and Wotlk Launch, rest is 1)
 };
 
+struct ImportPriceArmorEntry
+{
+    uint32 ID;                                              // 0        Id/InventoryType
+    float ClothModifier;                                    // 1        Price factor cloth
+    float LeatherModifier;                                  // 2        Price factor leather
+    float ChainModifier;                                    // 3        Price factor mail
+    float PlateModifier;                                    // 4        Price factor plate
+};
+
+struct ImportPriceQualityEntry
+{
+    uint32 QualityId;                                       // 0        Quality Id (+1)
+    float Factor;                                           // 1        Price factor
+};
+
+struct ImportPriceShieldEntry
+{
+    uint32 ID;                                              // 0
+    float Data;                                             // 1        Price factor
+};
+
+struct ImportPriceWeaponEntry
+{
+    uint32 ID;                                              // 0        mainhand - 0, offhand - 1, weapon - 2, 2hweapon - 3, ranged/rangedright/relic - 4 (+1)
+    float Data;                                             // 1        Price factor
+};
+
 struct ItemEntry
 {
     uint32 ID;                                               // 0
@@ -1222,6 +1249,16 @@ struct ItemBagFamilyEntry
     uint32   ID;                                            // 0
     //char const*     name[16]                              // 1-16     m_name_lang
     //                                                      // 17       name flags
+};
+
+struct ItemClassEntry
+{
+    //uint32 ID;                                            // 0
+    uint32 ClassID;                                         // 1        item class id
+    //uint32 SubclassMapID;                                 // 2
+    //uint32 Flags;                                         // 3        1 for weapon, 0 for everything else
+    float PriceModifier;                                    // 4        used to calculate certain prices
+    //char const* ClassName;                                // 5        class name
 };
 
 struct ItemDisplayInfoEntry
@@ -1277,6 +1314,14 @@ struct ItemLimitCategoryEntry
     // 17 name flags
     uint32      maxCount;                                   // 18, max allowed equipped as item or in gem slot
     uint32      mode;                                       // 19, 0 = have, 1 = equip (enum ItemLimitCategoryMode)
+};
+
+struct ItemPriceBaseEntry
+{
+    //uint32 ID;                                            // 0
+    uint32 ItemLevel;                                       // 1        Item level (1 - 1000)
+    float Armor;                                            // 2        Price factor for armor
+    float Weapon;                                           // 3        Price factor for weapons
 };
 
 #define MAX_ITEM_ENCHANTMENT_EFFECTS 5

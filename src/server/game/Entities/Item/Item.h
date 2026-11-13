@@ -301,6 +301,9 @@ public:
     void SetItemRandomProperties(int32 randomPropId);
     void UpdateItemSuffixFactor();
     static int32 GenerateItemRandomPropertyId(uint32 item_id);
+    static uint32 GetSellPrice(ItemTemplate const* proto, bool& normalSellPrice);
+    static uint32 GetSpecialPrice(ItemTemplate const* proto, uint32 minimumPrice = 10000);
+    [[nodiscard]] uint32 GetSpecialPrice(uint32 minimumPrice = 10000) const { return Item::GetSpecialPrice(GetTemplate(), minimumPrice); }
     void SetEnchantment(EnchantmentSlot slot, uint32 id, uint32 duration, uint32 charges, ObjectGuid caster = ObjectGuid::Empty);
     void SetEnchantmentDuration(EnchantmentSlot slot, uint32 duration, Player* owner);
     void SetEnchantmentCharges(EnchantmentSlot slot, uint32 charges);

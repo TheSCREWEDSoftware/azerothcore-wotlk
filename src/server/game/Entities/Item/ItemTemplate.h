@@ -196,7 +196,7 @@ enum ItemFlags2 : uint32
     ITEM_FLAG2_INTERNAL_ITEM                            = 0x00000800, // NYI - unused
     ITEM_FLAG2_NO_VENDOR_VALUE                          = 0x00001000, // NYI - unused
     ITEM_FLAG2_SHOW_BEFORE_DISCOVERED                   = 0x00002000, // NYI
-    ITEM_FLAG2_OVERRIDE_GOLD_COST                       = 0x00004000, // NYI - unused
+    ITEM_FLAG2_OVERRIDE_GOLD_COST                       = 0x00004000, // Item::GetSellPrice uses BuyPrice/SellPrice instead of the price tables
     ITEM_FLAG2_IGNORE_DEFAULT_RATED_BG_RESTRICTIONS     = 0x00008000, // NYI
     ITEM_FLAG2_NOT_USABLE_IN_RATED_BG                   = 0x00010000, // NYI
     ITEM_FLAG2_BNET_ACCOUNT_TRADE_OK                    = 0x00020000, // NYI
@@ -637,6 +637,8 @@ struct ItemTemplate
     uint32 BuyCount;
     int32  BuyPrice;
     uint32 SellPrice;
+    float  PriceRandomValue;                                // Item-sparse.db2, used by Item::GetSellPrice
+    float  PriceVariance;                                   // Item-sparse.db2, used by Item::GetSellPrice
     uint32 InventoryType;
     uint32 AllowableClass;
     uint32 AllowableRace;
