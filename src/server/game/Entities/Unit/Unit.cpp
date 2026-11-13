@@ -2761,6 +2761,46 @@ void Unit::AttackerStateUpdate(Unit* victim, WeaponAttackType attType /*= BASE_A
     {
         // attack can be redirected to another target
         victim = GetMeleeHitRedirectTarget(victim);
+
+        // SPELL_AURA_OVERRIDE_AUTOATTACK_WITH_MELEE_SPELL: the main hand swing casts the triggered spell,
+        // the off hand swing casts the spell in the aura amount
+        AuraEffectList const& meleeAttackOverrides = GetAuraEffectsByType(SPELL_AURA_OVERRIDE_AUTOATTACK_WITH_MELEE_SPELL);
+        AuraEffect const* meleeAttackAuraEffect = nullptr;
+        uint32 meleeAttackSpellId = 0;
+        if (attType == BASE_ATTACK)
+        {
+            if (!meleeAttackOverrides.empty())
+            {
+                meleeAttackAuraEffect = meleeAttackOverrides.front();
+                meleeAttackSpellId = meleeAttackAuraEffect->GetSpellInfo()->Effects[meleeAttackAuraEffect->GetEffIndex()].TriggerSpell;
+            }
+        }
+        else
+        {
+            auto itr = std::find_if(meleeAttackOverrides.begin(), meleeAttackOverrides.end(), [](AuraEffect const* aurEff)
+            {
+                return aurEff->GetAmount() != 0;
+            });
+
+            if (itr != meleeAttackOverrides.end())
+            {
+                meleeAttackAuraEffect = *itr;
+                meleeAttackSpellId = uint32(meleeAttackAuraEffect->GetAmount());
+            }
+        }
+
+        if (meleeAttackAuraEffect && meleeAttackSpellId)
+        {
+            CastSpell(victim, meleeAttackSpellId, TRIGGERED_FULL_MASK, nullptr, meleeAttackAuraEffect);
+
+            uint32 hitInfo = HITINFO_AFFECTS_VICTIM | HITINFO_NO_ANIMATION;
+            if (attType == OFF_ATTACK)
+                hitInfo |= HITINFO_OFFHAND;
+
+            SendAttackStateUpdate(hitInfo, victim, 0, GetMeleeDamageSchoolMask(attType), 0, 0, 0, VICTIMSTATE_HIT, 0);
+            return;
+        }
+
         CalcDamageInfo damageInfo;
         CalculateMeleeDamage(victim, &damageInfo, attType, sittingVictim);
 
