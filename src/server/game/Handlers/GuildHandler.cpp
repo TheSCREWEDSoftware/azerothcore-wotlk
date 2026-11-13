@@ -453,3 +453,25 @@ void WorldSession::HandleSetGuildBankTabText(WorldPackets::Guild::GuildBankSetTa
     if (Guild* guild = GetPlayer()->GetGuild())
         guild->SetBankTabText(packet.Tab, packet.TabText);
 }
+
+void WorldSession::HandleGuildXPQueryOpcode(WorldPackets::Guild::GuildXPQuery& packet)
+{
+    LOG_DEBUG("guild", "CMSG_GUILD_XP_QUERY [{}]: Guild: {}", GetPlayerInfo(), packet.GuildGuid.ToString());
+
+    if (Guild* guild = sGuildMgr->GetGuildById(packet.GuildGuid.GetCounter()))
+        if (guild->IsMember(GetPlayer()->GetGUID()))
+            guild->SendGuildXP(this);
+}
+
+void WorldSession::HandleGuildRequestMaxDailyXP(WorldPackets::Guild::GuildRequestMaxDailyXP& packet)
+{
+    if (Guild* guild = sGuildMgr->GetGuildById(packet.GuildGuid.GetCounter()))
+    {
+        if (guild->IsMember(GetPlayer()->GetGUID()))
+        {
+            WorldPackets::Guild::GuildMaxDailyXP maxDailyXP;
+            maxDailyXP.Xp = sWorld->getIntConfig(CONFIG_GUILD_DAILY_XP_CAP);
+            SendPacket(maxDailyXP.Write());
+        }
+    }
+}

@@ -17,6 +17,9 @@
 
 #include "GuildMgr.h"
 #include "Common.h"
+#include "DatabaseEnv.h"
+#include "Log.h"
+#include "World.h"
 
 GuildMgr::GuildMgr() : NextGuildId(1)
 { }
@@ -100,8 +103,8 @@ void GuildMgr::LoadGuilds()
 
         //          0          1       2             3              4              5              6
         QueryResult result = CharacterDatabase.Query("SELECT g.guildid, g.name, g.leaderguid, g.EmblemStyle, g.EmblemColor, g.BorderStyle, g.BorderColor, "
-                             //   7                  8       9       10            11           12
-                             "g.BackgroundColor, g.info, g.motd, g.createdate, g.BankMoney, COUNT(gbt.guildid) "
+                             //   7                  8       9       10            11           12                        13        14            15
+                             "g.BackgroundColor, g.info, g.motd, g.createdate, g.BankMoney, COUNT(gbt.guildid), g.level, g.experience, g.todayExperience "
                              "FROM guild g LEFT JOIN guild_bank_tab gbt ON g.guildid = gbt.guildid GROUP BY g.guildid ORDER BY g.guildid ASC");
 
         if (!result)
@@ -179,8 +182,8 @@ void GuildMgr::LoadGuilds()
 
         //           0        1         2     3      4        5       6       7       8       9       10      11      12
         QueryResult result = CharacterDatabase.Query("SELECT guildid, gm.guid, `rank`, pnote, offnote, w.tab0, w.tab1, w.tab2, w.tab3, w.tab4, w.tab5, w.tab6, w.tab7, "
-                          // 13        14      15       16       17        18      19         20
-                             "w.money, c.name, c.level, c.class, c.gender, c.zone, c.account, c.logout_time "
+                          // 13        14      15       16       17        18      19         20                21            22
+                             "w.money, c.name, c.level, c.class, c.gender, c.zone, c.account, c.logout_time, gm.activity, gm.weekActivity "
                              "FROM guild_member gm "
                              "LEFT JOIN guild_member_withdraw w ON gm.guid = w.guid "
                              "LEFT JOIN characters c ON c.guid = gm.guid ORDER BY guildid ASC");
@@ -404,11 +407,58 @@ void GuildMgr::LoadGuilds()
     }
 }
 
-void GuildMgr::ResetTimes()
+void GuildMgr::ResetTimes(bool weekly)
 {
     for (GuildContainer::const_iterator itr = GuildStore.begin(); itr != GuildStore.end(); ++itr)
         if (Guild* guild = itr->second)
-            guild->ResetTimes();
+            guild->ResetTimes(weekly);
 
     CharacterDatabase.DirectExecute("TRUNCATE guild_member_withdraw");
+}
+
+uint64 GuildMgr::GetXPForGuildLevel(uint8 level) const
+{
+    if (level < GuildXPperLevel.size())
+        return GuildXPperLevel[level];
+
+    return 100000000; // sentinel for unconfigured/out-of-range levels, keeps GiveXP's level-up loop from spinning
+}
+
+void GuildMgr::LoadGuildXpForLevel()
+{
+    uint32 oldMSTime = getMSTime();
+
+    GuildXPperLevel.clear();
+
+    uint8 maxLevel = uint8(sWorld->getIntConfig(CONFIG_GUILD_MAX_LEVEL));
+    GuildXPperLevel.resize(maxLevel + 1, 0);
+
+    //                                                     0    1
+    QueryResult result = WorldDatabase.Query("SELECT lvl, xp_for_next_level FROM guild_xp_for_level ORDER BY lvl ASC");
+
+    uint32 count = 0;
+    if (result)
+    {
+        do
+        {
+            Field* fields = result->Fetch();
+            uint8 level = fields[0].Get<uint8>();
+            uint64 xpForNextLevel = fields[1].Get<uint64>();
+
+            if (level < GuildXPperLevel.size())
+            {
+                GuildXPperLevel[level] = xpForNextLevel;
+                ++count;
+            }
+        } while (result->NextRow());
+    }
+
+    // Gap-fill any level missing real data (including everything, if the table is empty) so the
+    // levelling loop always has a monotonically increasing curve to walk up to CONFIG_GUILD_MAX_LEVEL.
+    for (uint8 level = 1; level < GuildXPperLevel.size(); ++level)
+        if (!GuildXPperLevel[level])
+            GuildXPperLevel[level] = GuildXPperLevel[level - 1] + 1660000;
+
+    LOG_INFO("server.loading", ">> Loaded {} guild level XP requirements in {} ms", count, GetMSTimeDiffToNow(oldMSTime));
+    LOG_INFO("server.loading", " ");
 }

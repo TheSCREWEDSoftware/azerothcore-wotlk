@@ -65,6 +65,66 @@ WorldPacket const* WorldPackets::Guild::GuildInfoResponse::Write()
     return &_worldPacket;
 }
 
+void WorldPackets::Guild::GuildXPQuery::Read()
+{
+    GuildGuid[2] = _worldPacket.ReadBit();
+    GuildGuid[1] = _worldPacket.ReadBit();
+    GuildGuid[0] = _worldPacket.ReadBit();
+    GuildGuid[5] = _worldPacket.ReadBit();
+    GuildGuid[4] = _worldPacket.ReadBit();
+    GuildGuid[7] = _worldPacket.ReadBit();
+    GuildGuid[6] = _worldPacket.ReadBit();
+    GuildGuid[3] = _worldPacket.ReadBit();
+
+    _worldPacket.ReadByteSeq(GuildGuid[7]);
+    _worldPacket.ReadByteSeq(GuildGuid[2]);
+    _worldPacket.ReadByteSeq(GuildGuid[3]);
+    _worldPacket.ReadByteSeq(GuildGuid[6]);
+    _worldPacket.ReadByteSeq(GuildGuid[1]);
+    _worldPacket.ReadByteSeq(GuildGuid[5]);
+    _worldPacket.ReadByteSeq(GuildGuid[0]);
+    _worldPacket.ReadByteSeq(GuildGuid[4]);
+}
+
+void WorldPackets::Guild::GuildRequestMaxDailyXP::Read()
+{
+    GuildGuid[0] = _worldPacket.ReadBit();
+    GuildGuid[3] = _worldPacket.ReadBit();
+    GuildGuid[5] = _worldPacket.ReadBit();
+    GuildGuid[1] = _worldPacket.ReadBit();
+    GuildGuid[4] = _worldPacket.ReadBit();
+    GuildGuid[6] = _worldPacket.ReadBit();
+    GuildGuid[7] = _worldPacket.ReadBit();
+    GuildGuid[2] = _worldPacket.ReadBit();
+
+    _worldPacket.ReadByteSeq(GuildGuid[7]);
+    _worldPacket.ReadByteSeq(GuildGuid[4]);
+    _worldPacket.ReadByteSeq(GuildGuid[3]);
+    _worldPacket.ReadByteSeq(GuildGuid[5]);
+    _worldPacket.ReadByteSeq(GuildGuid[1]);
+    _worldPacket.ReadByteSeq(GuildGuid[2]);
+    _worldPacket.ReadByteSeq(GuildGuid[6]);
+    _worldPacket.ReadByteSeq(GuildGuid[0]);
+}
+
+WorldPacket const* WorldPackets::Guild::GuildMaxDailyXP::Write()
+{
+    _worldPacket << uint64(Xp);
+
+    return &_worldPacket;
+}
+
+WorldPacket const* WorldPackets::Guild::GuildXP::Write()
+{
+    _worldPacket << uint64(TotalXP);
+    _worldPacket << uint64(GuildRemainingXP);
+    _worldPacket << uint64(GuildTodayXP);
+    _worldPacket << uint64(WeeklyXP);
+    _worldPacket << uint64(GuildCurrentXP);
+
+    return &_worldPacket;
+}
+
 WorldPacket const* WorldPackets::Guild::GuildRoster::Write()
 {
     _worldPacket.WriteBits(WelcomeText.length(), 11);

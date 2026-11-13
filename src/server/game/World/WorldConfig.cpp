@@ -62,6 +62,7 @@ void WorldConfig::BuildConfigCache()
     SetConfigValue<float>(RATE_XP_BG_KILL_IC, "Rate.XP.BattlegroundKillIC", 1.0f);
     SetConfigValue<float>(RATE_XP_QUEST, "Rate.XP.Quest", 1.0f);
     SetConfigValue<float>(RATE_XP_QUEST_DF, "Rate.XP.Quest.DF", 1.0f);
+    SetConfigValue<float>(RATE_XP_QUEST_GUILD_MODIFIER, "Rate.XP.Guild.Quest", 0.25f);
     SetConfigValue<float>(RATE_XP_EXPLORE, "Rate.XP.Explore", 1.0f);
     SetConfigValue<float>(RATE_XP_PET, "Rate.XP.Pet", 1.0f);
     SetConfigValue<float>(RATE_XP_PET_NEXT_LEVEL, "Rate.Pet.LevelXP", 0.05f);
@@ -118,6 +119,7 @@ void WorldConfig::BuildConfigCache()
     SetConfigValue<float>(RATE_AUCTION_DEPOSIT, "Rate.Auction.Deposit", 1.0f);
     SetConfigValue<float>(RATE_AUCTION_CUT, "Rate.Auction.Cut", 1.0f);
     SetConfigValue<float>(RATE_HONOR, "Rate.Honor", 1.0f);
+    SetConfigValue<float>(RATE_XP_HONOR_EARNED_GUILD_MODIFIER, "Rate.XP.Guild.HonorEarned", 10.0f);
     SetConfigValue<float>(RATE_ARENA_POINTS, "Rate.ArenaPoints", 1.0f);
     SetConfigValue<float>(RATE_ARENA_POINTS_2V2, "Rate.ArenaPoints2v2", 0.76f);
     SetConfigValue<float>(RATE_ARENA_POINTS_3V3, "Rate.ArenaPoints3v3", 0.88f);
@@ -398,6 +400,12 @@ void WorldConfig::BuildConfigCache()
     SetConfigValue<uint32>(CONFIG_GUILD_BANK_TAB_COST_5, "Guild.BankTabCost5", 50000000);
 
     SetConfigValue<uint32>(CONFIG_GUILD_MEMBER_LIMIT, "Guild.MemberLimit", 0);
+
+    // Cata guild leveling
+    SetConfigValue<bool>(CONFIG_GUILD_LEVELING_ENABLED, "Guild.LevelingEnabled", true);
+    SetConfigValue<uint32>(CONFIG_GUILD_MAX_LEVEL, "Guild.MaxLevel", 25);
+    SetConfigValue<uint32>(CONFIG_GUILD_UNDELETABLE_LEVEL, "Guild.UndeletableLevel", 4);
+    SetConfigValue<uint32>(CONFIG_GUILD_DAILY_XP_CAP, "Guild.DailyXPCap", 7807500);
 
     SetConfigValue<bool>(CONFIG_DETECT_POS_COLLISION, "DetectPosCollision", true);
 

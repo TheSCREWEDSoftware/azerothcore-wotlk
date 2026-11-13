@@ -23,6 +23,7 @@
 #include "GitRevision.h"
 #include "GossipDef.h"
 #include "Group.h"
+#include "Guild.h"
 #include "MapMgr.h"
 #include "Player.h"
 #include "PoolMgr.h"
@@ -806,6 +807,13 @@ void Player::RewardQuest(Quest const* quest, uint32 reward, Object* questGiver, 
     {
         sScriptMgr->OnPlayerGiveXP(this, XP, nullptr, isLFGReward ? PlayerXPSource::XPSOURCE_QUEST_DF : PlayerXPSource::XPSOURCE_QUEST);
         GiveXP(XP, nullptr, 1.0f, isLFGReward);
+
+        // Cata guild leveling. XP here already has RATE_XP_QUEST/RATE_XP_QUEST_DF applied via
+        // CalculateQuestRewardXP()'s GetQuestRate() call, so we don't multiply by RATE_XP_QUEST
+        // again here - only by the separate guild-specific modifier.
+        if (sWorld->getBoolConfig(CONFIG_GUILD_LEVELING_ENABLED))
+            if (Guild* guild = GetGuild())
+                guild->GiveXP(uint32(float(XP) * sWorld->getRate(RATE_XP_QUEST_GUILD_MODIFIER)), this);
     }
 
     // Give player extra money if GetRewOrReqMoney > 0 and get ReqMoney if negative

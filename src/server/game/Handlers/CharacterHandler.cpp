@@ -993,6 +993,7 @@ void WorldSession::HandlePlayerLoginFromDB(LoginQueryHolder const& holder)
             {
                 pCurrChar->SetInGuild(guildId);
                 pCurrChar->SetRank(member->GetRankId());
+                pCurrChar->SetGuildLevel(guild->GetLevel());
                 guild->SendLoginInfo(this);
             }
             else
@@ -1001,18 +1002,21 @@ void WorldSession::HandlePlayerLoginFromDB(LoginQueryHolder const& holder)
                     pCurrChar->GetName(), pCurrChar->GetGUID().ToString(), guildId);
                 pCurrChar->SetInGuild(0);
                 pCurrChar->SetRank(0);
+                pCurrChar->SetGuildLevel(0);
             }
         }
         else
         {
             pCurrChar->SetInGuild(0);
             pCurrChar->SetRank(0);
+            pCurrChar->SetGuildLevel(0);
         }
     }
     else
     {
         pCurrChar->SetInGuild(0);
         pCurrChar->SetRank(0);
+        pCurrChar->SetGuildLevel(0);
     }
 
     WorldPacket data(SMSG_LEARNED_DANCE_MOVES, 8);

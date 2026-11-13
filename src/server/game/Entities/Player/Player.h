@@ -1983,6 +1983,7 @@ public:
         sCharacterCache->UpdateCharacterGuildId(GetGUID(), GetGuildId());
     }
     void SetRank(uint8 rankId) { SetUInt32Value(PLAYER_GUILDRANK, rankId); }
+    void SetGuildLevel(uint32 level) { SetUInt32Value(PLAYER_GUILDLEVEL, level); }
     [[nodiscard]] uint8 GetRank() const { return uint8(GetUInt32Value(PLAYER_GUILDRANK)); }
     void SetGuildIdInvited(uint32 GuildId) { m_GuildIdInvited = GuildId; }
     [[nodiscard]] uint32 GetGuildId() const { return GetGuidValue(OBJECT_FIELD_DATA).GetCounter(); }

@@ -41,11 +41,17 @@ public:
     uint32 GenerateGuildId();
     void SetNextGuildId(uint32 Id) { NextGuildId = Id; }
 
-    void ResetTimes();
+    void ResetTimes(bool weekly = false);
+
+    // Cata guild leveling
+    uint64 GetXPForGuildLevel(uint8 level) const;
+    void LoadGuildXpForLevel();
 protected:
     typedef std::unordered_map<uint32, Guild*> GuildContainer;
     uint32 NextGuildId;
     GuildContainer GuildStore;
+
+    std::vector<uint64> GuildXPperLevel;
 };
 
 #define sGuildMgr GuildMgr::instance()

@@ -149,6 +149,50 @@ namespace WorldPackets
             uint32 TabWithdrawItemLimit[GUILD_BANK_MAX_TABS];
         };
 
+        class GuildXPQuery final : public ClientPacket
+        {
+        public:
+            GuildXPQuery(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_XP_QUERY, std::move(packet)) { }
+
+            void Read() override;
+
+            ObjectGuid GuildGuid;
+        };
+
+        class GuildRequestMaxDailyXP final : public ClientPacket
+        {
+        public:
+            GuildRequestMaxDailyXP(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_REQUEST_MAX_DAILY_XP, std::move(packet)) { }
+
+            void Read() override;
+
+            ObjectGuid GuildGuid;
+        };
+
+        class GuildMaxDailyXP final : public ServerPacket
+        {
+        public:
+            GuildMaxDailyXP() : ServerPacket(SMSG_GUILD_MAX_DAILY_XP, 8) { }
+
+            WorldPacket const* Write() override;
+
+            uint64 Xp = 0;
+        };
+
+        class GuildXP final : public ServerPacket
+        {
+        public:
+            GuildXP() : ServerPacket(SMSG_GUILD_XP, 40) { }
+
+            WorldPacket const* Write() override;
+
+            int64 WeeklyXP = 0;
+            int64 TotalXP = 0;
+            int64 GuildTodayXP = 0;
+            int64 GuildRemainingXP = 0;
+            int64 GuildCurrentXP = 0;
+        };
+
         class GuildRoster final : public ServerPacket
         {
         public:

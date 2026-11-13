@@ -377,6 +377,8 @@ enum OpcodeClient : uint16
     CMSG_GUILD_QUERY_RANKS                          = 0x1026,
     CMSG_GUILD_ASSIGN_MEMBER_RANK                   = 0x3032,
     CMSG_GUILD_SWITCH_RANK                          = 0x1221,
+    CMSG_GUILD_XP_QUERY                             = 0x1237,
+    CMSG_GUILD_REQUEST_MAX_DAILY_XP                 = 0x3232,
     CMSG_GUILD_ADD_RANK                             = 0x3030,
     CMSG_GUILD_DEL_RANK                             = 0x3234,
     CMSG_GUILD_SET_NOTE                      = 0x1233,
@@ -829,6 +831,10 @@ enum OpcodeServer : uint16
     SMSG_GUILD_PERMISSIONS_QUERY_RESULTS            = 0x34A3,
     SMSG_GUILD_EVENT_LOG_QUERY_RESULTS              = 0x10B2,
     SMSG_GUILD_RANKS                                = 0x30B4,
+    SMSG_GUILD_XP                                   = 0x3DB0,
+    SMSG_GUILD_XP_GAIN                              = 0x14A1,
+    SMSG_GUILD_MAX_DAILY_XP                         = 0x79B5,
+    SMSG_GUILD_MEMBER_DAILY_RESET                   = 0x10A5,
     SMSG_ITEM_QUERY_SINGLE_RESPONSE                 = 0x058, // DEPRECATED
     SMSG_ITEM_QUERY_MULTIPLE_RESPONSE               = 0x059, // DEPRECATED
     SMSG_PAGE_TEXT_QUERY_RESPONSE                   = 0x2B14,

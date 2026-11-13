@@ -767,6 +767,9 @@ void World::SetInitialWorldSettings()
     LOG_INFO("server.loading", "Loading Auctions...");
     sAuctionMgr->LoadAuctions();
 
+    LOG_INFO("server.loading", "Loading Guild Level XP...");
+    sGuildMgr->LoadGuildXpForLevel();
+
     sGuildMgr->LoadGuilds();
 
     LOG_INFO("server.loading", "Loading ArenaTeams...");
@@ -1898,6 +1901,9 @@ void World::ResetWeeklyQuests()
 
     // change available weeklies
     sPoolMgr->ChangeWeeklyQuests();
+
+    // Cata guild leveling: weekly member activity resets alongside weekly quests
+    sGuildMgr->ResetTimes(true);
 }
 
 void World::ResetMonthlyQuests()
@@ -1970,7 +1976,7 @@ void World::ResetGuildCap()
     _nextGuildReset = Seconds(Acore::Time::GetNextTimeWithDayAndHour(-1, 6));
     sWorldState->setWorldState(WORLD_STATE_CUSTOM_GUILD_DAILY_RESET_TIME, _nextGuildReset.count());
 
-    sGuildMgr->ResetTimes();
+    sGuildMgr->ResetTimes(false);
 }
 
 void World::LoadDBVersion()

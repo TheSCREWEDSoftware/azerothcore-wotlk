@@ -244,6 +244,10 @@ void OpcodeTable::Initialize()
     /*0x34A3*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GUILD_PERMISSIONS_QUERY_RESULTS,                    STATUS_NEVER);
     /*0x10B2*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GUILD_EVENT_LOG_QUERY_RESULTS,                      STATUS_NEVER);
     /*0x30B4*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GUILD_RANKS,                                        STATUS_NEVER);
+    /*0x3DB0*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GUILD_XP,                                           STATUS_NEVER);
+    /*0x14A1*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GUILD_XP_GAIN,                                      STATUS_NEVER);
+    /*0x79B5*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GUILD_MAX_DAILY_XP,                                 STATUS_NEVER);
+    /*0x10A5*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_GUILD_MEMBER_DAILY_RESET,                           STATUS_NEVER);
     /*0x0056*/ DEFINE_HANDLER(CMSG_ITEM_QUERY_SINGLE,                                                STATUS_LOGGEDIN,   PROCESS_THREADSAFE,     &WorldSession::HandleItemQuerySingleOpcode              );
     /*0x0057*/ DEFINE_HANDLER(CMSG_ITEM_QUERY_MULTIPLE,                                              STATUS_NEVER,      PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );
     /*0x0058*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_ITEM_QUERY_SINGLE_RESPONSE,                         STATUS_NEVER);
@@ -811,6 +815,8 @@ void OpcodeTable::Initialize()
     /*0x1026*/ DEFINE_HANDLER(CMSG_GUILD_QUERY_RANKS,                                                STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildQueryRanksOpcode              );
     /*0x3032*/ DEFINE_HANDLER(CMSG_GUILD_ASSIGN_MEMBER_RANK,                                         STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildAssignRankOpcode              );
     /*0x1221*/ DEFINE_HANDLER(CMSG_GUILD_SWITCH_RANK,                                                STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildSwitchRankOpcode              );
+    /*0x1237*/ DEFINE_HANDLER(CMSG_GUILD_XP_QUERY,                                                   STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildXPQueryOpcode                 );
+    /*0x3232*/ DEFINE_HANDLER(CMSG_GUILD_REQUEST_MAX_DAILY_XP,                                       STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildRequestMaxDailyXP             );
     /*0x3030*/ DEFINE_HANDLER(CMSG_GUILD_ADD_RANK,                                                   STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildAddRankOpcode                 );
     /*0x3234*/ DEFINE_HANDLER(CMSG_GUILD_DEL_RANK,                                                   STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildDelRankOpcode                 );
     /*0x1233*/ DEFINE_HANDLER(CMSG_GUILD_SET_NOTE,                                            STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleGuildSetPublicNoteOpcode           );

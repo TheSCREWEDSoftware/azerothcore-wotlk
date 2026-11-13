@@ -2520,6 +2520,17 @@ Rate.XP.Explore   = 1
 Rate.XP.Pet       = 1
 
 #
+#    Rate.XP.Guild.Quest
+#    Rate.XP.Guild.HonorEarned
+#        Description: Cata guild leveling - fraction of a player's earned quest/honor XP that
+#                     is also converted into guild XP via Guild::GiveXP (see Guild.LevelingEnabled).
+#        Default:     0.25  - (Rate.XP.Guild.Quest)
+#                     10.0  - (Rate.XP.Guild.HonorEarned)
+
+Rate.XP.Guild.Quest = 0.25
+Rate.XP.Guild.HonorEarned = 10.0
+
+#
 #    Rate.XP.BattlegroundKill...
 #        Description: Experience rate for honorable kills in battlegrounds. Not affected by Rate.XP.Kill. Defined for each battleground.
 #                     Only works if Battleground.GiveXPForKills = 1
@@ -3678,6 +3689,36 @@ Guild.BankTabCost5 = 50000000
 #        Default:     0 - Disabled
 
 Guild.MemberLimit = 0
+
+#
+#    Guild.LevelingEnabled
+#        Description: Enables Cata guild leveling (guild level/XP, member activity tracking,
+#                     the roster's weekly/total XP columns, and the undeletable-level disband gate).
+#        Default:     1 - (Enabled)
+
+Guild.LevelingEnabled = 1
+
+#
+#    Guild.MaxLevel
+#        Description: Maximum guild level. Must have matching data in the `guild_xp_for_level`
+#                     world DB table up to this level.
+#        Default:     25
+
+Guild.MaxLevel = 25
+
+#
+#    Guild.UndeletableLevel
+#        Description: Guilds at or above this level cannot be disbanded by their leader leaving/quitting.
+#        Default:     4
+
+Guild.UndeletableLevel = 4
+
+#
+#    Guild.DailyXPCap
+#        Description: Maximum guild XP a guild can earn per day while below GUILD_EXPERIENCE_UNCAPPED_LEVEL (20).
+#        Default:     7807500
+
+Guild.DailyXPCap = 7807500
 
 #
 ###################################################################################################

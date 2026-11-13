@@ -40,6 +40,7 @@ namespace WorldPackets
 enum GuildMisc
 {
     GUILD_BANK_MAX_TABS                 = 8,                    // send by client for money log also; tabs 7-8 come from guild vault vouchers
+    GUILD_EXPERIENCE_UNCAPPED_LEVEL     = 20,                   // Hardcoded in client, starting from this level, guild daily experience gain is unlimited.
     GUILD_BANK_MAX_SLOTS                = 98,
     GUILD_BANK_MONEY_LOGS_TAB           = 100,                  // used for money log in DB
     GUILD_RANKS_MIN_COUNT               = 5,
@@ -140,6 +141,7 @@ enum GuildCommandError
     ERR_GUILD_NOT_ENOUGH_MONEY          = 26,
     ERR_GUILD_BANK_FULL                 = 28,
     ERR_GUILD_ITEM_NOT_FOUND            = 29,
+    ERR_GUILD_UNDELETABLE_DUE_TO_LEVEL  = 37,
 };
 
 enum GuildEvents
@@ -350,7 +352,11 @@ public: // pussywizard: public class Member
 
         void UpdateBankWithdrawValue(CharacterDatabaseTransaction trans, uint8 tabId, uint32 amount);
         int32 GetBankWithdrawValue(uint8 tabId) const;
-        void ResetValues();
+        void ResetValues(bool weekly = false);
+
+        void AddActivity(uint64 activity) { m_totalActivity += activity; m_weekActivity += activity; }
+        uint64 GetTotalActivity() const { return m_totalActivity; }
+        uint64 GetWeekActivity() const { return m_weekActivity; }
 
         inline Player* FindPlayer() const { return ObjectAccessor::FindConnectedPlayer(m_guid); }
 
@@ -376,6 +382,10 @@ public: // pussywizard: public class Member
         std::string m_officerNote;
 
         std::array<int32, GUILD_BANK_MAX_TABS + 1> m_bankWithdraw = {};
+
+        // Cata guild leveling: lifetime and this-week member activity, both feed member XP contribution.
+        uint64 m_totalActivity = 0;
+        uint64 m_weekActivity = 0;
 
         bool receiveGuildBankUpdatePackets;
     };
@@ -698,6 +708,13 @@ public:
     void SetMOTD(std::string_view motd);
     void SetInfo(std::string_view info);
 
+    // Cata guild leveling
+    uint8 GetLevel() const { return _level; }
+    uint64 GetExperience() const { return _experience; }
+    uint64 GetTodayExperience() const { return _todayExperience; }
+    void GiveXP(uint32 xp, Player* source, bool rewardedByChallenge = false);
+    void SendGuildXP(WorldSession* session);
+
     // Handle client commands
     void HandleRoster(WorldSession* session);
     void HandleQuery(WorldSession* session);
@@ -786,7 +803,7 @@ public:
     // Bank tabs
     void SetBankTabText(uint8 tabId, std::string_view text);
 
-    void ResetTimes();
+    void ResetTimes(bool weekly = false);
 
     [[nodiscard]] bool ModifyBankMoney(CharacterDatabaseTransaction trans, uint64 const& amount, bool add) { return _ModifyBankMoney(trans, amount, add); }
     [[nodiscard]] uint32 GetMemberSize() const { return m_members.size(); }
@@ -807,6 +824,11 @@ protected:
     EmblemInfo m_emblemInfo;
     uint32 m_accountsNumber;
     uint64 m_bankMoney;
+
+    // Cata guild leveling
+    uint8 _level = 1;
+    uint64 _experience = 0;
+    uint64 _todayExperience = 0;
 
     std::vector<RankInfo> m_ranks;
     std::unordered_map<uint32, Member> m_members;

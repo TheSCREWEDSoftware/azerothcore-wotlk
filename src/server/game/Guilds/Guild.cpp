@@ -593,6 +593,8 @@ void Guild::Member::SaveToDB(CharacterDatabaseTransaction trans) const
     stmt->SetData (2, m_rankId);
     stmt->SetData(3, m_publicNote);
     stmt->SetData(4, m_officerNote);
+    stmt->SetData(5, m_totalActivity);
+    stmt->SetData(6, m_weekActivity);
     CharacterDatabase.ExecuteOrAppend(trans, stmt);
 }
 
@@ -614,6 +616,8 @@ bool Guild::Member::LoadFromDB(Field* fields)
              fields[18].Get<uint16>(),                        // characters.zone
              fields[19].Get<uint32>());                       // characters.account
     m_logoutTime = fields[20].Get<uint32>();                  // characters.logout_time
+    m_totalActivity = fields[21].Get<uint64>();                // guild_member.activity
+    m_weekActivity  = fields[22].Get<uint64>();                // guild_member.weekActivity
 
     if (!CheckStats())
         return false;
@@ -662,10 +666,13 @@ void Guild::Member::UpdateBankWithdrawValue(CharacterDatabaseTransaction trans, 
     CharacterDatabase.ExecuteOrAppend(trans, stmt);
 }
 
-void Guild::Member::ResetValues()
+void Guild::Member::ResetValues(bool weekly)
 {
     for (uint8 tabId = 0; tabId <= GUILD_BANK_MAX_TABS; ++tabId)
         m_bankWithdraw[tabId] = 0;
+
+    if (weekly)
+        m_weekActivity = 0;
 }
 
 // Get amount of money/slots left for today.
@@ -1222,6 +1229,8 @@ void Guild::HandleRoster(WorldSession* session)
         memberData.RankID = int32(member.GetRankId());
         memberData.AreaID = int32(member.GetZoneId());
         memberData.LastSave = float(float(GameTime::GetGameTime().count() - member.GetLogoutTime()) / DAY);
+        memberData.WeeklyXP = int64(member.GetWeekActivity());
+        memberData.TotalXP = int64(member.GetTotalActivity());
 
         memberData.Status = member.GetFlags();
         memberData.Level = member.GetLevel();
@@ -1550,7 +1559,7 @@ void Guild::HandleInviteMember(WorldSession* session, std::string const& name)
     invite.InviterName = player->GetName();
     invite.GuildName = GetName();
     invite.GuildGuid = GetGUID();
-    invite.GuildLevel = 1; // guild levels are not ported yet
+    invite.GuildLevel = GetLevel();
     invite.EmblemStyle = m_emblemInfo.GetStyle();
     invite.EmblemColor = m_emblemInfo.GetColor();
     invite.BorderStyle = m_emblemInfo.GetBorderStyle();
@@ -1588,6 +1597,9 @@ void Guild::HandleLeaveMember(WorldSession* session)
         if (m_members.size() > 1)
             // Leader cannot leave if he is not the last member
             SendCommandResult(session, GUILD_COMMAND_QUIT, ERR_GUILD_LEADER_LEAVE);
+        else if (GetLevel() >= sWorld->getIntConfig(CONFIG_GUILD_UNDELETABLE_LEVEL))
+            // Guilds above the undeletable level threshold cannot be disbanded by their leader leaving/quitting
+            SendCommandResult(session, GUILD_COMMAND_QUIT, ERR_GUILD_UNDELETABLE_DUE_TO_LEVEL);
         else
         {
             // Guild is disbanded if leader leaves.
@@ -2059,6 +2071,14 @@ bool Guild::LoadFromDB(Field* fields)
     m_bankTabs.reserve(purchasedTabs);
     for (uint8 i = 0; i < purchasedTabs; ++i)
         m_bankTabs.emplace_back(m_id, i);
+
+    // Cata guild leveling
+    _level           = fields[13].Get<uint8>();
+    _experience      = fields[14].Get<uint64>();
+    _todayExperience = fields[15].Get<uint64>();
+    if (_level < 1)
+        _level = 1;
+
     return true;
 }
 
@@ -2368,6 +2388,7 @@ bool Guild::AddMember(ObjectGuid guid, uint8 rankId)
         player->SetInGuild(m_id);
         player->SetGuildIdInvited(0);
         player->SetRank(rankId);
+        player->SetGuildLevel(GetLevel());
         member.SetStats(player);
         SendLoginInfo(player->GetSession());
         name = player->GetName();
@@ -2466,6 +2487,7 @@ void Guild::DeleteMember(ObjectGuid guid, bool isDisbanding, bool isKicked, bool
     {
         player->SetInGuild(0);
         player->SetRank(0);
+        player->SetGuildLevel(0);
     }
     else
     {
@@ -3096,10 +3118,112 @@ void Guild::_SendBankList(WorldSession* session /* = nullptr*/, uint8 tabId /*= 
     }
 }
 
-void Guild::ResetTimes()
+void Guild::ResetTimes(bool weekly)
 {
+    _todayExperience = 0;
+
     for (auto& [guid, member] : m_members)
-        member.ResetValues();
+    {
+        member.ResetValues(weekly);
+
+        if (Player* player = member.FindPlayer())
+        {
+            SendGuildXP(player->GetSession());
+
+            WorldPacket data(SMSG_GUILD_MEMBER_DAILY_RESET, 0); // tells the client to request bank withdrawal limit
+            player->SendDirectMessage(&data);
+        }
+    }
+
+    CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_GUILD_EXPERIENCE);
+    stmt->SetData(0, _level);
+    stmt->SetData(1, _experience);
+    stmt->SetData(2, _todayExperience);
+    stmt->SetData(3, m_id);
+    CharacterDatabase.Execute(stmt);
 
     _BroadcastEvent(GE_BANK_TAB_AND_MONEY_UPDATED, ObjectGuid::Empty);
+}
+
+// Cata guild leveling. Ported from TrinityCore's Guild::GiveXP/SendGuildXP with the following
+// deliberate omissions vs. upstream, all left for follow-up work (see .agents/docs/porting-from-trinitycore.md):
+//  - No guild perk spell-learning loop: AC has no PLAYER_GUILDLEVEL update field to drive client-side
+//    perk UI, so perks are a separate follow-up commit.
+//  - No AddGuildNews call: AC has no guild news subsystem at all.
+//  - No UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_REACH_GUILD_LEVEL, ...) call: that criteria
+//    type doesn't exist in AC's achievement criteria enum.
+// Also, TrinityCore's real GiveXP sends SMSG_GUILD_XP_GAIN to the source player twice (once
+// unconditionally, once again inside the "!rewardedByChallenge" branch with identical payload) -
+// that looks like a copy-paste bug upstream, not intentional double notification, so only one
+// send is kept here.
+void Guild::GiveXP(uint32 xp, Player* source, bool rewardedByChallenge)
+{
+    if (!sWorld->getBoolConfig(CONFIG_GUILD_LEVELING_ENABLED))
+        return;
+
+    if (GetLevel() >= sWorld->getIntConfig(CONFIG_GUILD_MAX_LEVEL))
+        xp = 0; // SMSG_GUILD_XP_GAIN is always sent, even for no gains
+
+    if (GetLevel() < GUILD_EXPERIENCE_UNCAPPED_LEVEL)
+        xp = std::min(xp, uint32(sWorld->getIntConfig(CONFIG_GUILD_DAILY_XP_CAP)) - uint32(_todayExperience));
+
+    _experience += xp;
+
+    if (!rewardedByChallenge)
+        _todayExperience += xp;
+
+    if (source && source->GetSession())
+    {
+        WorldPacket data(SMSG_GUILD_XP_GAIN, 8);
+        data << uint64(xp);
+        source->GetSession()->SendPacket(&data);
+    }
+
+    if (source)
+        if (Member* member = GetMember(source->GetGUID()))
+            member->AddActivity(xp);
+
+    if (xp)
+    {
+        // Ding, mon! GetXPForGuildLevel(level) is the incremental XP cost of that level (not a
+        // cumulative total), so it is subtracted off as each level is granted - matching how
+        // TrinityCore/the guild_xp_for_level data model actually works.
+        while (GetLevel() < sWorld->getIntConfig(CONFIG_GUILD_MAX_LEVEL) && _experience >= sGuildMgr->GetXPForGuildLevel(GetLevel()))
+        {
+            _experience -= sGuildMgr->GetXPForGuildLevel(GetLevel());
+            ++_level;
+
+            // Notify all online members that the guild level changed
+            for (auto const& [guid, member] : m_members)
+                if (Player* player = member.FindPlayer())
+                    player->SetGuildLevel(GetLevel());
+        }
+
+        CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_GUILD_EXPERIENCE);
+        stmt->SetData(0, _level);
+        stmt->SetData(1, _experience);
+        stmt->SetData(2, _todayExperience);
+        stmt->SetData(3, m_id);
+        CharacterDatabase.Execute(stmt);
+    }
+
+    for (auto const& [guid, member] : m_members)
+        if (Player* player = member.FindPlayer())
+            SendGuildXP(player->GetSession());
+}
+
+void Guild::SendGuildXP(WorldSession* session)
+{
+    if (!session)
+        return;
+
+    Member const* member = session->GetPlayer() ? GetMember(session->GetPlayer()->GetGUID()) : nullptr;
+
+    WorldPackets::Guild::GuildXP packet;
+    packet.TotalXP = int64(member ? member->GetTotalActivity() : 0);
+    packet.GuildRemainingXP = int64(GetLevel() < sWorld->getIntConfig(CONFIG_GUILD_MAX_LEVEL) ? sGuildMgr->GetXPForGuildLevel(GetLevel()) - GetExperience() : 0);
+    packet.GuildTodayXP = int64(GetTodayExperience());
+    packet.WeeklyXP = int64(member ? member->GetWeekActivity() : 0);
+    packet.GuildCurrentXP = int64(GetExperience());
+    session->SendPacket(packet.Write());
 }

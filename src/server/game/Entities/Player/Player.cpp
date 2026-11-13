@@ -6345,6 +6345,11 @@ bool Player::RewardHonor(Unit* uVictim, uint32 groupsize, int32 honor, bool awar
     // add honor points
     ModifyHonorPoints(honor);
 
+    // Cata guild leveling
+    if (sWorld->getBoolConfig(CONFIG_GUILD_LEVELING_ENABLED))
+        if (Guild* guild = GetGuild())
+            guild->GiveXP(uint32(float(honor) * sWorld->getRate(RATE_XP_HONOR_EARNED_GUILD_MODIFIER)), this);
+
     ModifyTodayContribution(honor);
 
     // Xinef: Battleground experience
