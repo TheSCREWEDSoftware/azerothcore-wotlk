@@ -11762,6 +11762,10 @@ void Unit::UpdateUnitMod(UnitMods unitMod)
         case UNIT_MOD_HAPPINESS:
         case UNIT_MOD_RUNE:
         case UNIT_MOD_RUNIC_POWER:
+        case UNIT_MOD_SOUL_SHARDS:
+        case UNIT_MOD_ECLIPSE:
+        case UNIT_MOD_HOLY_POWER:
+        case UNIT_MOD_ALTERNATE_POWER:
             UpdateMaxPower(GetPowerTypeByAuraGroup(unitMod));
             break;
 
@@ -11987,6 +11991,14 @@ Powers Unit::GetPowerTypeByAuraGroup(UnitMods unitMod) const
             return POWER_RUNE;
         case UNIT_MOD_RUNIC_POWER:
             return POWER_RUNIC_POWER;
+        case UNIT_MOD_SOUL_SHARDS:
+            return POWER_SOUL_SHARDS;
+        case UNIT_MOD_ECLIPSE:
+            return POWER_ECLIPSE;
+        case UNIT_MOD_HOLY_POWER:
+            return POWER_HOLY_POWER;
+        case UNIT_MOD_ALTERNATE_POWER:
+            return POWER_ALTERNATE_POWER;
         default:
         case UNIT_MOD_MANA:
             return POWER_MANA;
@@ -12263,6 +12275,12 @@ uint32 Unit::GetCreatePowers(Powers power) const
             return 1000;
         case POWER_RUNE:
             return 0;
+        case POWER_SOUL_SHARDS:
+            return 3;
+        case POWER_ECLIPSE:
+            return 100;
+        case POWER_HOLY_POWER:
+            return 3;
         case POWER_HEALTH:
             return 0;
         default:

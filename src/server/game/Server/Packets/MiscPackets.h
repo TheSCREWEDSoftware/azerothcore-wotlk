@@ -152,7 +152,7 @@ namespace WorldPackets
             int32 Level = 0;
             int32 HealthDelta = 0;
             // The 4.3.4 client reads a fixed number of power deltas, so this must not track
-            // MAX_POWERS (which grew to 7 when Cataclysm added POWER_RUNE). Matches the pinned
+            // MAX_POWERS (11 with the Cataclysm power types). Matches the pinned
             // TC-Cata layout: int32 level, health, 6 power deltas, then MAX_STATS stat deltas.
             std::array<int32, 6> PowerDelta = { };
             std::array<int32, MAX_STATS> StatDelta = { };

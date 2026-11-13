@@ -255,6 +255,9 @@ enum Stats
 
 #define MAX_STATS                        5
 
+// characters.power1-7 and character_stats.maxpower1-7 store the unit power slots, not power types
+#define MAX_SAVED_POWER_COLUMNS          7
+
 enum Powers
 {
     POWER_MANA                          = 0,
@@ -264,7 +267,11 @@ enum Powers
     POWER_HAPPINESS                     = 4,
     POWER_RUNE                          = 5,
     POWER_RUNIC_POWER                   = 6,
-    MAX_POWERS                          = 7,
+    POWER_SOUL_SHARDS                   = 7,
+    POWER_ECLIPSE                       = 8,
+    POWER_HOLY_POWER                    = 9,
+    POWER_ALTERNATE_POWER               = 10,           // Used in some quests and encounters
+    MAX_POWERS                          = 11,
     POWER_ALL                           = 127,    // default for class?
     POWER_HEALTH                        = 0xFFFFFFFE    // (-2 as signed value)
 };

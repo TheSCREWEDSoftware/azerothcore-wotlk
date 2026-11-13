@@ -469,6 +469,7 @@ public:
     void _cast(bool skipCheck);
     void finish(bool ok = true);
     void TakePower();
+    void HandleHolyPower(Player* caster);
     void TakeAmmo();
 
     void TakeRunePower(bool didHit);

@@ -2078,7 +2078,8 @@ void Spell::EffectEnergize(SpellEffIndex effIndex)
     if (level_diff > 0)
         damage -= level_multiplier * level_diff;
 
-    if (damage < 0)
+    // eclipse and alternate power can be moved in both directions
+    if (damage < 0 && power != POWER_ECLIPSE && power != POWER_ALTERNATE_POWER)
         return;
 
     unitCaster->EnergizeBySpell(unitTarget, m_spellInfo->Id, damage, power);

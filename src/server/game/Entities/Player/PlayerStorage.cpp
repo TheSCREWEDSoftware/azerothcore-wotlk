@@ -5830,10 +5830,11 @@ bool Player::LoadFromDB(ObjectGuid playerGuid, CharacterDatabaseQueryHolder cons
     // restore remembered power/health values (but not more max values)
     uint32 savedHealth = fields[55].Get<uint32>();
     SetHealth(savedHealth > GetMaxHealth() ? GetMaxHealth() : savedHealth);
-    for (uint8 i = 0; i < MAX_POWERS; ++i)
+    for (uint8 i = 0; i < MAX_UNIT_POWER_FIELDS; ++i)
     {
         uint32 savedPower = fields[56 + i].Get<uint32>();
-        SetPower(Powers(i), savedPower > GetMaxPower(Powers(i)) ? GetMaxPower(Powers(i)) : savedPower);
+        uint32 maxPower = GetUInt32Value(UNIT_FIELD_MAXPOWER1 + i);
+        SetUInt32Value(UNIT_FIELD_POWER1 + i, savedPower > maxPower ? maxPower : savedPower);
     }
 
     LOG_DEBUG("entities.player.loading", "The value of player {} after load item and aura is: ", m_name);
@@ -8190,8 +8191,8 @@ void Player::_SaveStats(CharacterDatabaseTransaction trans)
     stmt->SetData(index++, GetGUID().GetRawValue());
     stmt->SetData(index++, GetMaxHealth());
 
-    for (uint8 i = 0; i < MAX_POWERS; ++i)
-        stmt->SetData(index++, GetMaxPower(Powers(i)));
+    for (uint8 i = 0; i < MAX_SAVED_POWER_COLUMNS; ++i)
+        stmt->SetData(index++, i < MAX_UNIT_POWER_FIELDS ? GetUInt32Value(UNIT_FIELD_MAXPOWER1 + i) : 0);
 
     for (uint8 i = 0; i < MAX_STATS; ++i)
         stmt->SetData(index++, GetStat(Stats(i)));

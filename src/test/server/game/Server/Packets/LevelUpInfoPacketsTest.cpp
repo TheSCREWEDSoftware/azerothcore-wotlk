@@ -23,7 +23,7 @@ namespace
 }
 
 // Cata 4.3.4 SMSG_LEVELUP_INFO: int32 level, int32 health delta, a fixed 6 int32 power deltas,
-// then MAX_STATS int32 stat deltas. Deliberately decoupled from MAX_POWERS (7 after POWER_RUNE).
+// then MAX_STATS int32 stat deltas. Deliberately decoupled from MAX_POWERS (11 with the Cataclysm power types).
 TEST(LevelUpInfoPacketsTest, WritesCataLayoutWithSignedDeltas)
 {
     WorldPackets::Misc::LevelUpInfo packet;

@@ -1821,6 +1821,8 @@ void Player::RegenerateAll()
         Regenerate(POWER_RAGE);
         if (IsClass(CLASS_DEATH_KNIGHT, CLASS_CONTEXT_ABILITY))
             Regenerate(POWER_RUNIC_POWER);
+        if (HasActivePowerType(POWER_HOLY_POWER))
+            Regenerate(POWER_HOLY_POWER);
 
         m_regenTimerCount -= 2000;
     }
@@ -1935,6 +1937,10 @@ void Player::Regenerate(Powers power)
                     addvalue += -30 * RunicPowerDecreaseRate;         // 3 RunicPower by tick
                 }
             }
+            break;
+        case POWER_HOLY_POWER:                              // decays by 0.1 per second out of combat
+            if (!IsInCombat())
+                addvalue += -0.1f * 0.001f * m_regenTimerCount;
             break;
         case POWER_RUNE:
         case POWER_FOCUS:
@@ -2070,6 +2076,9 @@ void Player::ResetAllPowers()
 
     if (HasActivePowerType(POWER_RUNIC_POWER))
         SetPower(POWER_RUNIC_POWER, 0);
+
+    if (HasActivePowerType(POWER_ECLIPSE))
+        SetPower(POWER_ECLIPSE, 0);
 }
 
 bool Player::CanInteractWithQuestGiver(Object* questGiver)
@@ -15700,8 +15709,8 @@ void Player::_SaveCharacter(bool create, CharacterDatabaseTransaction trans)
         stmt->SetData(index++, GetDrunkValue());
         stmt->SetData(index++, GetHealth());
 
-        for (uint32 i = 0; i < MAX_POWERS; ++i)
-            stmt->SetData(index++, GetPower(Powers(i)));
+        for (uint32 i = 0; i < MAX_SAVED_POWER_COLUMNS; ++i)
+            stmt->SetData(index++, i < MAX_UNIT_POWER_FIELDS ? GetUInt32Value(UNIT_FIELD_POWER1 + i) : 0);
 
         stmt->SetData(index++, GetSession()->GetLatency());
 
@@ -15840,8 +15849,8 @@ void Player::_SaveCharacter(bool create, CharacterDatabaseTransaction trans)
         stmt->SetData(index++, GetDrunkValue());
         stmt->SetData(index++, GetHealth());
 
-        for (uint32 i = 0; i < MAX_POWERS; ++i)
-            stmt->SetData(index++, GetPower(Powers(i)));
+        for (uint32 i = 0; i < MAX_SAVED_POWER_COLUMNS; ++i)
+            stmt->SetData(index++, i < MAX_UNIT_POWER_FIELDS ? GetUInt32Value(UNIT_FIELD_POWER1 + i) : 0);
 
         stmt->SetData(index++, GetSession()->GetLatency());
 

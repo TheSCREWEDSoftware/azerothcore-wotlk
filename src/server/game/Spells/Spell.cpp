@@ -4429,6 +4429,9 @@ void Spell::_handle_finish_phase()
             unitCaster->ClearComboPoints();
         }
 
+        if (m_spellInfo->PowerType == POWER_HOLY_POWER && unitCaster->IsPlayer() && unitCaster->IsClass(CLASS_PALADIN, CLASS_CONTEXT_ABILITY))
+            HandleHolyPower(unitCaster->ToPlayer());
+
         // Real add combo points from effects
         if (m_comboTarget && m_comboPointGain)
         {
@@ -5501,6 +5504,27 @@ void Spell::TakeCastItem()
         m_CastItem = nullptr;
         m_castItemGUID.Clear();
     }
+}
+
+void Spell::HandleHolyPower(Player* caster)
+{
+    // Holy power spells always spend everything the paladin has
+    m_powerCost = caster->GetPower(POWER_HOLY_POWER);
+    if (!m_powerCost)
+        return;
+
+    Player* modOwner = caster->GetSpellModOwner();
+    if (!modOwner)
+        return;
+
+    if (ObjectGuid targetGUID = m_targets.GetUnitTargetGUID())
+        for (TargetInfo const& targetInfo : m_UniqueTargetInfo)
+            if (targetInfo.targetGUID == targetGUID && targetInfo.missCondition != SPELL_MISS_NONE && targetInfo.missCondition != SPELL_MISS_MISS)
+                return;
+
+    // The spell hit, apply aura cost mods if there are any
+    modOwner->ApplySpellMod(m_spellInfo->Id, SPELLMOD_COST, m_powerCost, this);
+    caster->ModifyPower(POWER_HOLY_POWER, -int32(m_powerCost));
 }
 
 void Spell::TakePower()
