@@ -28,17 +28,25 @@ add_subdirectory(utf8cpp)
 
 if ((APPS_BUILD AND (NOT APPS_BUILD STREQUAL "none")) OR BUILD_TOOLS_DB_IMPORT)
   add_subdirectory(mysql)
+  # Battle.net login (bnetserver) and the realm list shared by every app
+  add_subdirectory(protobuf)
+  add_subdirectory(rapidjson)
+  add_subdirectory(zlib)
+elseif (BUILD_TOOLS_MAPS)
+  add_subdirectory(zlib)
 endif()
 
 if (BUILD_APPLICATION_WORLDSERVER OR BUILD_TOOLS_MAPS)
-  add_subdirectory(zlib)
   add_subdirectory(g3dlite)
   add_subdirectory(recastnavigation)
 endif()
 
+if (BUILD_APPLICATION_WORLDSERVER OR BUILD_APPLICATION_BNETSERVER)
+  add_subdirectory(gsoap)
+endif()
+
 if (BUILD_APPLICATION_WORLDSERVER)
   add_subdirectory(readline)
-  add_subdirectory(gsoap)
   add_subdirectory(gperftools)
 endif()
 

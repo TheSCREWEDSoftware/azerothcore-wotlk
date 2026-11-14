@@ -89,3 +89,11 @@ fkYAML (A C++ header-only YAML library)
 libsidecar (enables interaction with other components when the worldserver is running in cluster mode. Place the shared library from the release assets in deps/libsidecar for builds. UNIX: BUILD_RPATH finds deps/libsidecar; install copies to ${prefix}/lib; runtime also searches next to worldserver and ../lib. Windows: no rpath - build copies the DLL next to worldserver; install places it next to worldserver. Headers under deps/libsidecar/include - including tc9_version.h - must come from the same libsidecar build/release as the linked binary. worldserver checks ABI early when Cluster.Enabled.)
   https://github.com/walkline/ToCloud9/releases/tag/libsidecar-v1.0.0
   Version: 1.0.0 (TC9_VERSION in deps/libsidecar/include/tc9_version.h)
+
+protobuf (Protocol Buffers - Google's data interchange format, used by the Battle.net login)
+  https://github.com/google/protobuf
+  Version: v2.6.1 (imported from TrinityCore 6.x dep/protobuf)
+
+rapidjson (A fast JSON parser/generator for C++ with both SAX/DOM style API)
+  https://github.com/miloyip/rapidjson
+  Version: v1.0.2 (imported from TrinityCore 6.x dep/rapidjson)

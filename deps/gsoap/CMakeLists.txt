@@ -23,9 +23,16 @@ target_include_directories(gsoap
         PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR})
 
+# bnetserver serves its REST login over HTTPS (TrinityCore 6.x builds gsoap the same way)
+target_compile_definitions(gsoap
+        PUBLIC
+        -DWITH_OPENSSL)
+
 target_link_libraries(gsoap
         PRIVATE
-        acore-dependency-interface)
+        acore-dependency-interface
+        PUBLIC
+        openssl)
 
 set_target_properties(gsoap
         PROPERTIES
