@@ -5,8 +5,9 @@ The target is a world built by apps/cata/build_world_base.sh (TDB 434 converted 
 schema). SkyFire's world uses the 2013 TrinityCore schema; this script adds what 4.3.4 does not have:
 
 - item_template: every SFDB item replaces the 4.3.4 row (5.4.8 stats, prices, spells). Weapon
-  damage, armor and resistances are not SFDB columns (5.4.8 derives them from ItemDamage*/ItemArmor*
-  DBCs); the 4.3.4 values are kept for items both have, new items get 0.
+  damage and armor are not SFDB columns (5.4.8 derives them from ItemDamage*/ItemArmor* DBCs): with
+  --dbc-dir they are computed from the 5.4.8 tables and resistances are cleared (5.4.8 items have
+  none); without it the 4.3.4 values are kept for items both have and new items get 0.
 - templates that 4.3.4 does not have: creature_template (+ model, spell, resistance, movement,
   quest items, addon, equipment, immunities), creature_model_info, gameobject_template (+ addon,
   quest items).
@@ -18,17 +19,24 @@ schema). SkyFire's world uses the 2013 TrinityCore schema; this script adds what
 - loot, vendor, SmartAI, creature text, waypoint and condition rows that belong to the new templates,
   spawns and quests.
 - character creation for the Monk class and the Pandaren races (playercreateinfo, actions, items,
-  spells) and their stats (player_class_stats / player_race_stats from player_levelstats).
+  spells) and their stats (player_class_stats / player_race_stats from player_levelstats). With
+  --dbc-dir, BaseHP/BaseMana of every class and level come from gtOCTBaseHPByClass/MPByClass.
 
 Rows the target already has are never replaced, except item_template.
 
-  import_sfdb.py --source sfdb548 --target acore_world_build [--container local --user root --password ""]
+  import_sfdb.py --source sfdb548 --target acore_world_build [--dbc-dir DIR]
+                 [--container local --user root --password ""]
 """
 
 import argparse
+import os
 import re
+import struct
 import subprocess
 import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "cata"))
+import item_derived_stats as derived  # noqa: E402
 
 GUID_OFFSET = 20_000_000
 PATH_OFFSET = 200_000_000
@@ -55,6 +63,12 @@ def run(sql):
     if result.returncode:
         raise RuntimeError(f"query failed: {sql}\n{result.stderr.strip()}")
     return [line.split("\t") for line in result.stdout.split("\n") if line]
+
+
+def run_script(sql):
+    subprocess.run(mysql_command("--default-character-set=utf8mb4", stdin=True),
+                   input="SET SESSION sql_mode='NO_ENGINE_SUBSTITUTION';\n" + sql, text=True, encoding="utf-8",
+                   check=True)
 
 
 def execute(sql):
@@ -405,7 +419,8 @@ def import_character_creation():
     # race bonus. SFDB's Pandaren rows equal its human rows, so the Pandaren racial modifiers of the 5.4.8
     # client (str 0, agi -2, sta +1, int -1, spi +2) are written directly. Class stats come from SFDB's
     # human rows (human bonus 0) for every class and level, so the 5.4.8 base stats line up; the Monk
-    # and levels 86-90 are new rows.
+    # and levels 86-90 are new rows (a class and level SFDB has no human row for takes the first race that
+    # can, minus that race's bonus).
     stats = ("Strength", "Agility", "Stamina", "Intellect", "Spirit")
     sf_stats = ("str", "agi", "sta", "inte", "spi")
 
@@ -419,8 +434,9 @@ def import_character_creation():
         f"UPDATE {tgt('player_class_stats')} c JOIN `{ARGS.source}`.player_levelstats l "
         f"ON l.race=1 AND l.class=c.Class AND l.level=c.Level "
         f"SET " + ",".join(f"c.{ac}=l.{sf}" for sf, ac in zip(sf_stats, stats)))
-    # BaseHP/BaseMana are not SFDB data (5.4.8 takes them from gtOCTBaseHPByClass/MPByClass): a new
-    # level keeps the class's highest known level, the Monk uses the rogue's health and the shaman's mana.
+    # BaseHP/BaseMana are not SFDB data (5.4.8 takes them from gtOCTBaseHPByClass/MPByClass, see
+    # client_tables): until then a new level keeps the class's highest known level, the Monk uses the
+    # rogue's health and the shaman's mana.
     class_stats = ",".join(f"GREATEST(0, {signed(f'l.{sf}')} - {signed(f'r.{ac}')})" for sf, ac in zip(sf_stats, stats))
     counts["class_stats"] = execute(
         f"INSERT IGNORE INTO {tgt('player_class_stats')} (Class,Level,BaseHP,BaseMana,{','.join(stats)}) "
@@ -432,8 +448,83 @@ def import_character_creation():
         f"LEFT JOIN {tgt('player_class_stats')} mana ON mana.Class=IF(l.class={MONK}, 7, l.class) "
         f"AND mana.Level=(SELECT MAX(Level) FROM {tgt('player_class_stats')} m "
         f"WHERE m.Class=IF(l.class={MONK}, 7, l.class) AND m.Level<=l.level) "
-        f"WHERE l.race=1")
+        f"WHERE l.race=(SELECT MIN(x.race) FROM `{ARGS.source}`.player_levelstats x WHERE x.class=l.class AND x.level=l.level)")
     return counts
+
+
+# --- 5.4.8 client tables (--dbc-dir) ------------------------------------------------------------
+
+ITEM_TABLES = ("ArmorLocation", "ItemArmorQuality", "ItemArmorShield", "ItemArmorTotal", "ItemDamageAmmo",
+               "ItemDamageOneHand", "ItemDamageOneHandCaster", "ItemDamageTwoHand", "ItemDamageTwoHandCaster",
+               "ItemDamageRanged", "ItemDamageThrown", "ItemDamageWand")
+RESISTANCES = ("holy_res", "fire_res", "nature_res", "frost_res", "shadow_res", "arcane_res")
+
+
+def batched_update(table, key, value_columns, rows, join):
+    """Write rows into a scratch table and apply them with one UPDATE ... JOIN."""
+    scratch = f"`{ARGS.target}`.`_sfdb_{table}`"
+    definition = ",".join(f"`{c}` {t}" for c, t in value_columns)
+    sql = [f"DROP TABLE IF EXISTS {scratch};",
+           f"CREATE TABLE {scratch} ({key} INT UNSIGNED NOT NULL PRIMARY KEY, {definition});"]
+    for start in range(0, len(rows), 5000):
+        values = ",".join("(" + ",".join(str(v) for v in row) + ")" for row in rows[start:start + 5000])
+        sql.append(f"INSERT INTO {scratch} VALUES {values};")
+    run_script("\n".join(sql))
+    count = execute(join.format(scratch=scratch))
+    run(f"DROP TABLE {scratch}")
+    return count
+
+
+def derive_item_stats():
+    """Armor and weapon damage of the SFDB items from the 5.4.8 ItemArmor*/ItemDamage* tables."""
+    tables = {name: derived.read_dbc(open(os.path.join(ARGS.dbc_dir, f"{name}.dbc"), "rb").read(),
+                                     derived.LAYOUTS[name]) for name in ITEM_TABLES}
+    items = run(f"SELECT t.entry, t.class, t.subclass, t.InventoryType, t.Quality, t.ItemLevel, t.FlagsExtra, "
+                f"t.delay, s.StatScalingFactor, t.ArmorDamageModifier FROM {tgt('item_template')} t "
+                f"JOIN {src('item_template')} ON s.entry=t.entry")
+    rows = []
+    for entry, item_class, subclass, inventory, quality, level, flags2, delay, scaling, modifier in items:
+        item_class, subclass, inventory, quality, level, flags2, delay = (
+            int(v) for v in (item_class, subclass, inventory, quality, level, flags2, delay))
+        armor = derived.effective_armor(tables, item_class, subclass, inventory, quality, level)
+        damage = derived.weapon_damage(tables, item_class, subclass, inventory, quality, level, flags2, delay,
+                                       float(scaling), float(modifier)) or (0.0, 0.0)
+        rows.append((int(entry), armor, round(damage[0], 4), round(damage[1], 4)))
+    clear = ",".join(f"t.{column}=0" for column in RESISTANCES)
+    return {"item_stats": batched_update(
+        "item_stats", "entry", (("armor", "INT UNSIGNED"), ("dmg_min", "FLOAT"), ("dmg_max", "FLOAT")), rows,
+        f"UPDATE {tgt('item_template')} t JOIN {{scratch}} d ON d.entry=t.entry "
+        f"SET t.armor=d.armor, t.dmg_min1=d.dmg_min, t.dmg_max1=d.dmg_max, t.dmg_min2=0, t.dmg_max2=0, {clear}")}
+
+
+def read_game_table(name):
+    with open(os.path.join(ARGS.dbc_dir, f"{name}.dbc"), "rb") as handle:
+        data = handle.read()
+    records, fields, size, _ = struct.unpack_from("<4I", data, 4)
+    if fields != 2 or size != 8:
+        raise ValueError(f"unexpected {name}.dbc layout: {fields} fields, {size} bytes")
+    return [struct.unpack_from("<If", data, 20 + i * size)[1] for i in range(records)]
+
+
+def class_base_values():
+    """BaseHP/BaseMana per class and level (rows are (class - 1) * 100 + level - 1)."""
+    health, mana = read_game_table("gtOCTBaseHPByClass"), read_game_table("gtOCTBaseMPByClass")
+    rows = []
+    for row in run(f"SELECT Class, Level FROM {tgt('player_class_stats')}"):
+        player_class, level = int(row[0]), int(row[1])
+        index = (player_class - 1) * 100 + level - 1
+        if 0 <= index < len(health):
+            rows.append((player_class * 1000 + level, int(health[index] + 0.5), int(mana[index] + 0.5)))
+    return {"class_base_values": batched_update(
+        "class_base", "id", (("BaseHP", "INT UNSIGNED"), ("BaseMana", "INT UNSIGNED")), rows,
+        f"UPDATE {tgt('player_class_stats')} t JOIN {{scratch}} d ON d.id=t.Class*1000+t.Level "
+        f"SET t.BaseHP=d.BaseHP, t.BaseMana=d.BaseMana")}
+
+
+def client_tables():
+    if not ARGS.dbc_dir:
+        return {"skipped (no --dbc-dir)": 0}
+    return {**derive_item_stats(), **class_base_values()}
 
 
 def cleanup():
@@ -444,7 +535,7 @@ def cleanup():
 PHASES = (("items", import_items), ("creature_templates", import_creature_templates),
           ("gameobject_templates", import_gameobject_templates), ("spawns", import_spawns),
           ("quests", import_quests), ("relations", import_relations),
-          ("character_creation", import_character_creation))
+          ("character_creation", import_character_creation), ("client_tables", client_tables))
 
 
 def main():
@@ -455,6 +546,7 @@ def main():
     parser.add_argument("--password", default="")
     parser.add_argument("--source", default="sfdb548")
     parser.add_argument("--target", required=True)
+    parser.add_argument("--dbc-dir", help="5.4.8 DBFilesClient directory (ItemArmor*/ItemDamage*, gtOCTBase*)")
     ARGS = parser.parse_args()
     for name in (ARGS.source, ARGS.target):
         if not re.fullmatch(r"\w+", name):
