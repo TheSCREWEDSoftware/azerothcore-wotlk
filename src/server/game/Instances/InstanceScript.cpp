@@ -21,6 +21,7 @@
 #include "DatabaseEnv.h"
 #include "GameObject.h"
 #include "Group.h"
+#include "DBCStores.h"
 #include "InstancePackets.h"
 #include "InstanceSaveMgr.h"
 #include "LFGMgr.h"
@@ -404,6 +405,29 @@ bool InstanceScript::_SkipCheckRequiredBosses(Player const* player /*= nullptr*/
     return player && player->GetSession()->HasPermission(rbac::RBAC_PERM_SKIP_CHECK_INSTANCE_REQUIRED_BOSSES);
 }
 
+void InstanceScript::LoadDungeonEncounterData(uint32 bossId, std::array<uint32, MAX_DUNGEON_ENCOUNTERS_PER_BOSS> const& dungeonEncounterIds)
+{
+    if (bossId >= bosses.size())
+        return;
+
+    for (std::size_t i = 0; i < MAX_DUNGEON_ENCOUNTERS_PER_BOSS; ++i)
+        if (dungeonEncounterIds[i])
+            bosses[bossId].DungeonEncounters[i] = sDungeonEncounterStore.LookupEntry(dungeonEncounterIds[i]);
+}
+
+DungeonEncounterEntry const* InstanceScript::GetBossDungeonEncounter(uint32 id) const
+{
+    if (id >= bosses.size())
+        return nullptr;
+
+    // the entry for this difficulty, else one valid for every difficulty
+    for (DungeonEncounterEntry const* encounter : bosses[id].DungeonEncounters)
+        if (encounter && (encounter->DifficultyID == 0 || encounter->DifficultyID == uint32(instance->GetDifficultyID())))
+            return encounter;
+
+    return nullptr;
+}
+
 bool InstanceScript::SetBossState(uint32 id, EncounterState state)
 {
     if (id < bosses.size())
@@ -429,6 +453,28 @@ bool InstanceScript::SetBossState(uint32 id, EncounterState state)
 
             bossInfo->state = state;
             SaveToDB();
+        }
+
+        if (DungeonEncounterEntry const* encounter = GetBossDungeonEncounter(id))
+        {
+            uint32 groupSize = instance->GetPlayersCountExceptGMs();
+            if (state == IN_PROGRESS)
+            {
+                WorldPackets::Instance::EncounterStart encounterStart;
+                encounterStart.EncounterID = encounter->ID;
+                encounterStart.DifficultyID = instance->GetDifficultyID();
+                encounterStart.GroupSize = groupSize;
+                instance->SendToPlayers(encounterStart.Write());
+            }
+            else if (state == DONE || state == FAIL)
+            {
+                WorldPackets::Instance::EncounterEnd encounterEnd;
+                encounterEnd.EncounterID = encounter->ID;
+                encounterEnd.DifficultyID = instance->GetDifficultyID();
+                encounterEnd.GroupSize = groupSize;
+                encounterEnd.Success = state == DONE;
+                instance->SendToPlayers(encounterEnd.Write());
+            }
         }
 
         for (uint32 type = 0; type < MAX_DOOR_TYPES; ++type)
@@ -490,6 +536,7 @@ void InstanceScript::Load(char const* data)
         ReadSaveDataBossStates(loadStream);
         ReadSavePersistentData(loadStream);
         ReadSaveDataMore(loadStream);
+        AfterDataLoad();
     }
     else
         OUT_LOAD_INST_DATA_FAIL;

@@ -42,6 +42,27 @@ bool _SpellScript::_ValidateSpellInfo(uint32 spellId)
     return true;
 }
 
+bool _SpellScript::ValidateSpellEffect(std::initializer_list<std::pair<uint32, SpellEffIndex>> effects)
+{
+    bool allValid = true;
+    for (auto const& [spellId, effIndex] : effects)
+    {
+        SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(spellId);
+        if (!spellInfo)
+        {
+            LOG_ERROR("spells.scripts", "_SpellScript::ValidateSpellEffect: Spell {} does not exist.", spellId);
+            allValid = false;
+        }
+        else if (effIndex >= MAX_SPELL_EFFECTS || !spellInfo->Effects[effIndex].IsEffect())
+        {
+            LOG_ERROR("spells.scripts", "_SpellScript::ValidateSpellEffect: Spell {} does not have EFFECT_{}.", spellId, uint32(effIndex));
+            allValid = false;
+        }
+    }
+
+    return allValid;
+}
+
 void _SpellScript::_Register()
 {
     m_currentScriptState = SPELL_SCRIPT_STATE_REGISTRATION;

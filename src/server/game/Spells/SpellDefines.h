@@ -19,6 +19,7 @@
 #define SPELLDEFINES_H
 
 #include "Define.h"
+#include "EnumFlag.h"
 #include "ObjectGuid.h"
 #include <memory>
 #include <vector>
@@ -163,11 +164,16 @@ enum TriggerCastFlags
     TRIGGERED_FULL_DEBUG_MASK                       = 0xFFFFFFFF
 };
 
+DEFINE_ENUM_FLAG(TriggerCastFlags);   // TC master: TRIGGERED_A | TRIGGERED_B stays a TriggerCastFlags
+
 enum SpellImmuneBlockType
 {
     SPELL_BLOCK_TYPE_ALL        = 0,
     SPELL_BLOCK_TYPE_POSITIVE   = 1,
 };
+
+// TC master's type for spell effect values (a float there); AC keeps them integral
+using SpellEffectValue = int32;
 
 typedef std::pair<SpellValueMod, int32> CustomSpellValueMod;
 class CustomSpellValues : public std::vector<CustomSpellValueMod>
@@ -205,6 +211,19 @@ struct AC_GAME_API CastSpellTargetArg
     std::unique_ptr<SpellCastTargets> Targets;
 };
 
+// TC master: designated initializer form of CastSpellExtraArgs (TriggeringSpell is not used here)
+class Spell;
+
+struct CastSpellExtraArgsInit
+{
+    TriggerCastFlags TriggerFlags = TRIGGERED_NONE;
+    Item* CastItem = nullptr;
+    Spell const* TriggeringSpell = nullptr;
+    AuraEffect const* TriggeringAura = nullptr;
+    ObjectGuid OriginalCaster = ObjectGuid::Empty;
+    std::vector<std::pair<SpellValueMod, int32>> SpellValueOverrides = {};
+};
+
 struct AC_GAME_API CastSpellExtraArgs
 {
     CastSpellExtraArgs() = default;
@@ -222,6 +241,12 @@ struct AC_GAME_API CastSpellExtraArgs
     CastSpellExtraArgs(SpellValueMod mod, int32 val)
     {
         SpellValueOverrides.AddSpellMod(mod, val);
+    }
+    CastSpellExtraArgs(CastSpellExtraArgsInit const& init)
+        : TriggerFlags(init.TriggerFlags), CastItem(init.CastItem), TriggeringAura(init.TriggeringAura), OriginalCaster(init.OriginalCaster)
+    {
+        for (auto const& [mod, value] : init.SpellValueOverrides)
+            SpellValueOverrides.AddSpellMod(mod, value);
     }
 
     CastSpellExtraArgs& SetTriggerFlags(TriggerCastFlags flag) { TriggerFlags = flag; return *this; }

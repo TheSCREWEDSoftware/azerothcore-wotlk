@@ -40,6 +40,15 @@ bool ScriptMgr::OnAreaTrigger(Player* player, AreaTrigger const* trigger)
     return tempScript ? tempScript->OnTrigger(player, trigger) : false;
 }
 
+bool ScriptMgr::OnAreaTriggerExit(Player* player, AreaTrigger const* trigger)
+{
+    ASSERT(player);
+    ASSERT(trigger);
+
+    auto tempScript = ScriptRegistry<AreaTriggerScript>::GetScriptById(sObjectMgr->GetAreaTriggerScriptId(trigger->entry));
+    return tempScript ? tempScript->OnExit(player, trigger) : false;
+}
+
 AreaTriggerScript::AreaTriggerScript(char const* name)
     : ScriptObject(name)
 {

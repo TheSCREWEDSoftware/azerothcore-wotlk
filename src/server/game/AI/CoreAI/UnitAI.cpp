@@ -40,6 +40,11 @@ void UnitAI::AttackStartCaster(Unit* victim, float dist)
 
 void UnitAI::DoMeleeAttackIfReady()
 {
+    // TC master: creatures can be told not to melee (SetCanMelee)
+    if (Creature const* creature = me->ToCreature())
+        if (!creature->CanMelee())
+            return;
+
     if (me->IsActionPreventedByCasting())
         return;
 
@@ -269,6 +274,33 @@ SpellCastResult UnitAI::DoCast(Unit* victim, uint32 spellId, bool triggered)
         return SPELL_FAILED_SPELL_IN_PROGRESS;
 
     return me->CastSpell(victim, spellId, triggered);
+}
+
+SpellCastResult UnitAI::DoCast(Unit* victim, uint32 spellId, CastSpellExtraArgs const& args)
+{
+    if (!victim)
+        return SPELL_FAILED_BAD_TARGETS;
+
+    if (me->IsActionPreventedByCasting() && !(args.TriggerFlags & TRIGGERED_IGNORE_CAST_IN_PROGRESS))
+        return SPELL_FAILED_SPELL_IN_PROGRESS;
+
+    return me->CastSpell(victim, spellId, args);
+}
+
+SpellCastResult UnitAI::DoCastVictim(uint32 spellId, CastSpellExtraArgs const& args)
+{
+    if (Unit* victim = me->GetVictim())
+        return DoCast(victim, spellId, args);
+
+    return SPELL_FAILED_BAD_TARGETS;
+}
+
+SpellCastResult UnitAI::DoCastAOE(uint32 spellId, CastSpellExtraArgs const& args)
+{
+    if (me->IsActionPreventedByCasting() && !(args.TriggerFlags & TRIGGERED_IGNORE_CAST_IN_PROGRESS))
+        return SPELL_FAILED_SPELL_IN_PROGRESS;
+
+    return me->CastSpell(nullptr, spellId, args);
 }
 
 SpellCastResult UnitAI::DoCastVictim(uint32 spellId, bool triggered)

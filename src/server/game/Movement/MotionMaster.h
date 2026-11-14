@@ -171,6 +171,7 @@ public:
 
     void Initialize();
     void InitDefault();
+    void InitializeDefault() { InitDefault(); }   // TC master name
 
     [[nodiscard]] bool empty() const { return (_top < 0); }
     [[nodiscard]] int size() const { return _top + 1; }
@@ -261,6 +262,14 @@ public:
     void MoveJump(Position const& pos, float speedXY, float speedZ, uint32 id = 0)
     { MoveJump(pos.m_positionX, pos.m_positionY, pos.m_positionZ, speedXY, speedZ, id); };
     void MoveJump(float x, float y, float z, float speedXY, float speedZ, uint32 id = 0, Unit const* target = nullptr);
+    // TC master signature: jump to pos at speedXY reaching maxHeight above the start (vertical speed from the height)
+    void MoveJump(uint32 id, Position const& pos, float speedXY, Optional<float> /*minHeight*/, Optional<float> maxHeight)
+    {
+        float height = maxHeight.value_or(1.0f);
+        MoveJump(pos, speedXY, std::sqrt(2.0f * 19.29110527f * std::max(height, 0.1f)), id);
+    }
+    // TC master: waypoint path (waypoint_data here)
+    void MovePath(uint32 pathId, bool repeatable) { MoveWaypoint(pathId, repeatable); }
     void MoveCirclePath(float x, float y, float z, float radius, bool clockwise, uint8 stepCount,
         ForcedMovement forcedMovement = FORCED_MOVEMENT_NONE, float speed = 0.0f);
     void MoveFall(uint32 id = 0, bool addFlagForNPC = false);

@@ -54,6 +54,7 @@ public:
     SpellInfo const* GetSpellInfo() const { return m_spellInfo; }
     uint32 GetId() const;
     uint32 GetEffIndex() const { return m_effIndex; }
+    SpellEffectInfo const& GetSpellEffectInfo() const { return m_spellInfo->Effects[m_effIndex]; }   // TC master helper
     int32 GetBaseAmount() const { return m_baseAmount; }
     int32 GetDieSides() const { return m_dieSides; }
     int32 GetAmplitude() const { return m_amplitude; }

@@ -209,6 +209,10 @@ void WorldSession::HandleGossipHelloOpcode(WorldPackets::NPC::Hello& packet)
         }
     }
 
+    // TC master style AI hook: true means the script sent its own menu
+    if (unit->AI()->OnGossipHello(_player))
+        return;
+
     if (!sScriptMgr->OnGossipHello(_player, unit))
     {
         //        _player->TalkedToCreature(unit->GetEntry(), unit->GetGUID());

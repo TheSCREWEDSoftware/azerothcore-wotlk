@@ -18,6 +18,7 @@
 #ifndef ACore_game_Position_h__
 #define ACore_game_Position_h__
 
+#include <type_traits>
 #include "Common.h"
 #include "G3D/Vector3.h"
 
@@ -25,10 +26,10 @@ class ByteBuffer;
 
 struct Position
 {
-    Position(float x = 0, float y = 0, float z = 0, float o = 0)
-            : m_positionX(x), m_positionY(y), m_positionZ(z), m_orientation(NormalizeOrientation(o)) { }
+    constexpr Position(float x = 0, float y = 0, float z = 0, float o = 0)
+            : m_positionX(x), m_positionY(y), m_positionZ(z), m_orientation(NormalizeOrientationConstexpr(o)) { }
 
-    Position(Position const& loc) { Relocate(loc); }
+    constexpr Position(Position const& loc) = default;
     /* requried as of C++ 11 */
     Position(Position&&) = default;
     Position& operator=(Position const&) = default;
@@ -235,6 +236,22 @@ struct Position
     [[nodiscard]] std::string ToString() const;
 
     // modulos a radian orientation to the range of 0..2PI
+    // constexpr friendly: Position tables can be constexpr (TC master scripts); at run time this is NormalizeOrientation
+    static constexpr float NormalizeOrientationConstexpr(float o)
+    {
+        if (std::is_constant_evaluated())
+        {
+            constexpr float twoPi = 2.0f * static_cast<float>(M_PI);
+            while (o < 0.0f)
+                o += twoPi;
+            while (o >= twoPi)
+                o -= twoPi;
+            return o;
+        }
+
+        return NormalizeOrientation(o);
+    }
+
     static float NormalizeOrientation(float o)
     {
         // fmod only supports positive numbers. Thus we have

@@ -3094,6 +3094,46 @@ Creature* WorldObject::FindNearestCreature(uint32 entry, float range, bool alive
     return creature;
 }
 
+Creature* WorldObject::FindNearestCreatureWithOptions(float range, FindCreatureOptions const& options) const
+{
+    Creature* nearest = nullptr;
+    float nearestDist = range;
+    struct InRangeCheck
+    {
+        WorldObject const* Source;
+        Optional<uint32> Entry;
+        float Range;
+        bool operator()(Creature* creature) const { return (!Entry || creature->GetEntry() == *Entry) && Source->IsWithinDist(creature, Range, false); }
+    } check{ this, options.CreatureId, range };
+
+    std::list<Creature*> creatures;
+    Acore::CreatureListSearcher<InRangeCheck> searcher(this, creatures, check);
+    Cell::VisitObjects(this, searcher, range);
+
+    for (Creature* creature : creatures)
+    {
+        if (options.StringId && !creature->HasStringId(*options.StringId))
+            continue;
+        if (options.IsAlive && creature->IsAlive() != *options.IsAlive)
+            continue;
+        if (options.IsInCombat && creature->IsInCombat() != *options.IsInCombat)
+            continue;
+        if (options.IsSummon && creature->IsSummon() != *options.IsSummon)
+            continue;
+        if (options.OwnerGuid && creature->GetOwnerGUID() != *options.OwnerGuid)
+            continue;
+
+        float dist = GetDistance(creature);
+        if (dist <= nearestDist)
+        {
+            nearestDist = dist;
+            nearest = creature;
+        }
+    }
+
+    return nearest;
+}
+
 GameObject* WorldObject::FindNearestGameObject(uint32 entry, float range, bool onlySpawned /*= false*/) const
 {
     GameObject* go = nullptr;

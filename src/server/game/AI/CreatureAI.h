@@ -79,6 +79,7 @@ protected:
     void SetGazeOn(Unit* target);
 
     Creature* DoSummon(uint32 entry, Position const& pos, uint32 despawnTime = 30000, TempSummonType summonType = TEMPSUMMON_CORPSE_TIMED_DESPAWN);
+    Creature* DoSummon(uint32 entry, Position const& pos, Milliseconds despawnTime, TempSummonType summonType) { return DoSummon(entry, pos, uint32(despawnTime.count()), summonType); }   // TC master signature
     Creature* DoSummon(uint32 entry, WorldObject* obj, float radius = 5.0f, uint32 despawnTime = 30000, TempSummonType summonType = TEMPSUMMON_CORPSE_TIMED_DESPAWN);
     Creature* DoSummonFlyer(uint32 entry, WorldObject* obj, float flightZ, float radius = 5.0f, uint32 despawnTime = 30000, TempSummonType summonType = TEMPSUMMON_CORPSE_TIMED_DESPAWN);
 public:
@@ -182,6 +183,15 @@ public:
 
     // Called when creature is spawned or respawned (for reseting variables)
     virtual void JustRespawned() { Reset(); }
+    // TC master: called when the creature is spawned (AI initialized) and when it respawns
+    virtual void JustAppeared() { }
+
+    // TC master gossip hooks; returning true skips the default gossip handling
+    virtual bool OnGossipHello(Player* /*player*/) { return false; }
+    virtual bool OnGossipSelect(Player* /*player*/, uint32 /*menuId*/, uint32 /*gossipListId*/) { return false; }
+    virtual void OnQuestAccept(Player* /*player*/, Quest const* /*quest*/) { }   // TC master name of sQuestAccept
+    // TC master: health reached 0 (isKill) or would have for an unkillable creature; scripts clamp in DamageTaken here
+    virtual void OnHealthDepleted(Unit* /*attacker*/, bool /*isKill*/) { }
 
     // Called at waypoint reached or point movement finished
     virtual void MovementInform(uint32 /*type*/, uint32 /*id*/) {}

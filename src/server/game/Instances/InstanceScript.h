@@ -18,6 +18,7 @@
 #ifndef ACORE_INSTANCE_DATA_H
 #define ACORE_INSTANCE_DATA_H
 
+#include <array>
 #include "CreatureAI.h"
 #include "ObjectMgr.h"
 #include "TaskScheduler.h"
@@ -71,6 +72,14 @@ enum DoorType
     MAX_DOOR_TYPES,
 };
 
+// TC master names for the door types, so ported DoorData tables compile unchanged
+namespace EncounterDoorBehavior
+{
+    constexpr DoorType OpenWhenNotInProgress = DOOR_TYPE_ROOM;
+    constexpr DoorType OpenWhenDone          = DOOR_TYPE_PASSAGE;
+    constexpr DoorType OpenWhenInProgress    = DOOR_TYPE_SPAWN_HOLE;
+}
+
 struct DoorData
 {
     uint32 entry, bossId;
@@ -108,10 +117,22 @@ struct ObjectData
     uint32 type;
 };
 
+// 6.x DungeonEncounter.dbc ids of a boss, one per difficulty it has (TC master)
+static constexpr std::size_t MAX_DUNGEON_ENCOUNTERS_PER_BOSS = 4;
+
+struct DungeonEncounterData
+{
+    uint32 bossId;
+    std::array<uint32, MAX_DUNGEON_ENCOUNTERS_PER_BOSS> dungeonEncounterId;
+};
+
+struct DungeonEncounterEntry;
+
 struct BossInfo
 {
     BossInfo() : state(TO_BE_DECIDED) {}
     EncounterState state;
+    std::array<DungeonEncounterEntry const*, MAX_DUNGEON_ENCOUNTERS_PER_BOSS> DungeonEncounters{};
     DoorSet door[MAX_DOOR_TYPES];
     MinionSet minion;
     CreatureBoundary boundary;
@@ -234,6 +255,8 @@ public:
 
     // Start/Stop Timed Achievement Criteria for all players in instance
     void DoStartTimedAchievement(AchievementCriteriaTimedTypes type, uint32 entry);
+    // TC master: a game event starts the criteria timers waiting for it
+    void TriggerGameEvent(uint32 gameEventId) { DoStartTimedAchievement(AchievementCriteriaTimedTypes(CRITERIA_TIMED_TYPE_EVENT), gameEventId); }
     void DoStopTimedAchievement(AchievementCriteriaTimedTypes type, uint32 entry);
 
     // Remove Auras due to Spell on all players in instance
@@ -313,6 +336,16 @@ protected:
     void LoadBossBoundaries(BossBoundaryData const& data);
     void LoadDoorData(DoorData const* data);
     void LoadMinionData(MinionData const* data);
+
+    // 6.x encounter ids: SMSG_ENCOUNTER_START/END when the boss state changes (TC master)
+    template<std::size_t N>
+    void LoadDungeonEncounterData(DungeonEncounterData const (&encounters)[N])
+    {
+        for (DungeonEncounterData const& encounter : encounters)
+            LoadDungeonEncounterData(encounter.bossId, encounter.dungeonEncounterId);
+    }
+    void LoadDungeonEncounterData(uint32 bossId, std::array<uint32, MAX_DUNGEON_ENCOUNTERS_PER_BOSS> const& dungeonEncounterIds);
+    [[nodiscard]] DungeonEncounterEntry const* GetBossDungeonEncounter(uint32 id) const;
     void LoadObjectData(ObjectData const* creatureData, ObjectData const* gameObjectData);
     // Allows setting another creature as summoner for a creature.
     // This is used to handle summons that are not directly controlled by the summoner.
@@ -340,6 +373,8 @@ protected:
     void ReadSaveDataBossStates(std::istringstream& data);
     void ReadSavePersistentData(std::istringstream& data);
     virtual void ReadSaveDataMore(std::istringstream& /*data*/) { }
+    // TC master: called once the saved instance data is loaded
+    virtual void AfterDataLoad() { }
     void WriteSaveDataHeaders(std::ostringstream& data);
     void WriteSaveDataBossStates(std::ostringstream& data);
     void WritePersistentData(std::ostringstream& data);

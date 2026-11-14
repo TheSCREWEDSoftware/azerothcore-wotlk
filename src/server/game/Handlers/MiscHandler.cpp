@@ -170,13 +170,19 @@ void WorldSession::HandleGossipSelectOptionOpcode(WorldPackets::NPC::GossipSelec
     {
         if (unit)
         {
+            // TC master style AI hook: true means the script handled the option
+            if (unit->AI()->OnGossipSelect(_player, menuId, gossipListId))
+                return;
+
             unit->AI()->sGossipSelect(_player, menuId, gossipListId);
             if (!sScriptMgr->OnGossipSelect(_player, unit, _player->PlayerTalkClass->GetGossipOptionSender(gossipListId), _player->PlayerTalkClass->GetGossipOptionAction(gossipListId)))
                 _player->OnGossipSelect(unit, gossipListId, menuId);
         }
         else if (go)
         {
-            go->AI()->GossipSelect(_player, menuId, gossipListId);
+            if (go->AI()->GossipSelect(_player, menuId, gossipListId))
+                return;
+
             if (!sScriptMgr->OnGossipSelect(_player, go, _player->PlayerTalkClass->GetGossipOptionSender(gossipListId), _player->PlayerTalkClass->GetGossipOptionAction(gossipListId)))
                 _player->OnGossipSelect(go, gossipListId, menuId);
         }
@@ -695,6 +701,15 @@ void WorldSession::HandleAreaTriggerOpcode(WorldPackets::Misc::AreaTrigger& pack
     {
         LOG_DEBUG("network", "HandleAreaTriggerOpcode: Player '{}' ({}) send unknown (by DBC) Area Trigger ID:{}",
                        player->GetName(), player->GetGUID().ToString(), triggerId);
+        return;
+    }
+
+    // 6.x: the client also reports leaving a trigger; only scripts react to that (TC master OnExit).
+    // The player is already outside the trigger then, so this comes before the radius check
+    if (!packet.Entered)
+    {
+        if (!player->IsGameMaster() || player->isDebugAreaTriggers)
+            sScriptMgr->OnAreaTriggerExit(player, atEntry);
         return;
     }
 

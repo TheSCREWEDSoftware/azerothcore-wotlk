@@ -246,6 +246,7 @@ public: /* GameObjectScript */
 
 public: /* AreaTriggerScript */
     bool OnAreaTrigger(Player* player, AreaTrigger const* trigger);
+    bool OnAreaTriggerExit(Player* player, AreaTrigger const* trigger);   // 6.x: the client reports leaving a trigger
 
 public: /* BattlegroundScript */
     Battleground* CreateBattleground(BattlegroundTypeId typeId);

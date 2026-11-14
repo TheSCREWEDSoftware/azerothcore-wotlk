@@ -287,6 +287,17 @@ public:
     void DespawnOrUnsummon(Milliseconds msTimeToDespawn = 0ms, Seconds forcedRespawnTimer = 0s);
     void DespawnOnEvade(Seconds respawnDelay = 20s);
 
+    // TC master: a creature that must not auto attack (DoMeleeAttackIfReady does nothing)
+    void SetCanMelee(bool canMelee) { _canMelee = canMelee; }
+
+    // TC master string ids: tags set on the template, the spawn or by a script
+    [[nodiscard]] bool HasStringId(std::string_view id) const;
+    void SetScriptStringId(std::string id) { _scriptStringId = std::move(id); }
+
+    // TC master tap list: here the players on the threat list and the loot recipient
+    [[nodiscard]] std::vector<ObjectGuid> GetTapList() const;
+    [[nodiscard]] bool CanMelee() const { return _canMelee; }
+
     [[nodiscard]] time_t const& GetRespawnTime() const { return m_respawnTime; }
     [[nodiscard]] time_t GetRespawnTimeEx() const;
     void SetRespawnTime(uint32 respawn);
@@ -355,6 +366,7 @@ public:
     [[nodiscard]] Position const& GetTransportHomePosition() const { return m_transportHomePosition; }
 
     [[nodiscard]] uint32 GetWaypointPath() const { return m_path_id; }
+    [[nodiscard]] uint32 GetWaypointPathId() const { return m_path_id; }   // TC master name
     void LoadPath(uint32 pathid) { m_path_id = pathid; }
 
     [[nodiscard]] uint32 GetCurrentWaypointID() const { return m_waypointID; }
@@ -567,6 +579,9 @@ private:
     uint8 _highestPlayerAttackerLevel;
     bool _isCombatMovementAllowed;
     float _nativeObjectScale = 1.0f; ///< DisplayScale of the native model, set in InitEntry
+
+    bool _canMelee = true;                                  // TC master SetCanMelee
+    std::string _scriptStringId;                            // TC master SetScriptStringId
 };
 
 class AssistDelayEvent : public BasicEvent

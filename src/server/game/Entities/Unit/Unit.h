@@ -961,6 +961,7 @@ public:
 
     // ThreatManager/CombatManager accessors
     ThreatManager& GetThreatMgr() { return m_threatManager; }
+    ThreatManager& GetThreatManager() { return m_threatManager; }   // TC master name
     ThreatManager const& GetThreatMgr() const { return m_threatManager; }
     CombatManager& GetCombatManager() { return m_combatManager; }
     CombatManager const& GetCombatManager() const { return m_combatManager; }
@@ -1778,6 +1779,10 @@ public:
     void SetDisableGravity(bool disable);
     virtual bool SetSwim(bool enable);
     void SetCanFly(bool enable);
+    void SetCreatedBySpell(uint32 spellId) { SetUInt32Value(UNIT_CREATED_BY_SPELL, spellId); }   // TC master name
+    // TC master names, for ported scripts
+    void SetUninteractible(bool apply) { if (apply) SetUnitFlag(UNIT_FLAG_NOT_SELECTABLE); else RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE); }
+    [[nodiscard]] bool IsUninteractible() const { return HasUnitFlag(UNIT_FLAG_NOT_SELECTABLE); }
     void SetWaterWalking(bool enable);
     void SetFeatherFall(bool enable);
     virtual bool SetHover(bool enable, bool updateAnimTier = true);
@@ -1924,6 +1929,7 @@ public:
     [[nodiscard]] uint32 GetMountID() const { return GetUInt32Value(UNIT_FIELD_MOUNTDISPLAYID); }
     void Mount(uint32 mount, uint32 vehicleId = 0, uint32 creatureEntry = 0);
     void Dismount();
+    void CancelMountAura(bool /*force*/ = false) { RemoveAurasByType(SPELL_AURA_MOUNTED); }   // TC master name
     void SendSetVehicleRecId(uint32 vehicleId);
     [[nodiscard]] bool IsInDisallowedMountForm() const;
 

@@ -331,6 +331,7 @@ public:
     [[nodiscard]] bool IsRaid() const { return i_mapEntry && i_mapEntry->IsRaid(); }
     [[nodiscard]] bool IsRaidOrHeroicDungeon() const { return IsRaid() || IsHeroic(); }
     [[nodiscard]] bool IsHeroic() const;
+    [[nodiscard]] bool IsTimewalking() const { return GetDifficultyID() == DIFFICULTY_TIMEWALKER; }   // 6.2 timewalking dungeons
     [[nodiscard]] bool Is25ManRaid() const { return IsRaid() && (i_spawnMode == DIFFICULTY_25_N || i_spawnMode == DIFFICULTY_25_HC); }
     [[nodiscard]] bool IsBattleground() const { return i_mapEntry && i_mapEntry->IsBattleground(); }
     [[nodiscard]] bool IsBattleArena() const { return i_mapEntry && i_mapEntry->IsBattleArena(); }

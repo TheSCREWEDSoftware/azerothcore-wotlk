@@ -400,6 +400,12 @@ public:
     SpellCastResult DoCastToAllHostilePlayers(uint32 spellid, bool triggered = false);
     SpellCastResult DoCastVictim(uint32 spellId, bool triggered = false);
     SpellCastResult DoCastAOE(uint32 spellId, bool triggered = false);
+    // TC master style casts (CastSpellExtraArgs), for ported scripts
+    SpellCastResult DoCast(Unit* victim, uint32 spellId, CastSpellExtraArgs const& args);
+    SpellCastResult DoCast(uint32 spellId, CastSpellExtraArgs const& args) { return DoCast(me, spellId, args); }
+    SpellCastResult DoCastSelf(uint32 spellId, CastSpellExtraArgs const& args) { return DoCast(me, spellId, args); }
+    SpellCastResult DoCastVictim(uint32 spellId, CastSpellExtraArgs const& args);
+    SpellCastResult DoCastAOE(uint32 spellId, CastSpellExtraArgs const& args);
     // aura: forwarded to SelectTarget - if 0: ignored, if > 0: the target shall have the aura, if < 0: the target shall NOT have the aura
     SpellCastResult DoCastRandomTarget(uint32 spellId, uint32 threatTablePosition = 0, float dist = 0.0f, bool playerOnly = true, bool triggered = false, bool withTank = true, int32 aura = 0);
 

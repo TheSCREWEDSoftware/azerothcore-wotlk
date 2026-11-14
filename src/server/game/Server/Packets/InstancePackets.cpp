@@ -165,3 +165,23 @@ WorldPacket const* WorldPackets::Instance::BossKillCredit::Write()
 
     return &_worldPacket;
 }
+
+WorldPacket const* WorldPackets::Instance::EncounterStart::Write()
+{
+    _worldPacket << int32(EncounterID);
+    _worldPacket << int32(DifficultyID);
+    _worldPacket << int32(GroupSize);
+
+    return &_worldPacket;
+}
+
+WorldPacket const* WorldPackets::Instance::EncounterEnd::Write()
+{
+    _worldPacket << int32(EncounterID);
+    _worldPacket << int32(DifficultyID);
+    _worldPacket << int32(GroupSize);
+    _worldPacket.WriteBit(Success);
+    _worldPacket.FlushBits();
+
+    return &_worldPacket;
+}

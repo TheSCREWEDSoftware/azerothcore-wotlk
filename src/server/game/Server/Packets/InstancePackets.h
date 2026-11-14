@@ -218,6 +218,32 @@ namespace WorldPackets
             WorldPacket const* Write() override { return &_worldPacket; }
         };
 
+        // WowPacketParser 6.0.2 layouts
+        class EncounterStart final : public ServerPacket
+        {
+        public:
+            EncounterStart() : ServerPacket(SMSG_ENCOUNTER_START, 12) { }
+
+            WorldPacket const* Write() override;
+
+            int32 EncounterID = 0;
+            int32 DifficultyID = 0;
+            int32 GroupSize = 0;
+        };
+
+        class EncounterEnd final : public ServerPacket
+        {
+        public:
+            EncounterEnd() : ServerPacket(SMSG_ENCOUNTER_END, 13) { }
+
+            WorldPacket const* Write() override;
+
+            int32 EncounterID = 0;
+            int32 DifficultyID = 0;
+            int32 GroupSize = 0;
+            bool Success = false;
+        };
+
         class InstanceEncounterInCombatResurrection final : public ServerPacket
         {
         public:

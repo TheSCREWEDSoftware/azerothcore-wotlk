@@ -108,6 +108,22 @@ class MotionTransport;
 struct FactionTemplateEntry;
 class Spell;
 class SpellInfo;
+// TC master FindNearestCreatureWithOptions filters (the subset this core supports)
+struct FindCreatureOptions
+{
+    Optional<uint32> CreatureId = {};
+    Optional<std::string_view> StringId = {};
+    Optional<bool> IsAlive = {};
+    Optional<bool> IsInCombat = {};
+    Optional<bool> IsSummon = {};
+
+    bool IgnorePhases = false;                              // master: ignore phases; phase masks are always respected here
+    bool IgnoreNotOwnedPrivateObjects = true;
+    bool IgnorePrivateObjects = false;
+
+    Optional<ObjectGuid> OwnerGuid = {};
+};
+
 struct CastSpellTargetArg;
 enum SpellCastResult : uint16;
 
@@ -734,6 +750,11 @@ public:
     [[nodiscard]] ZoneScript* GetZoneScript() const { return m_zoneScript; }
 
     TempSummon* SummonCreature(uint32 id, Position const& pos, TempSummonType spwtype = TEMPSUMMON_MANUAL_DESPAWN, uint32 despwtime = 0, uint32 vehId = 0, SummonPropertiesEntry const* properties = nullptr, bool visibleBySummonerOnly = false) const;
+    // TC master signature (duration as a chrono value), for ported scripts
+    TempSummon* SummonCreature(uint32 id, Position const& pos, TempSummonType spwtype, Milliseconds despawnTime, uint32 vehId = 0) const
+    {
+        return SummonCreature(id, pos, spwtype, uint32(despawnTime.count()), vehId);
+    }
     TempSummon* SummonCreature(uint32 id, float x, float y, float z, float ang = 0, TempSummonType spwtype = TEMPSUMMON_MANUAL_DESPAWN, uint32 despwtime = 0, SummonPropertiesEntry const* properties = nullptr, bool visibleBySummonerOnly = false);
     GameObject* SummonGameObject(uint32 entry, float x, float y, float z, float ang, float rotation0, float rotation1, float rotation2, float rotation3, uint32 respawnTime, bool checkTransport = true, GOSummonType summonType = GO_SUMMON_TIMED_OR_CORPSE_DESPAWN);
     Creature*   SummonTrigger(float x, float y, float z, float ang, uint32 dur, bool setLevel = false, CreatureAI * (*GetAI)(Creature*) = nullptr);
@@ -741,6 +762,7 @@ public:
     void SummonGameObjectGroup(uint8 group, std::list<GameObject*>* list = nullptr);
 
     [[nodiscard]] Creature*   FindNearestCreature(uint32 entry, float range, bool alive = true) const;
+    [[nodiscard]] Creature*   FindNearestCreatureWithOptions(float range, FindCreatureOptions const& options) const;   // TC master
     [[nodiscard]] GameObject* FindNearestGameObject(uint32 entry, float range, bool onlySpawned = false) const;
     [[nodiscard]] GameObject* FindNearestGameObjectOfType(GameobjectTypes type, float range) const;
 

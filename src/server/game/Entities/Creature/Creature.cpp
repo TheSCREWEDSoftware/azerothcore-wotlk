@@ -724,6 +724,7 @@ void Creature::Update(uint32 diff)
             if (_respawnCompatibilityMode && m_vehicleKit)
                 m_vehicleKit->Reset();
             AI()->JustRespawned();
+            AI()->JustAppeared();
         }
     }
 
@@ -1120,6 +1121,34 @@ void Creature::DoFleeToGetAssistance()
     }
 }
 
+std::vector<ObjectGuid> Creature::GetTapList() const
+{
+    std::vector<ObjectGuid> tapList;
+    for (ThreatReference const* ref : GetThreatMgr().GetUnsortedThreatList())
+        if (ref->GetVictim()->IsPlayer())
+            tapList.push_back(ref->GetVictim()->GetGUID());
+
+    if (Player* recipient = GetLootRecipient())
+        if (std::find(tapList.begin(), tapList.end(), recipient->GetGUID()) == tapList.end())
+            tapList.push_back(recipient->GetGUID());
+
+    return tapList;
+}
+
+bool Creature::HasStringId(std::string_view id) const
+{
+    if (id.empty())
+        return false;
+
+    if (GetCreatureTemplate()->StringId == id || _scriptStringId == id)
+        return true;
+
+    if (CreatureData const* data = GetCreatureData())
+        return data->StringId == id;
+
+    return false;
+}
+
 bool Creature::AIM_Initialize(CreatureAI* ai)
 {
     // make sure nothing can change the AI during AI update
@@ -1137,6 +1166,8 @@ bool Creature::AIM_Initialize(CreatureAI* ai)
     delete oldAI;
     IsAIEnabled = true;
     i_AI->InitializeAI();
+    if (CreatureAI* creatureAI = AI())
+        creatureAI->JustAppeared();
 
     return true;
 }

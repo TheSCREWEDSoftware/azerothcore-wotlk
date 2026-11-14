@@ -151,6 +151,10 @@ private:
     }
 
     static bool _ValidateSpellInfo(uint32 spellId);
+
+public:
+    // TC master: the spells exist and have the effect index
+    static bool ValidateSpellEffect(std::initializer_list<std::pair<uint32, SpellEffIndex>> effects);
 };
 
 // SpellScript interface - enum used for runtime checks of script function calls
@@ -387,6 +391,7 @@ public:
     GameObject* GetGObjCaster();
     Unit* GetOriginalCaster();
     SpellInfo const* GetSpellInfo();
+    SpellEffectInfo const& GetEffectInfo(SpellEffIndex effIndex) { return GetSpellInfo()->Effects[effIndex]; }   // TC master helper
     SpellValue const* GetSpellValue();
 
     // methods useable after spell is prepared
@@ -459,6 +464,7 @@ public:
 
     // method avalible only in EffectHandler method
     int32 GetEffectValue() const;
+    int32 GetEffectValueAsInt() const { return GetEffectValue(); }   // TC master name
     void SetEffectValue(int32 value);
 
     // returns: cast item if present.
@@ -859,6 +865,7 @@ public:
 
     // returns proto of the spell
     SpellInfo const* GetSpellInfo() const;
+    SpellEffectInfo const& GetEffectInfo(SpellEffIndex effIndex) const { return GetSpellInfo()->Effects[effIndex]; }   // TC master helper
     // returns spellid of the spell
     uint32 GetId() const;
 

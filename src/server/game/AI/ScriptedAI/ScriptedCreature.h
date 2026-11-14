@@ -203,6 +203,9 @@ struct ScriptedAI : public CreatureAI
     explicit ScriptedAI(Creature* creature);
     ~ScriptedAI() override {}
 
+    // TC master: despawn on evade and respawn after the delay
+    void _DespawnAtEvade(Seconds delayToRespawn = 30s, Creature* who = nullptr) { (who ? who : me)->DespawnOnEvade(delayToRespawn); }
+
     // *************
     //CreatureAI Functions
     // *************
@@ -392,6 +395,7 @@ struct ScriptedAI : public CreatureAI
     //   - for raid in mode 25-heroic
     // DO NOT USE to check raid in mode 25-normal.
     bool IsHeroic() const { return _isHeroic; }
+    bool IsTimewalking() const { return me->GetMap()->IsTimewalking(); }   // TC master
 
     // return the dungeon or raid difficulty
     Difficulty GetDifficulty() const { return _difficulty; }

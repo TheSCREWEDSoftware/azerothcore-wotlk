@@ -30,6 +30,9 @@ public:
 
     // Called when the area trigger is activated by a player.
     [[nodiscard]] virtual bool OnTrigger(Player* /*player*/, AreaTrigger const* /*trigger*/) { return false; }
+
+    // Called when the player leaves the area trigger (6.x clients report it; TC master OnExit).
+    virtual bool OnExit(Player* /*player*/, AreaTrigger const* /*trigger*/) { return false; }
 };
 
 class OnlyOnceAreaTriggerScript : public AreaTriggerScript

@@ -104,6 +104,10 @@ struct Cell
     static CellArea CalculateCellArea(float x, float y, float radius);
 
     template<class T> static void VisitObjects(WorldObject const* obj, T& visitor, float radius);
+    // TC master names, for ported scripts
+    template<class T> static void VisitGridObjects(WorldObject const* obj, T& visitor, float radius) { VisitObjects(obj, visitor, radius); }
+    template<class T> static void VisitWorldObjects(WorldObject const* obj, T& visitor, float radius) { VisitObjects(obj, visitor, radius); }
+    template<class T> static void VisitAllObjects(WorldObject const* obj, T& visitor, float radius) { VisitObjects(obj, visitor, radius); }
     template<class T> static void VisitObjects(float x, float y, Map* map, T& visitor, float radius);
 
     template<class T> static void VisitFarVisibleObjects(WorldObject const* obj, T& visitor, float radius);

@@ -51,8 +51,11 @@ public:
 
     static int32 Permissible(GameObject const* go);
 
-    virtual bool GossipHello(Player* /*player*/, bool /*reportUse*/) { return false; }
-    virtual bool GossipSelect(Player* /*player*/, uint32 /*sender*/, uint32 /*action*/) { return false; }
+    virtual bool GossipHello(Player* player, bool reportUse) { return !reportUse && OnGossipHello(player); }
+    virtual bool GossipSelect(Player* player, uint32 menuId, uint32 gossipListId) { return OnGossipSelect(player, menuId, gossipListId); }
+    // TC master names; returning true skips the default gossip handling
+    virtual bool OnGossipHello(Player* /*player*/) { return false; }
+    virtual bool OnGossipSelect(Player* /*player*/, uint32 /*menuId*/, uint32 /*gossipListId*/) { return false; }
     virtual bool GossipSelectCode(Player* /*player*/, uint32 /*sender*/, uint32 /*action*/, char const* /*code*/) { return false; }
     virtual bool QuestAccept(Player* /*player*/, Quest const* /*quest*/) { return false; }
     virtual bool QuestReward(Player* /*player*/, Quest const* /*quest*/, uint32 /*opt*/) { return false; }

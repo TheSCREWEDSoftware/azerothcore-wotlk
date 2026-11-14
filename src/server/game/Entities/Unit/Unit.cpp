@@ -1221,6 +1221,11 @@ uint32 Unit::DealDamage(Unit* attacker, Unit* victim, uint32 damage, CleanDamage
     {
         LOG_DEBUG("entities.unit", "DealDamage: victim just died");
 
+        // TC master hook (isKill: the creature dies now)
+        if (Creature* creature = victim->ToCreature())
+            if (creature->IsAIEnabled && creature->AI())
+                creature->AI()->OnHealthDepleted(attacker, true);
+
         //if (attacker && victim->IsPlayer() && victim != attacker)
         //victim->ToPlayer()->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_TOTAL_DAMAGE_RECEIVED, health); // pussywizard: optimization
         Unit::Kill(attacker, victim, durabilityLoss, cleanDamage ? cleanDamage->attackType : BASE_ATTACK, spellProto, damageSpell);

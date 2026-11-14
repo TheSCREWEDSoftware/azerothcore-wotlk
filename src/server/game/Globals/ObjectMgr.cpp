@@ -538,7 +538,7 @@ void ObjectMgr::LoadCreatureTemplates()
 //                        47         48          49                         50           51              52            53             54                  55            56          57
                          "ctm.Chase, ctm.Random, ctm.InteractionPauseTimer, HoverHeight, HealthModifier, ManaModifier, ArmorModifier, ExperienceModifier, RacialLeader, movementId, RegenHealth, "
 //                       58                     59           60          61          62
-                         "CreatureImmunitiesId, flags_extra, ScriptName, femaleName, type_flags2 "
+                         "CreatureImmunitiesId, flags_extra, ScriptName, femaleName, type_flags2, StringId "
                          "FROM creature_template ct LEFT JOIN creature_template_movement ctm ON ct.entry = ctm.CreatureId ORDER BY entry DESC;");
 
     if (!result)
@@ -698,6 +698,7 @@ void ObjectMgr::LoadCreatureTemplate(Field* fields, bool triggerHook)
     creatureTemplate.ScriptID              = GetScriptId(fields[60].Get<std::string>());
     creatureTemplate.FemaleName            = fields[61].Get<std::string>();
     creatureTemplate.type_flags2           = fields[62].Get<uint32>();
+    creatureTemplate.StringId              = fields[63].Get<std::string>();   // TC master
 
     // Warn about deprecated immunity flags that should be moved to `creature_immunities` table
     if (creatureTemplate.flags_extra & CREATURE_FLAG_EXTRA_NO_TAUNT)
@@ -2374,7 +2375,7 @@ void ObjectMgr::LoadCreatures()
                          //      10            11       12          13           14         15         16          17             18                 19                    20
                          "currentwaypoint, curhealth, curmana, MovementType, spawnMask, phaseMask, eventEntry, pool_entry, creature.npcflag, creature.unit_flags, creature.dynamicflags, "
                          //       21                     22
-                         "creature.ScriptName, creature.PhaseId, creature.PhaseGroup "
+                         "creature.ScriptName, creature.PhaseId, creature.PhaseGroup, creature.StringId "
                          "FROM creature "
                          "LEFT OUTER JOIN game_event_creature ON creature.guid = game_event_creature.guid "
                          "LEFT OUTER JOIN pool_creature ON creature.guid = pool_creature.guid");
@@ -2437,6 +2438,7 @@ void ObjectMgr::LoadCreatures()
         data.ScriptId           = GetScriptId(fields[21].Get<std::string>());
         data.phaseId            = fields[22].Get<uint32>();
         data.phaseGroup         = fields[23].Get<uint32>();
+        data.StringId           = fields[24].Get<std::string>();   // TC master
         data.spawnGroupId       = 0;
 
         MigrateLegacySpawnPhase(data, "creature", spawnId);
