@@ -132,8 +132,11 @@ enum LocaleConstant
     LOCALE_esES = 6,
     LOCALE_esMX = 7,
     LOCALE_ruRU = 8,
+    LOCALE_none = 9,                                        // unused by the client, kept free for modules
+    LOCALE_ptBR = 10,                                       // 6.x client locales
+    LOCALE_itIT = 11,
 
-    // Slots 9..15 are free for locales registered by modules.
+    // Slots 12..15 are free for locales registered by modules.
     TOTAL_LOCALES = 16
 };
 
@@ -143,6 +146,16 @@ enum LocaleConstant
 #define MAX_ACCOUNT_TUTORIAL_VALUES 8
 
 AC_COMMON_API extern char const* localeNames[TOTAL_LOCALES];
+
+#pragma pack(push, 1)
+
+/// A db2 string column with one pointer per client locale
+struct LocalizedString
+{
+    char const* Str[TOTAL_LOCALES];
+};
+
+#pragma pack(pop)
 
 inline bool IsLocaleRegistered(LocaleConstant locale) { return locale < TOTAL_LOCALES && localeNames[locale]; }
 

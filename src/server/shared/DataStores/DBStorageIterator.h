@@ -15,13 +15,14 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef DBCStorageIterator_h__
-#define DBCStorageIterator_h__
+#ifndef DBStorageIterator_h__
+#define DBStorageIterator_h__
 
 #include "Define.h"
+#include <iterator>
 
-template <class T>
-class DBCStorageIterator
+template<class T>
+class DBStorageIterator
 {
 public:
     using iterator_category = std::forward_iterator_tag;
@@ -30,8 +31,8 @@ public:
     using pointer = T*;
     using reference = T&;
 
-    DBCStorageIterator() : _index(nullptr) { }
-    DBCStorageIterator(T** index, uint32 size, uint32 pos = 0) : _index(index), _pos(pos), _end(size)
+    DBStorageIterator() : _index(nullptr), _pos(0), _end(0) { }
+    DBStorageIterator(T** index, uint32 size, uint32 pos = 0) : _index(index), _pos(pos), _end(size)
     {
         if (_pos < _end)
         {
@@ -40,13 +41,13 @@ public:
         }
     }
 
-    T const* operator->() { return _index[_pos]; }
-    T const* operator*() { return _index[_pos]; }
+    T* operator->() { return _index[_pos]; }
+    T* operator*() { return _index[_pos]; }
 
-    bool operator==(DBCStorageIterator const& right) const { /*ASSERT(_index == right._index, "Iterator belongs to a different container")*/ return _pos == right._pos; }
-    bool operator!=(DBCStorageIterator const& right) const { return !(*this == right); }
+    bool operator==(DBStorageIterator const& right) const { /*ASSERT(_index == right._index, "Iterator belongs to a different container")*/ return _pos == right._pos; }
+    bool operator!=(DBStorageIterator const& right) const { return !(*this == right); }
 
-    DBCStorageIterator& operator++()
+    DBStorageIterator& operator++()
     {
         if (_pos < _end)
         {
@@ -58,17 +59,17 @@ public:
         return *this;
     }
 
-    DBCStorageIterator operator++(int)
+    DBStorageIterator operator++(int)
     {
-        DBCStorageIterator tmp = *this;
+        DBStorageIterator tmp = *this;
         ++*this;
         return tmp;
     }
 
 private:
     T** _index;
-    uint32 _pos{0};
-    uint32 _end{0};
+    uint32 _pos;
+    uint32 _end;
 };
 
-#endif // DBCStorageIterator_h__
+#endif // DBStorageIterator_h__

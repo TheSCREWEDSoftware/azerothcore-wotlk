@@ -102,7 +102,7 @@ struct FactionTemplateEntry;
 class Spell;
 class SpellInfo;
 struct CastSpellTargetArg;
-enum SpellCastResult : uint8;
+enum SpellCastResult : uint16;
 
 struct PositionFullTerrainStatus;
 

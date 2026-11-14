@@ -2588,24 +2588,55 @@ void InstanceMap::SendResetWarnings(uint32 timeLeft) const
         itr->GetSource()->SendInstanceResetWarning(GetId(), itr->GetSource()->GetDifficulty(IsRaid()), timeLeft, false);
 }
 
-MapDifficulty const* Map::GetMapDifficulty() const
+MapDifficultyEntry const* Map::GetMapDifficulty() const
 {
     return GetMapDifficultyData(GetId(), GetDifficulty());
 }
 
+uint32 Map::GetDifficultyLootBonusTreeMod() const
+{
+    if (MapDifficultyEntry const* mapDifficulty = GetMapDifficulty())
+        if (mapDifficulty->ItemBonusTreeModID)
+            return mapDifficulty->ItemBonusTreeModID;
+
+    if (DifficultyEntry const* difficulty = sDifficultyStore.LookupEntry(GetDifficulty()))
+        return difficulty->ItemBonusTreeModID;
+
+    return 0;
+}
+
+bool Map::IsHeroic() const
+{
+    if (DifficultyEntry const* difficulty = sDifficultyStore.LookupEntry(i_spawnMode))
+        return (difficulty->Flags & DIFFICULTY_FLAG_HEROIC) != 0;
+
+    return false;
+}
+
+// The map's default difficulty (normal dungeon, 10 player normal raid) or no difficulty at all (continents)
+bool Map::IsRegularDifficulty() const
+{
+    if (GetDifficulty() == DIFFICULTY_NONE)
+        return true;
+
+    Difficulty defaultDifficulty = DIFFICULTY_NONE;
+    GetDefaultMapDifficulty(GetId(), &defaultDifficulty);
+    return GetDifficulty() == defaultDifficulty;
+}
+
 uint32 InstanceMap::GetMaxPlayers() const
 {
-    MapDifficulty const* mapDiff = GetMapDifficulty();
-    if (mapDiff && mapDiff->maxPlayers)
-        return mapDiff->maxPlayers;
+    MapDifficultyEntry const* mapDiff = GetMapDifficulty();
+    if (mapDiff && mapDiff->MaxPlayers)
+        return mapDiff->MaxPlayers;
 
-    return GetEntry()->maxPlayers;
+    return GetEntry()->MaxPlayers;
 }
 
 uint32 InstanceMap::GetMaxResetDelay() const
 {
-    MapDifficulty const* mapDiff = GetMapDifficulty();
-    return mapDiff ? mapDiff->resetTime : 0;
+    MapDifficultyEntry const* mapDiff = GetMapDifficulty();
+    return mapDiff ? mapDiff->RaidDuration : 0;
 }
 
 /* ******* Battleground Instance Maps ******* */

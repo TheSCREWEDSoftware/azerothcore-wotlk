@@ -15,26 +15,27 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "DBCFileLoader.h"
-#include "Errors.h"
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
-DBCFileLoader::DBCFileLoader() : recordSize(0), recordCount(0), fieldCount(0), stringSize(0), fieldsOffset(nullptr), data(nullptr), stringTable(nullptr) { }
+#include "DBCFileLoader.h"
+#include "Errors.h"
 
-bool DBCFileLoader::Load(char const* filename, char const* fmt)
+DBCFileLoader::DBCFileLoader() : recordSize(0), recordCount(0), fieldCount(0), stringSize(0), fieldsOffset(NULL), data(NULL), stringTable(NULL) { }
+
+bool DBCFileLoader::Load(const char* filename, const char* fmt)
 {
     uint32 header;
     if (data)
     {
         delete [] data;
-        data = nullptr;
+        data = NULL;
     }
 
     FILE* f = fopen(filename, "rb");
     if (!f)
-    {
         return false;
-    }
 
     if (fread(&header, 4, 1, f) != 1)                        // Number of records
     {
@@ -42,10 +43,10 @@ bool DBCFileLoader::Load(char const* filename, char const* fmt)
         return false;
     }
 
+
     EndianConvert(header);
 
-    bool const isWdb2 = header == 0x32424457;                //'WDB2', Cata's replacement for some WDBC tables
-    if (header != 0x43424457 && !isWdb2)                     //'WDBC'
+    if (header != 0x43424457)                                //'WDBC'
     {
         fclose(f);
         return false;
@@ -83,76 +84,21 @@ bool DBCFileLoader::Load(char const* filename, char const* fmt)
 
     EndianConvert(stringSize);
 
-    if (isWdb2)
-    {
-        uint32 tableHash, build, unk1;
-        int32 minIndex = 0, maxIndex = 0, locale, unk5;
-        if (fread(&tableHash, 4, 1, f) != 1 || fread(&build, 4, 1, f) != 1 || fread(&unk1, 4, 1, f) != 1)
-        {
-            fclose(f);
-            return false;
-        }
-        EndianConvert(build);
-
-        if (build > 12880)
-        {
-            if (fread(&minIndex, 4, 1, f) != 1 || fread(&maxIndex, 4, 1, f) != 1 ||
-                fread(&locale, 4, 1, f) != 1 || fread(&unk5, 4, 1, f) != 1)
-            {
-                fclose(f);
-                return false;
-            }
-            EndianConvert(minIndex);
-            EndianConvert(maxIndex);
-        }
-
-        if (maxIndex != 0)
-        {
-            // skip the sparse id lookup table (4 bytes/id) and string-offset bank (2 bytes/id)
-            int32 diff = maxIndex - minIndex + 1;
-            fseek(f, diff * 4 + diff * 2, SEEK_CUR);
-        }
-    }
-
-    uint32 expectedRecordSize = 0;
-    for (char const* field = fmt; *field; ++field)
-        expectedRecordSize += (*field == FT_BYTE || *field == FT_NA_BYTE) ? 1 : (*field == FT_LONG ? 8 : 4);
-    // real WDBC records are padded to a 4-byte boundary, so a format string whose raw field
-    // widths don't already sum to a multiple of 4 still matches a file padded up to the next one.
-    uint32 const paddedExpectedRecordSize = (expectedRecordSize + 3) & ~3u;
-    // ponytail: skip strict validation only for formats still using the legacy repeated FT_STRING
-    // locale block (16 raw fields collapsed to 1 on real single-locale Cata files) -- those tables
-    // are unconverted and would hard-fail boot otherwise. Formats with no legacy string block (native
-    // FT_LOCALIZED_STRING or none at all) are unaffected by that mismatch and stay strictly validated.
-    bool const hasLegacyStringBlock = strchr(fmt, FT_STRING) != nullptr;
-    if (!hasLegacyStringBlock && (fieldCount != strlen(fmt) || recordSize != paddedExpectedRecordSize))
-    {
-        fclose(f);
-        return false;
-    }
-
     fieldsOffset = new uint32[fieldCount];
     fieldsOffset[0] = 0;
-
     for (uint32 i = 1; i < fieldCount; ++i)
     {
         fieldsOffset[i] = fieldsOffset[i - 1];
         if (fmt[i - 1] == FT_BYTE || fmt[i - 1] == FT_NA_BYTE)  // byte fields
-        {
             fieldsOffset[i] += sizeof(uint8);
-        }
-        else if (fmt[i - 1] == FT_LONG)                         // 8 byte source column
-        {
+        else if (fmt[i - 1] == FT_LONG)
             fieldsOffset[i] += sizeof(uint64);
-        }
         else                                                // 4 byte fields (int32/float/strings)
-        {
             fieldsOffset[i] += sizeof(uint32);
-        }
     }
 
     data = new unsigned char[recordSize * recordCount + stringSize];
-    stringTable = data + recordSize * recordCount;
+    stringTable = data + recordSize*recordCount;
 
     if (fread(data, recordSize * recordCount + stringSize, 1, f) != 1)
     {
@@ -172,17 +118,16 @@ DBCFileLoader::~DBCFileLoader()
     delete[] fieldsOffset;
 }
 
-DBCFileLoader::Record DBCFileLoader::getRecord(std::size_t id)
+DBCFileLoader::Record DBCFileLoader::getRecord(size_t id)
 {
-    ASSERT(data);
+    assert(data);
     return Record(*this, data + id * recordSize);
 }
 
-uint32 DBCFileLoader::GetFormatRecordSize(char const* format, int32* index_pos)
+uint32 DBCFileLoader::GetFormatRecordSize(const char* format, int32* index_pos)
 {
     uint32 recordsize = 0;
     int32 i = -1;
-
     for (uint32 x = 0; format[x]; ++x)
     {
         switch (format[x])
@@ -192,9 +137,6 @@ uint32 DBCFileLoader::GetFormatRecordSize(char const* format, int32* index_pos)
                 break;
             case FT_INT:
                 recordsize += sizeof(uint32);
-                break;
-            case FT_LOCALIZED_STRING:
-                recordsize += DBC_LOCALE_SLOTS * sizeof(char*);
                 break;
             case FT_STRING:
                 recordsize += sizeof(char*);
@@ -210,13 +152,10 @@ uint32 DBCFileLoader::GetFormatRecordSize(char const* format, int32* index_pos)
                 recordsize += sizeof(uint8);
                 break;
             case FT_LONG:
-                recordsize += sizeof(uint32); // only the low 32 bits of the 8-byte source column are stored
+                recordsize += sizeof(uint64);
                 break;
             case FT_NA:
             case FT_NA_BYTE:
-                break;
-            case FT_LOGIC:
-                ASSERT(false && "Attempted to load DBC files that do not have field types that match what is in the core. Check DBCfmt.h or your DBC files.");
                 break;
             default:
                 ASSERT(false && "Unknown field format character in DBCfmt.h");
@@ -225,14 +164,12 @@ uint32 DBCFileLoader::GetFormatRecordSize(char const* format, int32* index_pos)
     }
 
     if (index_pos)
-    {
         *index_pos = i;
-    }
 
     return recordsize;
 }
 
-char* DBCFileLoader::AutoProduceData(char const* format, uint32& records, char**& indexTable)
+char* DBCFileLoader::AutoProduceData(const char* format, uint32& records, char**& indexTable, uint32 sqlRecordCount, uint32 sqlHighestIndex, char*& sqlDataTable)
 {
     /*
     format STRING, NA, FLOAT, NA, INT <=>
@@ -247,9 +184,7 @@ char* DBCFileLoader::AutoProduceData(char const* format, uint32& records, char**
 
     typedef char* ptr;
     if (strlen(format) != fieldCount)
-    {
-        return nullptr;
-    }
+        return NULL;
 
     //get struct size and index pos
     int32 i;
@@ -263,10 +198,12 @@ char* DBCFileLoader::AutoProduceData(char const* format, uint32& records, char**
         {
             uint32 ind = getRecord(y).getUInt(i);
             if (ind > maxi)
-            {
                 maxi = ind;
-            }
         }
+
+        // If higher index avalible from sql - use it instead of dbcs
+        if (sqlHighestIndex > maxi)
+            maxi = sqlHighestIndex;
 
         ++maxi;
         records = maxi;
@@ -275,26 +212,22 @@ char* DBCFileLoader::AutoProduceData(char const* format, uint32& records, char**
     }
     else
     {
-        records = recordCount;
-        indexTable = new ptr[recordCount];
+        records = recordCount + sqlRecordCount;
+        indexTable = new ptr[recordCount + sqlRecordCount];
     }
 
-    char* dataTable = new char[recordCount * recordsize];
+    char* dataTable = new char[(recordCount + sqlRecordCount) * recordsize];
 
     uint32 offset = 0;
 
     for (uint32 y = 0; y < recordCount; ++y)
     {
         if (i >= 0)
-        {
             indexTable[getRecord(y).getUInt(i)] = &dataTable[offset];
-        }
         else
-        {
             indexTable[y] = &dataTable[offset];
-        }
 
-        for (uint32 x = 0; x < fieldCount; ++x)
+        for (uint32 x=0; x < fieldCount; ++x)
         {
             switch (format[x])
             {
@@ -312,23 +245,12 @@ char* DBCFileLoader::AutoProduceData(char const* format, uint32& records, char**
                     offset += sizeof(uint8);
                     break;
                 case FT_LONG:
-                    // little-endian: the low 32 bits of the 8-byte source column sit at its base offset
-                    *((uint32*)(&dataTable[offset])) = getRecord(y).getUInt(x);
-                    offset += sizeof(uint32);
-                    break;
-                case FT_LOCALIZED_STRING:
-                    for (uint32 locale = 0; locale < DBC_LOCALE_SLOTS; ++locale)
-                    {
-                        *reinterpret_cast<char**>(&dataTable[offset]) = nullptr;
-                        offset += sizeof(char*);
-                    }
+                    *((uint64*)(&dataTable[offset])) = getRecord(y).getUInt64(x);
+                    offset += sizeof(uint64);
                     break;
                 case FT_STRING:
-                    *((char**)(&dataTable[offset])) = nullptr;   // will replace non-empty or "" strings in AutoProduceStrings
+                    *((char**)(&dataTable[offset])) = NULL;   // will replace non-empty or "" strings in AutoProduceStrings
                     offset += sizeof(char*);
-                    break;
-                case FT_LOGIC:
-                    ASSERT(false && "Attempted to load DBC files that do not have field types that match what is in the core. Check DBCfmt.h or your DBC files.");
                     break;
                 case FT_NA:
                 case FT_NA_BYTE:
@@ -341,15 +263,15 @@ char* DBCFileLoader::AutoProduceData(char const* format, uint32& records, char**
         }
     }
 
+    sqlDataTable = dataTable + offset;
+
     return dataTable;
 }
 
-char* DBCFileLoader::AutoProduceStrings(char const* format, char* dataTable)
+char* DBCFileLoader::AutoProduceStrings(const char* format, char* dataTable)
 {
     if (strlen(format) != fieldCount)
-    {
-        return nullptr;
-    }
+        return NULL;
 
     char* stringPool = new char[stringSize];
     memcpy(stringPool, stringTable, stringSize);
@@ -373,43 +295,27 @@ char* DBCFileLoader::AutoProduceStrings(char const* format, char* dataTable)
                     offset += sizeof(uint8);
                     break;
                 case FT_LONG:
-                    offset += sizeof(uint32);
+                    offset += sizeof(uint64);
                     break;
-                case FT_LOCALIZED_STRING:
-                {
-                    // ponytail: one locale per store; select locale slots when multi-locale Cata loading is added.
-                    char const* value = getRecord(y).getString(x);
-                    for (uint32 locale = 0; locale < DBC_LOCALE_SLOTS; ++locale)
-                    {
-                        char** slot = reinterpret_cast<char**>(&dataTable[offset]);
-                        if (!*slot || !**slot)
-                            *slot = stringPool + (value - reinterpret_cast<char const*>(stringTable));
-                        offset += sizeof(char*);
-                    }
-                    break;
-                }
                 case FT_STRING:
                 {
                     // fill only not filled entries
                     char** slot = (char**)(&dataTable[offset]);
-                    if (!*slot || !** slot)
+                    if (!*slot || !**slot)
                     {
-                        char const* st = getRecord(y).getString(x);
-                        *slot = stringPool + (st - (char const*)stringTable);
+                        const char * st = getRecord(y).getString(x);
+                        *slot=stringPool+(st-(const char*)stringTable);
                     }
                     offset += sizeof(char*);
                     break;
-                }
-                case FT_LOGIC:
-                    ASSERT(false && "Attempted to load DBC files that does not have field types that match what is in the core. Check DBCfmt.h or your DBC files.");
-                    break;
-                case FT_NA:
-                case FT_NA_BYTE:
-                case FT_SORT:
-                    break;
-                default:
-                    ASSERT(false && "Unknown field format character in DBCfmt.h");
-                    break;
+                 }
+                 case FT_NA:
+                 case FT_NA_BYTE:
+                 case FT_SORT:
+                     break;
+                 default:
+                     ASSERT(false && "Unknown field format character in DBCfmt.h");
+                     break;
             }
         }
     }

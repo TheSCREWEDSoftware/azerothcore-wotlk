@@ -41,7 +41,7 @@ enum AllSpellHook
     ALLSPELLHOOK_END
 };
 
-enum SpellCastResult : uint8;
+enum SpellCastResult : uint16;
 enum SpellEffIndex : uint8;
 
 class AllSpellScript : public ScriptObject

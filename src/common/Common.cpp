@@ -27,7 +27,10 @@ char const* localeNames[TOTAL_LOCALES] =
     "zhTW",
     "esES",
     "esMX",
-    "ruRU"
+    "ruRU",
+    nullptr,
+    "ptBR",
+    "itIT"
 };
 
 AccountFlagName const accountFlagNames[MAX_ACCOUNT_FLAG] =

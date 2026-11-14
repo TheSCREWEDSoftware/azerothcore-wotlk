@@ -239,7 +239,7 @@ public:
     [[nodiscard]] uint32 GetTerrainMapId(std::vector<uint32> const& visibleMapIds, float x, float y) const;
     [[nodiscard]] uint32 GetTerrainNavMeshMapId(std::vector<uint32> const& visibleMapIds, float x, float y) const;
 
-    [[nodiscard]] uint32 GetId() const { return i_mapEntry->MapID; }
+    [[nodiscard]] uint32 GetId() const { return i_mapEntry->ID; }
 
     [[nodiscard]] Map const* GetParent() const { return m_parentMap; }
 
@@ -312,18 +312,20 @@ public:
 
     [[nodiscard]] char const* GetMapName() const;
 
-    // have meaning only for instanced map (that have set real difficulty)
+    // have meaning only for instanced map (that have set real difficulty), the spawn mode is a Difficulty.dbc id in 6.x
     [[nodiscard]] Difficulty GetDifficulty() const { return Difficulty(GetSpawnMode()); }
-    [[nodiscard]] bool IsRegularDifficulty() const { return GetDifficulty() == REGULAR_DIFFICULTY; }
-    [[nodiscard]] MapDifficulty const* GetMapDifficulty() const;
+    [[nodiscard]] Difficulty GetDifficultyID() const { return GetDifficulty(); }
+    [[nodiscard]] bool IsRegularDifficulty() const;
+    [[nodiscard]] MapDifficultyEntry const* GetMapDifficulty() const;
+    [[nodiscard]] uint32 GetDifficultyLootBonusTreeMod() const;
 
     [[nodiscard]] bool Instanceable() const { return i_mapEntry && i_mapEntry->Instanceable(); }
     [[nodiscard]] bool IsDungeon() const { return i_mapEntry && i_mapEntry->IsDungeon(); }
     [[nodiscard]] bool IsNonRaidDungeon() const { return i_mapEntry && i_mapEntry->IsNonRaidDungeon(); }
     [[nodiscard]] bool IsRaid() const { return i_mapEntry && i_mapEntry->IsRaid(); }
-    [[nodiscard]] bool IsRaidOrHeroicDungeon() const { return IsRaid() || i_spawnMode > DUNGEON_DIFFICULTY_NORMAL; }
-    [[nodiscard]] bool IsHeroic() const { return IsRaid() ? i_spawnMode >= RAID_DIFFICULTY_10MAN_HEROIC : i_spawnMode >= DUNGEON_DIFFICULTY_HEROIC; }
-    [[nodiscard]] bool Is25ManRaid() const { return IsRaid() && i_spawnMode & RAID_DIFFICULTY_MASK_25MAN; }   // since 25man difficulties are 1 and 3, we can check them like that
+    [[nodiscard]] bool IsRaidOrHeroicDungeon() const { return IsRaid() || IsHeroic(); }
+    [[nodiscard]] bool IsHeroic() const;
+    [[nodiscard]] bool Is25ManRaid() const { return IsRaid() && (i_spawnMode == DIFFICULTY_25_N || i_spawnMode == DIFFICULTY_25_HC); }
     [[nodiscard]] bool IsBattleground() const { return i_mapEntry && i_mapEntry->IsBattleground(); }
     [[nodiscard]] bool IsBattleArena() const { return i_mapEntry && i_mapEntry->IsBattleArena(); }
     [[nodiscard]] bool IsBattlegroundOrArena() const { return i_mapEntry && i_mapEntry->IsBattlegroundOrArena(); }
