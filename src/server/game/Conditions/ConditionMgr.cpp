@@ -2640,21 +2640,26 @@ bool ConditionMgr::isConditionTypeValid(Condition* cond)
             return false;
         }
 
-        if (cond->ConditionValue2 > 3)
+        // value2 is the objective StorageIndex (the quest log counter), value3 the count
+        QuestObjective const* objective = nullptr;
+        for (QuestObjective const& obj : quest->GetObjectives())
         {
-            LOG_ERROR("sql.sql", "CONDITION_QUEST_OBJECTIVE_PROGRESS has out-of-range quest objective index specified ({}), it must be a number between 0 and 3. skipped.", cond->ConditionValue2);
+            if (obj.StorageIndex >= 0 && uint32(obj.StorageIndex) == cond->ConditionValue2)
+            {
+                objective = &obj;
+                break;
+            }
+        }
+
+        if (!objective)
+        {
+            LOG_ERROR("sql.sql", "CONDITION_QUEST_OBJECTIVE_PROGRESS has quest objective index {} for quest {}, but the quest has no objective with that StorageIndex, skipped.", cond->ConditionValue2, cond->ConditionValue1);
             return false;
         }
 
-        if (quest->RequiredNpcOrGo[cond->ConditionValue2] == 0)
+        if (int32(cond->ConditionValue3) > objective->Amount)
         {
-            LOG_ERROR("sql.sql", "CONDITION_QUEST_OBJECTIVE_PROGRESS has quest objective {} for quest {}, but the field RequiredNPCOrGo{} is 0, skipped.", cond->ConditionValue2, cond->ConditionValue1, cond->ConditionValue2);
-            return false;
-        }
-
-        if (cond->ConditionValue3 > quest->RequiredNpcOrGoCount[cond->ConditionValue2])
-        {
-            LOG_ERROR("sql.sql", "CONDITION_QUEST_OBJECTIVE_PROGRESS has quest objective count {} in value3, but quest {} has a maximum objective count of {} in RequiredNPCOrGOCount{}, skipped.", cond->ConditionValue3, cond->ConditionValue2, quest->RequiredNpcOrGoCount[cond->ConditionValue2], cond->ConditionValue2);
+            LOG_ERROR("sql.sql", "CONDITION_QUEST_OBJECTIVE_PROGRESS has quest objective count {} in value3, but quest {} objective {} has a maximum count of {}, skipped.", cond->ConditionValue3, cond->ConditionValue1, cond->ConditionValue2, objective->Amount);
             return false;
         }
         break;

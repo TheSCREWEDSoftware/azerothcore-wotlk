@@ -490,6 +490,7 @@ void World::SetInitialWorldSettings()
     sObjectMgr->LoadItemLocales();
     sObjectMgr->LoadItemSetNameLocales();
     sObjectMgr->LoadQuestLocales();
+    sObjectMgr->LoadQuestObjectivesLocale();
     sObjectMgr->LoadQuestOfferRewardLocale();
     sObjectMgr->LoadQuestRequestItemsLocale();
     sObjectMgr->LoadNpcTextLocales();

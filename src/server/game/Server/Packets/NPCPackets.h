@@ -24,6 +24,10 @@
 
 #include "G3D/Vector2.h"
 
+#ifndef MAX_TRAINERSPELL_ABILITY_REQS
+#define MAX_TRAINERSPELL_ABILITY_REQS 3                     // TrainerListSpell.ReqAbility (6.x client)
+#endif
+
 namespace WorldPackets
 {
     namespace NPC

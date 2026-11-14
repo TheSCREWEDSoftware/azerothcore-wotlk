@@ -1443,7 +1443,14 @@ public:
         if (qInfo)
         {
             /// @todo prisoner should help player for a short period of time
-            player->KilledMonsterCredit(qInfo->RequiredNpcOrGo[0]);
+            for (QuestObjective const& obj : qInfo->GetObjectives())
+            {
+                if (obj.Type == QUEST_OBJECTIVE_MONSTER)
+                {
+                    player->KilledMonsterCredit(obj.ObjectID);
+                    break;
+                }
+            }
             pPrisoner->DisappearAndDie();
         }
         return true;

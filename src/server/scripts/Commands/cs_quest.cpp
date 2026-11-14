@@ -78,7 +78,7 @@ public:
         {
             if (player->IsActiveQuest(entry))
             {
-                handler->SendErrorMessage(LANG_COMMAND_QUEST_ACTIVE, quest->GetTitle().c_str(), entry);
+                handler->SendErrorMessage(LANG_COMMAND_QUEST_ACTIVE, quest->GetLogTitle().c_str(), entry);
                 return false;
             }
 
@@ -95,7 +95,7 @@ public:
 
             if (result)
             {
-                handler->SendErrorMessage(LANG_COMMAND_QUEST_ACTIVE, quest->GetTitle().c_str(), entry);
+                handler->SendErrorMessage(LANG_COMMAND_QUEST_ACTIVE, quest->GetLogTitle().c_str(), entry);
                 return false;
             }
 
@@ -106,24 +106,12 @@ public:
             stmt->SetData(index++, entry);
             stmt->SetData(index++, 1);
             stmt->SetData(index++, false);
-            stmt->SetData(index++, 0);
-
-            for (uint8 i = 0; i < QUEST_OBJECTIVES_COUNT; i++)
-            {
-                stmt->SetData(index++, 0);
-            }
-
-            for (uint8 i = 0; i < QUEST_ITEM_OBJECTIVES_COUNT; i++)
-            {
-                stmt->SetData(index++, 0);
-            }
-
             stmt->SetData(index, 0);
 
             CharacterDatabase.Execute(stmt);
         }
 
-        handler->PSendSysMessage(LANG_COMMAND_QUEST_ADD, quest->GetTitle(), entry);
+        handler->PSendSysMessage(LANG_COMMAND_QUEST_ADD, quest->GetLogTitle(), entry);
         handler->SetSentErrorMessage(false);
         return true;
     }
@@ -188,10 +176,18 @@ public:
             stmt->SetData(1, entry);
             trans->Append(stmt);
 
-            for (uint32 const& requiredItem : quest->RequiredItemId)
+            stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_CHAR_QUESTSTATUS_OBJECTIVES_BY_QUEST);
+            stmt->SetData(0, guid);
+            stmt->SetData(1, entry);
+            trans->Append(stmt);
+
+            for (QuestObjective const& obj : quest->GetObjectives())
             {
+                if (obj.Type != QUEST_OBJECTIVE_ITEM)
+                    continue;
+
                 stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_CHAR_INVENTORY_ITEM_BY_ENTRY_AND_OWNER);
-                stmt->SetData(0, requiredItem);
+                stmt->SetData(0, uint32(obj.ObjectID));
                 stmt->SetData(1, guid);
 
                 PreparedQueryResult result = CharacterDatabase.Query(stmt);
@@ -213,7 +209,7 @@ public:
             CharacterDatabase.CommitTransaction(trans);
         }
 
-        handler->PSendSysMessage(LANG_COMMAND_QUEST_REMOVED, quest->GetTitle(), entry);
+        handler->PSendSysMessage(LANG_COMMAND_QUEST_REMOVED, quest->GetLogTitle(), entry);
         handler->SetSentErrorMessage(false);
         return true;
     }
@@ -242,94 +238,76 @@ public:
                 return false;
             }
 
-            // Add quest items for quests that require items
-            for (uint8 x = 0; x < QUEST_ITEM_OBJECTIVES_COUNT; ++x)
+            for (QuestObjective const& obj : quest->GetObjectives())
             {
-                uint32 id    = quest->RequiredItemId[x];
-                uint32 count = quest->RequiredItemCount[x];
-                if (!id || !count)
+                switch (obj.Type)
                 {
-                    continue;
-                }
-
-                uint32 curItemCount = player->GetItemCount(id, true);
-
-                ItemPosCountVec dest;
-                uint8           msg = player->CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, id, count - curItemCount);
-                if (msg == EQUIP_ERR_OK)
-                {
-                    Item* item = player->StoreNewItem(dest, id, true);
-                    player->SendNewItem(item, count - curItemCount, true, false);
-                }
-            }
-
-            // All creature/GO slain/casted (not required, but otherwise it will display "Creature slain 0/10")
-            for (uint8 i = 0; i < QUEST_OBJECTIVES_COUNT; ++i)
-            {
-                int32  creature      = quest->RequiredNpcOrGo[i];
-                uint32 creatureCount = quest->RequiredNpcOrGoCount[i];
-
-                if (creature > 0)
-                {
-                    if (CreatureTemplate const* creatureInfo = sObjectMgr->GetCreatureTemplate(creature))
+                    case QUEST_OBJECTIVE_ITEM:
                     {
-                        for (uint16 z = 0; z < creatureCount; ++z)
+                        // Add quest items for quests that require items
+                        uint32 curItemCount = player->GetItemCount(obj.ObjectID, true);
+                        if (curItemCount >= uint32(obj.Amount))
+                            break;
+
+                        ItemPosCountVec dest;
+                        uint8 msg = player->CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, obj.ObjectID, obj.Amount - curItemCount);
+                        if (msg == EQUIP_ERR_OK)
                         {
-                            player->KilledMonster(creatureInfo, ObjectGuid::Empty);
+                            Item* item = player->StoreNewItem(dest, obj.ObjectID, true);
+                            player->SendNewItem(item, obj.Amount - curItemCount, true, false);
                         }
+                        break;
                     }
-                }
-                else if (creature < 0)
-                {
-                    for (uint16 z = 0; z < creatureCount; ++z)
+                    case QUEST_OBJECTIVE_MONSTER:
                     {
-                        player->KillCreditGO(creature);
+                        // All creature slain (not required, but otherwise it will display "Creature slain 0/10")
+                        if (CreatureTemplate const* creatureInfo = sObjectMgr->GetCreatureTemplate(obj.ObjectID))
+                            for (int32 z = 0; z < obj.Amount; ++z)
+                                player->KilledMonster(creatureInfo, ObjectGuid::Empty);
+                        break;
                     }
-                }
-            }
-
-            // player kills
-            if (quest->HasSpecialFlag(QUEST_SPECIAL_FLAGS_PLAYER_KILL))
-            {
-                if (uint32 reqPlayers = quest->GetPlayersSlain())
-                {
-                    player->KilledPlayerCreditForQuest(reqPlayers, quest);
-                }
-            }
-
-            // If the quest requires reputation to complete
-            if (uint32 repFaction = quest->GetRepObjectiveFaction())
-            {
-                uint32 repValue = quest->GetRepObjectiveValue();
-                uint32 curRep   = player->GetReputationMgr().GetReputation(repFaction);
-                if (curRep < repValue)
-                {
-                    if (FactionEntry const* factionEntry = sFactionStore.LookupEntry(repFaction))
+                    case QUEST_OBJECTIVE_GAMEOBJECT:
                     {
-                        player->GetReputationMgr().SetReputation(factionEntry, static_cast<float>(repValue));
+                        for (int32 z = 0; z < obj.Amount; ++z)
+                            player->KillCreditGO(obj.ObjectID);
+                        break;
                     }
-                }
-            }
-
-            // If the quest requires a SECOND reputation to complete
-            if (uint32 repFaction = quest->GetRepObjectiveFaction2())
-            {
-                uint32 repValue2 = quest->GetRepObjectiveValue2();
-                uint32 curRep    = player->GetReputationMgr().GetReputation(repFaction);
-                if (curRep < repValue2)
-                {
-                    if (FactionEntry const* factionEntry = sFactionStore.LookupEntry(repFaction))
+                    case QUEST_OBJECTIVE_TALKTO:
                     {
-                        player->GetReputationMgr().SetReputation(factionEntry, static_cast<float>(repValue2));
+                        for (int32 z = 0; z < obj.Amount; ++z)
+                            player->TalkedToCreature(obj.ObjectID, ObjectGuid::Empty);
+                        break;
                     }
+                    case QUEST_OBJECTIVE_PLAYERKILLS:
+                        player->KilledPlayerCreditForQuest(uint16(obj.Amount), quest);
+                        break;
+                    case QUEST_OBJECTIVE_MIN_REPUTATION:
+                    {
+                        uint32 curRep = player->GetReputationMgr().GetReputation(obj.ObjectID);
+                        if (int32(curRep) < obj.Amount)
+                            if (FactionEntry const* factionEntry = sFactionStore.LookupEntry(obj.ObjectID))
+                                player->GetReputationMgr().SetReputation(factionEntry, static_cast<float>(obj.Amount));
+                        break;
+                    }
+                    case QUEST_OBJECTIVE_MAX_REPUTATION:
+                    {
+                        int32 curRep = player->GetReputationMgr().GetReputation(obj.ObjectID);
+                        if (curRep > obj.Amount)
+                            if (FactionEntry const* factionEntry = sFactionStore.LookupEntry(obj.ObjectID))
+                                player->GetReputationMgr().SetReputation(factionEntry, static_cast<float>(obj.Amount));
+                        break;
+                    }
+                    case QUEST_OBJECTIVE_MONEY:
+                        // If the quest requires money
+                        player->ModifyMoney(obj.Amount);
+                        break;
+                    case QUEST_OBJECTIVE_AREATRIGGER:
+                        if (obj.StorageIndex >= 0)
+                            player->SetQuestObjectiveData(quest, obj.StorageIndex, 1);
+                        break;
+                    default:
+                        break;
                 }
-            }
-
-            // If the quest requires money
-            int32 ReqOrRewMoney = quest->GetRewOrReqMoney(player->GetLevel());
-            if (ReqOrRewMoney < 0)
-            {
-                player->ModifyMoney(-ReqOrRewMoney);
             }
 
             player->CompleteQuest(entry);
@@ -341,7 +319,7 @@ public:
 
             if (!result)
             {
-                handler->SendErrorMessage(LANG_COMMAND_QUEST_NOT_FOUND_IN_LOG, quest->GetTitle(), entry);
+                handler->SendErrorMessage(LANG_COMMAND_QUEST_NOT_FOUND_IN_LOG, quest->GetLogTitle(), entry);
                 return false;
             }
 
@@ -350,23 +328,15 @@ public:
             typedef std::pair<uint32, uint32> items;
             std::vector<items> questItems;
 
-            for (uint8 x = 0; x < QUEST_ITEM_OBJECTIVES_COUNT; ++x)
-            {
-                uint32 id    = quest->RequiredItemId[x];
-                uint32 count = quest->RequiredItemCount[x];
-                if (!id || !count)
-                {
-                    continue;
-                }
-
-                questItems.emplace_back(id, count);
-            }
+            for (QuestObjective const& obj : quest->GetObjectives())
+                if (obj.Type == QUEST_OBJECTIVE_ITEM && obj.Amount > 0)
+                    questItems.emplace_back(uint32(obj.ObjectID), uint32(obj.Amount));
 
             if (!questItems.empty())
             {
                 MailSender sender(MAIL_NORMAL, guid, MAIL_STATIONERY_GM);
                 // fill mail
-                MailDraft draft(quest->GetTitle(), std::string());
+                MailDraft draft(quest->GetLogTitle(), std::string());
 
                 for (auto const& itr : questItems)
                 {
@@ -387,79 +357,68 @@ public:
             stmt->SetData(index++, entry);
             stmt->SetData(index++, 1);
             stmt->SetData(index++, quest->HasFlag(QUEST_FLAGS_EXPLORATION));
-            stmt->SetData(index++, 0);
-
-            for (uint8 i = 0; i < QUEST_OBJECTIVES_COUNT; i++)
-            {
-                stmt->SetData(index++, quest->RequiredNpcOrGoCount[i]);
-            }
-
-            for (uint8 i = 0; i < QUEST_ITEM_OBJECTIVES_COUNT; i++)
-            {
-                // Will be updated once they loot the items from the mailbox.
-                stmt->SetData(index++, 0);
-            }
-
             stmt->SetData(index, 0);
 
             trans->Append(stmt);
 
-            // If the quest requires reputation to complete, set the player rep to the required amount.
-            if (uint32 repFaction = quest->GetRepObjectiveFaction())
+            // creature/gameobject/talk/player kill objectives are stored as done; items are counted once looted from the mail
+            for (QuestObjective const& obj : quest->GetObjectives())
             {
-                uint32 repValue = quest->GetRepObjectiveValue();
+                if (obj.StorageIndex < 0 || obj.Type == QUEST_OBJECTIVE_ITEM)
+                    continue;
 
-                stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_CHAR_REP_BY_FACTION);
-                stmt->SetData(0, repFaction);
-                stmt->SetData(1, guid);
-                PreparedQueryResult result = CharacterDatabase.Query(stmt);
-
-                if (result)
+                int32 data = 0;
+                switch (obj.Type)
                 {
-                    Field* fields = result->Fetch();
-                    uint32 curRep = fields[0].Get<uint32>();
-
-                    if (curRep < repValue)
-                    {
-                        if (sFactionStore.LookupEntry(repFaction))
-                        {
-                            stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_CHAR_REP_FACTION_CHANGE);
-                            stmt->SetData(0, repFaction);
-                            stmt->SetData(1, repValue);
-                            stmt->SetData(2, repFaction);
-                            stmt->SetData(3, guid);
-                            trans->Append(stmt);
-                        }
-                    }
+                    case QUEST_OBJECTIVE_MONSTER:
+                    case QUEST_OBJECTIVE_GAMEOBJECT:
+                    case QUEST_OBJECTIVE_TALKTO:
+                    case QUEST_OBJECTIVE_PLAYERKILLS:
+                    case QUEST_OBJECTIVE_OBTAIN_CURRENCY:
+                        data = obj.Amount;
+                        break;
+                    case QUEST_OBJECTIVE_AREATRIGGER:
+                        data = 1;
+                        break;
+                    default:
+                        break;
                 }
+
+                if (!data)
+                    continue;
+
+                stmt = CharacterDatabase.GetPreparedStatement(CHAR_REP_CHAR_QUESTSTATUS_OBJECTIVES);
+                stmt->SetData(0, guid);
+                stmt->SetData(1, entry);
+                stmt->SetData(2, uint8(obj.StorageIndex));
+                stmt->SetData(3, data);
+                trans->Append(stmt);
             }
 
             // If the quest requires reputation to complete, set the player rep to the required amount.
-            if (uint32 repFaction = quest->GetRepObjectiveFaction2())
+            for (QuestObjective const& obj : quest->GetObjectives())
             {
-                uint32 repValue = quest->GetRepObjectiveValue();
+                if (obj.Type != QUEST_OBJECTIVE_MIN_REPUTATION || !sFactionStore.LookupEntry(obj.ObjectID))
+                    continue;
 
                 stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_CHAR_REP_BY_FACTION);
-                stmt->SetData(0, repFaction);
+                stmt->SetData(0, uint32(obj.ObjectID));
                 stmt->SetData(1, guid);
-                PreparedQueryResult result = CharacterDatabase.Query(stmt);
+                PreparedQueryResult repResult = CharacterDatabase.Query(stmt);
 
-                if (result)
+                if (repResult)
                 {
-                    Field* fields = result->Fetch();
-                    uint32 curRep = fields[0].Get<uint32>();
+                    Field* fields = repResult->Fetch();
+                    int32 curRep = fields[0].Get<int32>();
 
-                    if (curRep < repValue)
+                    if (curRep < obj.Amount)
                     {
-                        if (sFactionStore.LookupEntry(repFaction))
-                        {
-                            stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_CHAR_REP_FACTION_CHANGE);
-                            stmt->SetData(0, repFaction);
-                            stmt->SetData(1, repValue);
-                            stmt->SetData(2, repFaction);
-                            stmt->SetData(3, guid);
-                            trans->Append(stmt);
-                        }
+                        stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_CHAR_REP_FACTION_CHANGE);
+                        stmt->SetData(0, uint32(obj.ObjectID));
+                        stmt->SetData(1, obj.Amount);
+                        stmt->SetData(2, uint32(obj.ObjectID));
+                        stmt->SetData(3, guid);
+                        trans->Append(stmt);
                     }
                 }
             }
@@ -479,7 +438,7 @@ public:
             CharacterDatabase.Execute(stmt);
         }
 
-        handler->PSendSysMessage(LANG_COMMAND_QUEST_COMPLETE, quest->GetTitle(), entry);
+        handler->PSendSysMessage(LANG_COMMAND_QUEST_COMPLETE, quest->GetLogTitle(), entry);
         handler->SetSentErrorMessage(false);
         return true;
     }
@@ -530,10 +489,18 @@ public:
                 return false;
             }
 
-            for (uint32 const& requiredItem : quest->RequiredItemId)
+            stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_CHAR_QUESTSTATUS_OBJECTIVES_BY_QUEST);
+            stmt->SetData(0, guid);
+            stmt->SetData(1, entry);
+            trans->Append(stmt);
+
+            for (QuestObjective const& obj : quest->GetObjectives())
             {
+                if (obj.Type != QUEST_OBJECTIVE_ITEM)
+                    continue;
+
                 stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_CHAR_INVENTORY_ITEM_BY_ENTRY_AND_OWNER);
-                stmt->SetData(0, requiredItem);
+                stmt->SetData(0, uint32(obj.ObjectID));
                 stmt->SetData(1, guid);
 
                 PreparedQueryResult result = CharacterDatabase.Query(stmt);
@@ -577,29 +544,28 @@ public:
             typedef std::pair<uint32, uint32> items;
             std::vector<items> questRewardItems;
 
+            // the first choice item, as an online reward without a choice would give
             if (quest->GetRewChoiceItemsCount())
             {
-                for (uint32 const& itemId : quest->RewardChoiceItemId)
+                for (uint32 i = 0; i < QUEST_REWARD_CHOICES_COUNT; ++i)
                 {
-                    uint8 index = 0;
-                    questRewardItems.emplace_back(itemId, quest->RewardChoiceItemCount[index++]);
+                    if (quest->RewardChoiceItemId[i])
+                    {
+                        questRewardItems.emplace_back(quest->RewardChoiceItemId[i], quest->RewardChoiceItemCount[i]);
+                        break;
+                    }
                 }
             }
 
-            if (quest->GetRewItemsCount())
-            {
-                for (uint32 const& itemId : quest->RewardItemId)
-                {
-                    uint8 index = 0;
-                    questRewardItems.emplace_back(itemId, quest->RewardItemIdCount[index++]);
-                }
-            }
+            for (uint32 i = 0; i < QUEST_REWARD_ITEM_COUNT; ++i)
+                if (quest->RewardItemId[i])
+                    questRewardItems.emplace_back(quest->RewardItemId[i], quest->RewardItemCount[i]);
 
             if (!questRewardItems.empty())
             {
                 MailSender sender(MAIL_NORMAL, guid, MAIL_STATIONERY_GM);
                 // fill mail
-                MailDraft draft(quest->GetTitle(), "This quest has been manually rewarded to you. This mail contains your quest rewards.");
+                MailDraft draft(quest->GetLogTitle(), "This quest has been manually rewarded to you. This mail contains your quest rewards.");
 
                 for (auto const& itr : questRewardItems)
                 {
@@ -697,10 +663,7 @@ public:
                 trans->Append(stmt);
             }
 
-            if (int32 rewOrReqMoney = quest->GetRewOrReqMoney(charLevel))
-            {
-                rewMoney += rewOrReqMoney;
-            }
+            rewMoney += int32(quest->MoneyValue(charLevel) * sWorld->getRate(RATE_REWARD_QUEST_MONEY));
 
             // Only reward money, don't subtract, let's not cause an overflow...
             if (rewMoney > 0)
@@ -724,7 +687,7 @@ public:
             CharacterDatabase.CommitTransaction(trans);
         }
 
-        handler->PSendSysMessage(LANG_COMMAND_QUEST_REWARDED, quest->GetTitle(), entry);
+        handler->PSendSysMessage(LANG_COMMAND_QUEST_REWARDED, quest->GetLogTitle(), entry);
         handler->SetSentErrorMessage(false);
         return true;
     }
@@ -763,7 +726,7 @@ public:
 
         if (Player* player = playerTarget->GetConnectedPlayer())
         {
-            handler->PSendSysMessage(LANG_CMD_QUEST_STATUS, quest->GetTitle(), entry, QuestStatusToString(player->GetQuestStatus(entry)));
+            handler->PSendSysMessage(LANG_CMD_QUEST_STATUS, quest->GetLogTitle(), entry, QuestStatusToString(player->GetQuestStatus(entry)));
 
             if (!player->CanTakeQuest(quest, false))
             {
@@ -781,7 +744,7 @@ public:
                 if (!player->SatisfyQuestRace(quest, false))
                     handler->SendSysMessage(LANG_CMD_QUEST_STATUS_RACE);
 
-                if (player->GetLevel() < quest->GetMinLevel())
+                if (int32(player->GetLevel()) < quest->GetMinLevel())
                     handler->PSendSysMessage(LANG_CMD_QUEST_STATUS_LOW_LEVEL, quest->GetMinLevel());
 
                 if (quest->GetMaxLevel() > 0 && player->GetLevel() > quest->GetMaxLevel())
@@ -870,7 +833,7 @@ public:
             else
                 status = "Not Taken";
 
-            handler->PSendSysMessage(LANG_CMD_QUEST_STATUS, quest->GetTitle(), entry, status);
+            handler->PSendSysMessage(LANG_CMD_QUEST_STATUS, quest->GetLogTitle(), entry, status);
         }
 
         return true;

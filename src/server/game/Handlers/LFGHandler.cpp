@@ -182,13 +182,13 @@ void WorldSession::SendLfgPlayerLockInfo()
         if (!quest)
             continue;
 
-        playerDungeonInfo.Rewards.RewardMoney = quest->GetRewOrReqMoney(level);
+        playerDungeonInfo.Rewards.RewardMoney = uint32(quest->MoneyValue(level) * sWorld->getRate(RATE_REWARD_QUEST_MONEY));
         if (playerLevelForXP < GetPlayer()->GetUInt32Value(PLAYER_FIELD_MAX_LEVEL))
             playerDungeonInfo.Rewards.RewardXP = quest->XPValue(playerLevelForXP);
 
-        for (uint8 i = 0; i < QUEST_REWARDS_COUNT; ++i)
+        for (uint8 i = 0; i < QUEST_REWARD_ITEM_COUNT; ++i)
             if (uint32 itemId = quest->RewardItemId[i])
-                playerDungeonInfo.Rewards.Item.emplace_back(itemId, quest->RewardItemIdCount[i]);
+                playerDungeonInfo.Rewards.Item.emplace_back(itemId, quest->RewardItemCount[i]);
 
         AddQuestCurrencies(playerDungeonInfo.Rewards.Currency, quest);
     }
@@ -412,12 +412,12 @@ void WorldSession::SendLfgPlayerReward(lfg::LfgPlayerRewardData const& rewardDat
     WorldPackets::LFG::LFGPlayerReward lfgPlayerReward;
     lfgPlayerReward.QueuedSlot = rewardData.rdungeonEntry;
     lfgPlayerReward.ActualSlot = rewardData.sdungeonEntry;
-    lfgPlayerReward.RewardMoney = rewardData.quest->GetRewOrReqMoney(playerLevel);
+    lfgPlayerReward.RewardMoney = uint32(rewardData.quest->MoneyValue(playerLevel) * sWorld->getRate(RATE_REWARD_QUEST_MONEY));
     lfgPlayerReward.AddedXP = rewardData.quest->XPValue(playerLevelForXP);
 
-    for (uint8 i = 0; i < QUEST_REWARDS_COUNT; ++i)
+    for (uint8 i = 0; i < QUEST_REWARD_ITEM_COUNT; ++i)
         if (uint32 itemId = rewardData.quest->RewardItemId[i])
-            lfgPlayerReward.Rewards.emplace_back(itemId, rewardData.quest->RewardItemIdCount[i], 0, false);
+            lfgPlayerReward.Rewards.emplace_back(itemId, rewardData.quest->RewardItemCount[i], 0, false);
 
     for (uint32 i = 0; i < QUEST_REWARD_CURRENCY_COUNT; ++i)
         if (uint32 currencyId = rewardData.quest->RewardCurrencyId[i])

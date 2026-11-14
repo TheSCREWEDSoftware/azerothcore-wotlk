@@ -734,15 +734,15 @@ public:
                 return;
 
             QuestStatusMap::const_iterator itr = player->getQuestStatusMap().find(QUEST_TASTE_TEST);
-            if (itr->second.Status != QUEST_STATUS_INCOMPLETE)
+            if (itr == player->getQuestStatusMap().end() || itr->second.Status != QUEST_STATUS_INCOMPLETE)
                 return;
 
-            for (uint8 i = 0; i < 3; ++i)
+            for (QuestObjective const& obj : quest->GetObjectives())
             {
-                if (uint32(quest->RequiredNpcOrGo[i]) != me->GetEntry())
+                if (obj.Type != QUEST_OBJECTIVE_MONSTER || uint32(obj.ObjectID) != me->GetEntry())
                     continue;
 
-                if (itr->second.CreatureOrGOCount[i] != 0)
+                if (Player::GetQuestObjectiveData(itr->second, obj.StorageIndex) != 0)
                     continue;
 
                 player->KilledMonsterCredit(me->GetEntry());

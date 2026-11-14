@@ -516,7 +516,8 @@ typedef std::unordered_map<uint32, CreatureLocale> CreatureLocaleContainer;
 typedef std::unordered_map<uint32, GameObjectLocale> GameObjectLocaleContainer;
 typedef std::unordered_map<uint32, ItemLocale> ItemLocaleContainer;
 typedef std::unordered_map<uint32, ItemSetNameLocale> ItemSetNameLocaleContainer;
-typedef std::unordered_map<uint32, QuestLocale> QuestLocaleContainer;
+typedef std::unordered_map<uint32, QuestTemplateLocale> QuestLocaleContainer;
+typedef std::unordered_map<uint32, QuestObjectivesLocale> QuestObjectivesLocaleContainer;
 typedef std::unordered_map<uint32, QuestOfferRewardLocale> QuestOfferRewardLocaleContainer;
 typedef std::unordered_map<uint32, QuestRequestItemsLocale> QuestRequestItemsLocaleContainer;
 typedef std::unordered_map<uint32, NpcTextLocale> NpcTextLocaleContainer;
@@ -853,12 +854,12 @@ public:
 
     [[nodiscard]] QuestMap const& GetQuestTemplates() const { return _questTemplates; }
 
-    [[nodiscard]] uint32 GetQuestForAreaTrigger(uint32 Trigger_ID) const
+    [[nodiscard]] std::unordered_set<uint32> const* GetQuestsForAreaTrigger(uint32 Trigger_ID) const
     {
-        QuestAreaTriggerContainer::const_iterator itr = _questAreaTriggerStore.find(Trigger_ID);
+        auto itr = _questAreaTriggerStore.find(Trigger_ID);
         if (itr != _questAreaTriggerStore.end())
-            return itr->second;
-        return 0;
+            return &itr->second;
+        return nullptr;
     }
 
     [[nodiscard]] bool IsTavernAreaTrigger(uint32 triggerID, uint32 faction) const
@@ -1109,6 +1110,7 @@ public:
     void LoadItemSetNames();
     void LoadItemSetNameLocales();
     void LoadQuestLocales();
+    void LoadQuestObjectivesLocale();
     void LoadNpcTextLocales();
     void LoadQuestOfferRewardLocale();
     void LoadQuestRequestItemsLocale();
@@ -1366,10 +1368,16 @@ public:
         if (itr == _pageTextLocaleStore.end()) return nullptr;
         return &itr->second;
     }
-    [[nodiscard]] QuestLocale const* GetQuestLocale(uint32 entry) const
+    [[nodiscard]] QuestTemplateLocale const* GetQuestLocale(uint32 entry) const
     {
         QuestLocaleContainer::const_iterator itr = _questLocaleStore.find(entry);
         if (itr == _questLocaleStore.end()) return nullptr;
+        return &itr->second;
+    }
+    [[nodiscard]] QuestObjectivesLocale const* GetQuestObjectivesLocale(uint32 objectiveId) const
+    {
+        auto itr = _questObjectivesLocaleStore.find(objectiveId);
+        if (itr == _questObjectivesLocaleStore.end()) return nullptr;
         return &itr->second;
     }
     [[nodiscard]] GossipMenuItemsLocale const* GetGossipMenuItemsLocale(uint32 entry) const
@@ -1605,7 +1613,7 @@ private:
     std::vector<Quest*> _questTemplatesFast; // pussywizard
 
     typedef std::unordered_map<uint32, GossipText> GossipTextContainer;
-    typedef std::unordered_map<uint32, uint32> QuestAreaTriggerContainer;
+    typedef std::unordered_map<uint32, std::unordered_set<uint32>> QuestAreaTriggerContainer;
     typedef std::unordered_map<uint32, uint32> TavernAreaTriggerContainer;
 
     QuestAreaTriggerContainer _questAreaTriggerStore;
@@ -1740,6 +1748,7 @@ private:
     ItemLocaleContainer _itemLocaleStore;
     ItemSetNameLocaleContainer _itemSetNameLocaleStore;
     QuestLocaleContainer _questLocaleStore;
+    QuestObjectivesLocaleContainer _questObjectivesLocaleStore;
     QuestOfferRewardLocaleContainer _questOfferRewardLocaleStore;
     QuestRequestItemsLocaleContainer _questRequestItemsLocaleStore;
     NpcTextLocaleContainer _npcTextLocaleStore;

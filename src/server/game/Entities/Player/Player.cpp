@@ -4285,6 +4285,10 @@ void Player::DeleteFromDB(ObjectGuid::LowType lowGuid, uint32 accountId, bool up
                 stmt->SetData(0, lowGuid);
                 trans->Append(stmt);
 
+                stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_CHAR_QUESTSTATUS_OBJECTIVES);
+                stmt->SetData(0, lowGuid);
+                trans->Append(stmt);
+
                 stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_CHAR_QUESTSTATUS_REWARDED);
                 stmt->SetData(0, lowGuid);
                 trans->Append(stmt);
@@ -6257,23 +6261,23 @@ FactionTemplateEntry const* GetAnyFactionTemplateForFaction(uint32 factionId)
 // Calculate how many reputation points player gain with the quest
 void Player::RewardReputation(Quest const* quest)
 {
-    for (uint8 i = 0; i < QUEST_REPUTATIONS_COUNT; ++i)
+    for (uint8 i = 0; i < QUEST_REWARD_REPUTATIONS_COUNT; ++i)
     {
         if (!quest->RewardFactionId[i])
             continue;
 
         float rep = 0.f;
 
-        if (quest->RewardFactionValueIdOverride[i])
+        if (quest->RewardFactionOverride[i])
         {
-            rep = quest->RewardFactionValueIdOverride[i] / 100.f;
+            rep = quest->RewardFactionOverride[i] / 100.f;
         }
         else
         {
-            uint32 row = ((quest->RewardFactionValueId[i] < 0) ? 1 : 0) + 1;
+            uint32 row = ((quest->RewardFactionValue[i] < 0) ? 1 : 0) + 1;
             if (QuestFactionRewEntry const* questFactionRewEntry = sQuestFactionRewardStore.LookupEntry(row))
             {
-                uint32 field = std::abs(quest->RewardFactionValueId[i]);
+                uint32 field = std::abs(quest->RewardFactionValue[i]);
                 rep = static_cast<float>(questFactionRewEntry->QuestRewFactionValue[field]);
             }
         }
@@ -10631,6 +10635,10 @@ void Player::ModifyCurrency(uint32 currencyId, int32 amount, bool suppressChatLo
             UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_CURRENCY, currencyId, uint32(change));
     }
 
+    // currency quest objectives
+    if (IsInWorld())
+        CurrencyChanged(currencyId, int32(change));
+
     // Arena and rated battleground conquest are tracked apart but shown as one currency
     if (currency->CategoryID == CURRENCY_CATEGORY_META_CONQUEST)
     {
@@ -12665,7 +12673,7 @@ void Player::LearnDefaultSkill(SkillRaceClassInfoEntry const* rcInfo)
 void Player::learnQuestRewardedSpells(Quest const* quest)
 {
     // xinef: quest does not learn anything
-    int32 spellId = quest->GetRewSpellCast();
+    int32 spellId = quest->GetRewSpell();
     if (!spellId)
         return;
 
@@ -13145,12 +13153,12 @@ bool Player::HasQuestForGO(int32 GOId) const
             if (GetGroup() && GetGroup()->isRaidGroup() && !qinfo->IsAllowedInRaid(GetMap()->GetDifficulty()))
                 continue;
 
-            for (uint8 j = 0; j < QUEST_OBJECTIVES_COUNT; ++j)
+            for (QuestObjective const& obj : qinfo->GetObjectives())
             {
-                if (qinfo->RequiredNpcOrGo[j] >= 0)       //skip non GO case
+                if (obj.Type != QUEST_OBJECTIVE_GAMEOBJECT)       //skip non GO case
                     continue;
 
-                if ((-1)*GOId == qinfo->RequiredNpcOrGo[j] && qs.CreatureOrGOCount[j] < qinfo->RequiredNpcOrGoCount[j])
+                if (GOId == obj.ObjectID && GetQuestObjectiveData(qs, obj.StorageIndex) < obj.Amount)
                     return true;
             }
         }

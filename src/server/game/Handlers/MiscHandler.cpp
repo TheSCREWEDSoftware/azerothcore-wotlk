@@ -884,9 +884,37 @@ void WorldSession::HandleAreaTriggerOpcode(WorldPacket& recv_data)
         return;
 
     if (player->IsAlive())
-        if (uint32 questId = sObjectMgr->GetQuestForAreaTrigger(triggerId))
-            if (player->GetQuestStatus(questId) == QUEST_STATUS_INCOMPLETE)
-                player->AreaExploredOrEventHappens(questId);
+    {
+        if (std::unordered_set<uint32> const* quests = sObjectMgr->GetQuestsForAreaTrigger(triggerId))
+        {
+            for (uint32 questId : *quests)
+            {
+                Quest const* qInfo = sObjectMgr->GetQuestTemplate(questId);
+                if (!qInfo || player->GetQuestStatus(questId) != QUEST_STATUS_INCOMPLETE)
+                    continue;
+
+                // 6.x QUEST_OBJECTIVE_AREATRIGGER objective, otherwise areatrigger_involvedrelation exploration
+                bool hasObjective = false;
+                for (QuestObjective const& obj : qInfo->GetObjectives())
+                {
+                    if (obj.Type == QUEST_OBJECTIVE_AREATRIGGER && obj.StorageIndex >= 0)
+                    {
+                        player->SetQuestObjectiveData(qInfo, obj.StorageIndex, int32(true));
+                        hasObjective = true;
+                        break;
+                    }
+                }
+
+                if (hasObjective)
+                {
+                    if (player->CanCompleteQuest(questId))
+                        player->CompleteQuest(questId);
+                }
+                else
+                    player->AreaExploredOrEventHappens(questId);
+            }
+        }
+    }
 
     if (isTavernAreatrigger)
     {

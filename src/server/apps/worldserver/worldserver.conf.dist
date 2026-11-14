@@ -3025,6 +3025,15 @@ Quests.IgnoreAutoAccept = 0
 Quests.IgnoreAutoComplete = 0
 
 #
+#    UI.ShowQuestLevelsInDialogs
+#        Description: Show quest levels next to quest titles in UI dialogs
+#        Example:     [13] Westfall Stew
+#        Default:     0 - (Do not show)
+#                     1 - (Show)
+
+UI.ShowQuestLevelsInDialogs = 0
+
+#
 #    Rate.RewardQuestMoney
 #        Description: Allows to tweak the amount of money rewarded by quests (does not affect RewardBonusMoney).
 #        Default:     1

@@ -617,6 +617,7 @@ enum QuestSlotOffsets
 };
 
 #define MAX_QUEST_OFFSET 15                                 // id, state, 24 uint16 counters, end time
+#define MAX_QUEST_COUNTS 24
 
 enum QuestSlotStateMask
 {
@@ -907,6 +908,7 @@ enum PlayerLoginQueryIndex
     PLAYER_LOGIN_QUERY_LOAD_ARCHAEOLOGY_COMPLETED        = 42,
     PLAYER_LOGIN_QUERY_LOAD_ARCHAEOLOGY_PROJECTS         = 43,
     PLAYER_LOGIN_QUERY_LOAD_CUF_PROFILES                 = 44,
+    PLAYER_LOGIN_QUERY_LOAD_QUEST_STATUS_OBJECTIVES      = 45,
     MAX_PLAYER_LOGIN_QUERY
 };
 
@@ -1555,6 +1557,8 @@ public:
     bool GiveQuestSourceItem(Quest const* quest);
     bool TakeQuestSourceItem(uint32 questId, bool msg);
     uint32 CalculateQuestRewardXP(Quest const* quest);
+    uint32 GetQuestMoneyReward(Quest const* quest) const;
+    uint32 GetQuestXPReward(Quest const* quest);
     [[nodiscard]] bool GetQuestRewardStatus(uint32 quest_id) const;
     [[nodiscard]] QuestStatus GetQuestStatus(uint32 quest_id) const;
     void SetQuestStatus(uint32 questId, QuestStatus status, bool update = true);
@@ -1576,22 +1580,26 @@ public:
     [[nodiscard]] uint16 FindQuestSlot(uint32 quest_id) const;
     [[nodiscard]] uint32 GetQuestSlotQuestId(uint16 slot) const { return GetUInt32Value(PLAYER_QUEST_LOG_1_1 + slot * MAX_QUEST_OFFSET + QUEST_ID_OFFSET); }
     [[nodiscard]] uint32 GetQuestSlotState(uint16 slot)   const { return GetUInt32Value(PLAYER_QUEST_LOG_1_1 + slot * MAX_QUEST_OFFSET + QUEST_STATE_OFFSET); }
-    [[nodiscard]] uint16 GetQuestSlotCounter(uint16 slot, uint8 counter) const { return (uint16)(GetUInt64Value(PLAYER_QUEST_LOG_1_1 + slot * MAX_QUEST_OFFSET + QUEST_COUNTS_OFFSET) >> (counter * 16)); }
+    [[nodiscard]] uint16 GetQuestSlotCounter(uint16 slot, uint8 counter) const
+    {
+        if (counter >= MAX_QUEST_COUNTS)
+            return 0;
+        return GetUInt16Value(PLAYER_QUEST_LOG_1_1 + slot * MAX_QUEST_OFFSET + QUEST_COUNTS_OFFSET + counter / 2, counter % 2);
+    }
     [[nodiscard]] uint32 GetQuestSlotTime(uint16 slot)    const { return GetUInt32Value(PLAYER_QUEST_LOG_1_1 + slot * MAX_QUEST_OFFSET + QUEST_TIME_OFFSET); }
     void SetQuestSlot(uint16 slot, uint32 quest_id, uint32 timer = 0)
     {
         SetUInt32Value(PLAYER_QUEST_LOG_1_1 + slot * MAX_QUEST_OFFSET + QUEST_ID_OFFSET, quest_id);
         SetUInt32Value(PLAYER_QUEST_LOG_1_1 + slot * MAX_QUEST_OFFSET + QUEST_STATE_OFFSET, 0);
-        SetUInt32Value(PLAYER_QUEST_LOG_1_1 + slot * MAX_QUEST_OFFSET + QUEST_COUNTS_OFFSET, 0);
-        SetUInt32Value(PLAYER_QUEST_LOG_1_1 + slot * MAX_QUEST_OFFSET + QUEST_COUNTS_OFFSET + 1, 0);
+        for (uint32 i = 0; i < MAX_QUEST_COUNTS / 2; ++i)
+            SetUInt32Value(PLAYER_QUEST_LOG_1_1 + slot * MAX_QUEST_OFFSET + QUEST_COUNTS_OFFSET + i, 0);
         SetUInt32Value(PLAYER_QUEST_LOG_1_1 + slot * MAX_QUEST_OFFSET + QUEST_TIME_OFFSET, timer);
     }
     void SetQuestSlotCounter(uint16 slot, uint8 counter, uint16 count)
     {
-        uint64 val = GetUInt64Value(PLAYER_QUEST_LOG_1_1 + slot * MAX_QUEST_OFFSET + QUEST_COUNTS_OFFSET);
-        val &= ~((uint64)0xFFFF << (counter * 16));
-        val |= ((uint64)count << (counter * 16));
-        SetUInt64Value(PLAYER_QUEST_LOG_1_1 + slot * MAX_QUEST_OFFSET + QUEST_COUNTS_OFFSET, val);
+        if (counter >= MAX_QUEST_COUNTS)
+            return;
+        SetUInt16Value(PLAYER_QUEST_LOG_1_1 + slot * MAX_QUEST_OFFSET + QUEST_COUNTS_OFFSET + counter / 2, counter % 2, count);
     }
     void SetQuestSlotState(uint16 slot, uint32 state) { SetFlag(PLAYER_QUEST_LOG_1_1 + slot * MAX_QUEST_OFFSET + QUEST_STATE_OFFSET, state); }
     void RemoveQuestSlotState(uint16 slot, uint32 state) { RemoveFlag(PLAYER_QUEST_LOG_1_1 + slot * MAX_QUEST_OFFSET + QUEST_STATE_OFFSET, state); }
@@ -1607,7 +1615,7 @@ public:
             SetUInt32Value(PLAYER_QUEST_LOG_1_1 + MAX_QUEST_OFFSET * slot2 + i, temp1);
         }
     }
-    uint16 GetReqKillOrCastCurrentCount(uint32 quest_id, int32 entry);
+    [[nodiscard]] uint16 GetReqKillOrCastCurrentCount(uint32 quest_id, int32 entry) const;
     void AreaExploredOrEventHappens(uint32 questId);
     void GroupEventHappens(uint32 questId, WorldObject const* pEventObject);
     void ItemAddedQuestCheck(uint32 entry, uint32 count);
@@ -1620,7 +1628,10 @@ public:
     void TalkedToCreature(uint32 entry, ObjectGuid guid);
     void MoneyChanged(uint64 value);
     void ReputationChanged(FactionEntry const* factionEntry);
-    void ReputationChanged2(FactionEntry const* factionEntry);
+    void CurrencyChanged(uint32 currencyId, int32 change);
+    [[nodiscard]] int32 GetQuestObjectiveData(Quest const* quest, int8 storageIndex) const;
+    [[nodiscard]] static int32 GetQuestObjectiveData(QuestStatusData const& status, int8 storageIndex);
+    void SetQuestObjectiveData(Quest const* quest, int8 storageIndex, int32 data);
     [[nodiscard]] bool HasQuestForItem(uint32 itemId, uint32 excludeQuestId = 0, bool turnIn = false, bool* showInLoot = nullptr) const;
     [[nodiscard]] bool HasQuestForGO(int32 GOId) const;
     [[nodiscard]] bool HasQuest(uint32 questId) const;
@@ -1631,12 +1642,11 @@ public:
     void SendQuestReward(Quest const* quest, uint32 XP);
     void SendQuestFailed(uint32 questId, InventoryResult reason = EQUIP_ERR_OK);
     void SendQuestTimerFailed(uint32 quest_id);
-    void SendCanTakeQuestResponse(QuestFailedReason msg) const;
+    void SendCanTakeQuestResponse(QuestFailedReason msg, bool sendErrorMessage = true, std::string const& reasonText = "") const;
     void SendQuestConfirmAccept(Quest const* quest, Player* pReceiver);
     void SendPushToPartyResponse(Player const* player, QuestShareMessages msg) const;
-    void SendQuestUpdateAddItem(Quest const* quest, uint32 item_idx, uint16 count);
-    void SendQuestUpdateAddCreatureOrGo(Quest const* quest, ObjectGuid guid, uint32 creatureOrGO_idx, uint16 old_count, uint16 add_count);
-    void SendQuestUpdateAddPlayer(Quest const* quest, uint16 old_count, uint16 add_count);
+    void SendQuestUpdateAddCredit(Quest const* quest, ObjectGuid guid, QuestObjective const& obj, uint16 count) const;
+    void SendQuestUpdateAddPlayer(Quest const* quest, uint16 newCount) const;
 
     ObjectGuid GetDivider() { return m_divider; }
     void SetDivider(ObjectGuid guid = ObjectGuid::Empty) { m_divider = guid; }
@@ -2950,6 +2960,7 @@ protected:
     void _LoadMail(PreparedQueryResult mailsResult, PreparedQueryResult mailItemsResult);
     static Item* _LoadMailedItem(ObjectGuid const& playerGuid, Player* player, uint32 mailId, Mail* mail, Field* fields);
     void _LoadQuestStatus(PreparedQueryResult result);
+    void _LoadQuestStatusObjectives(PreparedQueryResult result);
     void _LoadQuestStatusRewarded(PreparedQueryResult result);
     void _LoadDailyQuestStatus(PreparedQueryResult result);
     void _LoadWeeklyQuestStatus(PreparedQueryResult result);
@@ -3221,7 +3232,7 @@ private:
 
     // know currencies are not removed at any point (0 displayed)
 
-    void AdjustQuestReqItemCount(Quest const* quest, QuestStatusData& questStatusData);
+    void AdjustQuestReqItemCount(Quest const* quest);
 
     [[nodiscard]] bool MustDelayTeleport() const { return m_bMustDelayTeleport; } // pussywizard: must delay teleports during player update to the very end
     void SetMustDelayTeleport(bool setting) { m_bMustDelayTeleport = setting; }

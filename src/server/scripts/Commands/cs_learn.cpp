@@ -112,7 +112,7 @@ public:
         for (auto const& questPair : sObjectMgr->GetQuestTemplates())
         {
             Quest const* quest = questPair.second;
-            if (quest->GetRequiredClasses() && player->SatisfyQuestClass(quest, false))
+            if (quest->GetAllowableClasses() && player->SatisfyQuestClass(quest, false))
                 player->learnQuestRewardedSpells(quest);
         }
 

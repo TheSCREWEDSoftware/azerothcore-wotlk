@@ -210,12 +210,10 @@ struct npc_brewfest_bark_trigger : public ScriptedAI
 
             if (allow)
             {
-                QuestStatusMap::iterator itr = player->getQuestStatusMap().find(quest);
-                if (itr == player->getQuestStatusMap().end())
+                if (player->getQuestStatusMap().find(quest) == player->getQuestStatusMap().end())
                     return;
 
-                QuestStatusData& q_status = itr->second;
-                if (q_status.CreatureOrGOCount[me->GetEntry() - 24202] == 0)
+                if (player->GetReqKillOrCastCurrentCount(quest, me->GetEntry()) == 0)
                 {
                     player->KilledMonsterCredit(me->GetEntry());
                     player->Say(GetTextFor(quest), player);

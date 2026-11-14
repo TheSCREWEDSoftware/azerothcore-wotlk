@@ -1189,6 +1189,7 @@ public:
     {
         LOG_INFO("server.loading", "Reloading Locales Quest ... ");
         sObjectMgr->LoadQuestLocales();
+        sObjectMgr->LoadQuestObjectivesLocale();
         handler->SendGlobalGMSysMessage("DB table `quest_template_locale` reloaded.");
         return true;
     }

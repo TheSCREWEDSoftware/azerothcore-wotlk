@@ -126,8 +126,7 @@ struct npc_love_in_air_snivel : public NullCreatureAI
         if (slot >= MAX_QUEST_LOG_SIZE)
             return false;
 
-        QuestStatusData& qData = player->getQuestStatusMap()[(player->GetTeamId() == TEAM_ALLIANCE ? QUEST_HOT_ON_TRAIL_ALLY : QUEST_HOT_ON_TRAIL_HORDE)];
-        if (qData.CreatureOrGOCount[me->GetEntry() - NPC_SNIVEL_COUNTER] == 0)
+        if (player->GetReqKillOrCastCurrentCount(player->GetTeamId() == TEAM_ALLIANCE ? QUEST_HOT_ON_TRAIL_ALLY : QUEST_HOT_ON_TRAIL_HORDE, me->GetEntry()) == 0)
             return true;
 
         return false;

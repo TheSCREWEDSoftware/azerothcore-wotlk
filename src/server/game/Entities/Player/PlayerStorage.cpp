@@ -5818,6 +5818,7 @@ bool Player::LoadFromDB(ObjectGuid playerGuid, CharacterDatabaseQueryHolder cons
 
     // after spell load, learn rewarded spell if need also
     _LoadQuestStatus(holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_QUEST_STATUS));
+    _LoadQuestStatusObjectives(holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_QUEST_STATUS_OBJECTIVES));
     _LoadQuestStatusRewarded(holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_QUEST_STATUS_REW));
     _LoadDailyQuestStatus(holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_DAILY_QUEST_STATUS));
     _LoadWeeklyQuestStatus(holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_WEEKLY_QUEST_STATUS));
@@ -6726,13 +6727,52 @@ void Player::_LoadQuestStatus(PreparedQueryResult result)
                 else
                     quest_time = 0;
 
-                for (uint32 i = 0; i < QUEST_OBJECTIVES_COUNT; ++i)
-                    questStatusData.CreatureOrGOCount[i] = fields[4 + i].Get<uint16>();
+                int32 maxStorageIndex = -1;
+                for (QuestObjective const& obj : quest->GetObjectives())
+                    if (obj.StorageIndex > maxStorageIndex)
+                        maxStorageIndex = obj.StorageIndex;
 
-                for (uint32 i = 0; i < QUEST_ITEM_OBJECTIVES_COUNT; ++i)
-                    questStatusData.ItemCount[i] = fields[8 + i].Get<uint16>();
+                questStatusData.ObjectiveData.assign(maxStorageIndex + 1, 0);
 
-                questStatusData.PlayerCount = fields[14].Get<uint16>();
+                // pre-6.x progress (mobcount/itemcount/playercount): character_queststatus_objectives
+                // replaces it, and rows found there overwrite these values
+                {
+                    uint8 mobIndex = 0, itemIndex = 0;
+                    std::vector<QuestObjective const*> ordered;
+                    for (QuestObjective const& obj : quest->GetObjectives())
+                        if (obj.StorageIndex >= 0)
+                            ordered.push_back(&obj);
+                    std::sort(ordered.begin(), ordered.end(), [](QuestObjective const* a, QuestObjective const* b) { return a->StorageIndex < b->StorageIndex; });
+
+                    for (QuestObjective const* obj : ordered)
+                    {
+                        int32 legacy = 0;
+                        switch (obj->Type)
+                        {
+                            case QUEST_OBJECTIVE_MONSTER:
+                            case QUEST_OBJECTIVE_GAMEOBJECT:
+                            case QUEST_OBJECTIVE_TALKTO:
+                                if (mobIndex < 4)
+                                    legacy = fields[4 + mobIndex++].Get<uint16>();
+                                break;
+                            case QUEST_OBJECTIVE_ITEM:
+                                if (itemIndex < 6)
+                                    legacy = fields[8 + itemIndex++].Get<uint16>();
+                                break;
+                            case QUEST_OBJECTIVE_PLAYERKILLS:
+                                legacy = fields[14].Get<uint16>();
+                                break;
+                            default:
+                                break;
+                        }
+
+                        if (legacy)
+                        {
+                            questStatusData.ObjectiveData[obj->StorageIndex] = std::min(legacy, obj->Amount);
+                            m_QuestStatusSave[quest_id] = true;
+                        }
+                    }
+                }
 
                 // add to quest log
                 if (slot < MAX_QUEST_LOG_SIZE && questStatusData.Status != QUEST_STATUS_NONE)
@@ -6744,12 +6784,9 @@ void Player::_LoadQuestStatus(PreparedQueryResult result)
                     else if (questStatusData.Status == QUEST_STATUS_FAILED)
                         SetQuestSlotState(slot, QUEST_STATE_FAIL);
 
-                    for (uint8 idx = 0; idx < QUEST_OBJECTIVES_COUNT; ++idx)
-                        if (questStatusData.CreatureOrGOCount[idx])
-                            SetQuestSlotCounter(slot, idx, questStatusData.CreatureOrGOCount[idx]);
-
-                    if (questStatusData.PlayerCount)
-                        SetQuestSlotCounter(slot, QUEST_PVP_KILL_SLOT, questStatusData.PlayerCount);
+                    for (uint8 idx = 0; idx < questStatusData.ObjectiveData.size(); ++idx)
+                        if (questStatusData.ObjectiveData[idx])
+                            SetQuestSlotCounter(slot, idx, uint16(questStatusData.ObjectiveData[idx]));
 
                     ++slot;
                 }
@@ -6762,6 +6799,40 @@ void Player::_LoadQuestStatus(PreparedQueryResult result)
     // clear quest log tail
     for (uint16 i = slot; i < MAX_QUEST_LOG_SIZE; ++i)
         SetQuestSlot(i, 0);
+}
+
+void Player::_LoadQuestStatusObjectives(PreparedQueryResult result)
+{
+    //                       0      1          2
+    // SELECT quest, objective, data FROM character_queststatus_objectives WHERE guid = ?
+    if (!result)
+        return;
+
+    do
+    {
+        Field* fields = result->Fetch();
+
+        uint32 questID = fields[0].Get<uint32>();
+        int8 storageIndex = fields[1].Get<int8>();
+        int32 data = fields[2].Get<int32>();
+
+        auto itr = m_QuestStatus.find(questID);
+        if (itr == m_QuestStatus.end() || storageIndex < 0)
+            continue;
+
+        QuestStatusData& questStatusData = itr->second;
+        if (uint8(storageIndex) >= questStatusData.ObjectiveData.size())
+        {
+            LOG_ERROR("entities.player", "Player {} ({}) has quest {} out of range objective index {}.", GetName(), GetGUID().ToString(), questID, storageIndex);
+            continue;
+        }
+
+        questStatusData.ObjectiveData[storageIndex] = data;
+
+        uint16 slot = FindQuestSlot(questID);
+        if (slot < MAX_QUEST_LOG_SIZE)
+            SetQuestSlotCounter(slot, storageIndex, uint16(data));
+    } while (result->NextRow());
 }
 
 void Player::_LoadQuestStatusRewarded(PreparedQueryResult result)
@@ -6784,9 +6855,9 @@ void Player::_LoadQuestStatusRewarded(PreparedQueryResult result)
                 learnQuestRewardedSpells(quest);
 
                 // set rewarded title if any
-                if (quest->GetCharTitleId())
+                if (quest->GetRewTitle())
                 {
-                    if (CharTitlesEntry const* titleEntry = sCharTitlesStore.LookupEntry(quest->GetCharTitleId()))
+                    if (CharTitlesEntry const* titleEntry = sCharTitlesStore.LookupEntry(quest->GetRewTitle()))
                         SetTitle(titleEntry);
                 }
 
@@ -7085,10 +7156,10 @@ void Player::PrettyPrintRequirementsQuestList(std::vector<ProgressionRequirement
             continue;
         }
 
-        std::string questTitle = questTemplate->GetTitle();
-        if (QuestLocale const* questLocale = sObjectMgr->GetQuestLocale(questTemplate->GetQuestId()))
+        std::string questTitle = questTemplate->GetLogTitle();
+        if (QuestTemplateLocale const* questLocale = sObjectMgr->GetQuestLocale(questTemplate->GetQuestId()))
         {
-            ObjectMgr::GetLocaleString(questLocale->Title, loc_idx, questTitle);
+            ObjectMgr::GetLocaleString(questLocale->LogTitle, loc_idx, questTitle);
         }
 
         std::stringstream stream;
@@ -7987,19 +8058,38 @@ void Player::_SaveQuestStatus(CharacterDatabaseTransaction trans)
                 stmt->SetData(index++, statusItr->second.Explored);
                 stmt->SetData(index++, uint32(statusItr->second.Timer / IN_MILLISECONDS + GameTime::GetGameTime().count()));
 
-                for (uint8 i = 0; i < QUEST_OBJECTIVES_COUNT; i++)
-                    stmt->SetData(index++, statusItr->second.CreatureOrGOCount[i]);
+                trans->Append(stmt);
 
-                for (uint8 i = 0; i < QUEST_ITEM_OBJECTIVES_COUNT; i++)
-                    stmt->SetData(index++, statusItr->second.ItemCount[i]);
+                // Save objectives
+                stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_CHAR_QUESTSTATUS_OBJECTIVES_BY_QUEST);
+                stmt->SetData(0, GetGUID().GetCounter());
+                stmt->SetData(1, statusItr->first);
+                trans->Append(stmt);
 
-                stmt->SetData(index, statusItr->second.PlayerCount);
+                for (uint32 i = 0; i < statusItr->second.ObjectiveData.size(); ++i)
+                {
+                    if (!statusItr->second.ObjectiveData[i])
+                        continue;
+
+                    stmt = CharacterDatabase.GetPreparedStatement(CHAR_REP_CHAR_QUESTSTATUS_OBJECTIVES);
+                    stmt->SetData(0, GetGUID().GetCounter());
+                    stmt->SetData(1, statusItr->first);
+                    stmt->SetData(2, uint8(i));
+                    stmt->SetData(3, statusItr->second.ObjectiveData[i]);
+                    trans->Append(stmt);
+                }
+
                 trans->Append(stmt);
             }
         }
         else
         {
             stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_CHAR_QUESTSTATUS_BY_QUEST);
+            stmt->SetData(0, GetGUID().GetCounter());
+            stmt->SetData(1, saveItr->first);
+            trans->Append(stmt);
+
+            stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_CHAR_QUESTSTATUS_OBJECTIVES_BY_QUEST);
             stmt->SetData(0, GetGUID().GetCounter());
             stmt->SetData(1, saveItr->first);
             trans->Append(stmt);

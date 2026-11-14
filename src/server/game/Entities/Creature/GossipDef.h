@@ -283,6 +283,7 @@ public:
     void SendQuestGiverQuestList(QEmote const& eEmote, std::string const& Title, ObjectGuid guid);
 
     void SendQuestQueryResponse(Quest const* quest) const;
+    static void AddQuestLevelToTitle(std::string& title, int32 level);
     void SendQuestGiverQuestDetails(Quest const* quest, ObjectGuid npcGUID, bool activateAccept) const;
 
     void SendQuestGiverOfferReward(Quest const* quest, ObjectGuid npcGUID, bool enableNext) const;
