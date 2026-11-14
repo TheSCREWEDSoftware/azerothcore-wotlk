@@ -5511,7 +5511,10 @@ enum class LoginFailureReason : uint8
     NoCharacter        = 5, // Character not found
     LockedForTransfer  = 6, // You cannot log in until the character update process you recently initiated is complete.
     LockedByBilling    = 7, // Character locked. Contact billing for more information
-    UsingRemote        = 8, // You cannot log in while using World of Warcraft Remote.
+    LockedByMobileAH   = 8, // You cannot log in while using the mobile auction house (6.x, TC 6.x)
+    TemporaryGMLock                 = 9,
+    LockedByCharacterUpgrade        = 10,
+    LockedByRevokedCharacterUpgrade = 11
 };
 
 namespace Acore::Impl

@@ -1537,6 +1537,30 @@ Support.ComplaintsEnabled = 0
 Support.SuggestionsEnabled = 0
 
 #
+#    FeatureSystem.CharacterUndelete.Enabled
+#        Description: Allow players to restore deleted characters from the character list.
+#                     Needs CharDelete.Method = 1 so deleted characters are kept.
+#        Default:     0 - (Disabled)
+#                     1 - (Enabled)
+
+FeatureSystem.CharacterUndelete.Enabled = 0
+
+#
+#    FeatureSystem.CharacterUndelete.Cooldown
+#        Description: Time in seconds an account has to wait between two character restores.
+#        Default:     2592000 - (30 days)
+
+FeatureSystem.CharacterUndelete.Cooldown = 2592000
+
+#
+#    FeatureSystem.BpayStore.Enabled
+#        Description: Show the in-game shop button (the shop itself is not implemented).
+#        Default:     0 - (Disabled)
+#                     1 - (Enabled)
+
+FeatureSystem.BpayStore.Enabled = 0
+
+#
 #     LevelReq.Ticket
 #        Description: Level requirement for characters to be able to write tickets.
 #        Default:     1

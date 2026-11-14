@@ -14114,38 +14114,43 @@ bool Player::CanCaptureTowerPoint() const
            );
 }
 
-uint32 Player::GetBarberShopCost(uint8 newhairstyle, uint8 newhaircolor, uint8 newfacialhair, BarberShopStyleEntry const* newSkin)
+uint32 Player::GetBarberShopCost(BarberShopStyleEntry const* newHairStyle, uint8 newHairColor, BarberShopStyleEntry const* newFacialHair, BarberShopStyleEntry const* newSkin /*= nullptr*/, BarberShopStyleEntry const* newFace /*= nullptr*/) const
 {
+    // 6.x: each style has its own cost modifier (TC 6.x)
     uint32 level = std::min<uint32>(GetLevel(), sGtBarberShopCostBaseStore.GetTableRowCount());
 
     uint8 hairstyle = GetByteValue(PLAYER_BYTES, 2);
     uint8 haircolor = GetByteValue(PLAYER_BYTES, 3);
     uint8 facialhair = GetByteValue(PLAYER_BYTES_2, 0);
     uint8 skincolor = GetByteValue(PLAYER_BYTES, 0);
+    uint8 face = GetByteValue(PLAYER_BYTES, 1);
 
-    if ((hairstyle == newhairstyle) && (haircolor == newhaircolor) && (facialhair == newfacialhair) && (!newSkin || (newSkin->Data == skincolor)))
+    if ((hairstyle == newHairStyle->Data) && (haircolor == newHairColor) && (facialhair == newFacialHair->Data) &&
+        (!newSkin || (newSkin->Data == skincolor)) && (!newFace || (newFace->Data == face)))
         return 0;
 
     GtBarberShopCostBaseEntry const* bsc = sGtBarberShopCostBaseStore.EvaluateTable(level - 1, 0);
-
     if (!bsc)                                                // shouldn't happen
         return 0xFFFFFFFF;
 
-    float cost = 0;
+    uint32 cost = 0;
 
-    if (hairstyle != newhairstyle)
-        cost += bsc->cost;                                  // full price
+    if (hairstyle != newHairStyle->Data)
+        cost += uint32(bsc->cost * newHairStyle->CostModifier);
 
-    if ((haircolor != newhaircolor) && (hairstyle == newhairstyle))
-        cost += bsc->cost * 0.5f;                           // +1/2 of price
+    if ((haircolor != newHairColor) && (hairstyle == newHairStyle->Data))
+        cost += uint32(bsc->cost * 0.5f);                    // +1/2 of price
 
-    if (facialhair != newfacialhair)
-        cost += bsc->cost * 0.75f;                          // +3/4 of price
+    if (facialhair != newFacialHair->Data)
+        cost += uint32(bsc->cost * newFacialHair->CostModifier);
 
     if (newSkin && skincolor != newSkin->Data)
-        cost += bsc->cost * 0.75f;                          // +5/6 of price
+        cost += uint32(bsc->cost * newSkin->CostModifier);
 
-    return uint32(cost);
+    if (newFace && face != newFace->Data)
+        cost += uint32(bsc->cost * newFace->CostModifier);
+
+    return cost;
 }
 
 void Player::InitGlyphsForLevel()

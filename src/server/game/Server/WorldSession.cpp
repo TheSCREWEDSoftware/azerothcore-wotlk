@@ -21,6 +21,7 @@
 
 #include "TC9Sidecar.h"
 #include "WorldSession.h"
+#include "SystemPackets.h"
 #include "ChatPackets.h"
 #include "ClientConfigPackets.h"
 #include "AuthenticationPackets.h"
@@ -1582,10 +1583,32 @@ void WorldSession::InitializeSessionCallback(CharacterDatabaseQueryHolder const&
 
     if (!sToCloud9Sidecar->ClusterModeEnabled())
     {
+        // 6.x sends the time zones and the glue screen features after the auth response (TC 6.x)
+        SendSetTimeZoneInformation();
+        SendFeatureSystemStatusGlueScreen();
         SendAddonsInfo();
         SendClientCacheVersion(clientCacheVersion);
         SendTutorialsData();
     }
+}
+
+void WorldSession::SendSetTimeZoneInformation()
+{
+    /// @todo: replace dummy values (TC 6.x sends the same)
+    WorldPackets::System::SetTimeZoneInformation packet;
+    packet.ServerTimeTZ = "Europe/Paris";
+    packet.GameTimeTZ = "Europe/Paris";
+    SendPacket(packet.Write());
+}
+
+void WorldSession::SendFeatureSystemStatusGlueScreen()
+{
+    WorldPackets::System::FeatureSystemStatusGlueScreen features;
+    features.BpayStoreAvailable = false;
+    features.BpayStoreDisabledByParentalControls = false;
+    features.CharUndeleteEnabled = sWorld->getBoolConfig(CONFIG_FEATURE_SYSTEM_CHARACTER_UNDELETE_ENABLED);
+    features.BpayStoreEnabled = sWorld->getBoolConfig(CONFIG_FEATURE_SYSTEM_BPAY_STORE_ENABLED);
+    SendPacket(features.Write());
 }
 
 void WorldSession::HandleTC9PrepareForRedirect(WorldPacket& /*recvData*/)

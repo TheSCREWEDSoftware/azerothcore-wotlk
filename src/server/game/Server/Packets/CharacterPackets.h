@@ -110,7 +110,7 @@ namespace WorldPackets
                  *
                  * @param   fields         Field set of CharacterDatabaseStatements::CHAR_SEL_ENUM
                  */
-                CharacterInfo(Field* fields);
+                CharacterInfo() = default;
 
                 ObjectGuid Guid;
                 std::string Name;
@@ -143,7 +143,7 @@ namespace WorldPackets
                 } Pet;
 
                 bool BoostInProgress = false; ///< @todo
-                int32 ProfessionIds[2];       ///< @todo
+                int32 ProfessionIds[2] = { }; ///< @todo
 
                 struct VisualItemInfo
                 {
@@ -430,22 +430,6 @@ namespace WorldPackets
             int32 MapID = -1;
             Position Pos;
             uint32 Reason = 0;
-        };
-
-        enum class LoginFailureReason : uint8
-        {
-            Failed                          = 0,
-            NoWorld                         = 1,
-            DuplicateCharacter              = 2,
-            NoInstances                     = 3,
-            Disabled                        = 4,
-            NoCharacter                     = 5,
-            LockedForTransfer               = 6,
-            LockedByBilling                 = 7,
-            LockedByMobileAH                = 8,
-            TemporaryGMLock                 = 9,
-            LockedByCharacterUpgrade        = 10,
-            LockedByRevokedCharacterUpgrade = 11
         };
 
         class CharacterLoginFailed  final : public ServerPacket

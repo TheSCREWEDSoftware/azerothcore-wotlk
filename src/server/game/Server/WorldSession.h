@@ -208,7 +208,6 @@ namespace WorldPackets
         class SetWatchedFaction;
         class SetPlayerDeclinedNames;
 
-        enum class LoginFailureReason : uint8;
     }
 
     namespace ClientConfig
@@ -1268,23 +1267,19 @@ public:                                                 // opcodes handlers
     void HandleCharUndeleteEnumOpcode(WorldPackets::Character::EnumCharacters& /*enumCharacters*/);
     void HandleCharDeleteOpcode(WorldPackets::Character::CharDelete& charDelete);
     void HandleCharCreateOpcode(WorldPackets::Character::CreateCharacter& charCreate);
-    void HandleCharCreateCallback(PreparedQueryResult result, WorldPackets::Character::CharacterCreateInfo* createInfo);
     void HandlePlayerLoginOpcode(WorldPackets::Character::PlayerLogin& playerLogin);
     void HandleLoadScreenOpcode(WorldPackets::Character::LoadingScreenNotify& loadingScreenNotify);
-    void HandlePlayerLogin(LoginQueryHolder * holder);
     void HandleCharRenameOpcode(WorldPackets::Character::CharacterRenameRequest& request);
     void HandleSetPlayerDeclinedNames(WorldPackets::Character::SetPlayerDeclinedNames& packet);
     void HandleAlterAppearance(WorldPackets::Character::AlterApperance& packet);
     void HandleCharCustomizeOpcode(WorldPackets::Character::CharCustomize& packet);
     void HandleCharRaceOrFactionChangeOpcode(WorldPackets::Character::CharRaceOrFactionChange& packet);
-    void HandleCharRaceOrFactionChangeCallback(PreparedQueryResult result, WorldPackets::Character::CharRaceOrFactionChangeInfo* factionChangeInfo);
     void HandleRandomizeCharNameOpcode(WorldPackets::Character::GenerateRandomCharacterName& packet);
     void HandleReorderCharacters(WorldPackets::Character::ReorderCharacters& reorderChars);
     void HandleOpeningCinematic(WorldPackets::Misc::OpeningCinematic& packet);
     void HandleGetUndeleteCooldownStatus(WorldPackets::Character::GetUndeleteCharacterCooldownStatus& /*getCooldown*/);
     void HandleUndeleteCooldownStatusCallback(PreparedQueryResult result);
     void HandleCharUndeleteOpcode(WorldPackets::Character::UndeleteCharacter& undeleteInfo);
-    void HandleCharUndeleteCallback(PreparedQueryResult result, WorldPackets::Character::CharacterUndeleteInfo* undeleteInfo);
     void HandlePlayedTime(WorldPackets::Character::RequestPlayedTime& packet);
     void HandleLookingForGroup(WorldPacket& recvPacket);
     void HandlePortGraveyard(WorldPackets::Misc::PortGraveyard& packet);
@@ -1728,6 +1723,12 @@ public:                                                 // opcodes handlers
     void SendCharCustomize(ResponseCodes result, CharacterCustomizeInfo const* customizeInfo);
     void SendCharFactionChange(ResponseCodes result, CharacterFactionChangeInfo const* factionChangeInfo);
     void SendSetPlayerDeclinedNamesResult(DeclinedNameResult result, ObjectGuid guid);
+    void SendBarberShopResult(BarberShopResult result);
+    void SendUndeleteCooldownStatusResponse(uint32 currentCooldown, uint32 maxCooldown);
+    void SendUndeleteCharacterResponse(CharacterUndeleteResult result, WorldPackets::Character::CharacterUndeleteInfo const* undeleteInfo);
+    void SendFeatureSystemStatus();
+    void SendFeatureSystemStatusGlueScreen();
+    void SendSetTimeZoneInformation();
 
     void HandleTC9PrepareForRedirect(WorldPacket& recvData);
 

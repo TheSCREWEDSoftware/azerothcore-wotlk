@@ -1232,7 +1232,7 @@ public:
     [[nodiscard]] uint8 GetChatTag() const;
     std::string autoReplyMsg;
 
-    uint32 GetBarberShopCost(uint8 newhairstyle, uint8 newhaircolor, uint8 newfacialhair, BarberShopStyleEntry const* newSkin = nullptr);
+    uint32 GetBarberShopCost(BarberShopStyleEntry const* newHairStyle, uint8 newHairColor, BarberShopStyleEntry const* newFacialHair, BarberShopStyleEntry const* newSkin = nullptr, BarberShopStyleEntry const* newFace = nullptr) const;
 
     PlayerSocial* GetSocial() { return m_social; }
 

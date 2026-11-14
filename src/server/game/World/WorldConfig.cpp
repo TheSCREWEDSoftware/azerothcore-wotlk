@@ -29,6 +29,11 @@ void WorldConfig::BuildConfigCache()
     SetConfigValue<bool>(CONFIG_SUPPORT_COMPLAINTS_ENABLED, "Support.ComplaintsEnabled", false);
     SetConfigValue<bool>(CONFIG_SUPPORT_SUGGESTIONS_ENABLED, "Support.SuggestionsEnabled", false);
 
+    // 6.x feature system (TC 6.x)
+    SetConfigValue<bool>(CONFIG_FEATURE_SYSTEM_CHARACTER_UNDELETE_ENABLED, "FeatureSystem.CharacterUndelete.Enabled", false);
+    SetConfigValue<uint32>(CONFIG_FEATURE_SYSTEM_CHARACTER_UNDELETE_COOLDOWN, "FeatureSystem.CharacterUndelete.Cooldown", 2592000);
+    SetConfigValue<bool>(CONFIG_FEATURE_SYSTEM_BPAY_STORE_ENABLED, "FeatureSystem.BpayStore.Enabled", false);
+
     ///- Send server info on login?
     SetConfigValue<uint32>(CONFIG_ENABLE_SINFO_LOGIN, "Server.LoginInfo", 0);
 
@@ -256,8 +261,9 @@ void WorldConfig::BuildConfigCache()
     SetConfigValue<uint32>(CONFIG_START_PLAYER_LEVEL, "StartPlayerLevel", 1, ConfigValueCache::Reloadable::Yes, [this](uint32 const& value) { return value > 0 && value <= GetConfigValue<uint32>(CONFIG_MAX_PLAYER_LEVEL); }, "> 0 && <= CONFIG_MAX_PLAYER_LEVEL");
     SetConfigValue<uint32>(CONFIG_START_HEROIC_PLAYER_LEVEL, "StartHeroicPlayerLevel", 55, ConfigValueCache::Reloadable::Yes, [this](uint32 const& value) { return value > 0 && value <= GetConfigValue<uint32>(CONFIG_MAX_PLAYER_LEVEL); }, "> 0 && <= CONFIG_MAX_PLAYER_LEVEL");
 
-    SetConfigValue<uint32>(CONFIG_START_PLAYER_MONEY, "StartPlayerMoney", 0, ConfigValueCache::Reloadable::Yes, [](uint32 const& value) { return value <= MAX_MONEY_AMOUNT; }, "<= MAX_MONEY_AMOUNT");
-    SetConfigValue<uint32>(CONFIG_START_HEROIC_PLAYER_MONEY, "StartHeroicPlayerMoney", 2000, ConfigValueCache::Reloadable::Yes, [](uint32 const& value) { return value <= MAX_MONEY_AMOUNT; }, "<= MAX_MONEY_AMOUNT");
+    // 6.x money is 64-bit (MAX_MONEY_AMOUNT is above any uint32), so any start money fits
+    SetConfigValue<uint32>(CONFIG_START_PLAYER_MONEY, "StartPlayerMoney", 0);
+    SetConfigValue<uint32>(CONFIG_START_HEROIC_PLAYER_MONEY, "StartHeroicPlayerMoney", 2000);
 
     SetConfigValue<uint32>(CONFIG_MAX_HONOR_POINTS, "MaxHonorPoints", 75000);
 
