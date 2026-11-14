@@ -17,6 +17,7 @@
 
 #include "ChatTextBuilder.h"
 #include "Chat.h"
+#include "ChatPackets.h"
 #include "ObjectMgr.h"
 #include <cstdarg>
 
@@ -26,10 +27,12 @@ void Acore::BroadcastTextBuilder::operator()(WorldPacket& data, LocaleConstant l
     ChatHandler::BuildChatPacket(data, _msgType, bct ? Language(bct->LanguageID) : LANG_UNIVERSAL, _source, _target, bct ? bct->GetText(locale, _gender) : "", _achievementId, "", locale);
 }
 
-std::size_t Acore::BroadcastTextBuilder::operator()(WorldPacket* data, LocaleConstant locale) const
+WorldPackets::Chat::Chat* Acore::BroadcastTextBuilder::operator()(LocaleConstant locale) const
 {
     BroadcastText const* bct = sObjectMgr->GetBroadcastText(_textId);
-    return ChatHandler::BuildChatPacket(*data, _msgType, bct ? Language(bct->LanguageID) : LANG_UNIVERSAL, _source, _target, bct ? bct->GetText(locale, _gender) : "", _achievementId, "", locale);
+    WorldPackets::Chat::Chat* chat = new WorldPackets::Chat::Chat();
+    chat->Initialize(_msgType, bct ? Language(bct->LanguageID) : LANG_UNIVERSAL, _source, _target, bct ? bct->GetText(locale, _gender) : "", _achievementId, "", locale);
+    return chat;
 }
 
 void Acore::CustomChatTextBuilder::operator()(WorldPacket& data, LocaleConstant locale) const

@@ -1494,6 +1494,49 @@ ChangeWeatherInterval = 600000
 AllowTickets = 1
 
 #
+#    Support.Enabled
+#        Description: Enable/disable the ticket system. This disables the whole customer
+#                     support UI after trying to send a ticket in disabled state
+#                     (MessageBox: "GM Help Tickets are currently unavailable.").
+#                     UI remains disabled until the character relogs.
+#        Default:     1 - (Enabled)
+#                     0 - (Disabled)
+
+Support.Enabled = 1
+
+#
+#    Support.TicketsEnabled
+#        Description: Allow/disallow opening new tickets.
+#        Default:     0 - (Disabled)
+#                     1 - (Enabled, Experimental)
+
+Support.TicketsEnabled = 0
+
+#
+#    Support.BugsEnabled
+#        Description: Allow/disallow opening new bug reports.
+#        Default:    0 - (Disabled)
+#                    1 - (Enabled, Experimental)
+
+Support.BugsEnabled = 0
+
+#
+#    Support.ComplaintsEnabled
+#        Description: Allow/disallow creating new player complaints.
+#        Default:    0 - (Disabled)
+#                    1 - (Enabled, Experimental)
+
+Support.ComplaintsEnabled = 0
+
+#
+#    Support.SuggestionsEnabled
+#        Description: Allow/disallow opening new suggestion reports.
+#        Default:    0 - (Disabled)
+#                    1 - (Enabled, Experimental)
+
+Support.SuggestionsEnabled = 0
+
+#
 #     LevelReq.Ticket
 #        Description: Level requirement for characters to be able to write tickets.
 #        Default:     1

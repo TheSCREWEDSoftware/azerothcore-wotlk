@@ -3636,17 +3636,13 @@ void Map::PlayDirectSoundToMap(uint32 soundId, uint32 zoneId)
     Map::PlayerList const& players = GetPlayers();
     if (!players.IsEmpty())
     {
-        // 5.4.8 18414, from Project SkyFire
-        ObjectGuid sourceGuid;
-        WorldPacket data(SMSG_PLAY_SOUND, 1 + 4);
-        data.WriteGuidMask(sourceGuid, { 0, 1, 2, 3, 4, 5, 6, 7 });
-        data.FlushBits();
-        data << uint32(soundId);
+        WorldPackets::Misc::PlaySound playSound(ObjectGuid::Empty, int32(soundId));
+        playSound.Write();
 
         for (Map::PlayerList::const_iterator itr = players.begin(); itr != players.end(); ++itr)
             if (Player* player = itr->GetSource())
                 if (!zoneId || player->GetZoneId() == zoneId)
-                    player->SendDirectMessage(&data);
+                    player->SendDirectMessage(playSound.GetRawPacket());
     }
 }
 

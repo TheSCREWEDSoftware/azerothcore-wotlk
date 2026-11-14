@@ -40,6 +40,7 @@
 #include "SmartAI.h"
 #include "SpellMgr.h"
 #include "StringConvert.h"
+#include "SupportMgr.h"
 #include "TicketMgr.h"
 #include "Tokenize.h"
 #include "WardenCheckMgr.h"
@@ -188,6 +189,9 @@ public:
     static bool HandleReloadGMTicketsCommand(ChatHandler* /*handler*/)
     {
         sTicketMgr->LoadTickets();
+        sSupportMgr->LoadBugTickets();
+        sSupportMgr->LoadComplaintTickets();
+        sSupportMgr->LoadSuggestionTickets();
         return true;
     }
 

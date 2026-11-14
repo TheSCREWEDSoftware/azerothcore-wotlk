@@ -627,3 +627,15 @@ WorldPacket const* WorldPackets::Misc::OverrideLight::Write()
 
     return &_worldPacket;
 }
+
+WorldPacket const* WorldPackets::Misc::PlayObjectSound::Write()
+{
+    _worldPacket << int32(SoundKitID);
+    _worldPacket << SourceObjectGUID;
+    _worldPacket << TargetObjectGUID;
+    _worldPacket << Position.x;
+    _worldPacket << Position.y;
+    _worldPacket << Position.z;
+
+    return &_worldPacket;
+}

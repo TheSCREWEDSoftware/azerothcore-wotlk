@@ -25,6 +25,14 @@
 class WorldObject;
 class WorldPacket;
 
+namespace WorldPackets
+{
+    namespace Chat
+    {
+        class Chat;
+    }
+}
+
 namespace Acore
 {
     class BroadcastTextBuilder
@@ -34,7 +42,7 @@ namespace Acore
                 : _source(obj), _msgType(msgType), _textId(textId), _gender(gender), _target(target), _achievementId(achievementId) { }
 
             void operator()(WorldPacket& data, LocaleConstant locale) const;
-            std::size_t operator()(WorldPacket* data, LocaleConstant locale) const;
+            WorldPackets::Chat::Chat* operator()(LocaleConstant locale) const;
 
         private:
             WorldObject const* _source;

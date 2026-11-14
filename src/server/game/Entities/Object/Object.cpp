@@ -3522,17 +3522,17 @@ void WorldObject::SetPhaseMask(uint32 newPhaseMask, bool update)
 void WorldObject::PlayDistanceSound(uint32 sound_id, Player* target /*= nullptr*/)
 {
     if (target)
-        target->SendDirectMessage(WorldPackets::Misc::PlayObjectSound(GetGUID(), sound_id).Write());
+        target->SendDirectMessage(WorldPackets::Misc::PlayObjectSound(GetGUID(), GetGUID(), int32(sound_id), G3D::Vector3(GetPositionX(), GetPositionY(), GetPositionZ())).Write());
     else
-        SendMessageToSet(WorldPackets::Misc::PlayObjectSound(GetGUID(), sound_id).Write(), true);
+        SendMessageToSet(WorldPackets::Misc::PlayObjectSound(GetGUID(), GetGUID(), int32(sound_id), G3D::Vector3(GetPositionX(), GetPositionY(), GetPositionZ())).Write(), true);
 }
 
 void WorldObject::PlayDirectSound(uint32 sound_id, Player* target /*= nullptr*/)
 {
     if (target)
-        target->SendDirectMessage(WorldPackets::Misc::Playsound(sound_id).Write());
+        target->SendDirectMessage(WorldPackets::Misc::PlaySound(GetGUID(), int32(sound_id)).Write());
     else
-        SendMessageToSet(WorldPackets::Misc::Playsound(sound_id).Write(), true);
+        SendMessageToSet(WorldPackets::Misc::PlaySound(GetGUID(), int32(sound_id)).Write(), true);
 }
 
 void WorldObject::PlayRadiusSound(uint32 sound_id, float radius)
@@ -3543,7 +3543,7 @@ void WorldObject::PlayRadiusSound(uint32 sound_id, float radius)
     Cell::VisitObjects(this, searcher, radius);
 
     for (Player* player : targets)
-        player->SendDirectMessage(WorldPackets::Misc::Playsound(sound_id).Write());
+        player->SendDirectMessage(WorldPackets::Misc::PlaySound(GetGUID(), int32(sound_id)).Write());
 }
 
 void WorldObject::PlayDirectMusic(uint32 music_id, Player* target /*= nullptr*/)

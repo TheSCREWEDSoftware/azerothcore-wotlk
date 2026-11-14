@@ -380,6 +380,28 @@ void CharacterDatabaseConnection::DoPrepareStatements()
     PrepareStatement(CHAR_UPD_CHAR_LIST_ORDER, "UPDATE characters SET `order` = ? WHERE guid = ? AND account = ?", CONNECTION_ASYNC);
     PrepareStatement(CHAR_UPD_REM_AT_LOGIN_FLAG, "UPDATE characters set at_login = at_login & ~ ? WHERE guid = ?", CONNECTION_ASYNC);
     PrepareStatement(CHAR_UPD_ALL_AT_LOGIN_FLAGS, "UPDATE characters SET at_login = at_login | ?", CONNECTION_ASYNC);
+    // 6.x support tickets (TC SupportMgr)
+    PrepareStatement(CHAR_SEL_GM_BUGS, "SELECT id, playerGuid, note, createTime, mapId, posX, posY, posZ, facing, closedBy, assignedTo, comment FROM gm_bug", CONNECTION_SYNCH);
+    PrepareStatement(CHAR_REP_GM_BUG, "REPLACE INTO gm_bug (id, playerGuid, note, createTime, mapId, posX, posY, posZ, facing, closedBy, assignedTo, comment) VALUES (?, ?, ?, UNIX_TIMESTAMP(NOW()), ?, ?, ?, ?, ?, ?, ?, ?)", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_DEL_GM_BUG, "DELETE FROM gm_bug WHERE id = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_DEL_ALL_GM_BUGS, "TRUNCATE TABLE gm_bug", CONNECTION_ASYNC);
+
+    // GM Complaint
+    PrepareStatement(CHAR_SEL_GM_COMPLAINTS, "SELECT id, playerGuid, note, createTime, mapId, posX, posY, posZ, facing, targetCharacterGuid, complaintType, reportLineIndex, assignedTo, closedBy, comment FROM gm_complaint", CONNECTION_SYNCH);
+    PrepareStatement(CHAR_REP_GM_COMPLAINT, "REPLACE INTO gm_complaint (id, playerGuid, note, createTime, mapId, posX, posY, posZ, facing, targetCharacterGuid, complaintType, reportLineIndex, assignedTo, closedBy, comment) VALUES (?, ?, ?, UNIX_TIMESTAMP(NOW()), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_DEL_GM_COMPLAINT, "DELETE FROM gm_complaint WHERE id = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_SEL_GM_COMPLAINT_CHATLINES, "SELECT timestamp, text FROM gm_complaint_chatlog WHERE complaintId = ? ORDER BY lineId ASC", CONNECTION_SYNCH);
+    PrepareStatement(CHAR_INS_GM_COMPLAINT_CHATLINE, "INSERT INTO gm_complaint_chatlog (complaintId, lineId, timestamp, text) VALUES (?, ?, ?, ?)", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_DEL_GM_COMPLAINT_CHATLOG, "DELETE FROM gm_complaint_chatlog WHERE complaintId = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_DEL_ALL_GM_COMPLAINTS, "TRUNCATE TABLE gm_complaint", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_DEL_ALL_GM_COMPLAINT_CHATLOGS, "TRUNCATE TABLE gm_complaint_chatlog", CONNECTION_ASYNC);
+
+    // GM Suggestion
+    PrepareStatement(CHAR_SEL_GM_SUGGESTIONS, "SELECT id, playerGuid, note, createTime, mapId, posX, posY, posZ, facing, closedBy, assignedTo, comment FROM gm_suggestion", CONNECTION_SYNCH);
+    PrepareStatement(CHAR_REP_GM_SUGGESTION, "REPLACE INTO gm_suggestion (id, playerGuid, note, createTime, mapId, posX, posY, posZ, facing, closedBy, assignedTo, comment) VALUES (?, ?, ?, UNIX_TIMESTAMP(NOW()), ?, ?, ?, ?, ?, ? ,? ,?)", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_DEL_GM_SUGGESTION, "DELETE FROM gm_suggestion WHERE id = ?", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_DEL_ALL_GM_SUGGESTIONS, "TRUNCATE TABLE gm_suggestion", CONNECTION_ASYNC);
+
     PrepareStatement(CHAR_INS_BUG_REPORT, "INSERT INTO bugreport (type, content) VALUES(?, ?)", CONNECTION_ASYNC);
     PrepareStatement(CHAR_INS_SPAM_REPORT, "INSERT INTO spam_reports (SpamType, SpammerGuid, Unk1, MailIdOrMessageType, ChannelId, SecondsSinceMessage, Description, Time) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", CONNECTION_ASYNC);
     PrepareStatement(CHAR_UPD_PETITION_NAME, "UPDATE petition SET name = ? WHERE petition_id = ?", CONNECTION_ASYNC);

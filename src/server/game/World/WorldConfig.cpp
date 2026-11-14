@@ -23,6 +23,11 @@ void WorldConfig::BuildConfigCache()
 {
     SetConfigValue<bool>(CONFIG_ALLOW_TICKETS, "AllowTickets", true);
     SetConfigValue<bool>(CONFIG_DELETE_CHARACTER_TICKET_TRACE, "DeletedCharacterTicketTrace", false);
+    SetConfigValue<bool>(CONFIG_SUPPORT_ENABLED, "Support.Enabled", true);
+    SetConfigValue<bool>(CONFIG_SUPPORT_TICKETS_ENABLED, "Support.TicketsEnabled", false);
+    SetConfigValue<bool>(CONFIG_SUPPORT_BUGS_ENABLED, "Support.BugsEnabled", false);
+    SetConfigValue<bool>(CONFIG_SUPPORT_COMPLAINTS_ENABLED, "Support.ComplaintsEnabled", false);
+    SetConfigValue<bool>(CONFIG_SUPPORT_SUGGESTIONS_ENABLED, "Support.SuggestionsEnabled", false);
 
     ///- Send server info on login?
     SetConfigValue<uint32>(CONFIG_ENABLE_SINFO_LOGIN, "Server.LoginInfo", 0);

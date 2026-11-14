@@ -714,7 +714,7 @@ void Battleground::SendBroadcastText(uint32 id, ChatMsg msgType, WorldObject con
 
 void Battleground::PlaySoundToAll(uint32 soundID)
 {
-    SendPacketToAll(WorldPackets::Misc::Playsound(soundID).Write());
+    SendPacketToAll(WorldPackets::Misc::PlaySound(ObjectGuid::Empty, int32(soundID)).Write());
 }
 
 void Battleground::CastSpellOnTeam(uint32 spellId, TeamId teamId)

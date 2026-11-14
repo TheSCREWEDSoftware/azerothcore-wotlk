@@ -33,11 +33,12 @@ public:
     CreatureTextBuilder(WorldObject* obj, uint8 gender, ChatMsg msgtype, uint8 textGroup, uint32 id, uint32 language, WorldObject const* target)
         : _source(obj), _gender(gender), _msgType(msgtype), _textGroup(textGroup), _textId(id), _language(language), _target(target) { }
 
-    std::size_t operator()(WorldPacket* data, LocaleConstant locale) const
+    WorldPackets::Chat::Chat* operator()(LocaleConstant locale) const
     {
         std::string const& text = sCreatureTextMgr->GetLocalizedChatString(_source->GetEntry(), _gender, _textGroup, _textId, locale);
-
-        return ChatHandler::BuildChatPacket(*data, _msgType, Language(_language), _source, _target, text, 0, "", locale);
+        WorldPackets::Chat::Chat* chat = new WorldPackets::Chat::Chat();
+        chat->Initialize(_msgType, Language(_language), _source, _target, text, 0, "", locale);
+        return chat;
     }
 
 private:
@@ -56,11 +57,12 @@ public:
     PlayerTextBuilder(WorldObject* obj, WorldObject* speaker, uint8 gender, ChatMsg msgtype, uint8 textGroup, uint32 id, uint32 language, WorldObject const* target)
         : _source(obj), _talker(speaker), _gender(gender), _msgType(msgtype), _textGroup(textGroup), _textId(id), _language(language), _target(target) { }
 
-    std::size_t operator()(WorldPacket* data, LocaleConstant locale) const
+    WorldPackets::Chat::Chat* operator()(LocaleConstant locale) const
     {
         std::string const& text = sCreatureTextMgr->GetLocalizedChatString(_source->GetEntry(), _gender, _textGroup, _textId, locale);
-
-        return ChatHandler::BuildChatPacket(*data, _msgType, Language(_language), _talker, _target, text, 0, "", locale);
+        WorldPackets::Chat::Chat* chat = new WorldPackets::Chat::Chat();
+        chat->Initialize(_msgType, Language(_language), _talker, _target, text, 0, "", locale);
+        return chat;
     }
 
 private:
@@ -370,7 +372,7 @@ void CreatureTextMgr::SendSound(Creature* source, uint32 sound, ChatMsg msgType,
     if (!sound || !source)
         return;
 
-    SendNonChatPacket(source, WorldPackets::Misc::Playsound(sound).Write(), msgType, target, range, teamId, gmOnly);
+    SendNonChatPacket(source, WorldPackets::Misc::PlaySound(source->GetGUID(), int32(sound)).Write(), msgType, target, range, teamId, gmOnly);
 }
 
 void CreatureTextMgr::SendNonChatPacket(WorldObject* source, WorldPacket const* data, ChatMsg msgType, WorldObject const* target, CreatureTextRange range, TeamId teamId, bool gmOnly) const

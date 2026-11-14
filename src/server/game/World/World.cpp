@@ -88,6 +88,7 @@
 #include "SpellMgr.h"
 #include "TaskScheduler.h"
 #include "TC9Sidecar.h"
+#include "SupportMgr.h"
 #include "TicketMgr.h"
 #include "Transport.h"
 #include "TransportMgr.h"
@@ -222,6 +223,7 @@ void World::LoadConfigSettings(bool reload)
 
         _timers[WUPDATE_AUTOBROADCAST].SetInterval(getIntConfig(CONFIG_AUTOBROADCAST_INTERVAL));
         _timers[WUPDATE_AUTOBROADCAST].Reset();
+        sSupportMgr->Initialize();
     }
 
     if (getIntConfig(CONFIG_CLIENTCACHE_VERSION) == 0)
@@ -902,6 +904,15 @@ void World::SetInitialWorldSettings()
     LOG_INFO("server.loading", "Loading GM Surveys...");
     sTicketMgr->LoadSurveys();
 
+    LOG_INFO("server.loading", "Loading GM Bugs...");
+    sSupportMgr->LoadBugTickets();
+
+    LOG_INFO("server.loading", "Loading GM Complaints...");
+    sSupportMgr->LoadComplaintTickets();
+
+    LOG_INFO("server.loading", "Loading GM Suggestions...");
+    sSupportMgr->LoadSuggestionTickets();
+
     LOG_INFO("server.loading", "Loading Client Addons...");
     AddonMgr::LoadFromDB();
 
@@ -1037,6 +1048,7 @@ void World::SetInitialWorldSettings()
     sArenaSeasonMgr->LoadActiveSeason();
 
     sTicketMgr->Initialize();
+    sSupportMgr->Initialize();
 
     ///- Initialize Battlegrounds
     LOG_INFO("server.loading", "Starting Battleground System");

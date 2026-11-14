@@ -18,6 +18,7 @@
 #ifndef ACORE_CREATURE_TEXT_MGR_H
 #define ACORE_CREATURE_TEXT_MGR_H
 
+#include "ChatPackets.h"
 #include "Creature.h"
 #include "GridNotifiers.h"
 #include "ObjectAccessor.h"
@@ -134,48 +135,40 @@ public:
     ~CreatureTextLocalizer()
     {
         for (std::size_t i = 0; i < _packetCache.size(); ++i)
-        {
-            if (_packetCache[i])
-                delete _packetCache[i]->first;
             delete _packetCache[i];
-        }
     }
 
     void operator()(Player* player)
     {
         LocaleConstant loc_idx = player->GetSession()->GetSessionDbLocaleIndex();
-        WorldPacket* messageTemplate;
-        std::size_t whisperGUIDpos;
+        WorldPackets::Chat::Chat* messageTemplate;
 
         // create if not cached yet
         if (!_packetCache[loc_idx])
         {
-            messageTemplate = new WorldPacket();
-            whisperGUIDpos = _builder(messageTemplate, loc_idx);
-            _packetCache[loc_idx] = new std::pair<WorldPacket*, std::size_t>(messageTemplate, whisperGUIDpos);
+            messageTemplate = _builder(loc_idx);
+            _packetCache[loc_idx] = messageTemplate;
         }
         else
-        {
-            messageTemplate = _packetCache[loc_idx]->first;
-            whisperGUIDpos = _packetCache[loc_idx]->second;
-        }
+            messageTemplate = _packetCache[loc_idx];
 
-        WorldPacket data(*messageTemplate);
+        WorldPackets::Chat::Chat message(*messageTemplate);
+
         switch (_msgType)
         {
             case CHAT_MSG_MONSTER_WHISPER:
             case CHAT_MSG_RAID_BOSS_WHISPER:
-                data.put<uint64>(whisperGUIDpos, player->GetGUID().GetRawValue());
+                message.SetReceiver(player, loc_idx);
                 break;
             default:
                 break;
         }
 
-        player->SendDirectMessage(&data);
+        player->SendDirectMessage(message.Write());
     }
 
 private:
-    std::vector<std::pair<WorldPacket*, std::size_t>* > _packetCache;
+    std::vector<WorldPackets::Chat::Chat*> _packetCache;
     Builder const& _builder;
     ChatMsg _msgType;
 };

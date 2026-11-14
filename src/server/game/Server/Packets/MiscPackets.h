@@ -610,6 +610,22 @@ namespace WorldPackets
             int32 SoundKitID = 0;
         };
 
+        // 6.x 19342: not in TC 6.x, layout from WowPacketParser V6_0_2 (MiscellaneousHandler)
+        class PlayObjectSound final : public ServerPacket
+        {
+        public:
+            PlayObjectSound() : ServerPacket(SMSG_PLAY_OBJECT_SOUND, 4 + 16 + 16 + 12) { }
+            PlayObjectSound(ObjectGuid const& targetObjectGUID, ObjectGuid const& sourceObjectGUID, int32 soundKitID, G3D::Vector3 const& position) : ServerPacket(SMSG_PLAY_OBJECT_SOUND, 4 + 16 + 16 + 12),
+                TargetObjectGUID(targetObjectGUID), SourceObjectGUID(sourceObjectGUID), SoundKitID(soundKitID), Position(position) { }
+
+            WorldPacket const* Write() override;
+
+            ObjectGuid TargetObjectGUID;
+            ObjectGuid SourceObjectGUID;
+            int32 SoundKitID = 0;
+            G3D::Vector3 Position;
+        };
+
         class CompleteCinematic final : public ClientPacket
         {
         public:

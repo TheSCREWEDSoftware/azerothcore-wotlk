@@ -3394,7 +3394,7 @@ public:
             return false;
         }
 
-        sWorldSessionMgr->SendGlobalMessage(WorldPackets::Misc::Playsound(soundId).Write());
+        sWorldSessionMgr->SendGlobalMessage(WorldPackets::Misc::PlaySound(ObjectGuid::Empty, int32(soundId)).Write());
 
         handler->PSendSysMessage(LANG_COMMAND_PLAYED_TO_ALL, soundId);
         return true;
