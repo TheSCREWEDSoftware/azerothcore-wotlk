@@ -40,7 +40,9 @@
 #include "Group.h"
 #include "GroupMgr.h"
 #include "Guild.h"
+#include "InstancePackets.h"
 #include "InstanceSaveMgr.h"
+#include "ItemPackets.h"
 #include "LFGMgr.h"
 #include "Language.h"
 #include "Log.h"
@@ -4175,91 +4177,62 @@ void Player::RemoveItemFromBuyBackSlot(uint32 slot, bool del)
 void Player::SendEquipError(InventoryResult msg, Item* pItem, Item* pItem2, uint32 itemid)
 {
     LOG_DEBUG("network", "WORLD: Sent SMSG_INVENTORY_CHANGE_FAILURE ({})", msg);
-    // 5.4.8 18414, from Project SkyFire
-    ObjectGuid itemGuid = pItem ? pItem->GetGUID() : ObjectGuid::Empty;
-    ObjectGuid itemGuid2 = pItem2 ? pItem2->GetGUID() : ObjectGuid::Empty;
-    WorldPacket data(SMSG_INVENTORY_CHANGE_FAILURE, 2 + 8 + 8 + 1 + 1 + 4 + 4 + 2);
-    data.WriteGuidMask(itemGuid2, { 4 });
-    data.WriteGuidMask(itemGuid, { 3 });
-    data.WriteGuidMask(itemGuid2, { 6, 2 });
-    data.WriteGuidMask(itemGuid, { 4 });
-    data.WriteGuidMask(itemGuid2, { 5 });
-    data.WriteGuidMask(itemGuid, { 1, 6 });
-    data.WriteGuidMask(itemGuid2, { 0, 3, 1 });
-    data.WriteGuidMask(itemGuid, { 2, 0, 5, 7 });
-    data.WriteGuidMask(itemGuid2, { 7 });
-    data.FlushBits();
-    data.WriteGuidBytes(itemGuid2, { 0 });
-    data << uint8(0);                                       // bag type subclass, used with EQUIP_ERR_EVENT_AUTOEQUIP_BIND_CONFIRM and EQUIP_ERR_ITEM_DOESNT_GO_INTO_BAG2
-    data.WriteGuidBytes(itemGuid2, { 6 });
-    data.WriteGuidBytes(itemGuid, { 4, 0, 7, 3 });
-    data.WriteGuidBytes(itemGuid2, { 1, 5 });
-    data.WriteGuidBytes(itemGuid, { 5 });
-    data.WriteGuidBytes(itemGuid2, { 7, 2 });
-    data.WriteGuidBytes(itemGuid, { 1, 6, 2 });
-    data.WriteGuidBytes(itemGuid2, { 3, 4 });
-    data << uint8(msg);
+    WorldPackets::Item::InventoryChangeFailure failure;
+    failure.BagResult = msg;
 
-    switch (msg)
+    if (msg != EQUIP_ERR_OK)
     {
-        case EQUIP_ERR_ITEM_MAX_LIMIT_CATEGORY_COUNT_EXCEEDED:
-        case EQUIP_ERR_ITEM_MAX_LIMIT_CATEGORY_SOCKETED_EXCEEDED:
-        case EQUIP_ERR_ITEM_MAX_LIMIT_CATEGORY_EQUIPPED_EXCEEDED:
+        if (pItem)
+            failure.Item[0] = pItem->GetGUID();
+
+        if (pItem2)
+            failure.Item[1] = pItem2->GetGUID();
+
+        failure.ContainerBSlot = 0; // bag equip slot, used with EQUIP_ERR_EVENT_AUTOEQUIP_BIND_CONFIRM and EQUIP_ERR_ITEM_DOESNT_GO_INTO_BAG2
+
+        switch (msg)
         {
-            ItemTemplate const* proto = pItem ? pItem->GetTemplate() : sObjectMgr->GetItemTemplate(itemid);
-            data << uint32(proto ? proto->ItemLimitCategory : 0);
-            break;
+            case EQUIP_ERR_CANT_EQUIP_LEVEL_I:
+            case EQUIP_ERR_PURCHASE_LEVEL_TOO_LOW:
+            {
+                ItemTemplate const* proto = pItem ? pItem->GetTemplate() : sObjectMgr->GetItemTemplate(itemid);
+                failure.Level = int32(proto ? proto->RequiredLevel : 0);
+                break;
+            }
+            case EQUIP_ERR_ITEM_MAX_LIMIT_CATEGORY_COUNT_EXCEEDED:
+            case EQUIP_ERR_ITEM_MAX_LIMIT_CATEGORY_SOCKETED_EXCEEDED:
+            case EQUIP_ERR_ITEM_MAX_LIMIT_CATEGORY_EQUIPPED_EXCEEDED:
+            {
+                ItemTemplate const* proto = pItem ? pItem->GetTemplate() : sObjectMgr->GetItemTemplate(itemid);
+                failure.LimitCategory = int32(proto ? proto->ItemLimitCategory : 0);
+                break;
+            }
+            default:
+                break;
         }
-        case EQUIP_ERR_EVENT_AUTOEQUIP_BIND_CONFIRM:            // no idea about this one...
-            data << uint32(0);                                  // slot
-            break;
-        case EQUIP_ERR_CANT_EQUIP_LEVEL_I:
-        case EQUIP_ERR_PURCHASE_LEVEL_TOO_LOW:
-        {
-            ItemTemplate const* proto = pItem ? pItem->GetTemplate() : sObjectMgr->GetItemTemplate(itemid);
-            data << uint32(proto ? proto->RequiredLevel : 0);
-            break;
-        }
-        default:
-            break;
     }
 
-    if (msg == EQUIP_ERR_EVENT_AUTOEQUIP_BIND_CONFIRM)
-    {
-        data.WriteBits(0, 8);                                   // container guid mask
-        data.WriteBits(0, 8);                                   // item guid mask
-        data.FlushBits();
-    }
-
-    SendDirectMessage(&data);
+    SendDirectMessage(failure.Write());
 }
 
-void Player::SendBuyError(BuyResult msg, Creature* creature, uint32 item, uint32 param)
+void Player::SendBuyError(BuyResult msg, Creature* creature, uint32 item, uint32 /*param*/)
 {
     LOG_DEBUG("network", "WORLD: Sent SMSG_BUY_FAILED");
-    // 5.4.8 18414, from Project SkyFire (no extra parameter)
-    (void)param;
-    ObjectGuid vendorGuid = creature ? creature->GetGUID() : ObjectGuid::Empty;
-    WorldPacket data(SMSG_BUY_FAILED, 1 + 8 + 1 + 4);
-    data.WriteGuidMask(vendorGuid, { 6, 3, 1, 2, 4, 5, 0, 7 });
-    data.FlushBits();
-    data << uint8(msg);
-    data.WriteGuidBytes(vendorGuid, { 2, 7 });
-    data << uint32(item);
-    data.WriteGuidBytes(vendorGuid, { 4, 5, 1, 3, 6, 0 });
-    SendDirectMessage(&data);
+    WorldPackets::Item::BuyFailed packet;
+    packet.VendorGUID = creature ? creature->GetGUID() : ObjectGuid::Empty;
+    packet.Muid = item;
+    packet.Reason = msg;
+    SendDirectMessage(packet.Write());
 }
 
-void Player::SendSellError(SellResult msg, Creature* creature, ObjectGuid guid, uint32 param)
+void Player::SendSellError(SellResult msg, Creature* creature, ObjectGuid guid, uint32 /*param*/)
 {
-    LOG_DEBUG("network", "WORLD: Sent SMSG_SELL_ITEM");
-    WorldPacket data(SMSG_SELL_ITEM, (8 + 8 + (param ? 4 : 0) + 1)); // last check 2.0.10
-    data << (creature ? creature->GetGUID() : ObjectGuid::Empty);
-    data << guid;
-    if (param > 0)
-        data << uint32(param);
-    data << uint8(msg);
-    SendDirectMessage(&data);
+    LOG_DEBUG("network", "WORLD: Sent SMSG_SELL_RESPONSE");
+    WorldPackets::Item::SellResponse sellResponse;
+    sellResponse.VendorGUID = creature ? creature->GetGUID() : ObjectGuid::Empty;
+    sellResponse.ItemGUID = guid;
+    sellResponse.Reason = msg;
+    SendDirectMessage(sellResponse.Write());
 }
 
 void Player::TradeCancel(bool sendback, TradeStatus status /*= TRADE_STATUS_CANCELLED*/)
@@ -4926,60 +4899,27 @@ void Player::SendNewItem(Item* item, uint32 count, bool received, bool created, 
     if (!item)                                               // prevent crash
         return;
 
-    // 5.4.8 18414, from Project SkyFire
-    ObjectGuid playerGuid = GetGUID();
-    ObjectGuid itemGuid = item->GetGUID();
-    // item slot, but when added to stack: 0xFFFFFFFF
-    uint32 itemSlot = (item->GetCount() == count) ? item->GetSlot() : -1;
-
-    WorldPacket data(SMSG_ITEM_PUSH_RESULT, 3 + 8 + 8 + 4 * 11 + 1);
-    data.WriteGuidMask(itemGuid, { 2 });
-    data.WriteGuidMask(playerGuid, { 4 });
-    data.WriteGuidMask(itemGuid, { 5 });
-    data.WriteBit(sendChatMessage);                         // display in chat
-    data.WriteGuidMask(playerGuid, { 1 });
-    data.WriteBit(received);                                // 0 = looted, 1 = npc
-    data.WriteGuidMask(itemGuid, { 4 });
-    data.WriteGuidMask(playerGuid, { 6, 5, 7, 0 });
-    data.WriteGuidMask(itemGuid, { 0, 7 });
-    data.WriteGuidMask(playerGuid, { 2 });
-    data.WriteGuidMask(itemGuid, { 6 });
-    data.WriteBit(false);                                   // bonus loot
-    data.WriteGuidMask(playerGuid, { 3 });
-    data.WriteGuidMask(itemGuid, { 1 });
-    data.WriteBit(created);                                 // 0 = received, 1 = created
-    data.WriteGuidMask(itemGuid, { 3 });
-    data.FlushBits();
-
-    data.WriteGuidBytes(playerGuid, { 1 });
-    data.WriteGuidBytes(itemGuid, { 1 });
-    data << uint32(0);                                      // battle pet species
-    data.WriteGuidBytes(itemGuid, { 0 });
-    data.WriteGuidBytes(playerGuid, { 5, 2 });
-    data << uint32(item->GetItemSuffixFactor());            // suffix factor
-    data.WriteGuidBytes(itemGuid, { 7 });
-    data << uint32(0);                                      // battle pet quality
-    data << uint32(item->GetEntry());                       // item id
-    data << int32(item->GetItemRandomPropertyId());         // random item property id
-    data.WriteGuidBytes(itemGuid, { 6 });
-    data << uint32(0);                                      // battle pet breed
-    data << uint32(GetItemCount(item->GetEntry()));         // count of items in inventory
-    data.WriteGuidBytes(itemGuid, { 2 });
-    data.WriteGuidBytes(playerGuid, { 0 });
-    data << uint32(count);                                  // count of items
-    data.WriteGuidBytes(playerGuid, { 7 });
-    data.WriteGuidBytes(itemGuid, { 5 });
-    data.WriteGuidBytes(playerGuid, { 4 });
-    data << uint32(itemSlot);
-    data << uint8(item->GetBagSlot());                      // bag slot
-    data.WriteGuidBytes(playerGuid, { 3, 6 });
-    data << uint32(0);                                      // battle pet level
-    data.WriteGuidBytes(itemGuid, { 3, 4 });
+    // 6.x 21742 (TC 6.x)
+    WorldPackets::Item::ItemPushResult packet;
+    packet.PlayerGUID = GetGUID();
+    packet.Slot = item->GetBagSlot();
+    packet.SlotInBag = item->GetCount() == count ? item->GetSlot() : -1;   // -1 when added to a stack
+    packet.Item.Initialize(item);
+    packet.Quantity = int32(count);
+    packet.QuantityInInventory = int32(GetItemCount(item->GetEntry()));
+    packet.BattlePetBreedID = item->GetModifier(ITEM_MODIFIER_BATTLE_PET_BREED_DATA) & 0xFFFFFF;
+    packet.BattlePetBreedQuality = (item->GetModifier(ITEM_MODIFIER_BATTLE_PET_BREED_DATA) >> 24) & 0xFF;
+    packet.BattlePetSpeciesID = item->GetModifier(ITEM_MODIFIER_BATTLE_PET_SPECIES_ID);
+    packet.BattlePetLevel = item->GetModifier(ITEM_MODIFIER_BATTLE_PET_LEVEL);
+    packet.ItemGUID = item->GetGUID();
+    packet.Pushed = received;                                 // 0 = looted, 1 = npc
+    packet.DisplayText = sendChatMessage ? WorldPackets::Item::ItemPushResult::DISPLAY_TYPE_NORMAL : WorldPackets::Item::ItemPushResult::DISPLAY_TYPE_HIDDEN;
+    packet.Created = created;
 
     if (broadcast && GetGroup())
-        GetGroup()->BroadcastPacket(&data, true);
+        GetGroup()->BroadcastPacket(packet.Write(), true);
     else
-        SendDirectMessage(&data);
+        SendDirectMessage(packet.Write());
 }
 
 /*********************************************************/
@@ -6938,22 +6878,16 @@ void Player::BindToInstance()
     if (!mapSave) //it seems sometimes mapSave is nullptr, but I did not check why
         return;
 
-    // 5.4.8 18414, from Project SkyFire
-    WorldPacket data(SMSG_INSTANCE_SAVE_CREATED, 1);
-    data.WriteBit(IsGameMaster());
-    data.FlushBits();
-    SendDirectMessage(&data);
+    WorldPackets::Instance::InstanceSaveCreated data;
+    data.Gm = IsGameMaster();
+    SendDirectMessage(data.Write());
     sInstanceSaveMgr->PlayerBindToInstance(this->GetGUID(), mapSave, true, this);
 }
 
 void Player::SendRaidInfo()
 {
-    uint32 counter = 0;
-
-    WorldPacket data(SMSG_INSTANCE_INFO, 4);
-
-    std::size_t p_counter = data.wpos();
-    data << uint32(counter);                                // placeholder
+    // 6.x 21742 (TC 6.x): difficulty ids are sent as they are
+    WorldPackets::Instance::InstanceInfo instanceInfo;
 
     time_t now = GameTime::GetGameTime().count();
 
@@ -6967,26 +6901,20 @@ void Player::SendRaidInfo()
                 InstanceSave* save = itr->second.save;
                 time_t resetTime = itr->second.extended ? save->GetExtendedResetTime() : save->GetResetTime();
 
-                // 4.3.4 sends heroic raids as their normal size plus a heroic flag
-                Difficulty difficulty = save->GetDifficulty();
-                bool heroic = difficulty == DIFFICULTY_10_HC || difficulty == DIFFICULTY_25_HC;
-                if (heroic)
-                    difficulty = difficulty == DIFFICULTY_10_HC ? DIFFICULTY_10_N : DIFFICULTY_25_N;
-
-                data << uint32(save->GetMapId());           // map id
-                data << uint32(difficulty);                 // difficulty
-                data << uint32(heroic);                     // heroic
-                data << uint64(save->GetInstanceId());      // instance id
-                data << uint8(1);                           // locked
-                data << uint8(itr->second.extended ? 1 : 0);// extended
-                data << uint32(resetTime >= now ? resetTime - now : 0); // reset time
-                data << uint32(save->GetCompletedEncounterMask());
-                ++counter;
+                WorldPackets::Instance::InstanceLockInfos lockInfos;
+                lockInfos.InstanceID = save->GetInstanceId();
+                lockInfos.MapID = save->GetMapId();
+                lockInfos.DifficultyID = uint32(save->GetDifficulty());
+                lockInfos.TimeRemaining = int32(resetTime >= now ? resetTime - now : 0);
+                lockInfos.CompletedMask = save->GetCompletedEncounterMask();
+                lockInfos.Locked = true;
+                lockInfos.Extended = itr->second.extended;
+                instanceInfo.LockList.push_back(lockInfos);
             }
         }
     }
-    data.put<uint32>(p_counter, counter);
-    SendDirectMessage(&data);
+
+    SendDirectMessage(instanceInfo.Write());
 }
 
 /*
@@ -6995,9 +6923,8 @@ void Player::SendRaidInfo()
 void Player::SendSavedInstances()
 {
     bool hasBeenSaved = false;
-    WorldPacket data;
 
-    for (uint8 i = 0; i < MAX_DIFFICULTY; ++i)
+    for (uint8 i = 0; i < MAX_DIFFICULTY && !hasBeenSaved; ++i)
     {
         BoundInstancesMap const& m_boundInstances = sInstanceSaveMgr->PlayerGetBoundInstances(GetGUID(), Difficulty(i));
         for (BoundInstancesMap::const_iterator itr = m_boundInstances.begin(); itr != m_boundInstances.end(); ++itr)
@@ -7010,10 +6937,10 @@ void Player::SendSavedInstances()
         }
     }
 
-    //Send opcode 811. true or false means, whether you have current raid/heroic instances
-    data.Initialize(SMSG_UPDATE_INSTANCE_OWNERSHIP);
-    data << uint32(hasBeenSaved);
-    SendDirectMessage(&data);
+    // true or false means, whether you have current raid/heroic instances
+    WorldPackets::Instance::UpdateInstanceOwnership updateInstanceOwnership;
+    updateInstanceOwnership.IOwnInstance = hasBeenSaved;
+    SendDirectMessage(updateInstanceOwnership.Write());
 
     if (!hasBeenSaved)
         return;
@@ -7025,9 +6952,9 @@ void Player::SendSavedInstances()
         {
             if (itr->second.perm)
             {
-                data.Initialize(SMSG_UPDATE_LAST_INSTANCE);
-                data << uint32(itr->second.save->GetMapId());
-                SendDirectMessage(&data);
+                WorldPackets::Instance::UpdateLastInstance updateLastInstance;
+                updateLastInstance.MapID = itr->second.save->GetMapId();
+                SendDirectMessage(updateLastInstance.Write());
             }
         }
     }

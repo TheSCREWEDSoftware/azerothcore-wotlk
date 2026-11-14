@@ -150,21 +150,17 @@ void Player::SendAttackSwingBadFacingAttack()
 
 void Player::SendAutoRepeatCancel(Unit* target)
 {
-    // 5.4.8 18414, from Project SkyFire
-    ObjectGuid guid = target->GetGUID();
-    WorldPacket data(SMSG_CANCEL_AUTO_REPEAT, 9);
-    data.WriteGuidMask(guid, { 1, 3, 0, 4, 6, 7, 5, 2 });
-    data.FlushBits();
-    data.WriteGuidBytes(guid, { 7, 6, 2, 5, 0, 4, 1, 3 });
-    SendMessageToSet(&data, true);
+    WorldPackets::Combat::CancelAutoRepeat cancelAutoRepeat;
+    cancelAutoRepeat.Guid = target->GetGUID();
+    SendMessageToSet(cancelAutoRepeat.Write(), true);
 }
 
 void Player::SendExplorationExperience(uint32 Area, uint32 Experience)
 {
-    WorldPacket data(SMSG_EXPLORATION_EXPERIENCE, 8);
-    data << uint32(Area);
-    data << uint32(Experience);
-    SendDirectMessage(&data);
+    WorldPackets::Misc::ExplorationExperience packet;
+    packet.AreaID = int32(Area);
+    packet.Experience = int32(Experience);
+    SendDirectMessage(packet.Write());
 }
 
 void Player::SendDungeonDifficulty(bool /*IsInGroup*/, int32 forcedDifficulty)

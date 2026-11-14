@@ -26,6 +26,7 @@
 #include "GridNotifiers.h"
 #include "Group.h"
 #include "Guild.h"
+#include "InstancePackets.h"
 #include "InstanceScript.h"
 #include "Language.h"
 #include "ConditionMgr.h"
@@ -1634,10 +1635,10 @@ void Player::UpdateHomebindTime(uint32 time)
         if (m_HomebindTimer) // instance valid, but timer not reset
         {
             // hide reminder
-            WorldPacket data(SMSG_RAID_GROUP_ONLY, 4 + 4);
-            data << uint32(0);
-            data << uint32(0);
-            SendDirectMessage(&data);
+            WorldPackets::Instance::RaidGroupOnly raidGroupOnly;
+            raidGroupOnly.Delay = 0;
+            raidGroupOnly.Reason = 0;
+            SendDirectMessage(raidGroupOnly.Write());
         }
         // instance is valid, reset homebind timer
         m_HomebindTimer = 0;
@@ -1657,10 +1658,10 @@ void Player::UpdateHomebindTime(uint32 time)
         // instance is invalid, start homebind timer
         m_HomebindTimer = 60000;
         // send message to player
-        WorldPacket data(SMSG_RAID_GROUP_ONLY, 4 + 4);
-        data << uint32(m_HomebindTimer);
-        data << uint32(1);
-        SendDirectMessage(&data);
+        WorldPackets::Instance::RaidGroupOnly raidGroupOnly;
+        raidGroupOnly.Delay = int32(m_HomebindTimer);
+        raidGroupOnly.Reason = 1;
+        SendDirectMessage(raidGroupOnly.Write());
         LOG_DEBUG(
             "maps",
             "PLAYER: Player '{}' ({}) will be teleported to homebind in 60 "

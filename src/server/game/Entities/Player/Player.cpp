@@ -16,6 +16,8 @@
  */
 
 #include "Player.h"
+#include "CombatPackets.h"
+#include "InstancePackets.h"
 #include "MailPackets.h"
 #include "TaxiPackets.h"
 #include "AccountMgr.h"
@@ -3107,22 +3109,15 @@ void Player::SendLearnPacket(uint32 spellId, bool learn)
 {
     if (learn)
     {
-        // 5.4.8 18414, from Project SkyFire
-        WorldPacket data(SMSG_LEARNED_SPELL, 3 + 4);
-        data.WriteBits(1, 22);                      // spell count
-        data.WriteBit(false);                       // suppress messaging (keeps the client from adding the spell to the action bar)
-        data.FlushBits();
-        data << uint32(spellId);
-        SendDirectMessage(&data);
+        WorldPackets::Spells::LearnedSpells packet;
+        packet.SpellID.push_back(spellId);
+        SendDirectMessage(packet.Write());
     }
     else
     {
-        // 5.4.8 18414, from Project SkyFire
-        WorldPacket data(SMSG_REMOVED_SPELL, 3 + 4);
-        data.WriteBits(1, 22);                      // spell count
-        data.FlushBits();
-        data << uint32(spellId);
-        SendDirectMessage(&data);
+        WorldPackets::Spells::UnlearnedSpells packet;
+        packet.SpellID.push_back(spellId);
+        SendDirectMessage(packet.Write());
     }
 }
 
@@ -3155,14 +3150,10 @@ bool Player::addSpell(uint32 spellId, uint8 addSpecMask, bool updateActive, bool
 
                     if (IsInWorld())
                     {
-                        // 5.4.8 18414, from Project SkyFire: one count per spell list
-                        WorldPacket data(SMSG_SUPERCEDED_SPELL, 6 + 4 + 4);
-                        data.WriteBits(1, 22);
-                        data.WriteBits(1, 22);
-                        data.FlushBits();
-                        data << uint32(nextSpellInfo->Id);
-                        data << uint32(spellInfo->Id);
-                        SendDirectMessage(&data);
+                        WorldPackets::Spells::SupercededSpells supercededSpells;
+                        supercededSpells.SpellID.push_back(spellInfo->Id);
+                        supercededSpells.Superceded.push_back(nextSpellInfo->Id);
+                        SendDirectMessage(supercededSpells.Write());
                     }
                     return false;
                 }
@@ -4581,9 +4572,9 @@ void Player::DeleteOldRecoveryItems(uint32 keepDays)
 */
 void Player::BuildPlayerRepop()
 {
-    WorldPacket data(SMSG_PRE_RESURRECT, GetPackGUID().size());
-    data << GetPackGUID();
-    SendDirectMessage(&data);
+    WorldPackets::Misc::PreRessurect preRessurect;
+    preRessurect.PlayerGUID = GetGUID();
+    SendDirectMessage(preRessurect.Write());
     if (getRace(true) == RACE_NIGHTELF)
     {
         CastSpell(this, 20584, true);
@@ -4631,12 +4622,9 @@ void Player::ResurrectPlayer(float restore_percent, bool applySickness)
     if (!sScriptMgr->OnPlayerCanResurrect(this))
         return;
 
-    WorldPacket data(SMSG_DEATH_RELEASE_LOC, 4 * 4);        // remove spirit healer position
-    data << uint32(-1);
-    data << float(0);
-    data << float(0);
-    data << float(0);
-    SendDirectMessage(&data);
+    WorldPackets::Misc::DeathReleaseLoc deathReleaseLoc;        // remove spirit healer position
+    deathReleaseLoc.MapID = -1;
+    SendDirectMessage(deathReleaseLoc.Write());
 
     // speed change, land walk
 
@@ -5119,12 +5107,10 @@ void Player::RepopAtGraveyard()
         TeleportTo(ClosestGrave->Map, ClosestGrave->x, ClosestGrave->y, ClosestGrave->z, GetOrientation());
         if (isDead())                                        // not send if alive, because it used in TeleportTo()
         {
-            WorldPacket data(SMSG_DEATH_RELEASE_LOC, 4 * 4); // show spirit healer position on minimap
-            data << ClosestGrave->Map;
-            data << ClosestGrave->x;
-            data << ClosestGrave->y;
-            data << ClosestGrave->z;
-            SendDirectMessage(&data);
+            WorldPackets::Misc::DeathReleaseLoc deathReleaseLoc; // show spirit healer position on minimap
+            deathReleaseLoc.MapID = ClosestGrave->Map;
+            deathReleaseLoc.Loc = G3D::Vector3(ClosestGrave->x, ClosestGrave->y, ClosestGrave->z);
+            SendDirectMessage(deathReleaseLoc.Write());
         }
     }
     else if (GetPositionZ() < GetMap()->GetMinHeight(GetPositionX(), GetPositionY(), GetTerrainMapIds()))
@@ -5934,17 +5920,17 @@ void Player::SendDirectMessage(WorldPacket const* data) const
 
 void Player::SendCinematicStart(uint32 CinematicSequenceId) const
 {
-    WorldPacket data(SMSG_TRIGGER_CINEMATIC, 4);
-    data << uint32(CinematicSequenceId);
-    SendDirectMessage(&data);
+    WorldPackets::Misc::TriggerCinematic packet;
+    packet.CinematicID = CinematicSequenceId;
+    SendDirectMessage(packet.Write());
 }
 
 void Player::SendMovieStart(uint32 MovieId)
 {
     SetMovie(MovieId);
-    WorldPacket data(SMSG_TRIGGER_MOVIE, 4);
-    data << uint32(MovieId);
-    SendDirectMessage(&data);
+    WorldPackets::Misc::TriggerMovie packet;
+    packet.MovieID = MovieId;
+    SendDirectMessage(packet.Write());
 }
 
 void Player::CheckAreaExploreAndOutdoor()
@@ -6090,7 +6076,8 @@ TeamId Player::TeamIdForRace(uint8 race)
 
 void Player::ShowNeutralPlayerFactionSelectUI()
 {
-    WorldPacket data(SMSG_SHOW_NEURTRAL_PLAYER_FACTION_SELECT_UI, 0);
+    // 6.x 21742: empty packet (WowPacketParser V6_0_2)
+    WorldPacket data(SMSG_SHOW_NEUTRAL_PLAYER_FACTION_SELECT_UI, 0);
     SendDirectMessage(&data);
 }
 
@@ -6476,17 +6463,14 @@ bool Player::RewardHonor(Unit* uVictim, uint32 groupsize, int32 honor, bool awar
     // victim_rank [1..4]  HK: <dishonored rank>
     // victim_rank [5..19] HK: <alliance\horde rank>
     // victim_rank [0, 20+] HK: <>
-    // 5.4.8 18414, from Project SkyFire
-    WorldPacket data(SMSG_PVP_CREDIT, 4 + 4 + 1 + 8);
-    data << uint32(honor);
-    data << uint32(victim_rank);
-    data.WriteGuidMask(victim_guid, { 4, 2, 5, 3, 0, 6, 1, 7 });
-    data.FlushBits();
-    data.WriteGuidBytes(victim_guid, { 6, 7, 5, 0, 1, 3, 4, 2 });
+    WorldPackets::Combat::PvPCredit data;
+    data.Honor = int32(honor);
+    data.Target = victim_guid;
+    data.Rank = int32(victim_rank);
 
     // Xinef: non quest case, quest honor obtain is send in quest reward packet
     if (uVictim || groupsize > 0)
-        SendDirectMessage(&data);
+        SendDirectMessage(data.Write());
 
     // add honor points
     ModifyHonorPoints(honor);
@@ -10425,9 +10409,10 @@ void Player::SetSpellModTakingSpell(Spell* spell, bool apply)
 // send Proficiency
 void Player::SendProficiency(ItemClass itemClass, uint32 itemSubclassMask)
 {
-    WorldPacket data(SMSG_SET_PROFICIENCY, 1 + 4);
-    data << uint8(itemClass) << uint32(itemSubclassMask);
-    SendDirectMessage(&data);
+    WorldPackets::Item::SetProficiency packet;
+    packet.ProficiencyMask = itemSubclassMask;
+    packet.ProficiencyClass = uint8(itemClass);
+    SendDirectMessage(packet.Write());
 }
 
 void Player::SendCurrencies() const
@@ -10534,7 +10519,8 @@ void Player::ResetCurrencyWeekCap()
     for (auto& [currencyId, playerCurrency] : _currencyStorage)
         playerCurrency.WeeklyQuantity = 0;
 
-    WorldPacket data(SMSG_WEEKLY_RESET_CURRENCY, 0);
+    // 6.x 21742: empty packet (WowPacketParser V6_0_2)
+    WorldPacket data(SMSG_RESET_WEEKLY_CURRENCY, 0);
     SendDirectMessage(&data);
 }
 
@@ -10546,9 +10532,10 @@ void Player::UpdateConquestCurrencyCap(uint32 currencyId)
         if (!entry)
             continue;
 
-        WorldPacket data(SMSG_UPDATE_CURRENCY_WEEK_LIMIT, 8);
-        data << uint32(GetCurrencyWeekCap(entry) / (entry->UsesPrecision() ? CURRENCY_PRECISION : 1));
-        data << uint32(id);
+        // 6.x 21742: currency type, then the weekly cap (WowPacketParser V6_0_2)
+        WorldPacket data(SMSG_SET_MAX_WEEKLY_QUANTITY, 8);
+        data << int32(id);
+        data << int32(GetCurrencyWeekCap(entry) / (entry->UsesPrecision() ? CURRENCY_PRECISION : 1));
         SendDirectMessage(&data);
     }
 }
@@ -11239,18 +11226,12 @@ inline bool Player::_StoreOrEquipNewItem(uint32 vendorslot, uint32 item, uint32 
     {
         uint32 new_count = pVendor->UpdateVendorItemCurrentCount(crItem, count);
 
-        // 5.4.8 18414, from Project SkyFire
-        ObjectGuid vendorGuid = pVendor->GetGUID();
-        WorldPacket data(SMSG_BUY_ITEM, 1 + 8 + 4 + 4 + 4);
-        data.WriteGuidMask(vendorGuid, { 3, 4, 7, 6, 0, 2, 1, 5 });
-        data.FlushBits();
-        data.WriteGuidBytes(vendorGuid, { 6, 7 });
-        data << uint32(count);
-        data.WriteGuidBytes(vendorGuid, { 1, 3, 5, 2 });
-        data << int32(crItem->maxcount > 0 ? new_count : 0xFFFFFFFF);
-        data.WriteGuidBytes(vendorGuid, { 0, 4 });
-        data << uint32(vendorslot + 1);                   // numbered from 1 at client
-        SendDirectMessage(&data);
+        WorldPackets::Item::BuySucceeded packet;
+        packet.VendorGUID = pVendor->GetGUID();
+        packet.Muid = vendorslot + 1;                       // numbered from 1 at client
+        packet.NewQuantity = crItem->maxcount > 0 ? int32(new_count) : -1;
+        packet.QuantityBought = count;
+        SendDirectMessage(packet.Write());
         SendNewItem(it, count, true, false, false);
 
         if (!bStore)
@@ -12446,15 +12427,11 @@ void Player::SendTransferAborted(uint32 mapid, TransferAbortReason reason, uint8
 {
     // 4.3.4 always sends the argument; only expansion, difficulty, unique message and
     // instance lock reasons give it a meaning
-    // 5.4.8 18414, from Project SkyFire
-    WorldPacket data(SMSG_TRANSFER_ABORTED, 1 + 1 + 4);
-    data.WriteBit(!arg);
-    data.WriteBits(uint8(reason), 5);                     // transfer abort reason
-    data.FlushBits();
-    if (arg)
-        data << uint8(arg);
-    data << uint32(mapid);
-    SendDirectMessage(&data);
+    WorldPackets::Movement::TransferAborted transferAborted;
+    transferAborted.MapID = mapid;
+    transferAborted.Arg = arg;
+    transferAborted.TransfertAbort = uint32(reason);
+    SendDirectMessage(transferAborted.Write());
 }
 
 void Player::SendInstanceResetWarning(uint32 mapid, Difficulty difficulty, uint32 time, bool onEnterMap)
@@ -12479,17 +12456,15 @@ void Player::SendInstanceResetWarning(uint32 mapid, Difficulty difficulty, uint3
     else
         type = RAID_INSTANCE_WARNING_MIN_SOON;
 
-    // 5.4.8 18414, from Project SkyFire
     bool welcome = type == RAID_INSTANCE_WELCOME;
-    WorldPacket data(SMSG_RAID_INSTANCE_MESSAGE, 1 + 4 + 1 + 4 + 4);
-    data.WriteBit(welcome && bind && bind->extended);       // is extended, ignored if not locked
-    data.WriteBit(welcome && bind && bind->perm);           // is locked
-    data.FlushBits();
-    data << uint32(mapid);
-    data << uint8(type);
-    data << uint32(time);
-    data << uint32(difficulty);
-    SendDirectMessage(&data);
+    WorldPackets::Instance::RaidInstanceMessage raidInstanceMessage;
+    raidInstanceMessage.Type = uint8(type);
+    raidInstanceMessage.MapID = mapid;
+    raidInstanceMessage.DifficultyID = uint32(difficulty);
+    raidInstanceMessage.TimeLeft = int32(time);
+    raidInstanceMessage.Locked = welcome && bind && bind->perm;
+    raidInstanceMessage.Extended = welcome && bind && bind->extended;   // ignored if not locked
+    SendDirectMessage(raidInstanceMessage.Write());
 }
 
 void Player::ApplyEquipCooldown(Item* pItem)
@@ -12546,10 +12521,11 @@ void Player::ApplyEquipCooldown(Item* pItem)
 
         AddSpellCooldown(spellData.SpellId, pItem->GetEntry(), 30 * IN_MILLISECONDS, true, true);
 
-        WorldPacket data(SMSG_ITEM_COOLDOWN, 12);
-        data << pItem->GetGUID();
-        data << uint32(spellData.SpellId);
-        SendDirectMessage(&data);
+        WorldPackets::Item::ItemCooldown data;
+        data.ItemGuid = pItem->GetGUID();
+        data.SpellID = spellData.SpellId;
+        data.Cooldown = 30 * IN_MILLISECONDS;
+        SendDirectMessage(data.Write());
     }
 
     // Enchantment equip spells are not included in the item template spell list.
@@ -13696,15 +13672,10 @@ void Player::SetClientControl(Unit* target, bool allowMove, bool packetOnly /*= 
 
     // A fleeing/confused target can't be controlled by the client yet, but the mover
     // must still switch so control is restored once the crowd control ends.
-    // 5.4.8 18414, from Project SkyFire
-    ObjectGuid targetGuid = target->GetGUID();
-    WorldPacket data(SMSG_CLIENT_CONTROL_UPDATE, 1 + 8);
-    data.WriteGuidMask(targetGuid, { 2, 7 });
-    data.WriteBit(allowMove && !target->HasUnitState(UNIT_STATE_FLEEING | UNIT_STATE_CONFUSED));
-    data.WriteGuidMask(targetGuid, { 0, 3, 6, 5, 1, 4 });
-    data.FlushBits();
-    data.WriteGuidBytes(targetGuid, { 1, 5, 7, 4, 2, 6, 3, 0 });
-    SendDirectMessage(&data);
+    WorldPackets::Movement::ControlUpdate data;
+    data.Guid = target->GetGUID();
+    data.On = allowMove && !target->HasUnitState(UNIT_STATE_FLEEING | UNIT_STATE_CONFUSED);
+    SendDirectMessage(data.Write());
 
     // We want to set the packet only
     if (packetOnly)
@@ -13842,13 +13813,9 @@ int32 Player::CalculateCorpseReclaimDelay(bool load)
 
 void Player::SendCorpseReclaimDelay(uint32 delay)
 {
-    // 5.4.8 18414, from Project SkyFire
-    WorldPacket data(SMSG_CORPSE_RECLAIM_DELAY, 1 + 4);
-    data.WriteBit(delay == 0);
-    data.FlushBits();
-    if (delay)
-        data << uint32(delay);
-    SendDirectMessage(&data);
+    WorldPackets::Misc::CorpseReclaimDelay packet;
+    packet.Remaining = delay;
+    SendDirectMessage(packet.Write());
 }
 
 Player* Player::GetNextRandomRaidMember(float radius)
@@ -14239,10 +14206,9 @@ void Player::SetTitle(CharTitlesEntry const* title, bool lost)
         SetFlag(PLAYER__FIELD_KNOWN_TITLES + fieldIndexOffset, flag);
     }
 
-    WorldPacket data(SMSG_TITLE_EARNED, 4 + 4);
-    data << uint32(title->MaskID);
-    data << uint32(lost ? 0 : 1);                           // 1 - earned, 0 - lost
-    SendDirectMessage(&data);
+    WorldPackets::Character::TitleEarned packet(lost ? SMSG_TITLE_LOST : SMSG_TITLE_EARNED);
+    packet.Index = title->MaskID;
+    SendDirectMessage(packet.Write());
 
     UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_OWN_RANK);
 }
@@ -14299,28 +14265,28 @@ void Player::ConvertRune(uint8 index, RuneType newType)
 {
     SetCurrentRune(index, newType);
 
-    WorldPacket data(SMSG_CONVERT_RUNE, 2);
-    data << uint8(index);
-    data << uint8(newType);
-    SendDirectMessage(&data);
+    WorldPackets::Spells::ConvertRune data;
+    data.Index = index;
+    data.Rune = uint8(newType);
+    SendDirectMessage(data.Write());
 }
 
 void Player::ResyncRunes(uint8 count)
 {
-    // 5.4.8 18414, from Project SkyFire
-    WorldPacket data(SMSG_RESYNC_RUNES, 3 + count * 2);
-    data.WriteBits(count, 23);
-    data.FlushBits();
+    WorldPackets::Spells::ResyncRunes data(count);
     for (uint32 i = 0; i < count; ++i)
     {
-        data << uint8(255 - (GetRuneCooldown(i) * 51));     // passed cooldown time (0-255)
-        data << uint8(GetCurrentRune(i));                   // rune type
+        WorldPackets::Spells::ResyncRunes::ResyncRune rune;
+        rune.RuneType = GetCurrentRune(i);                         // rune type
+        rune.Cooldown = uint8(255 - (GetRuneCooldown(i) * 51));    // passed cooldown time (0-255)
+        data.Runes.push_back(rune);
     }
-    SendDirectMessage(&data);
+    SendDirectMessage(data.Write());
 }
 
 void Player::AddRunePower(uint8 index)
 {
+    // 6.x 21742: same layout in TC 6.x
     WorldPacket data(SMSG_ADD_RUNE_POWER, 4);
     data << uint32(1 << index);                             // mask (0x00-0x3F probably)
     SendDirectMessage(&data);
@@ -15207,9 +15173,26 @@ void Player::SendTalentsInfoData(bool pet)
     if (pet)
         return;
 
-    WorldPacket data(SMSG_UPDATE_TALENT_DATA, 50);
-    BuildPlayerTalentsInfoData(&data);
-    SendDirectMessage(&data);
+    // 6.x 21742 (TC 6.x)
+    WorldPackets::Talent::UpdateTalentData packet;
+    packet.Info.ActiveGroup = m_activeSpec;
+
+    for (uint8 specIdx = 0; specIdx < std::min<uint8>(m_specsCount, MAX_TALENT_SPECS); ++specIdx)
+    {
+        WorldPackets::Talent::TalentGroupInfo groupInfo;
+        groupInfo.SpecID = GetSpecializationId(specIdx);
+
+        for (auto const& [spellId, talent] : m_talents)
+            if (talent->State != PLAYERSPELL_REMOVED && talent->IsInSpec(specIdx))
+                groupInfo.TalentIDs.push_back(uint16(talent->talentID));
+
+        for (uint8 i = 0; i < MAX_GLYPH_SLOT_INDEX; ++i)
+            groupInfo.GlyphIDs[i] = uint16(m_Glyphs[specIdx][i]);
+
+        packet.Info.TalentGroups.push_back(groupInfo);
+    }
+
+    SendDirectMessage(packet.Write());
 }
 
 void Player::BuildEnchantmentsInfoData(WorldPacket* data)
@@ -15255,18 +15238,14 @@ void Player::BuildEnchantmentsInfoData(WorldPacket* data)
     data->put<uint32>(slotUsedMaskPos, slotUsedMask);
 }
 
-// 5.4.8 18414, from Project SkyFire
-void Player::SendSummonRequest(ObjectGuid summonerGuid, uint32 zoneId, uint32 timeoutMs) const
+void Player::SendSummonRequest(ObjectGuid summonerGuid, uint32 zoneId, uint32 /*timeoutMs*/) const
 {
-    WorldPacket data(SMSG_SUMMON_REQUEST, 1 + 8 + 4 + 4);
-    data.WriteGuidMask(summonerGuid, { 0, 6, 3, 2, 1, 4, 7, 5 });
-    data.FlushBits();
-    data.WriteGuidBytes(summonerGuid, { 4 });
-    data << uint32(zoneId);                                 // summoner zone
-    data.WriteGuidBytes(summonerGuid, { 7, 3, 1 });
-    data << uint32(timeoutMs);                              // auto decline after msecs
-    data.WriteGuidBytes(summonerGuid, { 2, 6, 5, 0 });
-    SendDirectMessage(&data);
+    // 6.x 21742: the client times the request out on its own (TC 6.x)
+    WorldPackets::Movement::SummonRequest summonRequest;
+    summonRequest.SummonerGUID = summonerGuid;
+    summonRequest.SummonerVirtualRealmAddress = GetVirtualRealmAddress();
+    summonRequest.AreaID = int32(zoneId);
+    SendDirectMessage(summonRequest.Write());
 }
 
 void Player::SendEquipmentSetList()
