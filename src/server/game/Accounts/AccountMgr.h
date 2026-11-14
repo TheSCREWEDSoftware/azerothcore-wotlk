@@ -28,7 +28,8 @@ enum AccountOpResult
     AOR_EMAIL_TOO_LONG,
     AOR_NAME_ALREADY_EXIST,
     AOR_NAME_NOT_EXIST,
-    AOR_DB_INTERNAL_ERROR
+    AOR_DB_INTERNAL_ERROR,
+    AOR_ACCOUNT_BAD_LINK                                    // the game account is (not) linked to a Battle.net account
 };
 
 #define MAX_ACCOUNT_STR 17
@@ -50,7 +51,8 @@ private:
 public:
     static AccountMgr* instance();
 
-    AccountOpResult CreateAccount(std::string username, std::string password, std::string email = "");
+    /// sync: insert on the synchronous connection, so the account can be looked up right away
+    AccountOpResult CreateAccount(std::string username, std::string password, std::string email = "", bool sync = false);
     static AccountOpResult DeleteAccount(uint32 accountId);
     static AccountOpResult ChangeUsername(uint32 accountId, std::string newUsername, std::string newPassword);
     static AccountOpResult ChangePassword(uint32 accountId, std::string newPassword);

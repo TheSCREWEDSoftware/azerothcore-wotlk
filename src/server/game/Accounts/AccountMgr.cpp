@@ -40,7 +40,7 @@ AccountMgr* AccountMgr::instance()
     return &instance;
 }
 
-AccountOpResult AccountMgr::CreateAccount(std::string username, std::string password, std::string email /*= ""*/)
+AccountOpResult AccountMgr::CreateAccount(std::string username, std::string password, std::string email /*= ""*/, bool sync /*= false*/)
 {
     if (utf8length(username) > MAX_ACCOUNT_STR)
         return AOR_NAME_TOO_LONG;                           // username's too long
@@ -68,11 +68,17 @@ AccountOpResult AccountMgr::CreateAccount(std::string username, std::string pass
     stmt->SetData(4, email);
     stmt->SetData(5, email);
 
-    LoginDatabase.Execute(stmt);
+    if (sync)
+        LoginDatabase.DirectExecute(stmt);
+    else
+        LoginDatabase.Execute(stmt);
 
     stmt = LoginDatabase.GetPreparedStatement(LOGIN_INS_REALM_CHARACTERS_INIT);
 
-    LoginDatabase.Execute(stmt);
+    if (sync)
+        LoginDatabase.DirectExecute(stmt);
+    else
+        LoginDatabase.Execute(stmt);
 
     return AOR_OK;                                          // everything's fine
 }
