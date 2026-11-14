@@ -75,6 +75,7 @@ if "!MMAPS!"=="1" (
     echo.
     echo === mmaps - this can take hours ===
     if not exist mmaps mkdir mmaps
+    copy /y "!BIN!\mmaps-config.yaml" . >nul 2>&1
     "!BIN!\mmaps_generator.exe"
     if errorlevel 1 goto :failpop
 )
