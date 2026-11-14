@@ -1033,6 +1033,12 @@ bool Item::LoadEnchantments(std::string const& data)
         if (index < tokens.size())
             value = Acore::StringTo<uint32>(tokens[index]).value_or(0);
 
+        // 6.x removed reforging and keeps transmogrification in the item modifiers (characters rev 026
+        // moves a 5.4.8 transmog over); drop what an older database left in those slots
+        EnchantmentSlot slot = EnchantmentSlot(index / MAX_ENCHANTMENT_OFFSET);
+        if (slot == REFORGE_ENCHANTMENT_SLOT || slot == TRANSMOGRIFY_ENCHANTMENT_SLOT)
+            value = 0;
+
         SetEnchantmentValue(EnchantmentSlot(index / MAX_ENCHANTMENT_OFFSET), EnchantmentOffset(index % MAX_ENCHANTMENT_OFFSET), value);
     }
 
