@@ -20,6 +20,7 @@
 #include <cctype>
 #include <cerrno>
 #include <cstdio>
+#include <cstring>
 #include <filesystem>
 #include <list>
 #include <map>
@@ -335,12 +336,14 @@ bool OpenMPQArchives()
     }
     printf("\n");
 
-    // Common archives: terrain, model and WMO data live here. They are all part of the 15595 base
-    // set, so a missing one means an incomplete client rather than an optional archive.
+    // Common archives: terrain, model and WMO data live here. art.MPQ is the Cataclysm (15595) layout;
+    // model.MPQ/misc.MPQ/texture.MPQ/expansion4.MPQ are the Mists of Pandaria (5.4.8) layout. Each is
+    // attached when present, but the set must contain the model data of one of the two layouts.
     PrintMessage("Adding data files from common archives.");
     static char const* const commonArchives[] =
     {
-        "art.MPQ", "world2.MPQ", "expansion1.MPQ", "expansion2.MPQ", "expansion3.MPQ"
+        "art.MPQ", "model.MPQ", "misc.MPQ", "texture.MPQ", "world2.MPQ",
+        "expansion1.MPQ", "expansion2.MPQ", "expansion3.MPQ", "expansion4.MPQ"
     };
 
     std::string const worldPath = dataPath + "world.MPQ";
@@ -354,17 +357,24 @@ bool OpenMPQArchives()
     if (!world->mpq_a)
         return false;
 
+    bool modelArchive = false;
     for (auto const* archive : commonArchives)
     {
         std::string const archivePath = dataPath + archive;
         if (!FileExists(archivePath.c_str()))
-        {
-            PrintMessage(Acore::StringFormat("Error: required archive '{}' is missing", archivePath));
-            return false;
-        }
+            continue;
 
         if (!world->ApplyPatch(archivePath.c_str()))
             return false;
+
+        if (!strcmp(archive, "art.MPQ") || !strcmp(archive, "model.MPQ"))
+            modelArchive = true;
+    }
+
+    if (!modelArchive)
+    {
+        PrintMessage(Acore::StringFormat("Error: neither art.MPQ (4.3.4) nor model.MPQ (5.4.8) found in '{}'", dataPath));
+        return false;
     }
 
     if (!ApplyWowUpdateChain(world, dataPath, "wow-update-base-"))

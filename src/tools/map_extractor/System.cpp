@@ -109,15 +109,19 @@ float CONF_flat_height_delta_limit = 0.005f; // If max - min less this value - s
 float CONF_flat_liquid_delta_limit = 0.001f; // If max - min less this value - liquid surface is flat
 
 // List MPQ for extract from. world.MPQ is the base archive; the rest are applied as
-// patches on top of it (matching the real Cata client's archive layout).
+// patches on top of it when present. art.MPQ is the Cataclysm layout; model.MPQ, misc.MPQ
+// and expansion4.MPQ are the Mists of Pandaria (5.4.8) layout, where the DBCs live in misc.MPQ.
 char const* CONF_mpq_list[] =
 {
     "world.MPQ",
     "art.MPQ",
+    "model.MPQ",
+    "misc.MPQ",
     "world2.MPQ",
     "expansion1.MPQ",
     "expansion2.MPQ",
     "expansion3.MPQ",
+    "expansion4.MPQ",
 };
 
 static char const* const langs[] = {"enGB", "enUS", "deDE", "esES", "frFR", "koKR", "zhCN", "zhTW", "enCN", "enTW", "esMX", "ruRU" };
@@ -1154,10 +1158,42 @@ void LoadLocaleMPQFiles(int const locale)
 {
     char filename[512];
 
-    sprintf(filename, "%s/Data/%s/locale-%s.MPQ", input_path, langs[locale], langs[locale]);
-    MPQArchive* base = new MPQArchive(filename);
+    char localeMpq[512];
+    sprintf(localeMpq, "%s/Data/%s/locale-%s.MPQ", input_path, langs[locale], langs[locale]);
+
+    // Mists of Pandaria keeps DBFilesClient in misc.MPQ with the locale archive patched on top
+    // (and the base update chain applied to it); Cataclysm has the DBCs in the locale archive.
+    sprintf(filename, "%s/Data/misc.MPQ", input_path);
+    bool const miscBase = FileExists(filename);
+    MPQArchive* base = new MPQArchive(miscBase ? filename : localeMpq);
     if (!base->mpq_a)
         return;
+
+    if (miscBase)
+    {
+        base->ApplyPatch(localeMpq);
+
+        std::string baseDir = std::string(input_path) + "/Data";
+        std::vector<std::pair<uint32, std::string>> baseUpdates;
+        if (std::filesystem::exists(baseDir))
+        {
+            for (auto const& entry : std::filesystem::directory_iterator(baseDir))
+            {
+                std::string name = entry.path().filename().string();
+                std::string const basePrefix = "wow-update-base-";
+                if (name.rfind(basePrefix, 0) != 0 || name.rfind(".MPQ") != name.size() - 4)
+                    continue;
+
+                std::string buildStr = name.substr(basePrefix.size(), name.size() - basePrefix.size() - 4);
+                if (!buildStr.empty() && std::all_of(buildStr.begin(), buildStr.end(), [](unsigned char c) { return std::isdigit(c); }))
+                    baseUpdates.emplace_back(static_cast<uint32>(std::stoul(buildStr)), entry.path().string());
+            }
+        }
+
+        std::sort(baseUpdates.begin(), baseUpdates.end());
+        for (auto const& update : baseUpdates)
+            base->ApplyPatch(update.second.c_str());
+    }
 
     // WotLK-style full-replacement patches, applied oldest to newest
     for (int i = 1; i <= 9; ++i)
