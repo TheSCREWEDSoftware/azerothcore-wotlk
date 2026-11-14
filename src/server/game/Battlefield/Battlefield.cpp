@@ -881,9 +881,9 @@ bool BfCapturePoint::HandlePlayerEnter(Player* player)
 {
     if (GameObject* go = GetCapturePointGo(player))
     {
-        player->SendUpdateWorldState(go->GetGOInfo()->capturePoint.worldState1, 1);
-        player->SendUpdateWorldState(go->GetGOInfo()->capturePoint.worldstate2, uint32(std::ceil((Value + MaxValue) / (2 * MaxValue) * 100.0f)));
-        player->SendUpdateWorldState(go->GetGOInfo()->capturePoint.worldstate3, NeutralValuePct);
+        player->SendUpdateWorldState(go->GetGOInfo()->controlZone.worldState1, 1);
+        player->SendUpdateWorldState(go->GetGOInfo()->controlZone.worldstate2, uint32(std::ceil((Value + MaxValue) / (2 * MaxValue) * 100.0f)));
+        player->SendUpdateWorldState(go->GetGOInfo()->controlZone.worldstate3, NeutralValuePct);
     }
     return ActivePlayers.insert(player->GetGUID()).second;
 }
@@ -891,7 +891,7 @@ bool BfCapturePoint::HandlePlayerEnter(Player* player)
 GuidUnorderedSet::iterator BfCapturePoint::HandlePlayerLeave(Player* player)
 {
     if (GameObject* go = GetCapturePointGo(player))
-        player->SendUpdateWorldState(go->GetGOInfo()->capturePoint.worldState1, 0);
+        player->SendUpdateWorldState(go->GetGOInfo()->controlZone.worldState1, 0);
 
     GuidUnorderedSet::iterator current = ActivePlayers.find(player->GetGUID());
 
@@ -911,11 +911,11 @@ void BfCapturePoint::SendChangePhase()
         if (Player* player = ObjectAccessor::FindPlayer(guid))
         {
             // send this too, sometimes the slider disappears, dunno why :(
-            player->SendUpdateWorldState(capturePoint->GetGOInfo()->capturePoint.worldState1, 1);
+            player->SendUpdateWorldState(capturePoint->GetGOInfo()->controlZone.worldState1, 1);
             // send these updates to only the ones in this objective
-            player->SendUpdateWorldState(capturePoint->GetGOInfo()->capturePoint.worldstate2, (uint32) std::ceil((Value + MaxValue) / (2 * MaxValue) * 100.0f));
+            player->SendUpdateWorldState(capturePoint->GetGOInfo()->controlZone.worldstate2, (uint32) std::ceil((Value + MaxValue) / (2 * MaxValue) * 100.0f));
             // send this too, sometimes it resets :S
-            player->SendUpdateWorldState(capturePoint->GetGOInfo()->capturePoint.worldstate3, NeutralValuePct);
+            player->SendUpdateWorldState(capturePoint->GetGOInfo()->controlZone.worldstate3, NeutralValuePct);
         }
 }
 
@@ -932,17 +932,17 @@ bool BfCapturePoint::SetCapturePointData(GameObject* capturePoint, TeamId team)
 
     // check info existence
     GameObjectTemplate const* goinfo = capturePoint->GetGOInfo();
-    if (goinfo->type != GAMEOBJECT_TYPE_CAPTURE_POINT)
+    if (goinfo->type != GAMEOBJECT_TYPE_CONTROL_ZONE)
     {
         LOG_ERROR("bg.battlefield", "OutdoorPvP: GO {} is not capture point!", capturePoint->GetEntry());
         return false;
     }
 
     // get the needed values from goinfo
-    MaxValue = goinfo->capturePoint.maxTime;
-    MaxSpeed = MaxValue / (goinfo->capturePoint.minTime ? goinfo->capturePoint.minTime : 60);
-    NeutralValuePct = goinfo->capturePoint.neutralPercent;
-    MinValue = MaxValue * goinfo->capturePoint.neutralPercent / 100;
+    MaxValue = goinfo->controlZone.maxTime;
+    MaxSpeed = MaxValue / (goinfo->controlZone.minTime ? goinfo->controlZone.minTime : 60);
+    NeutralValuePct = goinfo->controlZone.neutralPercent;
+    MinValue = MaxValue * goinfo->controlZone.neutralPercent / 100;
     CapturePointEntry = capturePoint->GetEntry();
     if (team == TEAM_ALLIANCE)
     {
@@ -986,7 +986,7 @@ bool BfCapturePoint::Update(uint32 diff)
     if (!capturePoint)
         return false;
 
-    float radius = capturePoint->GetGOInfo()->capturePoint.radius;
+    float radius = capturePoint->GetGOInfo()->controlZone.radius;
 
     // Single pass over the existing set: drop leavers, count survivors per team.
     uint32 counts[PVP_TEAMS_COUNT] = { 0, 0 };

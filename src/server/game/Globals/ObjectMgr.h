@@ -786,6 +786,7 @@ public:
 
     void LoadGameObjectTemplate();
     void LoadGameObjectTemplateAddons();
+    void LoadDestructibleHitpoints();
     void AddGameobjectInfo(GameObjectTemplate* goinfo);
 
     CreatureTemplate const* GetCreatureTemplate(uint32 entry);
@@ -798,6 +799,11 @@ public:
     CreatureAddon const* GetCreatureAddon(ObjectGuid::LowType lowguid);
     GameObjectAddon const* GetGameObjectAddon(ObjectGuid::LowType lowguid);
     [[nodiscard]] GameObjectTemplateAddon const* GetGameObjectTemplateAddon(uint32 entry) const;
+    [[nodiscard]] DestructibleHitpoint const* GetDestructibleHitpoint(uint32 id) const
+    {
+        auto itr = _destructibleHitpointStore.find(id);
+        return itr != _destructibleHitpointStore.end() ? &itr->second : nullptr;
+    }
     CreatureAddon const* GetCreatureTemplateAddon(uint32 entry);
     CreatureMovementData const* GetCreatureMovementOverride(ObjectGuid::LowType spawnId) const;
     ItemTemplate const* GetItemTemplate(uint32 entry);
@@ -1747,6 +1753,7 @@ private:
     GameObjectLocaleContainer _gameObjectLocaleStore;
     GameObjectTemplateContainer _gameObjectTemplateStore;
     GameObjectTemplateAddonContainer _gameObjectTemplateAddonStore;
+    std::unordered_map<uint32, DestructibleHitpoint> _destructibleHitpointStore;
     /// Stores temp summon data grouped by summoner's entry, summoner's type and group id
     TempSummonDataContainer _tempSummonDataStore;
     /// Stores gameobject summon data grouped by summoner's entry, summoner's type and group id

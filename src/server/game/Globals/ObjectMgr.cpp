@@ -2899,7 +2899,7 @@ ObjectGuid::LowType ObjectMgr::AddGOData(uint32 entry, uint32 mapId, float x, fl
     data.spawnMask      = 1;
     data.go_state       = GO_STATE_READY;
     data.phaseMask      = PHASEMASK_NORMAL;
-    data.artKit         = goinfo->type == GAMEOBJECT_TYPE_CAPTURE_POINT ? 21 : 0;
+    data.artKit         = goinfo->type == GAMEOBJECT_TYPE_CONTROL_ZONE ? 21 : 0;
     data.dbData = false;
     data.spawnGroupId   = 0;
 
@@ -8050,7 +8050,7 @@ inline void CheckGOLockId(GameObjectTemplate const* goInfo, uint32 dataN, uint32
         return;
 
     LOG_ERROR("sql.sql", "Gameobject (Entry: {} GoType: {}) have data{}={} but lock (Id: {}) not found.",
-                     goInfo->entry, goInfo->type, N, goInfo->door.lockId, goInfo->door.lockId);
+                     goInfo->entry, goInfo->type, N, goInfo->door.open, goInfo->door.open);
 }
 
 inline void CheckGOLinkedTrapId(GameObjectTemplate const* goInfo, uint32 dataN, uint32 N)
@@ -8111,8 +8111,10 @@ void ObjectMgr::LoadGameObjectTemplate()
     QueryResult result = WorldDatabase.Query("SELECT entry, type, displayId, name, IconName, castBarCaption, unk1, size, "
                          //                                          8      9      10     11     12     13     14     15     16     17     18      19      20
                          "Data0, Data1, Data2, Data3, Data4, Data5, Data6, Data7, Data8, Data9, Data10, Data11, Data12, "
-                         //                                          21      22      23      24      25      26      27      28      29      30      31      32        33
-                         "Data13, Data14, Data15, Data16, Data17, Data18, Data19, Data20, Data21, Data22, Data23, AIName, ScriptName "
+                         // 21     22      23      24      25      26      27      28      29      30      31      32      33      34      35      36
+                         "Data13, Data14, Data15, Data16, Data17, Data18, Data19, Data20, Data21, Data22, Data23, Data24, Data25, Data26, Data27, Data28, "
+                         // 37     38      39      40      41        42      43
+                         "Data29, Data30, Data31, Data32, unkInt32, AIName, ScriptName "
                          "FROM gameobject_template");
 
     if (!result)
@@ -8144,8 +8146,9 @@ void ObjectMgr::LoadGameObjectTemplate()
         for (uint8 i = 0; i < MAX_GAMEOBJECT_DATA; ++i)
             got.raw.data[i] = fields[8 + i].Get<int32>(); // data1 and data6 can be -1
 
-        got.AIName = fields[32].Get<std::string>();
-        got.ScriptId = GetScriptId(fields[33].Get<std::string>());
+        got.unkInt32 = fields[41].Get<int32>();
+        got.AIName = fields[42].Get<std::string>();
+        got.ScriptId = GetScriptId(fields[43].Get<std::string>());
         got.IsForQuests = false;
 
         // Checks
@@ -8158,95 +8161,95 @@ void ObjectMgr::LoadGameObjectTemplate()
         {
             case GAMEOBJECT_TYPE_DOOR:                      //0
                 {
-                    if (got.door.lockId)
-                        CheckGOLockId(&got, got.door.lockId, 1);
+                    if (got.door.open)
+                        CheckGOLockId(&got, got.door.open, 1);
                     CheckGONoDamageImmuneId(&got, got.door.noDamageImmune, 3);
                     break;
                 }
             case GAMEOBJECT_TYPE_BUTTON:                    //1
                 {
-                    if (got.button.lockId)
-                        CheckGOLockId(&got, got.button.lockId, 1);
+                    if (got.button.open)
+                        CheckGOLockId(&got, got.button.open, 1);
                     CheckGONoDamageImmuneId(&got, got.button.noDamageImmune, 4);
                     break;
                 }
             case GAMEOBJECT_TYPE_QUESTGIVER:                //2
                 {
-                    if (got.questgiver.lockId)
-                        CheckGOLockId(&got, got.questgiver.lockId, 0);
+                    if (got.questgiver.open)
+                        CheckGOLockId(&got, got.questgiver.open, 0);
                     CheckGONoDamageImmuneId(&got, got.questgiver.noDamageImmune, 5);
                     break;
                 }
             case GAMEOBJECT_TYPE_CHEST:                     //3
                 {
-                    if (got.chest.lockId)
-                        CheckGOLockId(&got, got.chest.lockId, 0);
+                    if (got.chest.open)
+                        CheckGOLockId(&got, got.chest.open, 0);
 
                     CheckGOConsumable(&got, got.chest.consumable, 3);
 
-                    if (got.chest.linkedTrapId)              // linked trap
-                        CheckGOLinkedTrapId(&got, got.chest.linkedTrapId, 7);
+                    if (got.chest.linkedTrap)              // linked trap
+                        CheckGOLinkedTrapId(&got, got.chest.linkedTrap, 7);
                     break;
                 }
             case GAMEOBJECT_TYPE_TRAP:                      //6
                 {
-                    if (got.trap.lockId)
-                        CheckGOLockId(&got, got.trap.lockId, 0);
+                    if (got.trap.open)
+                        CheckGOLockId(&got, got.trap.open, 0);
                     break;
                 }
             case GAMEOBJECT_TYPE_CHAIR:                     //7
-                CheckAndFixGOChairHeightId(&got, got.chair.height, 1);
+                CheckAndFixGOChairHeightId(&got, got.chair.chairheight, 1);
                 break;
             case GAMEOBJECT_TYPE_SPELL_FOCUS:               //8
                 {
-                    if (got.spellFocus.focusId)
+                    if (got.spellFocus.spellFocusType)
                     {
-                        if (!sSpellFocusObjectStore.LookupEntry(got.spellFocus.focusId))
+                        if (!sSpellFocusObjectStore.LookupEntry(got.spellFocus.spellFocusType))
                             LOG_ERROR("sql.sql", "GameObject (Entry: {} GoType: {}) have data0={} but SpellFocus (Id: {}) not exist.",
-                                             entry, got.type, got.spellFocus.focusId, got.spellFocus.focusId);
+                                             entry, got.type, got.spellFocus.spellFocusType, got.spellFocus.spellFocusType);
                     }
 
-                    if (got.spellFocus.linkedTrapId)        // linked trap
-                        CheckGOLinkedTrapId(&got, got.spellFocus.linkedTrapId, 2);
+                    if (got.spellFocus.linkedTrap)        // linked trap
+                        CheckGOLinkedTrapId(&got, got.spellFocus.linkedTrap, 2);
                     break;
                 }
             case GAMEOBJECT_TYPE_GOOBER:                    //10
                 {
-                    if (got.goober.lockId)
-                        CheckGOLockId(&got, got.goober.lockId, 0);
+                    if (got.goober.open)
+                        CheckGOLockId(&got, got.goober.open, 0);
 
                     CheckGOConsumable(&got, got.goober.consumable, 3);
 
-                    if (got.goober.pageId)                  // pageId
+                    if (got.goober.pageID)                  // pageId
                     {
-                        if (!GetPageText(got.goober.pageId))
+                        if (!GetPageText(got.goober.pageID))
                             LOG_ERROR("sql.sql", "GameObject (Entry: {} GoType: {}) have data7={} but PageText (Entry {}) not exist.",
-                                             entry, got.type, got.goober.pageId, got.goober.pageId);
+                                             entry, got.type, got.goober.pageID, got.goober.pageID);
                     }
                     CheckGONoDamageImmuneId(&got, got.goober.noDamageImmune, 11);
-                    if (got.goober.linkedTrapId)            // linked trap
-                        CheckGOLinkedTrapId(&got, got.goober.linkedTrapId, 12);
+                    if (got.goober.linkedTrap)            // linked trap
+                        CheckGOLinkedTrapId(&got, got.goober.linkedTrap, 12);
                     break;
                 }
             case GAMEOBJECT_TYPE_AREADAMAGE:                //12
                 {
-                    if (got.areadamage.lockId)
-                        CheckGOLockId(&got, got.areadamage.lockId, 0);
+                    if (got.areaDamage.open)
+                        CheckGOLockId(&got, got.areaDamage.open, 0);
                     break;
                 }
             case GAMEOBJECT_TYPE_CAMERA:                    //13
                 {
-                    if (got.camera.lockId)
-                        CheckGOLockId(&got, got.camera.lockId, 0);
+                    if (got.camera.open)
+                        CheckGOLockId(&got, got.camera.open, 0);
                     break;
                 }
             case GAMEOBJECT_TYPE_MAP_OBJ_TRANSPORT:              //15
                 {
-                    if (got.moTransport.taxiPathId)
+                    if (got.moTransport.taxiPathID)
                     {
-                        if (got.moTransport.taxiPathId >= sTaxiPathNodesByPath.size() || sTaxiPathNodesByPath[got.moTransport.taxiPathId].empty())
+                        if (got.moTransport.taxiPathID >= sTaxiPathNodesByPath.size() || sTaxiPathNodesByPath[got.moTransport.taxiPathID].empty())
                             LOG_ERROR("sql.sql", "GameObject (Entry: {} GoType: {}) have data0={} but TaxiPath (Id: {}) not exist.",
-                                             entry, got.type, got.moTransport.taxiPathId, got.moTransport.taxiPathId);
+                                             entry, got.type, got.moTransport.taxiPathID, got.moTransport.taxiPathID);
                     }
                     if (uint32 transportMap = got.moTransport.mapID)
                         _transportMaps.insert(transportMap);
@@ -8257,27 +8260,27 @@ void ObjectMgr::LoadGameObjectTemplate()
             case GAMEOBJECT_TYPE_SPELLCASTER:               //22
                 {
                     // always must have spell
-                    CheckGOSpellId(&got, got.spellcaster.spellId, 0);
+                    CheckGOSpellId(&got, got.spellCaster.spell, 0);
                     break;
                 }
             case GAMEOBJECT_TYPE_FLAGSTAND:                 //24
                 {
-                    if (got.flagstand.lockId)
-                        CheckGOLockId(&got, got.flagstand.lockId, 0);
-                    CheckGONoDamageImmuneId(&got, got.flagstand.noDamageImmune, 5);
+                    if (got.flagStand.open)
+                        CheckGOLockId(&got, got.flagStand.open, 0);
+                    CheckGONoDamageImmuneId(&got, got.flagStand.noDamageImmune, 5);
                     break;
                 }
             case GAMEOBJECT_TYPE_FISHINGHOLE:               //25
                 {
-                    if (got.fishinghole.lockId)
-                        CheckGOLockId(&got, got.fishinghole.lockId, 4);
+                    if (got.fishingHole.open)
+                        CheckGOLockId(&got, got.fishingHole.open, 4);
                     break;
                 }
             case GAMEOBJECT_TYPE_FLAGDROP:                  //26
                 {
-                    if (got.flagdrop.lockId)
-                        CheckGOLockId(&got, got.flagdrop.lockId, 0);
-                    CheckGONoDamageImmuneId(&got, got.flagdrop.noDamageImmune, 3);
+                    if (got.flagDrop.open)
+                        CheckGOLockId(&got, got.flagDrop.open, 0);
+                    CheckGONoDamageImmuneId(&got, got.flagDrop.noDamageImmune, 3);
                     break;
                 }
             case GAMEOBJECT_TYPE_BARBER_CHAIR:              //32
@@ -8289,6 +8292,35 @@ void ObjectMgr::LoadGameObjectTemplate()
     } while (result->NextRow());
 
     LOG_INFO("server.loading", ">> Loaded {} Game Object Templates in {} ms", count, GetMSTimeDiffToNow(oldMSTime));
+    LOG_INFO("server.loading", " ");
+}
+
+void ObjectMgr::LoadDestructibleHitpoints()
+{
+    uint32 oldMSTime = getMSTime();
+
+    _destructibleHitpointStore.clear();
+
+    //                                               0        1              2
+    QueryResult result = WorldDatabase.Query("SELECT Id, IntactNumHits, DamagedNumHits FROM destructible_hitpoint");
+    if (!result)
+    {
+        LOG_WARN("server.loading", ">> Loaded 0 destructible hitpoints. DB table `destructible_hitpoint` is empty.");
+        LOG_INFO("server.loading", " ");
+        return;
+    }
+
+    do
+    {
+        Field* fields = result->Fetch();
+
+        DestructibleHitpoint& hitpoint = _destructibleHitpointStore[fields[0].Get<uint32>()];
+        hitpoint.Id = fields[0].Get<uint32>();
+        hitpoint.IntactNumHits = fields[1].Get<uint32>();
+        hitpoint.DamagedNumHits = fields[2].Get<uint32>();
+    } while (result->NextRow());
+
+    LOG_INFO("server.loading", ">> Loaded {} destructible hitpoints in {} ms", _destructibleHitpointStore.size(), GetMSTimeDiffToNow(oldMSTime));
     LOG_INFO("server.loading", " ");
 }
 
@@ -9764,7 +9796,7 @@ void ObjectMgr::LoadGameObjectForQuests()
                     uint32 loot_id = (itr->second.GetLootId());
 
                     // find quest loot for GO
-                    if (itr->second.chest.questId || LootTemplates_Gameobject.HaveQuestLootFor(loot_id))
+                    if (itr->second.chest.questID || LootTemplates_Gameobject.HaveQuestLootFor(loot_id))
                     {
                         itr->second.IsForQuests = true;
                         ++count;
@@ -9773,7 +9805,7 @@ void ObjectMgr::LoadGameObjectForQuests()
                 }
             case GAMEOBJECT_TYPE_GENERIC:
                 {
-                    if (itr->second._generic.questID > 0)            //quests objects
+                    if (itr->second.generic.questID > 0)            //quests objects
                     {
                         itr->second.IsForQuests = true;
                         ++count;
@@ -9791,7 +9823,7 @@ void ObjectMgr::LoadGameObjectForQuests()
                 }
             case GAMEOBJECT_TYPE_GOOBER:
                 {
-                    if (itr->second.goober.questId > 0)              //quests objects
+                    if (itr->second.goober.questID > 0)              //quests objects
                     {
                         itr->second.IsForQuests = true;
                         ++count;

@@ -1006,7 +1006,7 @@ public:
         if (Creature* bunny = go->FindNearestCreature(NPC_SIMON_BUNNY, 12.0f, true))
             bunny->AI()->SetData(go->GetEntry(), 0);
 
-        player->CastSpell(player, go->GetGOInfo()->goober.spellId, true);
+        player->CastSpell(player, go->GetGOInfo()->goober.spell, true);
         go->AddUse();
         return true;
     }

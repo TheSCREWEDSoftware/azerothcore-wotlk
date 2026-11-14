@@ -35,6 +35,7 @@
 #include "GameEventMgr.h"
 #include "GameObjectAI.h"
 #include "GameTime.h"
+#include "Garrison.h"
 #include "GridNotifiers.h"
 #include "Group.h"
 #include "GroupMgr.h"
@@ -5650,6 +5651,14 @@ bool Player::LoadFromDB(ObjectGuid playerGuid, CharacterDatabaseQueryHolder cons
         holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_ARCHAEOLOGY_COMPLETED),
         holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_ARCHAEOLOGY_PROJECTS));
     _LoadCUFProfiles(holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_CUF_PROFILES));
+
+    std::unique_ptr<Garrison> garrison = std::make_unique<Garrison>(this);
+    if (garrison->LoadFromDB(holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_GARRISON),
+        holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_GARRISON_BLUEPRINTS),
+        holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_GARRISON_BUILDINGS),
+        holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_GARRISON_FOLLOWERS),
+        holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_GARRISON_FOLLOWER_ABILITIES)))
+        _garrison = std::move(garrison);
     UpdateSkillsForLevel(); //update skills after load, to make sure they are correctly update at player load
 
     // apply original stats mods before spell loading or item equipment that call before equip _RemoveStatsMods()
@@ -7530,6 +7539,8 @@ void Player::SaveToDB(CharacterDatabaseTransaction trans, bool create, bool logo
     _SaveSkills(trans);
     m_achievementMgr->SaveToDB(trans);
     m_reputationMgr->SaveToDB(trans);
+    if (_garrison)
+        _garrison->SaveToDB(trans);
     _SaveEquipmentSets(trans);
     GetSession()->SaveTutorialsData(trans);                 // changed only while character in game
     _SaveGlyphs(trans);

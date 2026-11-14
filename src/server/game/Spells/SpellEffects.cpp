@@ -16,12 +16,14 @@
  */
 
 #include "ArchaeologyMgr.h"
+#include "BattlePetMgr.h"
 #include "Battleground.h"
 #include "BattlegroundIC.h"
 #include "BattlegroundMgr.h"
 #include "BattlegroundSA.h"
 #include "CellImpl.h"
 #include "Chat.h"
+#include "CollectionMgr.h"
 #include "Common.h"
 #include "Creature.h"
 #include "DuelPackets.h"
@@ -32,6 +34,7 @@
 #include "GameObject.h"
 #include "GameObjectAI.h"
 #include "GameTime.h"
+#include "Garrison.h"
 #include "GossipDef.h"
 #include "GridNotifiers.h"
 #include "Group.h"
@@ -257,6 +260,75 @@ pEffect SpellEffects[TOTAL_SPELL_EFFECTS] =
     &Spell::EffectUnused,                                   //180 SPELL_EFFECT_UPDATE_AREATRIGGER
     &Spell::EffectRemoveTalent,                             //181 SPELL_EFFECT_REMOVE_TALENT
     &Spell::EffectNULL,                                     //182 SPELL_EFFECT_182
+    &Spell::EffectNULL,                                     //183 SPELL_EFFECT_183
+    &Spell::EffectNULL,                                     //184 SPELL_EFFECT_REPUTATION
+    &Spell::EffectNULL,                                     //185 SPELL_EFFECT_185
+    &Spell::EffectNULL,                                     //186 SPELL_EFFECT_186
+    &Spell::EffectNULL,                                     //187 SPELL_EFFECT_RANDOMIZE_ARCHAEOLOGY_DIGSITES
+    &Spell::EffectNULL,                                     //188 SPELL_EFFECT_188
+    &Spell::EffectNULL,                                     //189 SPELL_EFFECT_LOOT
+    &Spell::EffectNULL,                                     //190 SPELL_EFFECT_190
+    &Spell::EffectNULL,                                     //191 SPELL_EFFECT_TELEPORT_TO_DIGSITE
+    &Spell::EffectUncageBattlePet,                          //192 SPELL_EFFECT_UNCAGE_BATTLEPET
+    &Spell::EffectNULL,                                     //193 SPELL_EFFECT_START_PET_BATTLE
+    &Spell::EffectNULL,                                     //194 SPELL_EFFECT_194
+    &Spell::EffectNULL,                                     //195 SPELL_EFFECT_195
+    &Spell::EffectNULL,                                     //196 SPELL_EFFECT_196
+    &Spell::EffectNULL,                                     //197 SPELL_EFFECT_197
+    &Spell::EffectNULL,                                     //198 SPELL_EFFECT_198
+    &Spell::EffectNULL,                                     //199 SPELL_EFFECT_199
+    &Spell::EffectHealBattlePetPct,                         //200 SPELL_EFFECT_HEAL_BATTLEPET_PCT
+    &Spell::EffectEnableBattlePets,                         //201 SPELL_EFFECT_ENABLE_BATTLE_PETS
+    &Spell::EffectNULL,                                     //202 SPELL_EFFECT_202
+    &Spell::EffectNULL,                                     //203 SPELL_EFFECT_203
+    &Spell::EffectNULL,                                     //204 SPELL_EFFECT_CHANGE_BATTLEPET_QUALITY
+    &Spell::EffectNULL,                                     //205 SPELL_EFFECT_LAUNCH_QUEST_CHOICE
+    &Spell::EffectNULL,                                     //206 SPELL_EFFECT_ALTER_ITEM
+    &Spell::EffectNULL,                                     //207 SPELL_EFFECT_LAUNCH_QUEST_TASK
+    &Spell::EffectNULL,                                     //208 SPELL_EFFECT_208
+    &Spell::EffectNULL,                                     //209 SPELL_EFFECT_209
+    &Spell::EffectLearnGarrisonBuilding,                    //210 SPELL_EFFECT_LEARN_GARRISON_BUILDING
+    &Spell::EffectNULL,                                     //211 SPELL_EFFECT_LEARN_GARRISON_SPECIALIZATION
+    &Spell::EffectNULL,                                     //212 SPELL_EFFECT_212
+    &Spell::EffectNULL,                                     //213 SPELL_EFFECT_213
+    &Spell::EffectCreateGarrison,                           //214 SPELL_EFFECT_CREATE_GARRISON
+    &Spell::EffectNULL,                                     //215 SPELL_EFFECT_UPGRADE_CHARACTER_SPELLS
+    &Spell::EffectNULL,                                     //216 SPELL_EFFECT_CREATE_SHIPMENT
+    &Spell::EffectNULL,                                     //217 SPELL_EFFECT_UPGRADE_GARRISON
+    &Spell::EffectNULL,                                     //218 SPELL_EFFECT_218
+    &Spell::EffectNULL,                                     //219 SPELL_EFFECT_219
+    &Spell::EffectAddGarrisonFollower,                      //220 SPELL_EFFECT_ADD_GARRISON_FOLLOWER
+    &Spell::EffectNULL,                                     //221 SPELL_EFFECT_221
+    &Spell::EffectCreateHeirloomItem,                       //222 SPELL_EFFECT_CREATE_HEIRLOOM_ITEM
+    &Spell::EffectNULL,                                     //223 SPELL_EFFECT_CHANGE_ITEM_BONUSES
+    &Spell::EffectActivateGarrisonBuilding,                 //224 SPELL_EFFECT_ACTIVATE_GARRISON_BUILDING
+    &Spell::EffectNULL,                                     //225 SPELL_EFFECT_GRANT_BATTLEPET_LEVEL
+    &Spell::EffectNULL,                                     //226 SPELL_EFFECT_226
+    &Spell::EffectNULL,                                     //227 SPELL_EFFECT_227
+    &Spell::EffectNULL,                                     //228 SPELL_EFFECT_228
+    &Spell::EffectNULL,                                     //229 SPELL_EFFECT_SET_FOLLOWER_QUALITY
+    &Spell::EffectNULL,                                     //230 SPELL_EFFECT_INCREASE_FOLLOWER_ITEM_LEVEL
+    &Spell::EffectNULL,                                     //231 SPELL_EFFECT_INCREASE_FOLLOWER_EXPERIENCE
+    &Spell::EffectNULL,                                     //232 SPELL_EFFECT_REMOVE_PHASE
+    &Spell::EffectNULL,                                     //233 SPELL_EFFECT_RANDOMIZE_FOLLOWER_ABILITIES
+    &Spell::EffectNULL,                                     //234 SPELL_EFFECT_234
+    &Spell::EffectNULL,                                     //235 SPELL_EFFECT_235
+    &Spell::EffectNULL,                                     //236 SPELL_EFFECT_GIVE_EXPERIENCE
+    &Spell::EffectNULL,                                     //237 SPELL_EFFECT_GIVE_RESTED_EXPERIENCE_BONUS
+    &Spell::EffectNULL,                                     //238 SPELL_EFFECT_INCREASE_SKILL
+    &Spell::EffectNULL,                                     //239 SPELL_EFFECT_END_GARRISON_BUILDING_CONSTRUCTION
+    &Spell::EffectNULL,                                     //240 SPELL_EFFECT_240
+    &Spell::EffectNULL,                                     //241 SPELL_EFFECT_241
+    &Spell::EffectNULL,                                     //242 SPELL_EFFECT_242
+    &Spell::EffectApplyEnchantIllusion,                     //243 SPELL_EFFECT_APPLY_ENCHANT_ILLUSION
+    &Spell::EffectNULL,                                     //244 SPELL_EFFECT_LEARN_FOLLOWER_ABILITY
+    &Spell::EffectUpgradeHeirloom,                          //245 SPELL_EFFECT_UPGRADE_HEIRLOOM
+    &Spell::EffectNULL,                                     //246 SPELL_EFFECT_FINISH_GARRISON_MISSION
+    &Spell::EffectNULL,                                     //247 SPELL_EFFECT_ADD_GARRISON_MISSION
+    &Spell::EffectNULL,                                     //248 SPELL_EFFECT_FINISH_SHIPMENT
+    &Spell::EffectNULL,                                     //249 SPELL_EFFECT_249
+    &Spell::EffectNULL,                                     //250 SPELL_EFFECT_TAKE_SCREENSHOT
+    &Spell::EffectNULL,                                     //251 SPELL_EFFECT_SET_GARRISON_CACHE_SIZE
 };
 
 void Spell::EffectNULL(SpellEffIndex /*effIndex*/)
@@ -1759,7 +1831,7 @@ void Spell::EffectHealthLeech(SpellEffIndex  effIndex)
     //}
 }
 
-void Spell::DoCreateItem(uint8 /*effIndex*/, uint32 itemId)
+void Spell::DoCreateItem(uint8 /*effIndex*/, uint32 itemId, std::vector<int32> const& bonusListIDs)
 {
     Unit* unitCaster = m_caster->ToUnit();
     if (!unitTarget)
@@ -1872,7 +1944,8 @@ void Spell::DoCreateItem(uint8 /*effIndex*/, uint32 itemId)
         }
 
         // create the new item and store it
-        Item* pItem = player->StoreNewItem(dest, newitemid, true);
+        AllowedLooterSet looters;
+        Item* pItem = player->StoreNewItem(dest, newitemid, true, 0, looters, false, bonusListIDs);
 
         // was it successful? return error if not
         if (!pItem)
@@ -2226,7 +2299,7 @@ void Spell::SendLoot(ObjectGuid guid, LootType loottype)
 
             case GAMEOBJECT_TYPE_SPELL_FOCUS:
                 // triggering linked GO
-                if (uint32 trapEntry = gameObjTarget->GetGOInfo()->spellFocus.linkedTrapId)
+                if (uint32 trapEntry = gameObjTarget->GetGOInfo()->spellFocus.linkedTrap)
                     gameObjTarget->TriggeringLinkedGameObject(trapEntry, unitCaster);
                 return;
 
@@ -2266,7 +2339,7 @@ void Spell::EffectOpenLock(SpellEffIndex effIndex)
         GameObjectTemplate const* goInfo = gameObjTarget->GetGOInfo();
         // Arathi Basin banner opening. /// @todo: Verify correctness of this check
         if ((goInfo->type == GAMEOBJECT_TYPE_BUTTON && goInfo->button.noDamageImmune) ||
-                (goInfo->type == GAMEOBJECT_TYPE_GOOBER && goInfo->goober.losOK))
+                (goInfo->type == GAMEOBJECT_TYPE_GOOBER && goInfo->goober.requireLOS))
         {
             //CanUseBattlegroundObject() already called in CheckCast()
             // in battleground check
@@ -6885,4 +6958,182 @@ void Spell::EffectUnlockGuildVaultTab(SpellEffIndex effIndex)
     // Bank tabs start at zero internally
     if (Guild* guild = caster->GetGuild())
         guild->HandleBuyBankTab(caster->GetSession(), uint8(m_spellInfo->Effects[effIndex].BasePoints - 1), true);
+}
+
+void Spell::EffectUncageBattlePet(SpellEffIndex /*effIndex*/)
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT)
+        return;
+
+    if (!m_CastItem || !m_caster || !m_caster->IsPlayer())
+        return;
+
+    Player* plr = m_caster->ToPlayer();
+
+    uint32 speciesId = m_CastItem->GetModifier(ITEM_MODIFIER_BATTLE_PET_SPECIES_ID);
+    uint16 breed = m_CastItem->GetModifier(ITEM_MODIFIER_BATTLE_PET_BREED_DATA) & 0xFFFFFF;
+    uint8 quality = (m_CastItem->GetModifier(ITEM_MODIFIER_BATTLE_PET_BREED_DATA) >> 24) & 0xFF;
+    uint16 level = m_CastItem->GetModifier(ITEM_MODIFIER_BATTLE_PET_LEVEL);
+    uint32 creatureId = m_CastItem->GetModifier(ITEM_MODIFIER_BATTLE_PET_DISPLAY_ID);
+
+    BattlePetSpeciesEntry const* speciesEntry = sBattlePetSpeciesStore.LookupEntry(speciesId);
+    if (!speciesEntry)
+        return;
+
+    BattlePetMgr* battlePetMgr = plr->GetSession()->GetBattlePetMgr();
+    if (!battlePetMgr)
+        return;
+
+    uint16 maxLearnedLevel = 0;
+    for (auto const& pet : battlePetMgr->GetLearnedPets())
+        maxLearnedLevel = std::max(pet.PacketInfo.Level, maxLearnedLevel);
+
+    // TODO: This means if you put your highest lvl pet into cage, you won't be able to uncage it again which is probably wrong.
+    // We will need to store maxLearnedLevel somewhere to avoid this behaviour.
+    if (maxLearnedLevel < level)
+    {
+        battlePetMgr->SendError(BATTLEPETRESULT_TOO_HIGH_LEVEL_TO_UNCAGE, creatureId); // or speciesEntry.CreatureID
+        SendCastResult(SPELL_FAILED_CANT_ADD_BATTLE_PET);
+        return;
+    }
+
+    if (battlePetMgr->GetPetCount(speciesId) >= MAX_BATTLE_PETS_PER_SPECIES)
+    {
+        battlePetMgr->SendError(BATTLEPETRESULT_CANT_HAVE_MORE_PETS_OF_THAT_TYPE, creatureId); // or speciesEntry.CreatureID
+        SendCastResult(SPELL_FAILED_CANT_ADD_BATTLE_PET);
+        return;
+    }
+
+    if (!plr->HasSpell(speciesEntry->SummonSpellID))
+        plr->learnSpell(speciesEntry->SummonSpellID);
+
+    battlePetMgr->AddPet(speciesId, creatureId, breed, quality, level);
+    plr->DestroyItem(m_CastItem->GetBagSlot(), m_CastItem->GetSlot(), true);
+    m_CastItem = nullptr;
+}
+
+void Spell::EffectHealBattlePetPct(SpellEffIndex effIndex)
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    if (!unitTarget || !unitTarget->IsPlayer())
+        return;
+
+    if (BattlePetMgr* battlePetMgr = unitTarget->ToPlayer()->GetSession()->GetBattlePetMgr())
+        battlePetMgr->HealBattlePetsPct(m_spellInfo->Effects[effIndex].BasePoints);
+}
+
+void Spell::EffectEnableBattlePets(SpellEffIndex /*effIndex*/)
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    if (!unitTarget || !unitTarget->IsPlayer())
+        return;
+
+    Player* plr = unitTarget->ToPlayer();
+    plr->SetPlayerFlag(PLAYER_FLAGS_PET_BATTLES_UNLOCKED);
+    if (BattlePetMgr* battlePetMgr = plr->GetSession()->GetBattlePetMgr())
+        battlePetMgr->UnlockSlot(0);
+}
+
+void Spell::EffectLearnGarrisonBuilding(SpellEffIndex effIndex)
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    if (!unitTarget || !unitTarget->IsPlayer())
+        return;
+
+    if (Garrison* garrison = unitTarget->ToPlayer()->GetGarrison())
+        garrison->LearnBlueprint(m_spellInfo->Effects[effIndex].MiscValue);
+}
+
+void Spell::EffectCreateGarrison(SpellEffIndex effIndex)
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    if (!unitTarget || !unitTarget->IsPlayer())
+        return;
+
+    unitTarget->ToPlayer()->CreateGarrison(m_spellInfo->Effects[effIndex].MiscValue);
+}
+
+void Spell::EffectAddGarrisonFollower(SpellEffIndex effIndex)
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    if (!unitTarget || !unitTarget->IsPlayer())
+        return;
+
+    if (Garrison* garrison = unitTarget->ToPlayer()->GetGarrison())
+        garrison->AddFollower(m_spellInfo->Effects[effIndex].MiscValue);
+}
+
+void Spell::EffectCreateHeirloomItem(SpellEffIndex effIndex)
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    Player* player = m_caster->ToPlayer();
+    if (!player)
+        return;
+
+    CollectionMgr* collectionMgr = player->GetSession()->GetCollectionMgr();
+    if (!collectionMgr)
+        return;
+
+    // the client sends the heirloom item id in the first misc value of the cast (TC 6.x m_misc.Raw.Data[0])
+    uint32 itemId = m_glyphIndex;
+    std::vector<int32> bonusList;
+    bonusList.push_back(collectionMgr->GetHeirloomBonus(itemId));
+
+    DoCreateItem(effIndex, itemId, bonusList);
+    ExecuteLogEffectCreateItem(effIndex, itemId);
+}
+
+void Spell::EffectActivateGarrisonBuilding(SpellEffIndex effIndex)
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    if (!unitTarget || !unitTarget->IsPlayer())
+        return;
+
+    if (Garrison* garrison = unitTarget->ToPlayer()->GetGarrison())
+        garrison->ActivateBuilding(m_spellInfo->Effects[effIndex].MiscValue);
+}
+
+void Spell::EffectApplyEnchantIllusion(SpellEffIndex effIndex)
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    if (!itemTarget)
+        return;
+
+    Player* player = m_caster->ToPlayer();
+    if (!player || player->GetGUID() != itemTarget->GetOwnerGUID())
+        return;
+
+    itemTarget->SetState(ITEM_CHANGED, player);
+    itemTarget->SetModifier(ITEM_MODIFIER_ENCHANT_ILLUSION, m_spellInfo->Effects[effIndex].MiscValue);
+    if (itemTarget->IsEquipped())
+        player->SetUInt16Value(PLAYER_VISIBLE_ITEM_1_ENCHANTMENT + (itemTarget->GetSlot() * 2), 1, itemTarget->GetVisibleItemVisual());
+
+    player->RemoveTradeableItem(itemTarget);
+    itemTarget->ClearSoulboundTradeable(player);
+}
+
+void Spell::EffectUpgradeHeirloom(SpellEffIndex /*effIndex*/)
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT)
+        return;
+
+    if (Player* player = m_caster->ToPlayer())
+        if (CollectionMgr* collectionMgr = player->GetSession()->GetCollectionMgr())
+            collectionMgr->UpgradeHeirloom(m_glyphIndex, m_castItemEntry);
 }

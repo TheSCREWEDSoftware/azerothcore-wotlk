@@ -49,6 +49,7 @@
 #include "GameEventMgr.h"
 #include "GameGraveyard.h"
 #include "GameTime.h"
+#include "Garrison.h"
 #include "GossipDef.h"
 #include "GridNotifiers.h"
 #include "Group.h"
@@ -1561,6 +1562,12 @@ bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientati
         if (!(options & TELE_TO_GM_MODE) && sMapMgr->PlayerCannotEnter(mapid, this, false))
             return false;
 
+        // 6.x: seamless teleport can happen only if cosmetic maps match (TC 6.x)
+        if (!oldmap ||
+            (oldmap->GetEntry()->CosmeticParentMapID != int32(mapid) && int32(GetMapId()) != mEntry->CosmeticParentMapID &&
+            !((oldmap->GetEntry()->CosmeticParentMapID != -1) ^ (oldmap->GetEntry()->CosmeticParentMapID != mEntry->CosmeticParentMapID))))
+            options &= ~TELE_TO_SEAMLESS;
+
         // if PlayerCannotEnter -> CanEnter: checked above
         {
             //lets reset near teleport flag if it wasn't reset during chained teleports
@@ -1601,7 +1608,7 @@ bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientati
 
             SetMapChangeOrderCounter();
 
-            if (!GetSession()->PlayerLogout())
+            if (!GetSession()->PlayerLogout() && !(options & TELE_TO_SEAMLESS))
             {
                 // 4.3.4 sends the transfer header, then a suspend token; NewWorld follows the
                 // client's CMSG_SUSPEND_TOKEN_RESPONSE (#327).
@@ -1621,6 +1628,7 @@ bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientati
                 oldmap->RemovePlayerFromMap(this, false);
 
             teleportStore_dest = WorldLocation(mapid, x, y, z, orientation);
+            m_teleport_options = options;
             SetFallInformation(GameTime::GetGameTime().count(), z);
             // if the player is saved before worldportack (at logout for example)
             // this will be used instead of the current location in SaveToDB
@@ -1630,7 +1638,7 @@ bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientati
                 SetCanTeleport(true);
                 WorldPackets::Movement::SuspendToken suspendToken;
                 suspendToken.SequenceIndex = 1; // to-do incremental value (pinned TC reference)
-                suspendToken.Reason = 1;
+                suspendToken.Reason = (options & TELE_TO_SEAMLESS) ? 2 : 1;
                 SendDirectMessage(suspendToken.Write());
             }
 
@@ -4391,6 +4399,8 @@ void Player::DeleteFromDB(ObjectGuid::LowType lowGuid, uint32 accountId, bool up
                 stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_CHAR_ACHIEVEMENT_PROGRESS);
                 stmt->SetData(0, lowGuid);
                 trans->Append(stmt);
+
+                Garrison::DeleteFromDB(lowGuid, trans);
 
                 stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_CHAR_EQUIPMENTSETS);
                 stmt->SetData(0, lowGuid);
@@ -8118,7 +8128,7 @@ void Player::SendLoot(ObjectGuid guid, LootType loot_type)
                 loot->clear();
 
                 Group* group = GetGroup();
-                bool groupRules = (group && go->GetGOInfo()->type == GAMEOBJECT_TYPE_CHEST && go->GetGOInfo()->chest.groupLootRules);
+                bool groupRules = (group && go->GetGOInfo()->type == GAMEOBJECT_TYPE_CHEST && go->GetGOInfo()->chest.usegrouplootrules);
 
                 // check current RR player and get next if necessary
                 if (groupRules)
@@ -8148,7 +8158,7 @@ void Player::SendLoot(ObjectGuid guid, LootType loot_type)
             else if (loot_type == LOOT_FISHING_JUNK)
                 go->GetFishLoot(loot, this, true);
 
-            if (go->GetGOInfo()->type == GAMEOBJECT_TYPE_CHEST && go->GetGOInfo()->chest.groupLootRules)
+            if (go->GetGOInfo()->type == GAMEOBJECT_TYPE_CHEST && go->GetGOInfo()->chest.usegrouplootrules)
             {
                 if (Group* group = GetGroup())
                 {
@@ -8174,7 +8184,7 @@ void Player::SendLoot(ObjectGuid guid, LootType loot_type)
 
             // Trigger chest traps once per loot generation, including when the generated loot is empty.
             if (go->GetGoType() == GAMEOBJECT_TYPE_CHEST)
-                if (uint32 trapEntry = go->GetGOInfo()->chest.linkedTrapId)
+                if (uint32 trapEntry = go->GetGOInfo()->chest.linkedTrap)
                     go->TriggeringLinkedGameObject(trapEntry, this);
         }
 
@@ -12415,6 +12425,8 @@ void Player::SendInitialPacketsAfterAddToMap()
             if (Group* group = GetGroup())
                 group->SendPendingRollsToPlayer(this, map);
 
+    if (_garrison)
+        _garrison->SendRemoteInfo();
 }
 
 void Player::SendUpdateToOutOfRangeGroupMembers()
@@ -12903,6 +12915,9 @@ void Player::ResetDailyQuestStatus()
     // DB data deleted in caller
     m_DailyQuestChanged = false;
     m_lastDailyQuestTime = 0;
+
+    if (_garrison)
+        _garrison->ResetFollowerActivationLimit();
 }
 
 void Player::ResetWeeklyQuestStatus()
@@ -14831,6 +14846,22 @@ void Player::UpdateCriteria(CriteriaTypes type, uint64 miscValue1 /*= 0*/, uint6
 
     if (Guild* guild = GetGuild())
         guild->UpdateCriteria(type, miscValue1, miscValue2, miscValue3, unit, this);
+}
+
+void Player::CreateGarrison(uint32 garrSiteId)
+{
+    std::unique_ptr<Garrison> garrison = std::make_unique<Garrison>(this);
+    if (garrison->Create(garrSiteId))
+        _garrison = std::move(garrison);
+}
+
+void Player::DeleteGarrison()
+{
+    if (_garrison)
+    {
+        _garrison->Delete();
+        _garrison.reset();
+    }
 }
 
 void Player::CompletedAchievement(AchievementEntry const* entry)

@@ -486,6 +486,16 @@ public:
     void EffectSpecCount(SpellEffIndex effIndex);
     void EffectActivateSpec(SpellEffIndex effIndex);
     void EffectRemoveTalent(SpellEffIndex effIndex);
+    void EffectUncageBattlePet(SpellEffIndex effIndex);
+    void EffectHealBattlePetPct(SpellEffIndex effIndex);
+    void EffectEnableBattlePets(SpellEffIndex effIndex);
+    void EffectLearnGarrisonBuilding(SpellEffIndex effIndex);
+    void EffectCreateGarrison(SpellEffIndex effIndex);
+    void EffectAddGarrisonFollower(SpellEffIndex effIndex);
+    void EffectCreateHeirloomItem(SpellEffIndex effIndex);
+    void EffectActivateGarrisonBuilding(SpellEffIndex effIndex);
+    void EffectApplyEnchantIllusion(SpellEffIndex effIndex);
+    void EffectUpgradeHeirloom(SpellEffIndex effIndex);
     void EffectPlaySound(SpellEffIndex effIndex);
     void EffectRemoveAura(SpellEffIndex effIndex);
     void EffectSurvey(SpellEffIndex effIndex);
@@ -561,7 +571,7 @@ public:
     uint32 getState() const { return m_spellState; }
     void setState(uint32 state) { m_spellState = state; }
 
-    void DoCreateItem(uint8 effIndex, uint32 itemId);
+    void DoCreateItem(uint8 effIndex, uint32 itemId, std::vector<int32> const& bonusListIDs = std::vector<int32>());
     void FillSpellCastData(WorldPackets::Spells::SpellCastData& castData, ObjectGuid casterUnitGuid, uint32 castFlags);
     void UpdateSpellCastDataTargets(WorldPackets::Spells::SpellCastData& data);
     void UpdateSpellCastDataAmmo(WorldPackets::Spells::SpellAmmo& ammo);

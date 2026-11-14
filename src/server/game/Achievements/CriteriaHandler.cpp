@@ -21,6 +21,7 @@
 #include "DBCStores.h"
 #include "DB2Stores.h"
 #include "DisableMgr.h"
+#include "Garrison.h"
 #include "GameEventMgr.h"
 #include "Group.h"
 #include "InstanceScript.h"

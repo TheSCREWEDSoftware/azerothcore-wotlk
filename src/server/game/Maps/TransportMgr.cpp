@@ -76,9 +76,9 @@ void TransportMgr::LoadTransportTemplates()
             continue;
         }
 
-        if (goInfo->moTransport.taxiPathId >= sTaxiPathNodesByPath.size())
+        if (goInfo->moTransport.taxiPathID >= sTaxiPathNodesByPath.size())
         {
-            LOG_ERROR("entities.transport", "Transport {} (name: {}) has an invalid path specified in `gameobject_template`.`data0` ({}) field, skipped.", entry, goInfo->name, goInfo->moTransport.taxiPathId);
+            LOG_ERROR("entities.transport", "Transport {} (name: {}) has an invalid path specified in `gameobject_template`.`data0` ({}) field, skipped.", entry, goInfo->name, goInfo->moTransport.taxiPathID);
             continue;
         }
 
@@ -117,7 +117,7 @@ public:
 
 void TransportMgr::GeneratePath(GameObjectTemplate const* goInfo, TransportTemplate* transport)
 {
-    uint32 pathId = goInfo->moTransport.taxiPathId;
+    uint32 pathId = goInfo->moTransport.taxiPathID;
     TaxiPathNodeList const& path = sTaxiPathNodesByPath[pathId];
     std::vector<KeyFrame>& keyFrames = transport->keyFrames;
     Movement::PointsArray splinePath, allPoints;

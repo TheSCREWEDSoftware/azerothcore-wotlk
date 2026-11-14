@@ -374,10 +374,10 @@ void WorldSession::DoLootRelease(ObjectGuid lguid)
                 // Xinef: moved event execution to loot release (after everything is looted)
                 // Xinef: 99% sure that this worked like this on blizz
                 // Xinef: prevents exploits with just opening GO and spawning bilions of npcs, which can crash core if you know what you're doin ;)
-                if (go->GetGoType() == GAMEOBJECT_TYPE_CHEST && go->GetGOInfo()->chest.eventId)
+                if (go->GetGoType() == GAMEOBJECT_TYPE_CHEST && go->GetGOInfo()->chest.triggeredEvent)
                 {
-                    LOG_DEBUG("spells.aura", "Chest ScriptStart id {} for GO {}", go->GetGOInfo()->chest.eventId, go->GetSpawnId());
-                    player->GetMap()->ScriptsStart(sEventScripts, go->GetGOInfo()->chest.eventId, player, go);
+                    LOG_DEBUG("spells.aura", "Chest ScriptStart id {} for GO {}", go->GetGOInfo()->chest.triggeredEvent, go->GetSpawnId());
+                    player->GetMap()->ScriptsStart(sEventScripts, go->GetGOInfo()->chest.triggeredEvent, player, go);
                 }
             }
 

@@ -41,6 +41,7 @@ bool MapGridManager::LoadGrid(uint16 const x, uint16 const y)
 
     GridObjectLoader loader(*grid, _map);
     loader.LoadAllCellsInGrid();
+    _map->OnGridObjectsLoaded(*grid);
 
     ++_loadedGridsCount;
     return true;

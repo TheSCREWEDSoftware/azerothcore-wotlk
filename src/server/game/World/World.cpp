@@ -54,6 +54,7 @@
 #include "GameEventMgr.h"
 #include "GameGraveyard.h"
 #include "GameTime.h"
+#include "GarrisonMgr.h"
 #include "GitRevision.h"
 #include "GridNotifiersImpl.h"
 #include "GroupMgr.h"
@@ -523,6 +524,9 @@ void World::SetInitialWorldSettings()
     LOG_INFO("server.loading", "Loading Game Object Template Addons...");
     sObjectMgr->LoadGameObjectTemplateAddons();
 
+    LOG_INFO("server.loading", "Loading Destructible Hitpoints...");
+    sObjectMgr->LoadDestructibleHitpoints();
+
     LOG_INFO("server.loading", "Loading Transport Templates...");
     sTransportMgr->LoadTransportTemplates();
 
@@ -823,6 +827,9 @@ void World::SetInitialWorldSettings()
 
     LOG_INFO("server.loading", "Loading Battle Pets Info...");
     BattlePetMgr::Initialize();
+
+    LOG_INFO("server.loading", "Loading Garrison Info...");
+    sGarrisonMgr.Initialize();
 
     LOG_INFO("server.loading", "Loading Guild Finder Data...");
     sGuildFinderMgr->LoadFromDB();

@@ -123,7 +123,7 @@ bool MotionTransport::CreateMoTrans(ObjectGuid::LowType guidlow, uint32 entry, u
     SetPeriod(tInfo->pathTime);
     SetEntry(goinfo->entry);
     SetDisplayId(goinfo->displayId);
-    SetGoState(!goinfo->moTransport.canBeStopped ? GO_STATE_READY : GO_STATE_ACTIVE);
+    SetGoState(!goinfo->moTransport.allowstopping ? GO_STATE_READY : GO_STATE_ACTIVE);
     SetGoType(GAMEOBJECT_TYPE_MAP_OBJ_TRANSPORT);
     SetGoAnimProgress(animprogress);
     SetName(goinfo->name);
@@ -277,7 +277,7 @@ void MotionTransport::Update(uint32 diff)
         SetMoving(true);
 
         // Enable movement
-        if (GetGOInfo()->moTransport.canBeStopped)
+        if (GetGOInfo()->moTransport.allowstopping)
             SetGoState(GO_STATE_ACTIVE);
 
         if (timer >= _currentFrame->DepartureTime && timer < _currentFrame->NextArriveTime)
@@ -562,7 +562,7 @@ void MotionTransport::UnloadNonStaticPassengers()
 
 void MotionTransport::EnableMovement(bool enabled)
 {
-    if (!GetGOInfo()->moTransport.canBeStopped)
+    if (!GetGOInfo()->moTransport.allowstopping)
         return;
 
     _pendingStop = !enabled;
@@ -919,10 +919,10 @@ bool StaticTransport::Create(ObjectGuid::LowType guidlow, uint32 name_id, Map* m
         LOG_ERROR("vehicle", "StaticTransport::Create: AnimationInfo->TotalTime is 0 for GameObject entry ({})", goinfo->entry);
         return false;
     }
-    SetPauseTime(goinfo->transport.pauseAtTime);
-    if (goinfo->transport.startOpen && goinfo->transport.pauseAtTime)
+    SetPauseTime(goinfo->transport.Timeto2ndfloor);
+    if (goinfo->transport.startOpen && goinfo->transport.Timeto2ndfloor)
     {
-        SetPathProgress(goinfo->transport.pauseAtTime);
+        SetPathProgress(goinfo->transport.Timeto2ndfloor);
         _needDoInitialRelocation = true;
     }
     else

@@ -619,9 +619,9 @@ public:
         displayId = gameObjectInfo->displayId;
         name = gameObjectInfo->name;
         if (type == GAMEOBJECT_TYPE_CHEST)
-            lootId = gameObjectInfo->chest.lootId;
+            lootId = gameObjectInfo->chest.chestLoot;
         else if (type == GAMEOBJECT_TYPE_FISHINGHOLE)
-            lootId = gameObjectInfo->fishinghole.lootId;
+            lootId = gameObjectInfo->fishingHole.chestLoot;
 
         handler->PSendSysMessage(LANG_GOINFO_ENTRY, entry);
         if (gameObject)

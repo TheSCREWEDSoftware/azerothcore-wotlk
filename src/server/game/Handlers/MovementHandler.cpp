@@ -23,6 +23,8 @@
 #include "Chat.h"
 #include "Corpse.h"
 #include "GameTime.h"
+#include "Garrison.h"
+#include "InstancePackets.h"
 #include "InstanceSaveMgr.h"
 #include "Log.h"
 #include "MapMgr.h"
@@ -52,11 +54,29 @@ void WorldSession::HandleSuspendTokenResponse(WorldPackets::Movement::SuspendTok
         return;
 
     WorldLocation const& loc = GetPlayer()->GetTeleportDest();
+
+    if (MapEntry const* mapEntry = sMapStore.LookupEntry(loc.GetMapId()))
+    {
+        if (mapEntry->IsDungeon())
+        {
+            WorldPackets::Instance::UpdateLastInstance updateLastInstance;
+            updateLastInstance.MapID = loc.GetMapId();
+            SendPacket(updateLastInstance.Write());
+        }
+    }
+
+    bool seamlessTeleport = GetPlayer()->IsBeingTeleportedSeamlessly();
+
     WorldPackets::Movement::NewWorld packet;
     packet.MapID = loc.GetMapId();
     packet.Pos = loc;
+    packet.Reason = seamlessTeleport ? NEW_WORLD_SEAMLESS : NEW_WORLD_NORMAL;
     SendPacket(packet.Write());
-    GetPlayer()->SendSavedInstances();
+
+    if (seamlessTeleport)
+        HandleMoveWorldportAck();
+    else
+        GetPlayer()->SendSavedInstances();
 }
 
 void WorldSession::HandleMoveWorldportAckOpcode(WorldPackets::Movement::WorldPortResponse& /*packet*/)
@@ -71,6 +91,7 @@ void WorldSession::HandleMoveWorldportAck()
     if (!GetPlayer()->IsBeingTeleportedFar())
         return;
 
+    bool seamlessTeleport = GetPlayer()->IsBeingTeleportedSeamlessly();
     GetPlayer()->SetSemaphoreTeleportFar(0);
 
     // get the teleport destination
@@ -122,7 +143,13 @@ void WorldSession::HandleMoveWorldportAck()
 
     GetPlayer()->UpdatePositionData();
 
-    GetPlayer()->SendInitialPacketsBeforeAddToMap();
+    WorldPackets::Movement::ResumeToken resumeToken;
+    resumeToken.SequenceIndex = 1;
+    resumeToken.Reason = seamlessTeleport ? 2 : 1;
+    SendPacket(resumeToken.Write());
+
+    if (!seamlessTeleport)
+        GetPlayer()->SendInitialPacketsBeforeAddToMap();
 
     if (GetPlayer()->GetPendingFlightChange() <= GetPlayer()->GetMapChangeOrderCounter())
     {
@@ -229,7 +256,14 @@ void WorldSession::HandleMoveWorldportAck()
     }
     newMap->LoadGrid(GetPlayer()->GetPositionX(), GetPlayer()->GetPositionY());
 
-    GetPlayer()->SendInitialPacketsAfterAddToMap();
+    if (!seamlessTeleport)
+        GetPlayer()->SendInitialPacketsAfterAddToMap();
+    else
+    {
+        GetPlayer()->UpdateObjectVisibility(false);
+        if (Garrison* garrison = GetPlayer()->GetGarrison())
+            garrison->SendRemoteInfo();
+    }
 
     // flight fast teleport case
     if (GetPlayer()->IsInFlight())

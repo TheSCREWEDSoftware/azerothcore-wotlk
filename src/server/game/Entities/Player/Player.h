@@ -57,6 +57,7 @@ struct TrainerSpell;
 struct VendorItem;
 
 class PlayerAchievementMgr;
+class Garrison;
 class ReputationMgr;
 class Channel;
 class CharacterCreateInfo;
@@ -496,6 +497,7 @@ enum PlayerFlags : uint32
     PLAYER_FLAGS_COMMENTATOR2      = 0x00400000,
     PLAYER_ALLOW_ONLY_ABILITY      = 0x00800000,                // used by bladestorm and killing spree, allowed only spells with SPELL_ATTR0_USES_RANGED_SLOT, SPELL_EFFECT_ATTACK, checked only for active player
     PLAYER_FLAGS_UNK24             = 0x01000000,                // disabled all melee ability on tab include autoattack
+    PLAYER_FLAGS_PET_BATTLES_UNLOCKED = 0x01000000,             // 6.x: enables pet battles (TC 6.x)
     PLAYER_FLAGS_NO_XP_GAIN        = 0x02000000,
     PLAYER_FLAGS_UNK26             = 0x04000000,
     PLAYER_FLAGS_AUTO_DECLINE_GUILD = 0x08000000,               // automatically declines guild invites (Cata)
@@ -834,6 +836,12 @@ enum RestFlag
     REST_FLAG_IN_FACTION_AREA   = 0x4, // used with AREA_FLAG_REST_ZONE_*
 };
 
+enum NewWorldReason
+{
+    NEW_WORLD_NORMAL    = 16,   // Normal map change
+    NEW_WORLD_SEAMLESS  = 21,   // Teleport to another map without a loading screen, used for outdoor scenarios
+};
+
 enum TeleportToOptions
 {
     TELE_TO_GM_MODE             = 0x01,
@@ -843,7 +851,8 @@ enum TeleportToOptions
     TELE_TO_SPELL               = 0x10,
     TELE_TO_NOT_LEAVE_VEHICLE   = 0x20,
     TELE_TO_WITH_PET            = 0x40,
-    TELE_TO_NOT_LEAVE_TAXI      = 0x80
+    TELE_TO_NOT_LEAVE_TAXI      = 0x80,
+    TELE_TO_SEAMLESS            = 0x100  // 6.x: no loading screen between maps sharing a cosmetic parent (garrisons)
 };
 
 /// Type of environmental damages
@@ -921,6 +930,11 @@ enum PlayerLoginQueryIndex
     PLAYER_LOGIN_QUERY_LOAD_CUF_PROFILES                 = 44,
     PLAYER_LOGIN_QUERY_LOAD_QUEST_STATUS_OBJECTIVES      = 45,
     PLAYER_LOGIN_QUERY_LOAD_AURA_EFFECTS                 = 46,
+    PLAYER_LOGIN_QUERY_LOAD_GARRISON                     = 47,
+    PLAYER_LOGIN_QUERY_LOAD_GARRISON_BLUEPRINTS          = 48,
+    PLAYER_LOGIN_QUERY_LOAD_GARRISON_BUILDINGS           = 49,
+    PLAYER_LOGIN_QUERY_LOAD_GARRISON_FOLLOWERS           = 50,
+    PLAYER_LOGIN_QUERY_LOAD_GARRISON_FOLLOWER_ABILITIES  = 51,
     MAX_PLAYER_LOGIN_QUERY
 };
 
@@ -2302,6 +2316,7 @@ public:
     [[nodiscard]] bool IsBeingTeleported() const { return mSemaphoreTeleport_Near != 0 || mSemaphoreTeleport_Far != 0; }
     [[nodiscard]] bool IsBeingTeleportedNear() const { return mSemaphoreTeleport_Near != 0; }
     [[nodiscard]] bool IsBeingTeleportedFar() const { return mSemaphoreTeleport_Far != 0; }
+    [[nodiscard]] bool IsBeingTeleportedSeamlessly() const { return IsBeingTeleportedFar() && (m_teleport_options & TELE_TO_SEAMLESS); }
     void SetSemaphoreTeleportNear(time_t tm) { mSemaphoreTeleport_Near = tm; }
     void SetSemaphoreTeleportFar(time_t tm) { mSemaphoreTeleport_Far = tm; }
     [[nodiscard]] time_t GetSemaphoreTeleportNear() const { return mSemaphoreTeleport_Near; }
@@ -2804,6 +2819,11 @@ public:
     void CompletedAchievement(AchievementEntry const* entry);
     [[nodiscard]] PlayerAchievementMgr* GetAchievementMgr() const { return m_achievementMgr; }
 
+    // 6.x garrisons (TC 6.x)
+    void CreateGarrison(uint32 garrSiteId);
+    void DeleteGarrison();
+    [[nodiscard]] Garrison* GetGarrison() const { return _garrison.get(); }
+
     void SetCreationTime(Seconds creationTime) { m_creationTime = creationTime; }
     [[nodiscard]] Seconds GetCreationTime() const { return m_creationTime; }
 
@@ -3133,6 +3153,7 @@ private:
     PlayerSpellMap m_spells;
     PlayerTalentMap m_talents;
     std::unique_ptr<Archaeology> _archaeology;
+    std::unique_ptr<Garrison> _garrison;
     uint32 m_lastPotionId;                              // last used health/mana potion in combat, that block next potion use
 
     GlobalCooldownMgr m_GlobalCooldownMgr;
@@ -3298,6 +3319,7 @@ private:
     // Current teleport data
     WorldLocation teleportStore_dest;
     uint32 teleportStore_options;
+    uint32 m_teleport_options = 0;
     time_t mSemaphoreTeleport_Near;
     time_t mSemaphoreTeleport_Far;
 

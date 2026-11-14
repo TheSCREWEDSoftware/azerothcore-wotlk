@@ -688,10 +688,10 @@ namespace Acore
             if (!go->isSpawned()) // xinef: dont allow to count deactivated objects
                 return false;
 
-            if (go->GetGOInfo()->spellFocus.focusId != i_focusId)
+            if (go->GetGOInfo()->spellFocus.spellFocusType != i_focusId)
                 return false;
 
-            float const dist = go->GetGOInfo()->spellFocus.dist;
+            float const dist = go->GetGOInfo()->spellFocus.radius;
 
             return go->IsWithinDistInMap(i_caster, dist);
         }
@@ -707,7 +707,7 @@ namespace Acore
         NearestGameObjectFishingHole(WorldObject const& obj, float range) : i_obj(obj), i_range(range) {}
         bool operator()(GameObject* go)
         {
-            if (go->GetGOInfo()->type == GAMEOBJECT_TYPE_FISHINGHOLE && go->isSpawned() && i_obj.IsWithinDistInMap(go, i_range) && i_obj.IsWithinDistInMap(go, (float)go->GetGOInfo()->fishinghole.radius))
+            if (go->GetGOInfo()->type == GAMEOBJECT_TYPE_FISHINGHOLE && go->isSpawned() && i_obj.IsWithinDistInMap(go, i_range) && i_obj.IsWithinDistInMap(go, (float)go->GetGOInfo()->fishingHole.radius))
             {
                 i_range = i_obj.GetDistance(go);
                 return true;

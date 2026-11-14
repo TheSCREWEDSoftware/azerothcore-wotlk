@@ -64,7 +64,7 @@ union GameObjectValue
     {
         uint32 MaxOpens;
     } FishingHole;
-    //29 GAMEOBJECT_TYPE_CAPTURE_POINT
+    //29 GAMEOBJECT_TYPE_CONTROL_ZONE
     struct
     {
         OPvPCapturePoint* OPvPObj;
@@ -74,6 +74,7 @@ union GameObjectValue
     {
         uint32 Health;
         uint32 MaxHealth;
+        uint32 DamagedHealth;
     } Building;
 };
 
@@ -305,6 +306,8 @@ public:
     void CastSpell(Unit* target, uint32 spellId);
     void SendCustomAnim(uint32 anim);
     void PlayAnimKit(int32 animKit);
+    void SetAnimKitId(uint16 animKitId, bool oneshot);
+    void RelocateStationaryPosition(float x, float y, float z, float o) { m_stationaryPosition.Relocate(x, y, z, o); }
     bool IsInRange2d(float x, float y, float radius) const;
     bool IsInRange3d(float x, float y, float z, float radius) const;
 

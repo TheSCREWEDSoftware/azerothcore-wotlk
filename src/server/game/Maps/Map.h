@@ -203,6 +203,8 @@ public:
     void OnCreateMap();
     //function for setting up visibility distance for maps on per-type/per-Id basis
     virtual void InitVisibilityDistance();
+    // called once the spawns of a grid are loaded (garrison maps add their plots here)
+    virtual void OnGridObjectsLoaded(MapGridType& /*grid*/) { }
 
     void PlayerRelocation(Player*, float x, float y, float z, float o);
     void CreatureRelocation(Creature* creature, float x, float y, float z, float o);
@@ -321,6 +323,7 @@ public:
 
     [[nodiscard]] bool Instanceable() const { return i_mapEntry && i_mapEntry->Instanceable(); }
     [[nodiscard]] bool IsDungeon() const { return i_mapEntry && i_mapEntry->IsDungeon(); }
+    [[nodiscard]] bool IsGarrison() const { return i_mapEntry && i_mapEntry->IsGarrison(); }
     [[nodiscard]] bool IsNonRaidDungeon() const { return i_mapEntry && i_mapEntry->IsNonRaidDungeon(); }
     [[nodiscard]] bool IsRaid() const { return i_mapEntry && i_mapEntry->IsRaid(); }
     [[nodiscard]] bool IsRaidOrHeroicDungeon() const { return IsRaid() || IsHeroic(); }

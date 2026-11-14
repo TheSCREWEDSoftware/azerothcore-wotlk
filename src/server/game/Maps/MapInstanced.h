@@ -22,6 +22,8 @@
 #include "InstanceSaveMgr.h"
 #include "Map.h"
 
+class GarrisonMap;
+
 class MapInstanced : public Map
 {
     friend class MapMgr;
@@ -52,6 +54,7 @@ public:
 private:
     InstanceMap* CreateInstance(uint32 InstanceId, InstanceSave* save, Difficulty difficulty, Player* player);
     BattlegroundMap* CreateBattleground(uint32 InstanceId, Battleground* bg);
+    GarrisonMap* CreateGarrison(uint32 instanceId, Player* owner);
 
     InstancedMaps m_InstancedMaps;
 };

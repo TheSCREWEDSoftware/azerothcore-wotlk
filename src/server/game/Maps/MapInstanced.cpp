@@ -17,6 +17,7 @@
 
 #include "MapInstanced.h"
 #include "Battleground.h"
+#include "GarrisonMap.h"
 #include "Group.h"
 #include "InstanceSaveMgr.h"
 #include "MapMgr.h"
@@ -135,6 +136,14 @@ Map* MapInstanced::CreateInstanceForPlayer(const uint32 mapId, Player* player)
             }
         }
     }
+    else if (IsGarrison())
+    {
+        // 6.x: one garrison instance per owner, keyed by the owner's guid (TC 6.x)
+        uint32 newInstanceId = uint32(player->GetGUID().GetCounter());
+        map = FindInstanceMap(newInstanceId);
+        if (!map)
+            map = CreateGarrison(newInstanceId, player);
+    }
     else
     {
         Difficulty realdiff = player->GetDifficulty(GetEntry());
@@ -248,6 +257,19 @@ BattlegroundMap* MapInstanced::CreateBattleground(uint32 InstanceId, Battlegroun
 
     map->OnCreateMap();
 
+    return map;
+}
+
+GarrisonMap* MapInstanced::CreateGarrison(uint32 instanceId, Player* owner)
+{
+    std::lock_guard<std::mutex> guard(Lock);
+
+    GarrisonMap* map = new GarrisonMap(GetId(), instanceId, this, owner->GetGUID());
+    ASSERT(map->IsGarrison());
+    m_InstancedMaps[instanceId] = map;
+
+    // no Map::OnCreateMap: its grids load when the owner arrives, so the plots can find the garrison
+    sScriptMgr->OnCreateMap(map);
     return map;
 }
 
