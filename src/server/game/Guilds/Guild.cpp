@@ -21,6 +21,7 @@
 #include "Bag.h"
 #include "Battleground.h"
 #include "CalendarMgr.h"
+#include "CalendarPackets.h"
 #include "CharacterCache.h"
 #include "Chat.h"
 #include "Config.h"
@@ -2701,16 +2702,13 @@ void Guild::BroadcastPacket(WorldPacket const* packet) const
 // 5.4.8 18414, from Project SkyFire
 void Guild::MassInviteToEvent(WorldSession* session, uint32 minLevel, uint32 maxLevel, uint32 minRank)
 {
-    uint32 count = 0;
-
-    ByteBuffer inviteeData;
-    WorldPacket data(SMSG_CALENDAR_EVENT_INITIAL_INVITE);
-    data.WriteBits(0, 23); // count placeholder
+    // 6.x 19342: SMSG_CALENDAR_EVENT_INITIAL_INVITES (TC 6.x)
+    WorldPackets::Calendar::CalendarEventInitialInvites packet;
 
     for (auto const& [guid, member] : m_members)
     {
         // not sure if needed, maybe client checks it as well
-        if (count >= CALENDAR_MAX_INVITES)
+        if (packet.Invites.size() >= CALENDAR_MAX_INVITES)
         {
             if (Player* player = session->GetPlayer())
                 sCalendarMgr->SendCalendarCommandResult(player->GetGUID(), CALENDAR_ERROR_INVITES_EXCEEDED);
@@ -2720,21 +2718,10 @@ void Guild::MassInviteToEvent(WorldSession* session, uint32 minLevel, uint32 max
         uint32 level = sCharacterCache->GetCharacterLevelByGuid(member.GetGUID());
 
         if (member.GetGUID() != session->GetPlayer()->GetGUID() && level >= minLevel && level <= maxLevel && member.IsRankNotLower(minRank))
-        {
-            ObjectGuid memberGuid = member.GetGUID();
-            data.WriteGuidMask(memberGuid, { 1, 7, 5, 0, 4, 3, 6, 2 });
-
-            inviteeData << uint8(level);
-            inviteeData.WriteGuidBytes(memberGuid, { 3, 5, 4, 6, 7, 0, 2, 1 });
-            ++count;
-        }
+            packet.Invites.emplace_back(member.GetGUID(), level);
     }
 
-    data.FlushBits();
-    data.PutBits(0, count, 23);
-    data.append(inviteeData);
-
-    session->SendPacket(&data);
+    session->SendPacket(packet.Write());
 }
 
 // Members handling

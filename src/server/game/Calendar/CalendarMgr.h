@@ -60,7 +60,8 @@ enum CalendarEventType
     CALENDAR_TYPE_DUNGEON           = 1,
     CALENDAR_TYPE_PVP               = 2,
     CALENDAR_TYPE_MEETING           = 3,
-    CALENDAR_TYPE_OTHER             = 4
+    CALENDAR_TYPE_OTHER             = 4,
+    CALENDAR_TYPE_HEROIC            = 5
 };
 
 enum CalendarRepeatType
@@ -131,6 +132,8 @@ enum CalendarLimits
     CALENDAR_CREATE_EVENT_COOLDOWN    = 5,
     CALENDAR_OLD_EVENTS_DELETION_TIME = 1 * MONTH,
 };
+
+constexpr time_t CALENDAR_DEFAULT_RESPONSE_TIME = 946684800; // 01/01/2000 00:00:00
 
 struct CalendarInvite
 {
