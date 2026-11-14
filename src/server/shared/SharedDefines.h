@@ -5375,8 +5375,9 @@ enum BattlegroundQueueTypeId : uint8
     MAX_BATTLEGROUND_QUEUE_TYPES = 20,
 };
 
-enum GroupJoinBattlegroundResult
+enum GroupJoinBattlegroundResult : int32
 {
+    ERR_BATTLEGROUND_SILENT                         = -1,       // AC: server side failure, the client gets no message
     ERR_BATTLEGROUND_NONE                           = 0,
     ERR_GROUP_JOIN_BATTLEGROUND_DESERTERS           = 2,        // You cannot join the battleground yet because you or one of your party members is flagged as a Deserter.
     ERR_ARENA_TEAM_PARTY_SIZE                       = 3,        // Incorrect party size for this arena.

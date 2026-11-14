@@ -16,6 +16,7 @@
  */
 
 #include "Battleground.h"
+#include "BattlegroundPackets.h"
 #include "ArenaSpectator.h"
 #include "ArenaTeam.h"
 #include "BattlegroundMgr.h"
@@ -133,6 +134,7 @@ Battleground::Battleground()
     m_ClientInstanceID  = 0;
     m_EndTime           = 0;
     m_LastResurrectTime = 0;
+    m_LastPlayerPositionBroadcast = 0;
     m_ArenaType         = 0;
     m_IsArena           = false;
     m_IsTemplate        = true;
@@ -237,6 +239,39 @@ uint32 Battleground::GetMinPlayersPerTeam() const
     return (lowLevelsOverride && !isTemplate() && !isMaxLevel() && !isArena()) ? lowLevelsOverride : m_MinPlayersPerTeam;
 }
 
+// 6.x: the client no longer asks for the flag carriers, the battleground broadcasts them (TC 6.x)
+void Battleground::_ProcessPlayerPositionBroadcast(uint32 diff)
+{
+    m_LastPlayerPositionBroadcast += diff;
+    if (m_LastPlayerPositionBroadcast < PLAYER_POSITION_UPDATE_INTERVAL)
+        return;
+
+    m_LastPlayerPositionBroadcast = 0;
+
+    WorldPackets::Battleground::BattlegroundPlayerPositions playerPositions;
+    for (TeamId teamId : { TEAM_ALLIANCE, TEAM_HORDE })
+    {
+        ObjectGuid guid = GetFlagPickerGUID(teamId);
+        if (!guid)
+            continue;
+
+        Player* carrier = ObjectAccessor::FindPlayer(guid);
+        if (!carrier)
+            continue;
+
+        WorldPackets::Battleground::BattlegroundPlayerPosition& position = playerPositions.FlagCarriers.emplace_back();
+        position.Guid = guid;
+        position.Pos.x = carrier->GetPositionX();
+        position.Pos.y = carrier->GetPositionY();
+        // the flag of team X is carried by a player of the other team
+        position.IconID = teamId == TEAM_ALLIANCE ? PLAYER_POSITION_ICON_ALLIANCE_FLAG : PLAYER_POSITION_ICON_HORDE_FLAG;
+        position.ArenaSlot = PLAYER_POSITION_ARENA_SLOT_NONE;
+    }
+
+    if (!playerPositions.FlagCarriers.empty())
+        SendPacketToAll(playerPositions.Write());
+}
+
 void Battleground::Update(uint32 diff)
 {
     // pussywizard:
@@ -286,6 +321,7 @@ void Battleground::Update(uint32 diff)
             }
             break;
         case STATUS_IN_PROGRESS:
+            _ProcessPlayerPositionBroadcast(diff);
             if (isArena())
             {
                 if (GetStartTime() >= 46 * MINUTE * IN_MILLISECONDS) // pussywizard: 1min startup + 45min allowed duration
@@ -1357,70 +1393,48 @@ void Battleground::SpectatorsSendPacket(WorldPacket& data)
 
 void Battleground::BuildPvPLogDataPacket(WorldPacket& data)
 {
-    // 5.4.8 18414, from Project SkyFire. Players that are no longer online are left out,
-    // the client needs their team and the count is written up front.
-    bool const arena = isArena();
-    std::vector<std::pair<BattlegroundScore const*, Player const*>> entries;
-    entries.reserve(PlayerScores.size());
-    for (auto const& [lowGuid, score] : PlayerScores)
-        if (Player const* player = ObjectAccessor::FindPlayer(score->GetPlayerGuid()))
-            entries.emplace_back(score, player);
-
-    data.Initialize(SMSG_PVP_LOG_DATA, 2 + 4 + entries.size() * 64);
-    data << uint8(GetPlayersCountByTeam(TEAM_ALLIANCE));
-    data << uint8(GetPlayersCountByTeam(TEAM_HORDE));
-
-    data.WriteBit(GetStatus() == STATUS_WAIT_LEAVE);
-    data.WriteBit(false);
-    data.WriteBit(false);                                   // rated
-    data.WriteBits(entries.size(), 19);
-
-    ByteBuffer buff;
-    std::vector<uint32> stats;
-    for (auto const& [score, player] : entries)
-    {
-        ObjectGuid guid = score->GetPlayerGuid();
-        stats.clear();
-        score->BuildObjectivesBlock(stats);
-
-        data.WriteGuidMask(guid, { 6 });
-        data.WriteBit(player->GetBgTeamId() == TEAM_ALLIANCE);
-        data.WriteBit(false);                               // rating change
-        data.WriteGuidMask(guid, { 0 });
-        data.WriteBit(false);                               // mmr change
-        data.WriteGuidMask(guid, { 7 });
-        data.WriteBit(false);                               // pre-match mmr
-        data.WriteGuidMask(guid, { 3 });
-        data.WriteBit(false);                               // pre-match rating
-        data.WriteGuidMask(guid, { 4, 1 });
-        data.WriteBits(stats.size(), 22);
-        data.WriteBit(player->IsInWorld());
-        data.WriteBit(!arena);                              // has honor block
-        data.WriteGuidMask(guid, { 5, 2 });
-
-        buff << uint32(score->GetHealingDone());
-        buff.WriteGuidBytes(guid, { 4, 5, 2 });
-        if (!arena)
-        {
-            buff << uint32(score->GetDeaths());
-            buff << uint32(score->GetHonorableKills());
-            buff << uint32(score->GetBonusHonor());
-        }
-
-        buff.WriteGuidBytes(guid, { 3 });
-        buff << uint32(score->GetDamageDone());
-        buff << uint32(score->GetKillingBlows());
-        buff.WriteGuidBytes(guid, { 1, 6, 7, 0 });
-        buff << int32(0);                                   // specialization id, pending the 5.4.8 talent rework
-        for (uint32 stat : stats)
-            buff << uint32(stat);
-    }
-
-    data.FlushBits();
-    data.append(buff);
+    // 6.x 19342, from TrinityCore. The client counts factions as BG_TEAM_HORDE (0) and BG_TEAM_ALLIANCE (1).
+    // Players that are no longer online are left out, the client needs their team.
+    WorldPackets::Battleground::PVPLogData pvpLogData;
 
     if (GetStatus() == STATUS_WAIT_LEAVE)
-        data << uint8(GetWinner());
+        pvpLogData.Winner = uint8(GetWinner());             // PvPTeamId uses the client numbering
+
+    pvpLogData.Players.reserve(PlayerScores.size());
+    for (auto const& [lowGuid, score] : PlayerScores)
+    {
+        Player const* player = ObjectAccessor::FindPlayer(score->GetPlayerGuid());
+        if (!player)
+            continue;
+
+        WorldPackets::Battleground::PVPLogData::PlayerData& playerData = pvpLogData.Players.emplace_back();
+        playerData.PlayerGUID = score->GetPlayerGuid();
+        playerData.Kills = score->GetKillingBlows();
+        playerData.Faction = player->GetBgTeamId() == TEAM_ALLIANCE ? 1 : 0;
+        playerData.IsInWorld = player->IsInWorld();
+        if (!isArena())
+        {
+            playerData.Honor.emplace();
+            playerData.Honor->HonorKills = score->GetHonorableKills();
+            playerData.Honor->Deaths = score->GetDeaths();
+            playerData.Honor->ContributionPoints = score->GetBonusHonor();
+        }
+
+        playerData.DamageDone = score->GetDamageDone();
+        playerData.HealingDone = score->GetHealingDone();
+
+        std::vector<uint32> stats;
+        score->BuildObjectivesBlock(stats);
+        playerData.Stats.assign(stats.begin(), stats.end());
+
+        playerData.PrimaryTalentTree = int32(player->GetUInt32Value(PLAYER_FIELD_CURRENT_SPEC_ID));
+        playerData.Race = player->getRace();
+
+        ++pvpLogData.PlayerCount[playerData.Faction];
+    }
+
+    pvpLogData.Write();
+    data = pvpLogData.Move();
 }
 
 bool Battleground::UpdatePlayerScore(Player* player, uint32 type, uint32 value, bool doAddHonor)

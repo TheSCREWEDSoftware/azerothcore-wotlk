@@ -20,6 +20,7 @@
 #include "RBAC.h"
 #include "Battleground.h"
 #include "BattlegroundMgr.h"
+#include "BattlegroundPackets.h"
 #include "ArchaeologyPackets.h"
 #include "CharacterPackets.h"
 #include "Chat.h"
@@ -1944,16 +1945,10 @@ void WorldSession::HandleReadyForAccountDataTimes(WorldPacket& /*recv_data*/)
 }
 
 //Battlefield and Battleground
-void WorldSession::HandleAreaSpiritHealerQueryOpcode(WorldPacket& recv_data)
+void WorldSession::HandleAreaSpiritHealerQueryOpcode(WorldPackets::Battleground::AreaSpiritHealerQuery& areaSpiritHealerQuery)
 {
-    LOG_DEBUG("network", "WORLD: CMSG_AREA_SPIRIT_HEALER_QUERY");
-
     Battleground* bg = _player->GetBattleground();
-
-    ObjectGuid guid;
-    // 5.4.8 18414, from Project SkyFire
-    recv_data.ReadGuidMask(guid, { 5, 6, 0, 4, 1, 2, 7, 3 });
-    recv_data.ReadGuidBytes(guid, { 0, 2, 6, 7, 1, 5, 3, 4 });
+    ObjectGuid guid = areaSpiritHealerQuery.HealerGuid;
 
     Creature* unit = GetPlayer()->GetMap()->GetCreature(guid);
     if (!unit)
@@ -1969,16 +1964,10 @@ void WorldSession::HandleAreaSpiritHealerQueryOpcode(WorldPacket& recv_data)
         bf->SendAreaSpiritHealerQueryOpcode(_player, guid);
 }
 
-void WorldSession::HandleAreaSpiritHealerQueueOpcode(WorldPacket& recv_data)
+void WorldSession::HandleAreaSpiritHealerQueueOpcode(WorldPackets::Battleground::AreaSpiritHealerQueue& areaSpiritHealerQueue)
 {
-    LOG_DEBUG("network", "WORLD: CMSG_AREA_SPIRIT_HEALER_QUEUE");
-
     Battleground* bg = _player->GetBattleground();
-
-    ObjectGuid guid;
-    // 5.4.8 18414, from Project SkyFire
-    recv_data.ReadGuidMask(guid, { 5, 4, 0, 2, 7, 1, 6, 3 });
-    recv_data.ReadGuidBytes(guid, { 1, 7, 6, 2, 4, 3, 0, 5 });
+    ObjectGuid guid = areaSpiritHealerQueue.HealerGuid;
 
     Creature* unit = GetPlayer()->GetMap()->GetCreature(guid);
     if (!unit)
@@ -1994,7 +1983,7 @@ void WorldSession::HandleAreaSpiritHealerQueueOpcode(WorldPacket& recv_data)
         bf->AddPlayerToResurrectQueue(guid, _player->GetGUID());
 }
 
-void WorldSession::HandleHearthAndResurrect(WorldPacket& /*recv_data*/)
+void WorldSession::HandleHearthAndResurrect(WorldPackets::Battleground::HearthAndResurrect& /*hearthAndResurrect*/)
 {
     if (_player->IsInFlight())
         return;
@@ -2006,7 +1995,7 @@ void WorldSession::HandleHearthAndResurrect(WorldPacket& /*recv_data*/)
     }
 
     AreaTableEntry const* atEntry = sAreaTableStore.LookupEntry(_player->GetAreaId());
-    if (!atEntry || !(atEntry->flags & AREA_FLAG_WINTERGRASP_2))
+    if (!atEntry || !(atEntry->Flags[0] & AREA_FLAG_CAN_HEARTH_AND_RESURRECT))
         return;
 
     _player->BuildPlayerRepop();

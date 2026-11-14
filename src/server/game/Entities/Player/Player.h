@@ -2508,6 +2508,7 @@ public:
     [[nodiscard]] bool IsDeserter() const { return HasAura(26013); }
 
     [[nodiscard]] BattlegroundQueueTypeId GetBattlegroundQueueTypeId(uint32 index) const;
+    [[nodiscard]] uint32 GetBattlegroundQueueJoinTime(uint32 index) const { return index < PLAYER_MAX_BATTLEGROUND_QUEUES ? _BgBattlegroundQueueID[index].joinTime : 0; }
     [[nodiscard]] uint32 GetBattlegroundQueueIndex(BattlegroundQueueTypeId bgQueueTypeId) const;
     [[nodiscard]] bool IsInvitedForBattlegroundQueueType(BattlegroundQueueTypeId bgQueueTypeId) const;
     [[nodiscard]] bool InBattlegroundQueueForBattlegroundQueueType(BattlegroundQueueTypeId bgQueueTypeId) const;
@@ -2940,6 +2941,7 @@ protected:
     {
         BattlegroundQueueTypeId bgQueueTypeId;
         uint32 invitedToInstance;
+        uint32 joinTime;                                    // 6.x: ride ticket time, GameTime milliseconds
     };
 
     std::array<BgBattlegroundQueueID_Rec, PLAYER_MAX_BATTLEGROUND_QUEUES> _BgBattlegroundQueueID;

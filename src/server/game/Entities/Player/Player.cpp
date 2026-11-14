@@ -245,6 +245,7 @@ Player::Player(WorldSession* session): Unit(), m_mover(this), _cinematicMgr(*thi
     {
         _BgBattlegroundQueueID[j].bgQueueTypeId = BATTLEGROUND_QUEUE_NONE;
         _BgBattlegroundQueueID[j].invitedToInstance = 0;
+        _BgBattlegroundQueueID[j].joinTime = 0;
     }
 
     m_logintime = GameTime::GetGameTime().count();
@@ -12990,6 +12991,9 @@ uint32 Player::AddBattlegroundQueueId(BattlegroundQueueTypeId val)
     {
         if (_BgBattlegroundQueueID[i].bgQueueTypeId == BATTLEGROUND_QUEUE_NONE || _BgBattlegroundQueueID[i].bgQueueTypeId == val)
         {
+            if (_BgBattlegroundQueueID[i].bgQueueTypeId != val)
+                _BgBattlegroundQueueID[i].joinTime = uint32(GameTime::GetGameTimeMS().count());
+
             _BgBattlegroundQueueID[i].bgQueueTypeId = val;
             _BgBattlegroundQueueID[i].invitedToInstance = 0;
             return i;
@@ -13016,6 +13020,7 @@ void Player::RemoveBattlegroundQueueId(BattlegroundQueueTypeId val)
         {
             _BgBattlegroundQueueID[i].bgQueueTypeId = BATTLEGROUND_QUEUE_NONE;
             _BgBattlegroundQueueID[i].invitedToInstance = 0;
+            // joinTime stays: the BattlefieldStatusNone sent after leaving the queue carries the ticket time
             return;
         }
     }

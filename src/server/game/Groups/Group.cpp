@@ -2443,11 +2443,11 @@ GroupJoinBattlegroundResult Group::CanJoinBattlegroundQueue(Battleground const* 
 
     BattlemasterListEntry const* bgEntry = sBattlemasterListStore.LookupEntry(bgTemplate->GetBgTypeID());
     if (!bgEntry)
-        return ERR_GROUP_JOIN_BATTLEGROUND_FAIL;
+        return ERR_BATTLEGROUND_JOIN_FAILED;
 
     // too many players in the group
     if (GetMembersCount() > bgEntry->MaxGroupSize)
-        return ERR_BATTLEGROUND_NONE;
+        return ERR_BATTLEGROUND_SILENT;
 
     // get a player as reference, to compare other players' stats to (arena team id, level bracket, etc.)
     Player* reference = GetFirstMember()->GetSource();
@@ -2520,13 +2520,13 @@ GroupJoinBattlegroundResult Group::CanJoinBattlegroundQueue(Battleground const* 
 
         // don't let Death Knights join BG queues when they are not allowed to be teleported yet
         if (member->IsClass(CLASS_DEATH_KNIGHT, CLASS_CONTEXT_TELEPORT) && member->GetMapId() == MAP_EBON_HOLD && !member->IsGameMaster() && !member->HasSpell(50977))
-            return ERR_GROUP_JOIN_BATTLEGROUND_FAIL;
+            return ERR_BATTLEGROUND_JOIN_FAILED;
 
         if (!member->GetBGAccessByLevel(bgTemplate->GetBgTypeID()))
             return ERR_BATTLEGROUND_JOIN_TIMED_OUT;
 
         if (member->HasPlayerFlag(PLAYER_FLAGS_NO_PLAY_TIME)) // Assumed to only apply to full restriction rather than partial
-            return ERR_GROUP_JOIN_BATTLEGROUND_FAIL; // ERR_ARENA_EXPIRED_CAIS does not seem to be a result, so using this error instead
+            return ERR_BATTLEGROUND_JOIN_FAILED; // ERR_ARENA_EXPIRED_CAIS does not seem to be a result, so using this error instead
     }
 
     // for arenas: check party size is proper
@@ -2562,7 +2562,7 @@ GroupJoinBattlegroundResult Group::CanJoinBattlegroundQueue(Battleground const* 
         }
     }
 
-    return GroupJoinBattlegroundResult(bgTemplate->GetBgTypeID());
+    return ERR_BATTLEGROUND_NONE;
 }
 
 void Group::DoMinimapPing(ObjectGuid sourceGuid, float mapX, float mapY)

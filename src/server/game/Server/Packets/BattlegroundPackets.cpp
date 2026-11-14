@@ -285,3 +285,38 @@ WorldPacket const* WorldPackets::Battleground::DestroyArenaUnit::Write()
     _worldPacket << Guid;
     return &_worldPacket;
 }
+
+WorldPacket const* WorldPackets::Battleground::RequestPVPRewardsResponse::Write()
+{
+    _worldPacket << uint32(RewardPointsThisWeek);
+    _worldPacket << uint32(MaxRewardPointsThisWeek);
+    _worldPacket << uint32(RatedRewardPointsThisWeek);
+    _worldPacket << uint32(RatedMaxRewardPointsThisWeek);
+    _worldPacket << uint32(RandomRewardPointsThisWeek);
+    _worldPacket << uint32(RandomMaxRewardPointsThisWeek);
+    _worldPacket << uint32(ArenaRewardPointsThisWeek);
+    _worldPacket << uint32(ArenaMaxRewardPointsThisWeek);
+    _worldPacket << uint32(ArenaRewardPoints);
+    _worldPacket << uint32(RatedRewardPoints);
+    for (WorldPackets::LFG::LfgPlayerQuestReward const& reward : ShortageReward)
+        _worldPacket << reward;
+
+    return &_worldPacket;
+}
+
+WorldPacket const* WorldPackets::Battleground::RatedBattlefieldInfo::Write()
+{
+    for (BracketInfo const& bracket : Bracket)
+    {
+        _worldPacket << int32(bracket.PersonalRating);
+        _worldPacket << int32(bracket.Ranking);
+        _worldPacket << int32(bracket.SeasonPlayed);
+        _worldPacket << int32(bracket.SeasonWon);
+        _worldPacket << int32(bracket.WeeklyPlayed);
+        _worldPacket << int32(bracket.WeeklyWon);
+        _worldPacket << int32(bracket.BestWeeklyRating);
+        _worldPacket << int32(bracket.BestSeasonRating);
+    }
+
+    return &_worldPacket;
+}

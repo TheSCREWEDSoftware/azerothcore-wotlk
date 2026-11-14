@@ -405,6 +405,49 @@ namespace WorldPackets
 
             void Read() override { }
         };
+
+        // 6.x 19342 (6.1+ layout): not written by TC 6.x, layouts from WowPacketParser V6_0_2 (BattlegroundHandler)
+        class RequestPVPRewardsResponse final : public ServerPacket
+        {
+        public:
+            RequestPVPRewardsResponse() : ServerPacket(SMSG_REQUEST_PVP_REWARDS_RESPONSE, 40 + 2 * 40) { }
+
+            WorldPacket const* Write() override;
+
+            uint32 RewardPointsThisWeek = 0;
+            uint32 MaxRewardPointsThisWeek = 0;
+            uint32 RatedRewardPointsThisWeek = 0;
+            uint32 RatedMaxRewardPointsThisWeek = 0;
+            uint32 RandomRewardPointsThisWeek = 0;
+            uint32 RandomMaxRewardPointsThisWeek = 0;
+            uint32 ArenaRewardPointsThisWeek = 0;
+            uint32 ArenaMaxRewardPointsThisWeek = 0;
+            uint32 ArenaRewardPoints = 0;
+            uint32 RatedRewardPoints = 0;
+            WorldPackets::LFG::LfgPlayerQuestReward ShortageReward[2];
+        };
+
+        class RatedBattlefieldInfo final : public ServerPacket
+        {
+        public:
+            struct BracketInfo
+            {
+                int32 PersonalRating = 0;
+                int32 Ranking = 0;
+                int32 SeasonPlayed = 0;
+                int32 SeasonWon = 0;
+                int32 WeeklyPlayed = 0;
+                int32 WeeklyWon = 0;
+                int32 BestWeeklyRating = 0;
+                int32 BestSeasonRating = 0;
+            };
+
+            RatedBattlefieldInfo() : ServerPacket(SMSG_RATED_BATTLEFIELD_INFO, 6 * 32) { }
+
+            WorldPacket const* Write() override;
+
+            BracketInfo Bracket[6];                         // 2v2, 3v3, 5v5, rated battleground and two unused
+        };
     }
 }
 

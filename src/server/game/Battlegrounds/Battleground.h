@@ -167,6 +167,23 @@ enum BattlegroundTimeIntervals
 #define BERSERKING_BUFF_RESPAWN_TIME (sWorld->getIntConfig(CONFIG_BATTLEGROUND_BERSERKING_BUFF_RESPAWN))
 #define SPEED_BUFF_RESPAWN_TIME (sWorld->getIntConfig(CONFIG_BATTLEGROUND_SPEED_BUFF_RESPAWN))
 
+// 6.x: flag carrier positions broadcast (TrinityCore 6.x)
+enum BattlegroundPlayerPositionConstants
+{
+    PLAYER_POSITION_UPDATE_INTERVAL     = 5 * IN_MILLISECONDS,  // TC 6.x compares 5 with milliseconds
+
+    PLAYER_POSITION_ICON_NONE           = 0,
+    PLAYER_POSITION_ICON_HORDE_FLAG     = 1,
+    PLAYER_POSITION_ICON_ALLIANCE_FLAG  = 2,
+
+    PLAYER_POSITION_ARENA_SLOT_NONE     = 1,
+    PLAYER_POSITION_ARENA_SLOT_1        = 2,
+    PLAYER_POSITION_ARENA_SLOT_2        = 3,
+    PLAYER_POSITION_ARENA_SLOT_3        = 4,
+    PLAYER_POSITION_ARENA_SLOT_4        = 5,
+    PLAYER_POSITION_ARENA_SLOT_5        = 6
+};
+
 enum BattlegroundStartTimeIntervals
 {
     BG_START_DELAY_2M               = 120000,               // ms (2 minutes)
@@ -623,6 +640,7 @@ protected:
     void PlayerAddedToBGCheckIfBGIsRunning(Player* player);
 
     void _ProcessResurrect(uint32 diff);
+    void _ProcessPlayerPositionBroadcast(uint32 diff);
     void _ProcessProgress(uint32 diff);
     void _ProcessLeave(uint32 diff);
     void _ProcessJoin(uint32 diff);
@@ -672,6 +690,7 @@ private:
     uint32 m_ValidStartPositionTimer;
     int32 m_EndTime;                                    // it is set to 120000 when bg is ending and it decreases itself
     uint32 m_LastResurrectTime;
+    uint32 m_LastPlayerPositionBroadcast;
     BattlegroundBracketId m_BracketId{ BG_BRACKET_ID_FIRST };
     uint8  m_ArenaType;                                 // 2=2v2, 3=3v3, 5=5v5
     bool   _InBGFreeSlotQueue{ false };                // used to make sure that BG is only once inserted into the BattlegroundMgr.BGFreeSlotQueue[bgTypeId] deque

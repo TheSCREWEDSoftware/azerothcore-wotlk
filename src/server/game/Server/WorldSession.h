@@ -68,6 +68,11 @@ struct TradeStatusInfo;
 
 namespace WorldPackets
 {
+    namespace Archaeology
+    {
+        class RequestResearchHistory;
+    }
+
     namespace Achievement
     {
         class GuildSetFocusedAchievement;
@@ -1335,6 +1340,7 @@ public:                                                 // opcodes handlers
     void HandleNameQueryOpcode(WorldPackets::Query::QueryPlayerName& packet);
     void HandleQueryTimeOpcode(WorldPackets::Query::QueryTime& queryTime);
     void HandleQueryRealmName(WorldPackets::Query::QueryRealmName& queryRealmName);
+    void HandleRequestResearchHistory(WorldPackets::Archaeology::RequestResearchHistory& packet);
     void HandleCreatureQuery(WorldPackets::Query::QueryCreature& packet);
     void HandleDBQueryBulk(WorldPackets::Query::DBQueryBulk& packet);
     void HandleGameObjectQueryOpcode(WorldPackets::Query::QueryGameObject& packet);
