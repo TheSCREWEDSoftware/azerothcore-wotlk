@@ -1,13 +1,14 @@
--- MySQL dump 10.13  Distrib 8.4.3, for Win64 (x86_64)
+/*M!999999\- enable the sandbox mode */ 
+-- MariaDB dump 10.19  Distrib 10.11.14-MariaDB, for debian-linux-gnu (x86_64)
 --
--- Host: localhost    Database: acore_world
+-- Host: localhost    Database: acore_world_build
 -- ------------------------------------------------------
--- Server version	8.4.3
+-- Server version	10.11.14-MariaDB-0ubuntu0.24.04.1
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
 /*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!50503 SET NAMES utf8mb4 */;
+/*!40101 SET NAMES utf8mb4 */;
 /*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
 /*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
@@ -19,13 +20,13 @@
 
 DROP TABLE IF EXISTS `achievement_criteria_data`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `achievement_criteria_data` (
-  `criteria_id` int NOT NULL,
-  `type` tinyint unsigned NOT NULL DEFAULT '0',
-  `value1` int unsigned NOT NULL DEFAULT '0',
-  `value2` int unsigned NOT NULL DEFAULT '0',
-  `ScriptName` char(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `criteria_id` int(11) NOT NULL,
+  `type` tinyint(3) unsigned NOT NULL DEFAULT 0,
+  `value1` int(10) unsigned NOT NULL DEFAULT 0,
+  `value2` int(10) unsigned NOT NULL DEFAULT 0,
+  `ScriptName` char(64) NOT NULL DEFAULT '',
   PRIMARY KEY (`criteria_id`,`type`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Achievment system';
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -1699,13 +1700,13 @@ INSERT INTO `achievement_criteria_data` VALUES
 (10069,12,1,0,''),
 (10072,12,1,0,''),
 (10073,12,0,0,''),
-(10074,11,0,0,'achievement_xt002_nerf_engineering'),
+(10074,11,0,0,'achievement_nerf_engineering'),
 (10074,12,0,0,''),
-(10075,11,0,0,'achievement_xt002_nerf_engineering'),
+(10075,11,0,0,'achievement_nerf_engineering'),
 (10075,12,1,0,''),
-(10077,11,0,0,'achievement_xt002_nerf_gravity_bombs'),
+(10077,11,0,0,'achievement_nerf_gravity_bombs'),
 (10077,12,0,0,''),
-(10079,11,0,0,'achievement_xt002_nerf_gravity_bombs'),
+(10079,11,0,0,'achievement_nerf_gravity_bombs'),
 (10079,12,1,0,''),
 (10080,12,0,0,''),
 (10081,12,1,0,''),
@@ -1752,8 +1753,10 @@ INSERT INTO `achievement_criteria_data` VALUES
 (10219,11,0,0,'achievement_flame_leviathan_orbituary'),
 (10219,12,1,0,''),
 (10220,7,64193,1,''),
+(10220,11,0,0,'achievement_heartbreaker'),
 (10220,12,1,0,''),
 (10221,7,65737,1,''),
+(10221,11,0,0,'achievement_heartbreaker'),
 (10221,12,0,0,''),
 (10223,11,0,0,'achievement_staying_buffed_all_winter_10'),
 (10223,12,0,0,''),
@@ -2864,4 +2867,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-06-01 22:39:26
+-- Dump completed on 2026-11-14  1:20:24

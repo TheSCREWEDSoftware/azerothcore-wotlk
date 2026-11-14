@@ -1,13 +1,14 @@
--- MySQL dump 10.13  Distrib 8.4.3, for Win64 (x86_64)
+/*M!999999\- enable the sandbox mode */ 
+-- MariaDB dump 10.19  Distrib 10.11.14-MariaDB, for debian-linux-gnu (x86_64)
 --
--- Host: localhost    Database: acore_world
+-- Host: localhost    Database: acore_world_build
 -- ------------------------------------------------------
--- Server version	8.4.3
+-- Server version	10.11.14-MariaDB-0ubuntu0.24.04.1
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
 /*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!50503 SET NAMES utf8mb4 */;
+/*!40101 SET NAMES utf8mb4 */;
 /*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
 /*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
@@ -19,15 +20,15 @@
 
 DROP TABLE IF EXISTS `lfg_dungeon_template`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `lfg_dungeon_template` (
-  `dungeonId` int unsigned NOT NULL DEFAULT '0' COMMENT 'Unique id from LFGDungeons.dbc',
-  `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `position_x` float NOT NULL DEFAULT '0',
-  `position_y` float NOT NULL DEFAULT '0',
-  `position_z` float NOT NULL DEFAULT '0',
-  `orientation` float NOT NULL DEFAULT '0',
-  `VerifiedBuild` int DEFAULT NULL,
+  `dungeonId` int(10) unsigned NOT NULL DEFAULT 0 COMMENT 'Unique id from LFGDungeons.dbc',
+  `name` varchar(255) DEFAULT NULL,
+  `position_x` float NOT NULL DEFAULT 0,
+  `position_y` float NOT NULL DEFAULT 0,
+  `position_z` float NOT NULL DEFAULT 0,
+  `orientation` float NOT NULL DEFAULT 0,
+  `VerifiedBuild` int(11) DEFAULT NULL,
   PRIMARY KEY (`dungeonId`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -53,6 +54,8 @@ INSERT INTO `lfg_dungeon_template` VALUES
 (163,'Scarlet Monastery - Armory',1610.83,-323.433,18.6738,6.28022,0),
 (164,'Scarlet Monastery - Cathedral',855.683,1321.5,18.6709,0.001747,0),
 (165,'Scarlet Monastery - Library',255.346,-209.09,18.6773,6.26656,0),
+(216,'Gundrak',1882.32,631.027,176.696,3.14159,0),
+(217,'Gundrak',1882.32,631.027,176.696,3.14159,0),
 (272,'Maraudon - Purple Crystals',752.91,-616.53,-33.11,1.37,0),
 (273,'Maraudon - Pristine Waters',495.702,17.3372,-96.3128,3.11854,0),
 (274,'Stratholme - Service Entrance',3593.15,-3646.56,138.5,5.33,0),
@@ -72,4 +75,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-06-01 22:40:10
+-- Dump completed on 2026-11-14  1:20:29

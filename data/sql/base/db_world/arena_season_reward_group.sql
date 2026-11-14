@@ -1,13 +1,14 @@
--- MySQL dump 10.13  Distrib 8.4.3, for Win64 (x86_64)
+/*M!999999\- enable the sandbox mode */ 
+-- MariaDB dump 10.19  Distrib 10.11.14-MariaDB, for debian-linux-gnu (x86_64)
 --
--- Host: localhost    Database: acore_world
+-- Host: localhost    Database: acore_world_build
 -- ------------------------------------------------------
--- Server version	8.4.3
+-- Server version	10.11.14-MariaDB-0ubuntu0.24.04.1
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
 /*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!50503 SET NAMES utf8mb4 */;
+/*!40101 SET NAMES utf8mb4 */;
 /*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
 /*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
@@ -19,17 +20,17 @@
 
 DROP TABLE IF EXISTS `arena_season_reward_group`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `arena_season_reward_group` (
-  `id` int NOT NULL AUTO_INCREMENT,
-  `arena_season` tinyint unsigned NOT NULL,
-  `criteria_type` enum('pct','abs') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pct' COMMENT 'Determines how rankings are evaluated: "pct" - percentage-based (e.g., top 20% of the ladder), "abs" - absolute position-based (e.g., top 10 players).',
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `arena_season` tinyint(3) unsigned NOT NULL,
+  `criteria_type` enum('pct','abs') NOT NULL DEFAULT 'pct' COMMENT 'Determines how rankings are evaluated: "pct" - percentage-based (e.g., top 20% of the ladder), "abs" - absolute position-based (e.g., top 10 players).',
   `min_criteria` float NOT NULL,
   `max_criteria` float NOT NULL,
-  `reward_mail_template_id` int unsigned DEFAULT NULL,
-  `reward_mail_subject` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `reward_mail_body` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-  `gold_reward` int unsigned DEFAULT NULL,
+  `reward_mail_template_id` int(10) unsigned DEFAULT NULL,
+  `reward_mail_subject` varchar(255) DEFAULT NULL,
+  `reward_mail_body` text DEFAULT NULL,
+  `gold_reward` int(10) unsigned DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=40 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -91,4 +92,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-06-01 22:39:30
+-- Dump completed on 2026-11-14  1:20:25

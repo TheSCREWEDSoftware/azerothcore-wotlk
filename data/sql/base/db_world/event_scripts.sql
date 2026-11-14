@@ -1,13 +1,14 @@
--- MySQL dump 10.13  Distrib 8.4.3, for Win64 (x86_64)
+/*M!999999\- enable the sandbox mode */ 
+-- MariaDB dump 10.19  Distrib 10.11.14-MariaDB, for debian-linux-gnu (x86_64)
 --
--- Host: localhost    Database: acore_world
+-- Host: localhost    Database: acore_world_build
 -- ------------------------------------------------------
--- Server version	8.4.3
+-- Server version	10.11.14-MariaDB-0ubuntu0.24.04.1
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
 /*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!50503 SET NAMES utf8mb4 */;
+/*!40101 SET NAMES utf8mb4 */;
 /*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
 /*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
@@ -19,18 +20,18 @@
 
 DROP TABLE IF EXISTS `event_scripts`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `event_scripts` (
-  `id` int unsigned NOT NULL DEFAULT '0',
-  `delay` int unsigned NOT NULL DEFAULT '0',
-  `command` int unsigned NOT NULL DEFAULT '0',
-  `datalong` int unsigned NOT NULL DEFAULT '0',
-  `datalong2` int unsigned NOT NULL DEFAULT '0',
-  `dataint` int NOT NULL DEFAULT '0',
-  `x` float NOT NULL DEFAULT '0',
-  `y` float NOT NULL DEFAULT '0',
-  `z` float NOT NULL DEFAULT '0',
-  `o` float NOT NULL DEFAULT '0'
+  `id` int(10) unsigned NOT NULL DEFAULT 0,
+  `delay` int(10) unsigned NOT NULL DEFAULT 0,
+  `command` int(10) unsigned NOT NULL DEFAULT 0,
+  `datalong` int(10) unsigned NOT NULL DEFAULT 0,
+  `datalong2` int(10) unsigned NOT NULL DEFAULT 0,
+  `dataint` int(11) NOT NULL DEFAULT 0,
+  `x` float NOT NULL DEFAULT 0,
+  `y` float NOT NULL DEFAULT 0,
+  `z` float NOT NULL DEFAULT 0,
+  `o` float NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -208,7 +209,6 @@ INSERT INTO `event_scripts` VALUES
 (12650,15,8,18384,30,0,0,0,0,0),
 (14274,2,10,22114,3000000,0,2669.7,5650.77,-13.45,4.55),
 (14536,2,10,21514,30000,0,3629.58,7163.36,141.83,2.37),
-(14536,0,10,10204,30000,0,3605.5,7186.44,141.12,5.45),
 (15406,5,10,23789,300000,0,-4713.87,-3730.99,54.14,0.6),
 (14400,2,10,21514,30000,0,3629.58,7163.36,141.83,2.37),
 (3981,0,10,9684,3000000,0,-7196.45,-2405.63,-217.28,4.8),
@@ -314,10 +314,6 @@ INSERT INTO `event_scripts` VALUES
 (11087,0,10,17592,150000,0,-1121.53,-12600.8,134.03,2.86),
 (13961,3,10,21310,50000,0,-3590.54,1832.34,41.7499,1.65),
 (17451,2,10,25986,300000,0,2798.57,5275.49,21.7547,2.03006),
-(17430,5,10,26224,900000,0,3615.42,3654.44,26.1622,1.58951),
-(17430,5,10,26224,900000,0,3616.73,3653.83,26.2139,1.904),
-(17430,5,10,26224,900000,0,3615.34,3645.98,24.7895,1.71918),
-(17430,8,10,26225,900000,0,3616.73,3653.83,26.2139,1.78023),
 (466,0,9,46424,0,0,0,0,0,0),
 (467,0,9,46425,0,0,0,0,0,0),
 (468,0,9,46429,0,0,0,0,0,0),
@@ -501,7 +497,8 @@ INSERT INTO `event_scripts` VALUES
 (16716,6,10,25457,15000,0,4530.32,5680.65,82.4566,3.76991),
 (16716,6,10,25457,15000,0,4529.92,5678.6,82.3879,2.28638),
 (16716,7,10,25456,14000,0,4525.96,5677.24,82.1464,0.629041),
-(16716,12,10,25458,9000,0,4528.88,5679.53,82.2391,0.629041);
+(16716,12,10,25458,9000,0,4528.88,5679.53,82.2391,0.629041),
+(20723,0,10,32588,180000,1,6351.5,2306.34,475.051,1.11153);
 /*!40000 ALTER TABLE `event_scripts` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -513,4 +510,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-06-01 22:39:49
+-- Dump completed on 2026-11-14  1:20:27

@@ -1,13 +1,14 @@
--- MySQL dump 10.13  Distrib 8.4.3, for Win64 (x86_64)
+/*M!999999\- enable the sandbox mode */ 
+-- MariaDB dump 10.19  Distrib 10.11.14-MariaDB, for debian-linux-gnu (x86_64)
 --
--- Host: localhost    Database: acore_world
+-- Host: localhost    Database: acore_world_build
 -- ------------------------------------------------------
--- Server version	8.4.3
+-- Server version	10.11.14-MariaDB-0ubuntu0.24.04.1
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
 /*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!50503 SET NAMES utf8mb4 */;
+/*!40101 SET NAMES utf8mb4 */;
 /*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
 /*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
@@ -19,13 +20,13 @@
 
 DROP TABLE IF EXISTS `spawn_group`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `spawn_group` (
-  `groupId` int unsigned NOT NULL,
-  `spawnType` tinyint unsigned NOT NULL,
-  `spawnId` int unsigned NOT NULL,
+  `groupId` int(10) unsigned NOT NULL,
+  `spawnType` tinyint(3) unsigned NOT NULL,
+  `spawnId` int(10) unsigned NOT NULL,
   PRIMARY KEY (`groupId`,`spawnType`,`spawnId`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -35,11 +36,14 @@ CREATE TABLE `spawn_group` (
 LOCK TABLES `spawn_group` WRITE;
 /*!40000 ALTER TABLE `spawn_group` DISABLE KEYS */;
 INSERT INTO `spawn_group` VALUES
+(1,0,96966),
+(1,0,135823),
 (1,0,153154),
 (1,0,153155),
 (1,0,153156),
 (1,0,153157),
 (1,0,300000),
+(1,0,1955080),
 (100,0,52417),
 (100,0,52418),
 (100,0,52419),
@@ -77,7 +81,16 @@ INSERT INTO `spawn_group` VALUES
 (103,0,52452),
 (103,0,52453),
 (103,0,52454),
-(103,0,52455);
+(103,0,52455),
+(104,0,128902),
+(104,0,128903),
+(104,0,128904),
+(104,0,128905),
+(104,0,128906),
+(104,0,128907),
+(104,0,128908),
+(104,0,128909),
+(104,0,128921);
 /*!40000 ALTER TABLE `spawn_group` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -89,4 +102,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-06-01 22:40:35
+-- Dump completed on 2026-11-14  1:20:30

@@ -1,13 +1,14 @@
--- MySQL dump 10.13  Distrib 8.4.3, for Win64 (x86_64)
+/*M!999999\- enable the sandbox mode */ 
+-- MariaDB dump 10.19  Distrib 10.11.14-MariaDB, for debian-linux-gnu (x86_64)
 --
--- Host: localhost    Database: acore_world
+-- Host: localhost    Database: acore_world_build
 -- ------------------------------------------------------
--- Server version	8.4.3
+-- Server version	10.11.14-MariaDB-0ubuntu0.24.04.1
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
 /*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!50503 SET NAMES utf8mb4 */;
+/*!40101 SET NAMES utf8mb4 */;
 /*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
 /*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
@@ -19,12 +20,12 @@
 
 DROP TABLE IF EXISTS `spell_linked_spell`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `spell_linked_spell` (
-  `spell_trigger` int NOT NULL,
-  `spell_effect` int NOT NULL DEFAULT '0',
-  `type` tinyint unsigned NOT NULL DEFAULT '0',
-  `comment` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `spell_trigger` int(11) NOT NULL,
+  `spell_effect` int(11) NOT NULL DEFAULT 0,
+  `type` tinyint(3) unsigned NOT NULL DEFAULT 0,
+  `comment` text NOT NULL,
   UNIQUE KEY `trigger_effect_type` (`spell_trigger`,`spell_effect`,`type`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Spell System';
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -70,9 +71,6 @@ INSERT INTO `spell_linked_spell` VALUES
 (-65877,65878,0,''),
 (-63320,-63321,0,'Glyph of Life Tap - Remove working trigger'),
 (-63277,-65269,0,'General Vezax - Shadow Crash'),
-(-62475,-62399,0,'System Shutdown - Overload Circuit'),
-(-62475,-62375,0,'System Shutdown - Gathering Speed'),
-(-62475,62472,0,'System Shutdown'),
 (-61291,-63311,0,'Glyph of Shadowflame Rank 2'),
 (-59907,7,0,'Lightwell Charges - Suicide'),
 (-59743,54343,0,''),
@@ -384,7 +382,6 @@ INSERT INTO `spell_linked_spell` VALUES
 (43961,51655,0,'BOTM - Create Empty Brew Bottle'),
 (44007,-43657,2,'Storm Eye Safe Zone Immune'),
 (44008,45265,1,'Static Disruption Visual'),
-(44608,44626,0,'Rocket Jump'),
 (44948,57931,1,'Blast the Gateway quest'),
 (45458,45437,1,'Holiday - Midsummer, Stamp Out Bonfire, Quest Complete triggers Stamp Out Bonfire'),
 (45661,45665,1,'Encapsulate'),
@@ -424,14 +421,12 @@ INSERT INTO `spell_linked_spell` VALUES
 (47435,-47447,1,'Messy Business - Remove Spit'),
 (47585,60069,2,'Dispersion (transform/regen)'),
 (47585,63230,2,'Dispersion (immunity)'),
-(47962,47967,0,'Rescue Soldier Credit'),
 (47987,54501,2,'Consume Shadows - Rank 8'),
 (47988,54501,2,'Consume Shadows - Rank 9'),
 (48077,48075,0,'Holy Nova (rank8)'),
 (48078,48076,0,'Holy Nova (rank9)'),
 (48143,48814,2,'Forgottens aura'),
 (48263,57340,2,'Frost Presence - Tank Class Passive Threat'),
-(48268,48272,0,'Let Them Not Rise!: Summon Rat'),
 (48384,50170,2,'Improved Moonkin Form'),
 (48395,50171,2,'Improved Moonkin Form'),
 (48396,50172,2,'Improved Moonkin Form'),
@@ -565,7 +560,6 @@ INSERT INTO `spell_linked_spell` VALUES
 (62168,62169,1,'Black Hole (Algalon)'),
 (62217,-62243,1,'Remove unstable sun beam'),
 (62427,62340,2,'Load into Catapult - Passenger Loaded'),
-(62490,62474,0,'Remove pyrite'),
 (62922,-62243,1,'Remove unstable sun beam'),
 (63277,65269,2,'General Vezax - Shadow Crash'),
 (63993,-63988,1,'Cancel Illusion Room Aura - remove aura'),
@@ -656,4 +650,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-06-01 22:40:38
+-- Dump completed on 2026-11-14  1:20:31

@@ -1,13 +1,14 @@
--- MySQL dump 10.13  Distrib 8.4.3, for Win64 (x86_64)
+/*M!999999\- enable the sandbox mode */ 
+-- MariaDB dump 10.19  Distrib 10.11.14-MariaDB, for debian-linux-gnu (x86_64)
 --
--- Host: localhost    Database: acore_world
+-- Host: localhost    Database: acore_world_build
 -- ------------------------------------------------------
--- Server version	8.4.3
+-- Server version	10.11.14-MariaDB-0ubuntu0.24.04.1
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
 /*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!50503 SET NAMES utf8mb4 */;
+/*!40101 SET NAMES utf8mb4 */;
 /*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
 /*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
@@ -19,19 +20,19 @@
 
 DROP TABLE IF EXISTS `spell_scripts`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `spell_scripts` (
-  `id` int unsigned NOT NULL DEFAULT '0',
-  `effIndex` tinyint unsigned NOT NULL DEFAULT '0',
-  `delay` int unsigned NOT NULL DEFAULT '0',
-  `command` int unsigned NOT NULL DEFAULT '0',
-  `datalong` int unsigned NOT NULL DEFAULT '0',
-  `datalong2` int unsigned NOT NULL DEFAULT '0',
-  `dataint` int NOT NULL DEFAULT '0',
-  `x` float NOT NULL DEFAULT '0',
-  `y` float NOT NULL DEFAULT '0',
-  `z` float NOT NULL DEFAULT '0',
-  `o` float NOT NULL DEFAULT '0'
+  `id` int(10) unsigned NOT NULL DEFAULT 0,
+  `effIndex` tinyint(3) unsigned NOT NULL DEFAULT 0,
+  `delay` int(10) unsigned NOT NULL DEFAULT 0,
+  `command` int(10) unsigned NOT NULL DEFAULT 0,
+  `datalong` int(10) unsigned NOT NULL DEFAULT 0,
+  `datalong2` int(10) unsigned NOT NULL DEFAULT 0,
+  `dataint` int(11) NOT NULL DEFAULT 0,
+  `x` float NOT NULL DEFAULT 0,
+  `y` float NOT NULL DEFAULT 0,
+  `z` float NOT NULL DEFAULT 0,
+  `o` float NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -110,8 +111,8 @@ INSERT INTO `spell_scripts` VALUES
 (56515,0,0,15,56516,0,0,0,0,0,0),
 (53062,0,0,15,53067,2,0,0,0,0,0),
 (45980,0,1,18,0,0,0,0,0,0,0),
-(51864,0,0,15,51865,2,0,0,0,0,0),
-(51889,0,0,15,51865,2,0,0,0,0,0),
+(51864,0,0,15,51865,2,1,0,0,0,0),
+(51889,0,0,15,51865,2,1,0,0,0,0),
 (45071,2,0,16,12318,1,0,0,0,0,0),
 (49899,0,0,1,416,0,0,0,0,0,0),
 (55048,0,0,14,54894,0,0,0,0,0,0),
@@ -120,7 +121,7 @@ INSERT INTO `spell_scripts` VALUES
 (47316,0,0,15,47317,2,0,0,0,0,0),
 (47405,0,0,15,47406,2,0,0,0,0,0),
 (50439,0,0,15,50440,2,0,0,0,0,0),
-(37894,0,0,15,37893,2,0,0,0,0,0),
+(37894,0,0,15,37895,2,0,0,0,0,0),
 (37892,0,0,15,37893,2,0,0,0,0,0),
 (37867,0,0,15,37868,2,0,0,0,0,0),
 (47958,0,0,15,47954,1,0,0,0,0,0),
@@ -183,4 +184,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-06-01 22:40:41
+-- Dump completed on 2026-11-14  1:20:31
