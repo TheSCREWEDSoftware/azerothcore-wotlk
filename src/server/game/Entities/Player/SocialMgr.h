@@ -135,9 +135,8 @@ class SocialMgr
         void RemovePlayerSocial(ObjectGuid const& guid) { m_socialMap.erase(guid); }
         static void GetFriendInfo(Player* player, ObjectGuid const& friendGUID, FriendInfo& friendInfo);
         // Packet management
-        void MakeFriendStatusPacket(FriendsResult result, ObjectGuid const& friend_guid, WorldPacket* data);
         void SendFriendStatus(Player* player, FriendsResult result, ObjectGuid const& friend_guid, bool broadcast);
-        void BroadcastToFriendListers(Player* player, WorldPacket* packet);
+        void BroadcastToFriendListers(Player* player, WorldPacket const* packet);
         // Loading
         PlayerSocial* LoadFromDB(PreparedQueryResult result, ObjectGuid const& guid);
     private:

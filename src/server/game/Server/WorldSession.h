@@ -1309,10 +1309,8 @@ public:                                                 // opcodes handlers
     void HandleEmoteOpcode(WorldPackets::Chat::EmoteClient& packet);
     void HandleContactListOpcode(WorldPackets::Social::SendContactList& packet);
     void HandleAddFriendOpcode(WorldPackets::Social::AddFriend& packet);
-    void HandleAddFriendOpcodeCallBack(PreparedQueryResult result, std::string const& friendNote);
     void HandleDelFriendOpcode(WorldPackets::Social::DelFriend& packet);
     void HandleAddIgnoreOpcode(WorldPackets::Social::AddIgnore& packet);
-    void HandleAddIgnoreOpcodeCallBack(PreparedQueryResult result);
     void HandleDelIgnoreOpcode(WorldPackets::Social::DelIgnore& packet);
     void HandleSetContactNotesOpcode(WorldPackets::Social::SetContactNotes& packet);
     void HandleAreaTriggerOpcode(WorldPackets::Misc::AreaTrigger& packet);

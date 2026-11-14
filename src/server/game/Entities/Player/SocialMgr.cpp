@@ -22,6 +22,7 @@
 #include "Player.h"
 #include "RBAC.h"
 #include "Util.h"
+#include "SocialPackets.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
 
@@ -131,12 +132,9 @@ void PlayerSocial::SendSocialList(Player* player, uint32 flags)
 
     uint32 friendsCount = 0;
     uint32 ignoredCount = 0;
-    uint32 totalCount = 0;
 
-    WorldPacket data(SMSG_CONTACT_LIST, (4 + 4 + m_playerSocialMap.size() * 25)); // just can guess size
-    data << uint32(flags);                                                        // 0x1 = Friendlist update. 0x2 = Ignorelist update. 0x4 = Mutelist update.
-    std::size_t countPos = data.wpos();
-    data << uint32(0);                                                           // contacts count placeholder
+    WorldPackets::Social::ContactList contactList;
+    contactList.Flags = flags;                              // 0x1 = Friendlist update. 0x2 = Ignorelist update. 0x4 = Mutelist update.
 
     for (auto& itr : m_playerSocialMap)
     {
@@ -155,29 +153,12 @@ void PlayerSocial::SendSocialList(Player* player, uint32 flags)
             if (++ignoredCount > SOCIALMGR_IGNORE_LIMIT)
                 continue;
 
-        ++totalCount;
-
         sSocialMgr->GetFriendInfo(player, itr.first, friendInfo);
 
-        data << itr.first;                                    // player guid
-        data << uint32(0);                                    // 5.4.8: virtual realm address
-        data << uint32(0);                                    // 5.4.8: native realm address
-        data << uint32(contactFlags);                         // player flag (0x1 = Friend, 0x2 = Ignored, 0x4 = Muted)
-        data << friendInfo.Note;                              // string note
-        if (contactFlags & SOCIAL_FLAG_FRIEND)                // if IsFriend()
-        {
-            data << uint8(friendInfo.Status);                 // online/offline/etc?
-            if (friendInfo.Status)                            // if online
-            {
-                data << uint32(friendInfo.Area);              // player area
-                data << uint32(friendInfo.Level);             // player level
-                data << uint32(friendInfo.Class);             // player class
-            }
-        }
+        contactList.Contacts.emplace_back(itr.first, friendInfo);
     }
 
-    data.put<uint32>(countPos, totalCount);
-    player->SendDirectMessage(&data);
+    player->SendDirectMessage(contactList.Write());
     LOG_DEBUG("network", "WORLD: Sent SMSG_CONTACT_LIST");
 }
 
@@ -257,51 +238,21 @@ void SocialMgr::GetFriendInfo(Player* player, ObjectGuid const& friendGUID, Frie
     }
 }
 
-void SocialMgr::MakeFriendStatusPacket(FriendsResult result, ObjectGuid const& guid, WorldPacket* data)
-{
-    data->Initialize(SMSG_FRIEND_STATUS, 9);
-    *data << uint8(result);
-    *data << guid;
-}
-
 void SocialMgr::SendFriendStatus(Player* player, FriendsResult result, ObjectGuid const& friendGuid, bool broadcast)
 {
     FriendInfo fi;
     GetFriendInfo(player, friendGuid, fi);
 
-    WorldPacket data(SMSG_FRIEND_STATUS, 9);
-    data << uint8(result);
-    data << friendGuid;
-    switch (result)
-    {
-        case FRIEND_ADDED_OFFLINE:
-        case FRIEND_ADDED_ONLINE:
-            data << fi.Note;
-            break;
-        default:
-            break;
-    }
-
-    switch (result)
-    {
-        case FRIEND_ADDED_ONLINE:
-        case FRIEND_ONLINE:
-            data << uint8(fi.Status);
-            data << uint32(fi.Area);
-            data << uint32(fi.Level);
-            data << uint32(fi.Class);
-            break;
-        default:
-            break;
-    }
+    WorldPackets::Social::FriendStatus friendStatus;
+    friendStatus.Initialize(friendGuid, result, fi);
 
     if (broadcast)
-        BroadcastToFriendListers(player, &data);
+        BroadcastToFriendListers(player, friendStatus.Write());
     else
-        player->SendDirectMessage(&data);
+        player->SendDirectMessage(friendStatus.Write());
 }
 
-void SocialMgr::BroadcastToFriendListers(Player* player, WorldPacket* packet)
+void SocialMgr::BroadcastToFriendListers(Player* player, WorldPacket const* packet)
 {
     if (!player)
         return;

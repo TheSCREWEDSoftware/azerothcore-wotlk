@@ -24,26 +24,21 @@
 #include "Player.h"
 #include "Realm.h"
 #include "SocialMgr.h"
+#include "SocialPackets.h"
 #include "World.h"
 #include "WorldSession.h"
 
-void WorldSession::HandleContactListOpcode(WorldPacket& recv_data)
+void WorldSession::HandleContactListOpcode(WorldPackets::Social::SendContactList& packet)
 {
-    uint32 flags;
-    recv_data >> flags;
-
-    _player->GetSocial()->SendSocialList(_player, flags);
+    _player->GetSocial()->SendSocialList(_player, packet.Flags);
 }
 
-void WorldSession::HandleAddFriendOpcode(WorldPacket& recv_data)
+void WorldSession::HandleAddFriendOpcode(WorldPackets::Social::AddFriend& packet)
 {
-    std::string friendName = GetAcoreString(LANG_FRIEND_IGNORE_UNKNOWN);
-    std::string friendNote;
+    std::string friendName = packet.Name;
+    std::string const& friendNote = packet.Notes;
 
-    recv_data >> friendName;
-    recv_data >> friendNote;
-
-    // 5.4.8 clients may send "Name-Realm"
+    // the client may send "Name-Realm"
     friendName = friendName.substr(0, friendName.find('-'));
 
     if (!normalizePlayerName(friendName))
@@ -51,7 +46,10 @@ void WorldSession::HandleAddFriendOpcode(WorldPacket& recv_data)
 
     ObjectGuid friendGuid = sCharacterCache->GetCharacterGuidByName(friendName);
     if (!friendGuid)
+    {
+        sSocialMgr->SendFriendStatus(GetPlayer(), FRIEND_NOT_FOUND, ObjectGuid::Empty, false);
         return;
+    }
 
     CharacterCacheEntry const* playerData = sCharacterCache->GetCharacterCacheByGuid(friendGuid);
     if (!playerData)
@@ -81,9 +79,8 @@ void WorldSession::HandleAddFriendOpcode(WorldPacket& recv_data)
                 if (GetPlayer()->GetSocial()->AddToSocialList(friendGuid, ObjectGuid::Create<HighGuid::WowAccount>(friendAccountId), SOCIAL_FLAG_FRIEND))
                     GetPlayer()->GetSocial()->SetFriendNote(friendGuid, friendNote);
                 else
-                friendResult = FRIEND_LIST_FULL;
+                    friendResult = FRIEND_LIST_FULL;
             }
-            GetPlayer()->GetSocial()->SetFriendNote(friendGuid, friendNote);
         }
     }
 
@@ -92,10 +89,10 @@ void WorldSession::HandleAddFriendOpcode(WorldPacket& recv_data)
     LOG_DEBUG("network", "WORLD: Sent (SMSG_FRIEND_STATUS)");
 }
 
-void WorldSession::HandleDelFriendOpcode(WorldPacket& recv_data)
+void WorldSession::HandleDelFriendOpcode(WorldPackets::Social::DelFriend& packet)
 {
-    ObjectGuid FriendGUID;
-    recv_data >> FriendGUID;
+    /// @todo: handle VirtualRealmAddress
+    ObjectGuid FriendGUID = packet.Player.Guid;
 
     _player->GetSocial()->RemoveFromSocialList(FriendGUID, SOCIAL_FLAG_FRIEND);
 
@@ -104,11 +101,9 @@ void WorldSession::HandleDelFriendOpcode(WorldPacket& recv_data)
     LOG_DEBUG("network", "WORLD: Sent motd (SMSG_FRIEND_STATUS)");
 }
 
-void WorldSession::HandleAddIgnoreOpcode(WorldPacket& recv_data)
+void WorldSession::HandleAddIgnoreOpcode(WorldPackets::Social::AddIgnore& packet)
 {
-    std::string ignoreName = GetAcoreString(LANG_FRIEND_IGNORE_UNKNOWN);
-
-    recv_data >> ignoreName;
+    std::string ignoreName = packet.Name.substr(0, packet.Name.find('-'));
 
     if (!normalizePlayerName(ignoreName))
         return;
@@ -117,7 +112,10 @@ void WorldSession::HandleAddIgnoreOpcode(WorldPacket& recv_data)
 
     ObjectGuid ignoreGuid = sCharacterCache->GetCharacterGuidByName(ignoreName);
     if (!ignoreGuid)
+    {
+        sSocialMgr->SendFriendStatus(GetPlayer(), FRIEND_IGNORE_NOT_FOUND, ObjectGuid::Empty, false);
         return;
+    }
 
     FriendsResult ignoreResult;
 
@@ -139,19 +137,17 @@ void WorldSession::HandleAddIgnoreOpcode(WorldPacket& recv_data)
     LOG_DEBUG("network", "WORLD: Sent (SMSG_FRIEND_STATUS)");
 }
 
-void WorldSession::HandleDelIgnoreOpcode(WorldPacket& recv_data)
+void WorldSession::HandleDelIgnoreOpcode(WorldPackets::Social::DelIgnore& packet)
 {
-    ObjectGuid IgnoreGUID;
-    recv_data >> IgnoreGUID;
+    /// @todo: handle VirtualRealmAddress
+    ObjectGuid IgnoreGUID = packet.Player.Guid;
 
     _player->GetSocial()->RemoveFromSocialList(IgnoreGUID, SOCIAL_FLAG_IGNORED);
     sSocialMgr->SendFriendStatus(GetPlayer(), FRIEND_IGNORE_REMOVED, IgnoreGUID, false);
 }
 
-void WorldSession::HandleSetContactNotesOpcode(WorldPacket& recv_data)
+void WorldSession::HandleSetContactNotesOpcode(WorldPackets::Social::SetContactNotes& packet)
 {
-    ObjectGuid guid;
-    std::string note;
-    recv_data >> guid >> note;
-    _player->GetSocial()->SetFriendNote(guid, note);
+    /// @todo: handle VirtualRealmAddress
+    _player->GetSocial()->SetFriendNote(packet.Player.Guid, packet.Notes);
 }
