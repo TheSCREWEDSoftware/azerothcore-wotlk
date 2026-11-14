@@ -294,17 +294,20 @@ public:
     SpellImplicitTargetInfo TargetA;
     SpellImplicitTargetInfo TargetB;
     SpellRadiusEntry const* RadiusEntry;
+    SpellRadiusEntry const* MaxRadiusEntry;                 // 6.x: radius used on friendly targets
     uint32    ChainTarget;
     uint32    ItemType;
     uint32    TriggerSpell;
-    flag96    SpellClassMask;
+    flag128    SpellClassMask;
+    float     BonusCoefficientFromAP;                       // 6.x: attack power coefficient of this effect
+    float     PositionFacing;
     std::list<Condition*>* ImplicitTargetConditions;
 
     SpellEffectInfo() : _spellInfo(nullptr), EffectIndex(0), Effect(0), ApplyAuraName(SPELL_AURA_NONE), Amplitude(0), DieSides(0),
         RealPointsPerLevel(0), BasePoints(0), PointsPerComboPoint(0), ScalingCoefficient(0.0f),
         ScalingVariance(0.0f), ScalingComboPointsCoefficient(0.0f), ValueMultiplier(0), DamageMultiplier(0),
-        BonusMultiplier(0), MiscValue(0), MiscValueB(0), Mechanic(MECHANIC_NONE), RadiusEntry(nullptr), ChainTarget(0),
-        ItemType(0), TriggerSpell(0), ImplicitTargetConditions(nullptr) {}
+        BonusMultiplier(0), MiscValue(0), MiscValueB(0), Mechanic(MECHANIC_NONE), RadiusEntry(nullptr), MaxRadiusEntry(nullptr), ChainTarget(0),
+        ItemType(0), TriggerSpell(0), BonusCoefficientFromAP(0.0f), PositionFacing(0.0f), ImplicitTargetConditions(nullptr) {}
     SpellEffectInfo(SpellEffectEntry const* effect, SpellInfo const* spellInfo, uint8 effIndex);
 
     bool IsEffect() const;
@@ -353,6 +356,8 @@ class AC_GAME_API SpellInfo
 friend class SpellMgr;
 
 public:
+    typedef std::unordered_map<uint32 /*difficulty*/, std::vector<SpellXSpellVisualEntry const*>> SpellVisualMap;
+
     uint32 Id;
     SpellCategoryEntry const* CategoryEntry;
     uint32 Dispel;
@@ -368,6 +373,9 @@ public:
     uint32 AttributesEx8;
     uint32 AttributesEx9;
     uint32 AttributesEx10;
+    uint32 AttributesEx11;
+    uint32 AttributesEx12;
+    uint32 AttributesEx13;
     uint32 AttributesCu;
     uint64 Stances;
     uint64 StancesNot;
@@ -396,6 +404,8 @@ public:
     uint32 ProcFlags;
     uint32 ProcChance;
     uint32 ProcCharges;
+    uint32 ProcCooldown;                                    // 6.x SpellAuraOptions.dbc ProcCategoryRecovery
+    float ProcBasePPM;                                      // 6.x SpellProcsPerMinute.db2 base rate
     uint32 MaxLevel;
     uint32 BaseLevel;
     uint32 SpellLevel;
@@ -408,6 +418,7 @@ public:
     uint32 ManaCostPercentage;
     float ManaCostPercentage2;
     uint32 RuneCostID;
+    std::vector<SpellPowerEntry const*> PowerCosts;         // 6.x SpellPower.db2, one per power the spell costs
     SpellRangeEntry const* RangeEntry;
     float  Speed;
     uint32 StackAmount;
@@ -428,7 +439,7 @@ public:
     uint32 MaxTargetLevel;
     uint32 MaxAffectedTargets;
     uint32 SpellFamilyName;
-    flag96 SpellFamilyFlags;
+    flag128 SpellFamilyFlags;
     uint32 DmgClass;
     uint32 PreventionType;
     int32  AreaGroupId;
@@ -437,6 +448,8 @@ public:
     float BonusCoefficientFromAP;
     float ConeAngle;
     std::array<SpellEffectInfo, MAX_SPELL_EFFECTS> Effects;
+    uint32 DifficultyID;                                    // 6.x: difficulty whose SpellEffect.dbc rows this SpellInfo uses
+    SpellCategoryEntry const* ChargeCategoryEntry;
     uint32 ExplicitTargetMask;
     SpellChainNode const* ChainEntry;
 
@@ -445,14 +458,18 @@ public:
     SpellSpecificType _spellSpecific;
     bool _isStackableWithRanks;
     bool _isSpellValid;
+    SpellVisualMap _visuals;
     bool _isCritCapable;
     bool _requireCooldownInfo;
     float JumpDistance;
 
-    SpellInfo(SpellEntry const* spellEntry, std::array<SpellEffectEntry const*, MAX_SPELL_EFFECTS> const& effects);
+    SpellInfo(SpellEntry const* spellEntry, std::array<SpellEffectEntry const*, MAX_SPELL_EFFECTS> const& effects, uint32 difficulty, SpellVisualMap visuals);
     ~SpellInfo();
 
     uint32 GetCategory() const;
+    // 6.x: SpellXSpellVisual.db2 row to send in cast packets, and its SpellVisual.dbc id
+    uint32 GetSpellXSpellVisualId(Unit const* caster = nullptr) const;
+    uint32 GetSpellVisual(Unit const* caster = nullptr) const;
     bool HasEffect(SpellEffects effect) const;
     bool HasEffectMechanic(Mechanics mechanic) const;
     bool HasAura(AuraType aura) const;
@@ -519,7 +536,7 @@ public:
     bool IsAutoRepeatRangedSpell() const;
     bool HasInitialAggro() const;
 
-    [[nodiscard]] bool IsAffected(uint32 familyName, flag96 const& familyFlags) const;
+    [[nodiscard]] bool IsAffected(uint32 familyName, flag128 const& familyFlags) const;
 
     bool IsAffectedBySpellMods() const;
     bool IsAffectedBySpellMod(SpellModifier const* mod) const;

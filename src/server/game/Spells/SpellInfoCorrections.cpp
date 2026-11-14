@@ -335,7 +335,7 @@ void SpellMgr::LoadSpellInfoCorrections()
         spellInfo->Effects[EFFECT_1].Effect = SPELL_EFFECT_APPLY_AURA;
         spellInfo->Effects[EFFECT_1].ApplyAuraName = SPELL_AURA_ADD_FLAT_MODIFIER;
         spellInfo->Effects[EFFECT_1].MiscValue = SPELLMOD_EFFECT2;
-        spellInfo->Effects[EFFECT_1].SpellClassMask = flag96(0x00000000, 0x00004000, 0x00000000);
+        spellInfo->Effects[EFFECT_1].SpellClassMask = flag128(0x00000000, 0x00004000, 0x00000000);
     });
 
     // Improved Shadowform (Rank 1)
@@ -408,7 +408,7 @@ void SpellMgr::LoadSpellInfoCorrections()
     // Marked for Death
     ApplySpellFix({ 53241, 53243, 53244, 53245, 53246 }, [](SpellInfo* spellInfo)
     {
-        spellInfo->Effects[EFFECT_0].SpellClassMask = flag96(399361, 276955137, 1);
+        spellInfo->Effects[EFFECT_0].SpellClassMask = flag128(399361, 276955137, 1);
     });
 
     ApplySpellFix({
@@ -434,13 +434,13 @@ void SpellMgr::LoadSpellInfoCorrections()
         // this is done because another spell also uses the same SpellFamilyFlags as Icy Touch
         // SpellFamilyFlags[0] & 0x00000040 in SPELLFAMILY_DEATHKNIGHT is currently unused (3.3.5a)
         // this needs research on modifier applying rules, does not seem to be in Attributes fields
-        spellInfo->Effects[EFFECT_0].SpellClassMask = flag96(0x00000040, 0x00000000, 0x00000000);
+        spellInfo->Effects[EFFECT_0].SpellClassMask = flag128(0x00000040, 0x00000000, 0x00000000);
     });
 
     // Idol of the Flourishing Life
     ApplySpellFix({ 64949 }, [](SpellInfo* spellInfo)
     {
-        spellInfo->Effects[EFFECT_0].SpellClassMask = flag96(0x00000000, 0x02000000, 0x00000000);
+        spellInfo->Effects[EFFECT_0].SpellClassMask = flag128(0x00000000, 0x02000000, 0x00000000);
         spellInfo->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_ADD_FLAT_MODIFIER;
     });
 
@@ -450,7 +450,7 @@ void SpellMgr::LoadSpellInfoCorrections()
         64956   // Libram of the Resolute
         }, [](SpellInfo* spellInfo)
     {
-        spellInfo->Effects[EFFECT_0].SpellClassMask = flag96(0x80000000, 0x00000000, 0x00000000);
+        spellInfo->Effects[EFFECT_0].SpellClassMask = flag128(0x80000000, 0x00000000, 0x00000000);
         spellInfo->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_ADD_FLAT_MODIFIER;
     });
 
@@ -460,7 +460,7 @@ void SpellMgr::LoadSpellInfoCorrections()
         32403   // Blessed Book of Nagrand
         }, [](SpellInfo* spellInfo)
     {
-        spellInfo->Effects[EFFECT_0].SpellClassMask = flag96(0x40000000, 0x00000000, 0x00000000);
+        spellInfo->Effects[EFFECT_0].SpellClassMask = flag128(0x40000000, 0x00000000, 0x00000000);
         spellInfo->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_ADD_FLAT_MODIFIER;
     });
 
@@ -882,7 +882,7 @@ void SpellMgr::LoadSpellInfoCorrections()
     ApplySpellFix({ 61274, 61275, 61276, 61277,61278 }, [](SpellInfo* spellInfo)
     {
         // ARP affect Death Strike and Rune Strike
-        spellInfo->Effects[EFFECT_0].SpellClassMask = flag96(0x1400011, 0x20000000, 0x0);
+        spellInfo->Effects[EFFECT_0].SpellClassMask = flag128(0x1400011, 0x20000000, 0x0);
     });
 
     // Death Grip
@@ -1160,7 +1160,7 @@ void SpellMgr::LoadSpellInfoCorrections()
     {
         spellInfo->DmgClass = SPELL_DAMAGE_CLASS_MAGIC;
         spellInfo->SpellFamilyName = SPELLFAMILY_MAGE;
-        spellInfo->SpellFamilyFlags = flag96(0x20, 0x0, 0x0);
+        spellInfo->SpellFamilyFlags = flag128(0x20, 0x0, 0x0);
     });
 
     // Fingers of Frost
@@ -1168,7 +1168,7 @@ void SpellMgr::LoadSpellInfoCorrections()
     {
         spellInfo->Dispel = DISPEL_NONE;
         spellInfo->AttributesEx4 |= SPELL_ATTR4_CANNOT_BE_STOLEN;
-        spellInfo->Effects[EFFECT_0].SpellClassMask = flag96(685904631, 1151040, 32);
+        spellInfo->Effects[EFFECT_0].SpellClassMask = flag128(685904631, 1151040, 32);
     });
 
     // Fingers of Frost visual buff
@@ -1274,7 +1274,7 @@ void SpellMgr::LoadSpellInfoCorrections()
     {
         spellInfo->DmgClass = SPELL_DAMAGE_CLASS_MAGIC;
         spellInfo->SpellLevel = 0;
-        spellInfo->SpellFamilyFlags = flag96(0, 0x10, 0);
+        spellInfo->SpellFamilyFlags = flag128(0, 0x10, 0);
     });
 
     // Owlkin Frenzy
@@ -4147,7 +4147,7 @@ void SpellMgr::LoadSpellInfoCorrections()
     // Increased Totem Radius
     ApplySpellFix({ 21895 }, [](SpellInfo* spellInfo)
     {
-        spellInfo->Effects[0].SpellClassMask = flag96(0x0603E000, 0x00200100);
+        spellInfo->Effects[0].SpellClassMask = flag128(0x0603E000, 0x00200100);
     });
 
     // Jokkum Summon
@@ -4193,7 +4193,7 @@ void SpellMgr::LoadSpellInfoCorrections()
     // Elemental Mastery
     ApplySpellFix({ 16166 }, [](SpellInfo* spellInfo)
     {
-        spellInfo->Effects[EFFECT_0].SpellClassMask = flag96(0x00000003, 0x00001000);
+        spellInfo->Effects[EFFECT_0].SpellClassMask = flag128(0x00000003, 0x00001000);
     });
 
     // Elemental Vulnerability
@@ -5192,20 +5192,20 @@ void SpellMgr::LoadSpellInfoCorrections()
     // 68415 Corrupted Rage
     ApplySpellFix({ 68415 }, [](SpellInfo* spellInfo)
     {
-        spellInfo->Effects[EFFECT_1].SpellClassMask = flag96(0, 0x20000, 0);
+        spellInfo->Effects[EFFECT_1].SpellClassMask = flag128(0, 0x20000, 0);
     });
 
     // 31930 Judgements of the Wise
     ApplySpellFix({ 31930 }, [](SpellInfo* spellInfo)
     {
         spellInfo->SpellFamilyName = SPELLFAMILY_PALADIN;
-        spellInfo->SpellFamilyFlags = flag96(0x200, 0, 0);
+        spellInfo->SpellFamilyFlags = flag128(0x200, 0, 0);
     });
 
     // 64646 Corrupted Wisdom
     ApplySpellFix({ 64646 }, [](SpellInfo* spellInfo)
     {
-        spellInfo->Effects[EFFECT_1].SpellClassMask = flag96(0x200, 0, 0);
+        spellInfo->Effects[EFFECT_1].SpellClassMask = flag128(0x200, 0, 0);
     });
 
     // Shadowhorn Charge (Rank 1)

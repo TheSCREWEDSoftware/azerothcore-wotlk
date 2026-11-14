@@ -535,6 +535,52 @@ void SpellMgr::SetSpellDifficultyId(uint32 spellId, uint32 id)
     mSpellDifficultySearcherMap[spellId] = id;
 }
 
+void SpellMgr::LoadSpellDifficulty()
+{
+    uint32 oldMSTime = getMSTime();
+
+    mSpellDifficultyMap.clear();
+    mSpellDifficultySearcherMap.clear();
+
+    // 6.x has no SpellDifficulty.dbc: the legacy heroic spell ids come from the spelldifficulty_dbc table
+    PreparedQueryResult result = WorldDatabase.Query(WorldDatabase.GetPreparedStatement(WORLD_SEL_SPELL_DIFFICULTY));
+    if (!result)
+    {
+        LOG_INFO("server.loading", ">> Loaded 0 spell difficulty entries. DB table `spelldifficulty_dbc` is empty.");
+        return;
+    }
+
+    do
+    {
+        Field* fields = result->Fetch();
+        uint32 id = fields[0].Get<uint32>();
+
+        std::array<uint32, 4> spells = { };
+        for (uint8 x = 0; x < 4; ++x)
+        {
+            int32 spellId = fields[1 + x].Get<int32>();
+            if (spellId <= 0 || !GetSpellInfo(spellId))
+            {
+                if (spellId > 0) // not all modes have spells, and some values are unknown negatives
+                    LOG_ERROR("sql.sql", "spelldifficulty_dbc: spell {} at entry {} mode {} does not exist in Spell.dbc, loaded as 0", spellId, id, x);
+                continue;
+            }
+
+            spells[x] = uint32(spellId);
+        }
+
+        if (!spells[0] || !spells[1]) // the first two modes must be always set
+            continue;
+
+        mSpellDifficultyMap[id] = spells;
+        for (uint32 spellId : spells)
+            if (spellId)
+                mSpellDifficultySearcherMap[spellId] = id;
+    } while (result->NextRow());
+
+    LOG_INFO("server.loading", ">> Loaded {} spell difficulty entries in {} ms", uint32(mSpellDifficultyMap.size()), GetMSTimeDiffToNow(oldMSTime));
+}
+
 uint32 SpellMgr::GetSpellIdForDifficulty(uint32 spellId, WorldObject const* caster) const
 {
     if (!GetSpellInfo(spellId))
@@ -543,38 +589,42 @@ uint32 SpellMgr::GetSpellIdForDifficulty(uint32 spellId, WorldObject const* cast
     if (!caster || !caster->GetMap() || (!caster->GetMap()->IsDungeon() && !caster->GetMap()->IsBattleground()))
         return spellId;
 
-    uint32 mode = uint32(caster->GetMap()->GetSpawnMode());
-    if (mode >= MAX_DIFFICULTY)
-    {
-        LOG_ERROR("spells", "SpellMgr::GetSpellIdForDifficulty: Incorrect Difficulty for spell {}.", spellId);
-        return spellId; //return source spell
-    }
-
     uint32 difficultyId = GetSpellDifficultyId(spellId);
     if (!difficultyId)
         return spellId; //return source spell, it has only DIFFICULTY_NONE
 
-    SpellDifficultyEntry const* difficultyEntry = sSpellDifficultyStore.LookupEntry(difficultyId);
-    if (!difficultyEntry)
-    {
-        LOG_DEBUG("spells.aura", "SpellMgr::GetSpellIdForDifficulty: SpellDifficultyEntry not found for spell {}. This should never happen.", spellId);
-        return spellId; //return source spell
-    }
-
-    if (difficultyEntry->SpellID[mode] <= 0 && mode > DIFFICULTY_HEROIC)
-    {
-        LOG_DEBUG("spells.aura", "SpellMgr::GetSpellIdForDifficulty: spell {} mode {} spell is nullptr, using mode {}", spellId, mode, mode - 2);
-        mode -= 2;
-    }
-
-    if (difficultyEntry->SpellID[mode] <= 0)
-    {
-        LOG_ERROR("sql.sql", "SpellMgr::GetSpellIdForDifficulty: spell {} mode {} spell is 0. Check spelldifficulty_dbc!", spellId, mode);
+    auto itr = mSpellDifficultyMap.find(difficultyId);
+    if (itr == mSpellDifficultyMap.end())
         return spellId;
+
+    // 6.x Difficulty.dbc id -> legacy mode: 10 man (or 5 man normal), 25 man (or 5 man heroic), 10 heroic, 25 heroic
+    uint32 mode = 0;
+    switch (caster->GetMap()->GetDifficultyID())
+    {
+        case DIFFICULTY_HEROIC:
+        case DIFFICULTY_25_N:
+        case DIFFICULTY_LFR:
+            mode = 1;
+            break;
+        case DIFFICULTY_10_HC:
+            mode = 2;
+            break;
+        case DIFFICULTY_25_HC:
+            mode = 3;
+            break;
+        default:
+            break;
     }
 
-    LOG_DEBUG("spells.aura", "SpellMgr::GetSpellIdForDifficulty: spellid for spell {} in mode {} is {}", spellId, mode, difficultyEntry->SpellID[mode]);
-    return uint32(difficultyEntry->SpellID[mode]);
+    std::array<uint32, 4> const& spells = itr->second;
+    if (!spells[mode] && mode > 1)
+        mode -= 2;
+
+    if (!spells[mode])
+        return spellId;
+
+    LOG_DEBUG("spells.aura", "SpellMgr::GetSpellIdForDifficulty: spellid for spell {} in mode {} is {}", spellId, mode, spells[mode]);
+    return spells[mode];
 }
 
 SpellInfo const* SpellMgr::GetSpellForDifficultyFromSpell(SpellInfo const* spell, WorldObject const* caster) const
@@ -3030,39 +3080,72 @@ void SpellMgr::LoadSpellInfoStore()
     UnloadSpellInfoStore();
     mSpellInfoMap.resize(sSpellStore.GetNumRows(), nullptr);
 
-    std::unordered_map<uint32, std::array<SpellEffectEntry const*, MAX_SPELL_EFFECTS>> effects;
+    // 6.x: SpellEffect.dbc has a row set per difficulty; DIFFICULTY_NONE is the default spell data
+    std::unordered_map<uint32, std::unordered_map<uint32, std::array<SpellEffectEntry const*, MAX_SPELL_EFFECTS>>> effects;
     for (SpellEffectEntry const* effect : sSpellEffectStore)
     {
-        ASSERT(sSpellStore.LookupEntry(effect->SpellID), "SpellEffect {} references missing spell {}",
-            effect->ID, effect->SpellID);
-        ASSERT(effect->EffectIndex < MAX_SPELL_EFFECTS, "SpellEffect {} has invalid index {}",
-            effect->ID, effect->EffectIndex);
-        SpellEffectEntry const*& slot = effects[effect->SpellID][effect->EffectIndex];
-        ASSERT(!slot, "Duplicate effect {} for spell {}", effect->EffectIndex, effect->SpellID);
-        slot = effect;
+        if (effect->EffectIndex >= MAX_SPELL_EFFECTS)
+        {
+            LOG_ERROR("dbc", "SpellEffect {} of spell {} has invalid index {}, skipped", effect->ID, effect->SpellID, effect->EffectIndex);
+            continue;
+        }
+
+        if (!sSpellStore.LookupEntry(effect->SpellID))
+            continue;
+
+        effects[effect->SpellID][effect->DifficultyID][effect->EffectIndex] = effect;
     }
+
+    std::unordered_map<uint32, SpellInfo::SpellVisualMap> visuals;
+    for (SpellXSpellVisualEntry const* visual : sSpellXSpellVisualStore)
+        visuals[visual->SpellID][visual->DifficultyID].push_back(visual);
 
     uint32 unsupported = 0;
     for (SpellEntry const* spellEntry : sSpellStore)
     {
-        auto const& spellEffects = effects[spellEntry->Id];
-        bool supported = std::all_of(spellEffects.begin(), spellEffects.end(), [](SpellEffectEntry const* effect)
+        auto& spellEffects = effects[spellEntry->ID];
+        std::array<SpellEffectEntry const*, MAX_SPELL_EFFECTS> const& defaultEffects = spellEffects[DIFFICULTY_NONE];
+
+        auto isSupported = [](std::array<SpellEffectEntry const*, MAX_SPELL_EFFECTS> const& effectList)
         {
-            // Every 4.3.4 effect and aura has a dispatch slot (unimplemented ones are no-ops, like
-            // TrinityCore); only targets past the target table are still left out.
-            return !effect || (effect->Effect < TOTAL_SPELL_EFFECTS
-                && effect->EffectAura < TOTAL_AURAS
-                && effect->EffectImplicitTargetA < TOTAL_SPELL_TARGETS
-                && effect->EffectImplicitTargetB < TOTAL_SPELL_TARGETS);
-        });
-        if (!supported)
+            return std::all_of(effectList.begin(), effectList.end(), [](SpellEffectEntry const* effect)
+            {
+                // unimplemented effects and auras are no-ops; only targets past the target table are left out
+                return !effect || (effect->Effect < TOTAL_SPELL_EFFECTS
+                    && effect->EffectAura < TOTAL_AURAS
+                    && effect->ImplicitTarget[0] < TOTAL_SPELL_TARGETS
+                    && effect->ImplicitTarget[1] < TOTAL_SPELL_TARGETS);
+            });
+        };
+
+        if (!isSupported(defaultEffects))
         {
-            LOG_DEBUG("dbc", "Spell {} uses a target past TOTAL_SPELL_TARGETS", spellEntry->Id);
+            LOG_DEBUG("dbc", "Spell {} uses a target past TOTAL_SPELL_TARGETS", spellEntry->ID);
             ++unsupported;
             continue;
         }
-        mSpellInfoMap[spellEntry->Id] = new SpellInfo(spellEntry, spellEffects);
+
+        SpellInfo::SpellVisualMap const& spellVisuals = visuals[spellEntry->ID];
+        mSpellInfoMap[spellEntry->ID] = new SpellInfo(spellEntry, defaultEffects, DIFFICULTY_NONE, spellVisuals);
+
+        // difficulty variants: the difficulty's rows replace the default effect of the same index
+        for (auto const& [difficulty, difficultyEffects] : spellEffects)
+        {
+            if (difficulty == DIFFICULTY_NONE)
+                continue;
+
+            std::array<SpellEffectEntry const*, MAX_SPELL_EFFECTS> merged = defaultEffects;
+            for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
+                if (difficultyEffects[i])
+                    merged[i] = difficultyEffects[i];
+
+            if (!isSupported(merged))
+                continue;
+
+            mSpellDifficultyInfoMap[MAKE_PAIR64(spellEntry->ID, difficulty)] = new SpellInfo(spellEntry, merged, difficulty, spellVisuals);
+        }
     }
+
     if (unsupported)
         LOG_WARN("dbc", "Excluded {} spells using targets past TOTAL_SPELL_TARGETS; see dbc debug log", unsupported);
 
@@ -3135,6 +3218,27 @@ void SpellMgr::UnloadSpellInfoStore()
         delete mSpellInfoMap[i];
 
     mSpellInfoMap.clear();
+
+    for (auto& [key, spellInfo] : mSpellDifficultyInfoMap)
+        delete spellInfo;
+
+    mSpellDifficultyInfoMap.clear();
+}
+
+SpellInfo const* SpellMgr::GetSpellInfo(uint32 spellId, uint32 difficulty) const
+{
+    DifficultyEntry const* difficultyEntry = sDifficultyStore.LookupEntry(difficulty);
+    while (difficultyEntry)
+    {
+        auto itr = mSpellDifficultyInfoMap.find(MAKE_PAIR64(spellId, difficulty));
+        if (itr != mSpellDifficultyInfoMap.end())
+            return itr->second;
+
+        difficulty = difficultyEntry->FallbackDifficultyID;
+        difficultyEntry = sDifficultyStore.LookupEntry(difficulty);
+    }
+
+    return GetSpellInfo(spellId);
 }
 
 void SpellMgr::UnloadSpellInfoImplicitTargetConditionLists()

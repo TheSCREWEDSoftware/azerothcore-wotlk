@@ -43,6 +43,7 @@
 #include "CreatureAIRegistry.h"
 #include "CreatureGroups.h"
 #include "CreatureTextMgr.h"
+#include "DB2Stores.h"
 #include "DBCStores.h"
 #include "DBUpdater.h"
 #include "DatabaseEnv.h"
@@ -393,8 +394,13 @@ void World::SetInitialWorldSettings()
 
     ///- Load the DBC files
     LOG_INFO("server.loading", "Initialize Data Stores...");
-    LoadDBCStores(_dataPath);
     DetectDBCLang();
+    LoadDBCStores(_dataPath, GetDefaultDbcLocale());
+    sDB2Manager.LoadStores(_dataPath, GetDefaultDbcLocale());
+    LOG_INFO("server.loading", "Loading Hotfix Info...");
+    sDB2Manager.LoadHotfixData();
+    LoadGameTables(_dataPath, GetDefaultDbcLocale());
+    LoadDBCStoresAzerothCore();
 
     // Load cinematic cameras
     LoadM2Cameras(_dataPath);
@@ -416,6 +422,9 @@ void World::SetInitialWorldSettings()
 
     LOG_INFO("server.loading", "Loading SpellInfo Store...");
     sSpellMgr->LoadSpellInfoStore();
+
+    LOG_INFO("server.loading", "Loading Spell Difficulty Data...");
+    sSpellMgr->LoadSpellDifficulty();
 
     LOG_INFO("server.loading", "Loading Spell Cooldown Overrides...");
     sSpellMgr->LoadSpellCooldownOverrides();
@@ -540,8 +549,17 @@ void World::SetInitialWorldSettings()
     LOG_INFO("server.loading", "Loading Disables");
     sDisableMgr->LoadDisables();                                  // must be before loading quests and items
 
+    LOG_INFO("server.loading", "Loading Skill Tiers...");
+    sObjectMgr->LoadSkillTiers();
+
     LOG_INFO("server.loading", "Loading Items...");                         // must be after LoadRandomEnchantmentsTable and LoadPageTexts
     sObjectMgr->LoadItemTemplates();
+
+    LOG_INFO("server.loading", "Loading Item Template Addons...");
+    sObjectMgr->LoadItemTemplateAddon();
+
+    LOG_INFO("server.loading", "Loading Item Script Names...");
+    sObjectMgr->LoadItemScriptNames();
 
     LOG_INFO("server.loading", "Loading Item Set Names...");                // must be after LoadItemPrototypes
     sObjectMgr->LoadItemSetNames();
@@ -1133,44 +1151,18 @@ void World::SetInitialWorldSettings()
 
 void World::DetectDBCLang()
 {
-    uint8 m_lang_confid = sConfigMgr->GetOption<int32>("DBC.Locale", 255);
-
-    if (m_lang_confid != 255 && m_lang_confid >= TOTAL_LOCALES)
+    // 6.x: the client data has one locale; DBC.Locale picks the dbc/<locale> folder to load
+    uint8 locale = sConfigMgr->GetOption<int32>("DBC.Locale", LOCALE_enUS);
+    if (locale >= TOTAL_LOCALES || locale == LOCALE_none)
     {
-        LOG_ERROR("server.loading", "Incorrect DBC.Locale! Must be >= 0 and < {} (set to 0)", TOTAL_LOCALES);
-        m_lang_confid = LOCALE_enUS;
+        LOG_ERROR("server.loading", "Incorrect DBC.Locale! Must be >= 0 and < {} and not {} (set to 0)", TOTAL_LOCALES, LOCALE_none);
+        locale = LOCALE_enUS;
     }
 
-    ChrRacesEntry const* race = sChrRacesStore.LookupEntry(1);
-    std::string availableLocalsStr;
+    _defaultDbcLocale = LocaleConstant(locale);
+    _availableDbcLocaleMask = 1 << locale;
 
-    uint8 default_locale = TOTAL_LOCALES;
-    for (uint8 i = default_locale - 1; i < TOTAL_LOCALES; --i) // -1 will be 255 due to uint8
-    {
-        if (IsLocaleRegistered(LocaleConstant(i)) && race->Name_lang[0] != '\0') // check by race names
-        {
-            default_locale = i;
-            _availableDbcLocaleMask |= (1 << i);
-            availableLocalsStr += localeNames[i];
-            availableLocalsStr += " ";
-        }
-    }
-
-    if (default_locale != m_lang_confid && m_lang_confid < TOTAL_LOCALES &&
-            (_availableDbcLocaleMask & (1 << m_lang_confid)))
-    {
-        default_locale = m_lang_confid;
-    }
-
-    if (default_locale >= TOTAL_LOCALES)
-    {
-        LOG_ERROR("server.loading", "Unable to determine your DBC Locale! (corrupt DBC?)");
-        exit(1);
-    }
-
-    _defaultDbcLocale = LocaleConstant(default_locale);
-
-    LOG_INFO("server.loading", "Using {} DBC Locale As Default. All Available DBC locales: {}", localeNames[GetDefaultDbcLocale()], availableLocalsStr.empty() ? "<none>" : availableLocalsStr);
+    LOG_INFO("server.loading", "Using {} DBC Locale", localeNames[GetDefaultDbcLocale()]);
     LOG_INFO("server.loading", " ");
 }
 

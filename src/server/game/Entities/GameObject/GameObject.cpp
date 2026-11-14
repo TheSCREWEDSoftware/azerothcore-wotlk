@@ -613,7 +613,7 @@ void GameObject::Update(uint32 diff)
                             }
                             return;
                         }
-                    case GAMEOBJECT_TYPE_SUMMONING_RITUAL:
+                    case GAMEOBJECT_TYPE_RITUAL:
                         {
                             if (GameTime::GetGameTimeMS().count() < m_cooldownTime)
                                 return;
@@ -1104,7 +1104,7 @@ void GameObject::Delete()
         ReplaceAllGameObjectFlags((GameObjectFlags)addon->flags);
 
     // Xinef: if ritual gameobject is removed, clear anim spells
-    if (GetGOInfo()->type == GAMEOBJECT_TYPE_SUMMONING_RITUAL)
+    if (GetGOInfo()->type == GAMEOBJECT_TYPE_RITUAL)
         ClearRitualList();
 
     uint32 poolid = m_spawnId ? sPoolMgr->IsPartOfAPool<GameObject>(m_spawnId) : 0;
@@ -1964,7 +1964,7 @@ void GameObject::Use(Unit* user)
                 return;
             }
 
-        case GAMEOBJECT_TYPE_SUMMONING_RITUAL:              //18
+        case GAMEOBJECT_TYPE_RITUAL:              //18
             {
                 if (!user->IsPlayer())
                     return;

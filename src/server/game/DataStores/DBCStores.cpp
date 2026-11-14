@@ -150,7 +150,6 @@ DBCStorage<AchievementCategoryEntry>         sAchievementCategoryStore(Achieveme
 DBCStorage<CinematicCameraEntry>             sCinematicCameraStore(CinematicCameraEntryfmt);
 DBCStorage<CreatureSpellDataEntry>           sCreatureSpellDataStore(CreatureSpellDatafmt);
 DBCStorage<GameObjectArtKitEntry>            sGameObjectArtKitStore(GameObjectArtKitfmt);
-DBCStorage<GtOCTClassCombatRatingScalarEntry> sGtOCTClassCombatRatingScalarStore(GtOCTClassCombatRatingScalarfmt);
 DBCStorage<ResearchBranchEntry>              sResearchBranchStore(ResearchBranchfmt);
 DBCStorage<ResearchFieldEntry>               sResearchFieldStore(ResearchFieldfmt);
 DBCStorage<ResearchProjectEntry>             sResearchProjectStore(ResearchProjectfmt);
@@ -401,7 +400,6 @@ void LoadDBCStores(std::string const& dataPath, uint32 defaultLocale)
     LOAD_DBC(sCinematicCameraStore, "CinematicCamera.dbc");
     LOAD_DBC(sCreatureSpellDataStore, "CreatureSpellData.dbc");
     LOAD_DBC(sGameObjectArtKitStore, "GameObjectArtKit.dbc");
-    LOAD_DBC(sGtOCTClassCombatRatingScalarStore, "gtOCTClassCombatRatingScalar.dbc");
     LOAD_DBC(sResearchBranchStore, "ResearchBranch.dbc");
     LOAD_DBC(sResearchFieldStore, "ResearchField.dbc");
     LOAD_DBC(sResearchProjectStore, "ResearchProject.dbc");

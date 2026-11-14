@@ -105,7 +105,12 @@ public:                                                 // accessors
 
     ReputationRank const* GetForcedRankIfAny(FactionTemplateEntry const* factionTemplateEntry) const
     {
-        ForcedReactions::const_iterator forceItr = _forcedReactions.find(factionTemplateEntry->Faction);
+        return GetForcedRankIfAny(factionTemplateEntry->Faction);
+    }
+
+    ReputationRank const* GetForcedRankIfAny(uint32 factionId) const
+    {
+        ForcedReactions::const_iterator forceItr = _forcedReactions.find(factionId);
         return forceItr != _forcedReactions.end() ? &forceItr->second : nullptr;
     }
 

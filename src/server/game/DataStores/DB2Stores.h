@@ -26,6 +26,9 @@
 #include <unordered_set>
 
 extern DB2Storage<AchievementEntry>                     sAchievementStore;
+extern DB2Storage<NamesProfanityEntry>                  sNamesProfanityStore;
+extern DB2Storage<NamesReservedEntry>                   sNamesReservedStore;
+extern DB2Storage<NamesReservedLocaleEntry>             sNamesReservedLocaleStore;
 extern DB2Storage<AuctionHouseEntry>                    sAuctionHouseStore;
 extern DB2Storage<BarberShopStyleEntry>                 sBarberShopStyleStore;
 extern DB2Storage<BattlePetBreedQualityEntry>           sBattlePetBreedQualityStore;

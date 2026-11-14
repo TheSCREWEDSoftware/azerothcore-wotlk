@@ -286,7 +286,7 @@ struct SpellProcEntry
 {
     uint32       SchoolMask;                                 // if nonzero - bitmask for matching proc condition based on spell's school
     uint32       SpellFamilyName;                            // if nonzero - for matching proc condition based on candidate spell's SpellFamilyName
-    flag96       SpellFamilyMask;                            // if nonzero - bitmask for matching proc condition based on candidate spell's SpellFamilyFlags
+    flag128       SpellFamilyMask;                            // if nonzero - bitmask for matching proc condition based on candidate spell's SpellFamilyFlags
     uint32       ProcFlags;                                  // if nonzero - owerwrite procFlags field for given Spell.dbc entry, bitmask for matching proc condition, see enum ProcFlags
     uint32       SpellTypeMask;                              // if nonzero - bitmask for matching proc condition based on candidate spell's damage/heal effects, see enum ProcFlagsSpellType
     uint32       SpellPhaseMask;                             // if nonzero - bitmask for matching phase of a spellcast on which proc occurs, see enum ProcFlagsSpellPhase
@@ -598,6 +598,8 @@ typedef std::multimap<uint32, uint32> PetLevelupSpellSet;
 typedef std::map<uint32, PetLevelupSpellSet> PetLevelupSpellMap;
 
 typedef std::map<uint32, uint32> SpellDifficultySearcherMap;
+// spelldifficulty_dbc: legacy (WotLK) raid and dungeon spells, one spell id per 10N, 25N, 10H, 25H
+typedef std::unordered_map<uint32, std::array<uint32, 4>> SpellDifficultyMap;
 
 struct PetDefaultSpellsEntry
 {
@@ -669,6 +671,7 @@ public:
     // Spell difficulty
     [[nodiscard]] uint32 GetSpellDifficultyId(uint32 spellId) const;
     void SetSpellDifficultyId(uint32 spellId, uint32 id);
+    void LoadSpellDifficulty();
     uint32 GetSpellIdForDifficulty(uint32 spellId, WorldObject const* caster) const;
     SpellInfo const* GetSpellForDifficultyFromSpell(SpellInfo const* spell, WorldObject const* caster) const;
 
@@ -743,6 +746,8 @@ public:
 
     // SpellInfo object management
     [[nodiscard]] SpellInfo const* GetSpellInfo(uint32 spellId) const { return spellId < GetSpellInfoStoreSize() ?  mSpellInfoMap[spellId] : nullptr; }
+    // 6.x: spell data for a map difficulty (SpellEffect.dbc rows per DifficultyID), falling back through Difficulty.dbc
+    [[nodiscard]] SpellInfo const* GetSpellInfo(uint32 spellId, uint32 difficulty) const;
     // Use this only with 100% valid spellIds
     [[nodiscard]] SpellInfo const* AssertSpellInfo(uint32 spellId) const
     {
@@ -815,6 +820,7 @@ public:
 
 private:
     SpellDifficultySearcherMap mSpellDifficultySearcherMap;
+    SpellDifficultyMap         mSpellDifficultyMap;
     SpellChainMap              mSpellChains;
     SpellsRequiringSpellMap    mSpellsReqSpell;
     SpellRequiredMap           mSpellReq;
@@ -844,6 +850,7 @@ private:
     PetLevelupSpellMap         mPetLevelupSpellMap;
     PetDefaultSpellsMap        mPetDefaultSpellsMap;           // only spells not listed in related mPetLevelupSpellMap entry
     SpellInfoMap               mSpellInfoMap;
+    std::unordered_map<uint64 /*MAKE_PAIR64(spellId, difficulty)*/, SpellInfo*> mSpellDifficultyInfoMap;
     SpellCooldownOverrideMap   mSpellCooldownOverrideMap;
     TalentAdditionalSet        mTalentSpellAdditionalSet;
 };

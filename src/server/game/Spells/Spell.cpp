@@ -3967,7 +3967,7 @@ void Spell::cancel(bool bySelf)
             if (GameObject* gameObject = unitCaster->GetGameObject(m_spellInfo->Id))
             {
                 unitCaster->RemoveGameObject(gameObject, true);
-                if (gameObject->GetGoType() == GAMEOBJECT_TYPE_SUMMONING_RITUAL && unitCaster->IsPlayer())
+                if (gameObject->GetGoType() == GAMEOBJECT_TYPE_RITUAL && unitCaster->IsPlayer())
                     unitCaster->ToPlayer()->RemoveSpellCooldown(m_spellInfo->Id, true);
             }
         }
@@ -6186,7 +6186,7 @@ void Spell::TakeRunePower(bool didHit)
 
     // you can gain some runic power when use runes
     if (didHit)
-        if (int32 rp = int32(runeCostData->runePowerGain * sWorld->getRate(RATE_POWER_RUNICPOWER_INCOME)))
+        if (int32 rp = int32(runeCostData->RunicPower * sWorld->getRate(RATE_POWER_RUNICPOWER_INCOME)))
             player->ModifyPower(POWER_RUNIC_POWER, int32(rp));
 }
 

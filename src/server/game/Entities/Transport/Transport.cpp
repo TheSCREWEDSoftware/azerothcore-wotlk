@@ -650,7 +650,7 @@ void MotionTransport::DelayedTeleportTransport()
 
     uint32 newMapId = _nextFrame->Node->MapID;
     float x = _nextFrame->Node->Loc.X,
-          y = _nextFrame->Node->y,
+          y = _nextFrame->Node->Loc.Y,
           z = _nextFrame->Node->z,
           o = _nextFrame->InitialOrientation;
 

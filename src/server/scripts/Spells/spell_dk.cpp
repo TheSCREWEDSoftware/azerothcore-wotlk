@@ -2778,7 +2778,7 @@ class spell_dk_killing_machine : public AuraScript
         if (spellMod)
         {
             // Icy Touch (mask0=2), Frost Strike (mask1=4), Howling Blast (mask1=2)
-            spellMod->mask = flag96(2, 6, 0);
+            spellMod->mask = flag128(2, 6, 0);
         }
     }
 

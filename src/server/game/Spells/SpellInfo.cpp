@@ -364,15 +364,18 @@ SpellEffectInfo::SpellEffectInfo(SpellEffectEntry const* effect, SpellInfo const
     MiscValue = effect->EffectMiscValue;
     MiscValueB = effect->EffectMiscValueB;
     Mechanic = Mechanics(effect->EffectMechanic);
-    TargetA = SpellImplicitTargetInfo(effect->EffectImplicitTargetA);
-    TargetB = SpellImplicitTargetInfo(effect->EffectImplicitTargetB);
+    TargetA = SpellImplicitTargetInfo(effect->ImplicitTarget[0]);
+    TargetB = SpellImplicitTargetInfo(effect->ImplicitTarget[1]);
     ChainTarget = effect->EffectChainTargets;
     ItemType = effect->EffectItemType;
     TriggerSpell = effect->EffectTriggerSpell;
     SpellClassMask = effect->EffectSpellClassMask;
     RadiusEntry = effect->EffectRadiusIndex ? sSpellRadiusStore.LookupEntry(effect->EffectRadiusIndex) : nullptr;
+    MaxRadiusEntry = effect->EffectRadiusMaxIndex ? sSpellRadiusStore.LookupEntry(effect->EffectRadiusMaxIndex) : nullptr;
+    BonusCoefficientFromAP = effect->BonusCoefficientFromAP;
+    PositionFacing = effect->EffectPosFacing;
 
-    // 5.4.8: the coefficients are per SpellEffect.dbc row in SpellEffectScaling.dbc
+    // the coefficients are per SpellEffect.dbc row in SpellEffectScaling.db2
     if (spellInfo->ScalingEntry)
     {
         if (SpellEffectScalingEntry const* scaling = GetSpellEffectScaling(effect->ID))
@@ -615,7 +618,7 @@ int32 SpellEffectInfo::CalcScaledBaseValue(WorldObject const* caster, Unit const
     float value = 0.0f;
     if (level > 0)
     {
-        if (!_spellInfo->ScalingEntry || !_spellInfo->ScalingEntry->Class)
+        if (!_spellInfo->ScalingEntry || !_spellInfo->ScalingEntry->ScalingClass)
             return 0;
 
         value = _spellInfo->GetSpellScalingValue(level) * _spellInfo->GetSpellScalingMultiplier(level);
@@ -639,7 +642,7 @@ Optional<uint8> SpellEffectInfo::GetHunterPetCallSlot() const
 // Based on client function QuestTextParser::Spell_C_GetPointsPerResource (build 15595)
 float SpellEffectInfo::CalcScaledPointsPerComboPoint(Unit const* caster) const
 {
-    if (!caster || ScalingCoefficient == 0.0f || !_spellInfo->ScalingEntry || !_spellInfo->ScalingEntry->Class)
+    if (!caster || ScalingCoefficient == 0.0f || !_spellInfo->ScalingEntry || !_spellInfo->ScalingEntry->ScalingClass)
         return 0.0f;
 
     int32 level = int32(caster->GetLevel());
@@ -921,43 +924,64 @@ std::array<SpellEffectInfo::StaticData, TOTAL_SPELL_EFFECTS> SpellEffectInfo::_d
     {EFFECT_IMPLICIT_TARGET_NONE,     TARGET_OBJECT_TYPE_UNIT}, // 182 SPELL_EFFECT_182
 } };
 
-SpellInfo::SpellInfo(SpellEntry const* spellEntry, std::array<SpellEffectEntry const*, MAX_SPELL_EFFECTS> const& effects)
+SpellInfo::SpellInfo(SpellEntry const* spellEntry, std::array<SpellEffectEntry const*, MAX_SPELL_EFFECTS> const& effects, uint32 difficulty, SpellVisualMap visuals)
 {
-    Id = spellEntry->Id;
-    Attributes = spellEntry->Attributes;
-    AttributesEx = spellEntry->AttributesEx;
-    AttributesEx2 = spellEntry->AttributesEx2;
-    AttributesEx3 = spellEntry->AttributesEx3;
-    AttributesEx4 = spellEntry->AttributesEx4;
-    AttributesEx5 = spellEntry->AttributesEx5;
-    AttributesEx6 = spellEntry->AttributesEx6;
-    AttributesEx7 = spellEntry->AttributesEx7;
-    AttributesEx8 = spellEntry->AttributesEx8;
-    AttributesEx9 = spellEntry->AttributesEx9;
-    AttributesEx10 = spellEntry->AttributesEx10;
-    PowerType = spellEntry->PowerType;
-    Speed = spellEntry->Speed;
-    SpellIconID = spellEntry->SpellIconID;
-    ActiveIconID = spellEntry->ActiveIconID;
-    SchoolMask = spellEntry->SchoolMask;
+    Id = spellEntry->ID;
+    DifficultyID = difficulty;
+
+    // 6.x: attributes, timing and school moved to SpellMisc.db2
+    SpellMiscEntry const* misc = sSpellMiscStore.LookupEntry(spellEntry->MiscID);
+    Attributes = misc ? misc->Attributes : 0;
+    AttributesEx = misc ? misc->AttributesEx : 0;
+    AttributesEx2 = misc ? misc->AttributesExB : 0;
+    AttributesEx3 = misc ? misc->AttributesExC : 0;
+    AttributesEx4 = misc ? misc->AttributesExD : 0;
+    AttributesEx5 = misc ? misc->AttributesExE : 0;
+    AttributesEx6 = misc ? misc->AttributesExF : 0;
+    AttributesEx7 = misc ? misc->AttributesExG : 0;
+    AttributesEx8 = misc ? misc->AttributesExH : 0;
+    AttributesEx9 = misc ? misc->AttributesExI : 0;
+    AttributesEx10 = misc ? misc->AttributesExJ : 0;
+    AttributesEx11 = misc ? misc->AttributesExK : 0;
+    AttributesEx12 = misc ? misc->AttributesExL : 0;
+    AttributesEx13 = misc ? misc->AttributesExM : 0;
+    Speed = misc ? misc->Speed : 0.0f;
+    SpellIconID = misc ? misc->SpellIconID : 0;
+    ActiveIconID = misc ? misc->ActiveIconID : 0;
+    SchoolMask = misc ? misc->SchoolMask : 0;
+    CastTimeEntry = misc && misc->CastingTimeIndex ? sSpellCastTimesStore.LookupEntry(misc->CastingTimeIndex) : nullptr;
+    DurationEntry = misc && misc->DurationIndex ? sSpellDurationStore.LookupEntry(misc->DurationIndex) : nullptr;
+    RangeEntry = misc && misc->RangeIndex ? sSpellRangeStore.LookupEntry(misc->RangeIndex) : nullptr;
+
     RuneCostID = spellEntry->RuneCostID;
-    SpellVisual = spellEntry->SpellVisualID;
-    SpellName = spellEntry->Name;
-    Rank = spellEntry->NameSubtext;
-    BonusCoefficientFromAP = spellEntry->BonusCoefficient;
-    CastTimeEntry = spellEntry->CastingTimeIndex ? sSpellCastTimesStore.LookupEntry(spellEntry->CastingTimeIndex) : nullptr;
-    DurationEntry = spellEntry->DurationIndex ? sSpellDurationStore.LookupEntry(spellEntry->DurationIndex) : nullptr;
-    RangeEntry = spellEntry->RangeIndex ? sSpellRangeStore.LookupEntry(spellEntry->RangeIndex) : nullptr;
+    // the client only loads its own locale: every locale slot points at it
+    SpellName.fill(spellEntry->Name_lang);
+    Rank.fill(spellEntry->NameSubtext_lang);
     ScalingEntry = spellEntry->ScalingID ? sSpellScalingStore.LookupEntry(spellEntry->ScalingID) : nullptr;
     AttributesCu = 0;
     SpellPriority = 0;
     ManaPerSecondPerLevel = 0;
+
+    // 6.x: visuals are SpellXSpellVisual.db2 rows; the ones without a player condition go last
+    _visuals = std::move(visuals);
+    for (auto& [visualDifficulty, visualList] : _visuals)
+        std::sort(visualList.begin(), visualList.end(), [](SpellXSpellVisualEntry const* first, SpellXSpellVisualEntry const* second) { return first->PlayerConditionID > second->PlayerConditionID; });
+
+    SpellVisual = { };
+    if (SpellXSpellVisualEntry const* visual = sSpellXSpellVisualStore.LookupEntry(GetSpellXSpellVisualId()))
+    {
+        SpellVisual[0] = visual->SpellVisualID[0];
+        SpellVisual[1] = visual->SpellVisualID[1];
+    }
 
     SpellAuraOptionsEntry const* auraOptions = sSpellAuraOptionsStore.LookupEntry(spellEntry->AuraOptionsID);
     ProcFlags = auraOptions ? auraOptions->ProcTypeMask : 0;
     ProcChance = auraOptions ? auraOptions->ProcChance : 0;
     ProcCharges = auraOptions ? auraOptions->ProcCharges : 0;
     StackAmount = auraOptions ? auraOptions->CumulativeAura : 0;
+    ProcCooldown = auraOptions ? auraOptions->ProcCategoryRecovery : 0;
+    SpellProcsPerMinuteEntry const* procsPerMinute = auraOptions ? sSpellProcsPerMinuteStore.LookupEntry(auraOptions->SpellProcsPerMinuteID) : nullptr;
+    ProcBasePPM = procsPerMinute ? procsPerMinute->BaseProcRate : 0.0f;
 
     SpellAuraRestrictionsEntry const* auraRestrictions = sSpellAuraRestrictionsStore.LookupEntry(spellEntry->AuraRestrictionsID);
     CasterAuraState = auraRestrictions ? auraRestrictions->CasterAuraState : 0;
@@ -981,10 +1005,11 @@ SpellInfo::SpellInfo(SpellEntry const* spellEntry, std::array<SpellEffectEntry c
     DmgClass = categories ? categories->DefenseType : 0;
     PreventionType = categories ? categories->PreventionType : 0;
     CategoryEntry = categories ? sSpellCategoryStore.LookupEntry(categories->Category) : nullptr;
+    ChargeCategoryEntry = categories ? sSpellCategoryStore.LookupEntry(categories->ChargeCategory) : nullptr;
 
     SpellClassOptionsEntry const* classOptions = sSpellClassOptionsStore.LookupEntry(spellEntry->ClassOptionsID);
     SpellFamilyName = classOptions ? classOptions->SpellClassSet : 0;
-    SpellFamilyFlags = classOptions ? classOptions->SpellFamilyMask : flag96(0);
+    SpellFamilyFlags = classOptions ? classOptions->SpellClassMask : flag128();
 
     SpellCooldownsEntry const* cooldowns = sSpellCooldownsStore.LookupEntry(spellEntry->CooldownsID);
     RecoveryTime = cooldowns ? cooldowns->RecoveryTime : 0;
@@ -993,8 +1018,8 @@ SpellInfo::SpellInfo(SpellEntry const* spellEntry, std::array<SpellEffectEntry c
 
     SpellEquippedItemsEntry const* equippedItems = sSpellEquippedItemsStore.LookupEntry(spellEntry->EquippedItemsID);
     EquippedItemClass = equippedItems ? equippedItems->EquippedItemClass : -1;
-    EquippedItemSubClassMask = equippedItems ? equippedItems->EquippedItemSubclass : -1;
-    EquippedItemInventoryTypeMask = equippedItems ? equippedItems->EquippedItemInvTypes : -1;
+    EquippedItemSubClassMask = equippedItems ? equippedItems->EquippedItemSubClassMask : -1;
+    EquippedItemInventoryTypeMask = equippedItems ? equippedItems->EquippedItemInventoryTypeMask : -1;
 
     SpellInterruptsEntry const* interrupts = sSpellInterruptsStore.LookupEntry(spellEntry->InterruptsID);
     InterruptFlags = interrupts ? interrupts->InterruptFlags : 0;
@@ -1008,39 +1033,60 @@ SpellInfo::SpellInfo(SpellEntry const* spellEntry, std::array<SpellEffectEntry c
     BaseLevel = levels ? levels->BaseLevel : 0;
     SpellLevel = levels ? levels->SpellLevel : 0;
 
-    // 5.4.8: SpellPower.dbc is keyed by spell; server-side rows still name a row id in PowerDisplayID
-    SpellPowerEntry const* power = spellEntry->PowerDisplayID ? sSpellPowerStore.LookupEntry(spellEntry->PowerDisplayID) : nullptr;
-    if (!power)
-        power = GetSpellPowerEntryBySpell(Id);
+    // 6.x: SpellPower.db2 lists every power the spell costs; the first one feeds the single cost fields
+    PowerCosts = sDB2Manager.GetSpellPowers(Id, Difficulty(difficulty));
+    SpellPowerEntry const* power = PowerCosts.empty() ? nullptr : PowerCosts.front();
+    PowerType = power ? power->PowerType : POWER_MANA;
     ManaCost = power ? power->ManaCost : 0;
     ManaCostPerlevel = power ? power->ManaCostPerLevel : 0;
     ManaCostPercentage = 0;
-    ManaCostPercentage2 = power ? power->PowerCostPct : 0;
-    ManaPerSecond = power ? power->ManaPerSecond : 0;
+    ManaCostPercentage2 = power ? power->ManaCostPercentage : 0.0f;
+    ManaPerSecond = power ? power->ManaCostPerSecond : 0;
 
     SpellTargetRestrictionsEntry const* targetRestrictions = sSpellTargetRestrictionsStore.LookupEntry(spellEntry->TargetRestrictionsID);
     ConeAngle = targetRestrictions ? targetRestrictions->ConeAngle : 0;
     Targets = targetRestrictions ? targetRestrictions->Targets : 0;
     TargetCreatureType = targetRestrictions ? targetRestrictions->TargetCreatureType : 0;
-    MaxAffectedTargets = targetRestrictions ? targetRestrictions->MaxTargets : 0;
+    MaxAffectedTargets = targetRestrictions ? targetRestrictions->MaxAffectedTargets : 0;
     MaxTargetLevel = targetRestrictions ? targetRestrictions->MaxTargetLevel : 0;
 
     SpellReagentsEntry const* reagents = sSpellReagentsStore.LookupEntry(spellEntry->ReagentsID);
-    Reagent = reagents ? reagents->Reagents : decltype(Reagent){};
-    ReagentCount = reagents ? reagents->ReagentCount : decltype(ReagentCount){};
+    Reagent = { };
+    ReagentCount = { };
+    if (reagents)
+    {
+        std::copy(std::begin(reagents->Reagent), std::end(reagents->Reagent), Reagent.begin());
+        std::copy(std::begin(reagents->ReagentCount), std::end(reagents->ReagentCount), ReagentCount.begin());
+    }
 
     SpellShapeshiftEntry const* shapeshift = sSpellShapeshiftStore.LookupEntry(spellEntry->ShapeshiftID);
     Stances = shapeshift ? MAKE_PAIR64(shapeshift->ShapeshiftMask[0], shapeshift->ShapeshiftMask[1]) : 0;
     StancesNot = shapeshift ? MAKE_PAIR64(shapeshift->ShapeshiftExclude[0], shapeshift->ShapeshiftExclude[1]) : 0;
 
     SpellTotemsEntry const* totems = sSpellTotemsStore.LookupEntry(spellEntry->TotemsID);
-    TotemCategory = totems ? totems->RequiredTotemCategoryID : decltype(TotemCategory){};
-    Totem = totems ? totems->Totem : decltype(Totem){};
+    TotemCategory = { };
+    Totem = { };
+    if (totems)
+    {
+        std::copy(std::begin(totems->RequiredTotemCategoryID), std::end(totems->RequiredTotemCategoryID), TotemCategory.begin());
+        std::copy(std::begin(totems->Totem), std::end(totems->Totem), Totem.begin());
+    }
 
     ResearchProjectId = spellEntry->RequiredProjectID;
 
     for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
         Effects[i] = SpellEffectInfo(effects[i], this, i);
+
+    // 6.x moved the attack power coefficient to the effects; the spell keeps the first one set
+    BonusCoefficientFromAP = 0.0f;
+    for (SpellEffectInfo const& effect : Effects)
+    {
+        if (effect.BonusCoefficientFromAP != 0.0f)
+        {
+            BonusCoefficientFromAP = effect.BonusCoefficientFromAP;
+            break;
+        }
+    }
 
     ChainEntry = nullptr;
     ExplicitTargetMask = 0;
@@ -1060,7 +1106,48 @@ SpellInfo::~SpellInfo()
 
 uint32 SpellInfo::GetCategory() const
 {
-    return CategoryEntry ? CategoryEntry->Id : 0;
+    return CategoryEntry ? CategoryEntry->ID : 0;
+}
+
+uint32 SpellInfo::GetSpellXSpellVisualId(Unit const* caster /*= nullptr*/) const
+{
+    if (caster)
+    {
+        uint32 difficulty = caster->GetMap()->GetDifficultyID();
+        DifficultyEntry const* difficultyEntry = sDifficultyStore.LookupEntry(difficulty);
+        while (difficultyEntry)
+        {
+            auto itr = _visuals.find(difficulty);
+            if (itr != _visuals.end())
+            {
+                for (SpellXSpellVisualEntry const* visual : itr->second)
+                {
+                    PlayerConditionEntry const* playerCondition = sPlayerConditionStore.LookupEntry(visual->PlayerConditionID);
+                    if (!playerCondition || (caster->IsPlayer() && sConditionMgr->IsPlayerMeetingCondition(caster->ToPlayer(), playerCondition)))
+                        return visual->ID;
+                }
+            }
+
+            difficulty = difficultyEntry->FallbackDifficultyID;
+            difficultyEntry = sDifficultyStore.LookupEntry(difficulty);
+        }
+    }
+
+    auto itr = _visuals.find(DIFFICULTY_NONE);
+    if (itr != _visuals.end())
+        for (SpellXSpellVisualEntry const* visual : itr->second)
+            if (!visual->PlayerConditionID)
+                return visual->ID;
+
+    return 0;
+}
+
+uint32 SpellInfo::GetSpellVisual(Unit const* caster /*= nullptr*/) const
+{
+    if (SpellXSpellVisualEntry const* visual = sSpellXSpellVisualStore.LookupEntry(GetSpellXSpellVisualId(caster)))
+        return visual->SpellVisualID[0];
+
+    return 0;
 }
 
 bool SpellInfo::HasEffect(SpellEffects effect) const
@@ -1512,7 +1599,7 @@ bool SpellInfo::HasInitialAggro() const
     return !(HasAttribute(SPELL_ATTR1_NO_THREAT) || HasAttribute(SPELL_ATTR3_SUPPRESS_TARGET_PROCS));
 }
 
-bool SpellInfo::IsAffected(uint32 familyName, flag96 const& familyFlags) const
+bool SpellInfo::IsAffected(uint32 familyName, flag128 const& familyFlags) const
 {
     if (!familyName)
         return true;
@@ -1702,17 +1789,15 @@ SpellCastResult SpellInfo::CheckLocation(uint32 map_id, uint32 zone_id, uint32 a
     // normal case
     if (AreaGroupId > 0)
     {
+        // 6.x: AreaGroupMember.db2 lists the areas of the group
         bool found = false;
-        AreaGroupEntry const* groupEntry = sAreaGroupStore.LookupEntry(AreaGroupId);
-        while (groupEntry)
+        for (uint32 areaId : sDB2Manager.GetAreasForGroup(AreaGroupId))
         {
-            for (uint8 i = 0; i < MAX_GROUP_AREA_IDS; ++i)
-                if (groupEntry->AreaId[i] == zone_id || groupEntry->AreaId[i] == area_id)
-                    found = true;
-            if (found || !groupEntry->nextGroup)
+            if (areaId == zone_id || areaId == area_id)
+            {
+                found = true;
                 break;
-            // Try search in next group
-            groupEntry = sAreaGroupStore.LookupEntry(groupEntry->nextGroup);
+            }
         }
 
         if (!found)
@@ -1841,7 +1926,7 @@ bool SpellInfo::ValidateAttribute6SpellDamageMods(Unit const* caster, AuraEffect
     {
         SpellInfo const* auraInfo = auraEffect->GetSpellInfo();
         return auraInfo->SpellIconID == 3086 ||
-               (auraInfo->SpellFamilyName == SPELLFAMILY_DEATHKNIGHT && (auraInfo->SpellFamilyFlags & flag96(8388608, 64, 16) || auraInfo->SpellIconID == 235 || auraInfo->SpellIconID == 154));
+               (auraInfo->SpellFamilyName == SPELLFAMILY_DEATHKNIGHT && (auraInfo->SpellFamilyFlags & flag128(8388608, 64, 16) || auraInfo->SpellIconID == 235 || auraInfo->SpellIconID == 154));
     }
     // Xinef: Necrosis, no profits for done and taken
     else if (Id == 51460)
@@ -2996,7 +3081,7 @@ uint32 SpellInfo::CalcCastTime(WorldObject* caster, Spell* spell) const
 
 float SpellInfo::GetSpellScalingMultiplier(int32 level, bool isPowerCostRelated /*= false*/) const
 {
-    if (level <= 0 || !ScalingEntry || !ScalingEntry->Class)
+    if (level <= 0 || !ScalingEntry || !ScalingEntry->ScalingClass)
         return 1.0f;
 
     float multiplier = 1.0f;
@@ -3017,7 +3102,7 @@ float SpellInfo::GetSpellScalingMultiplier(int32 level, bool isPowerCostRelated 
 
 float SpellInfo::CalculateScaledCoefficient(Unit const* caster, float coefficient) const
 {
-    if (coefficient == 0.0f || !caster || !ScalingEntry || !ScalingEntry->Class)
+    if (coefficient == 0.0f || !caster || !ScalingEntry || !ScalingEntry->ScalingClass)
         return coefficient;
 
     return coefficient * GetSpellScalingMultiplier(int32(caster->GetLevel()));
@@ -3025,17 +3110,18 @@ float SpellInfo::CalculateScaledCoefficient(Unit const* caster, float coefficien
 
 float SpellInfo::GetSpellScalingValue(int32 level) const
 {
-    if (!ScalingEntry || !ScalingEntry->Class || level <= 0 || level > GT_MAX_LEVEL)
+    if (!ScalingEntry || !ScalingEntry->ScalingClass || level <= 0)
         return 0.0f;
 
     // negative classes index the generic rows that follow the player classes
-    int32 scalingClass = ScalingEntry->Class > 0 ? ScalingEntry->Class : (MAX_CLASSES - 1) - ScalingEntry->Class;
+    int32 scalingClass = ScalingEntry->ScalingClass > 0 ? ScalingEntry->ScalingClass : (MAX_CLASSES - 1) - ScalingEntry->ScalingClass;
 
-    // 5.4.8: SpellScaling.dbc caps the level used for the lookup
+    // SpellScaling.dbc caps the level used for the lookup
     if (ScalingEntry->MaxScalingLevel && level > int32(ScalingEntry->MaxScalingLevel))
         level = ScalingEntry->MaxScalingLevel;
 
-    GtSpellScalingEntry const* gt = sGtSpellScalingStore.LookupEntry((scalingClass - 1) * GT_MAX_LEVEL + level - 1);
+    level = std::min<int32>(level, int32(sGtSpellScalingStore.GetTableRowCount()));
+    GtSpellScalingEntry const* gt = sGtSpellScalingStore.EvaluateTable(level - 1, scalingClass - 1);
     return gt ? gt->value : 0.0f;
 }
 
@@ -3130,7 +3216,7 @@ int32 SpellInfo::CalcPowerCost(WorldObject const* caster, SpellSchoolMask school
     }
 
     // spells with a SpellScaling entry scale their cost with the cast time multiplier only
-    if (ScalingEntry && ScalingEntry->Class)
+    if (ScalingEntry && ScalingEntry->ScalingClass)
         powerCost = int32(std::ceil(GetSpellScalingMultiplier(int32(unitCaster->GetLevel()), true) * float(powerCost)));
     SpellSchools school = GetFirstSchoolInMask(schoolMask);
     // Flat mod from caster auras by spell school
@@ -3162,8 +3248,8 @@ int32 SpellInfo::CalcPowerCost(WorldObject const* caster, SpellSchoolMask school
     {
         if (HasAttribute(SPELL_ATTR0_SCALES_WITH_CREATURE_LEVEL))
         {
-            GtNPCManaCostScalerEntry const* spellScaler = sGtNPCManaCostScalerStore.LookupEntry(SpellLevel - 1);
-            GtNPCManaCostScalerEntry const* casterScaler = sGtNPCManaCostScalerStore.LookupEntry(unitCaster->GetLevel() - 1);
+            GtNPCManaCostScalerEntry const* spellScaler = sGtNPCManaCostScalerStore.EvaluateTable(SpellLevel - 1, 0);
+            GtNPCManaCostScalerEntry const* casterScaler = sGtNPCManaCostScalerStore.EvaluateTable(unitCaster->GetLevel() - 1, 0);
             if (spellScaler && casterScaler)
                 powerCost *= casterScaler->ratio / spellScaler->ratio;
         }

@@ -2446,7 +2446,7 @@ GroupJoinBattlegroundResult Group::CanJoinBattlegroundQueue(Battleground const* 
         return ERR_GROUP_JOIN_BATTLEGROUND_FAIL;
 
     // too many players in the group
-    if (GetMembersCount() > bgEntry->maxGroupSize)
+    if (GetMembersCount() > bgEntry->MaxGroupSize)
         return ERR_BATTLEGROUND_NONE;
 
     // get a player as reference, to compare other players' stats to (arena team id, level bracket, etc.)
@@ -2485,7 +2485,7 @@ GroupJoinBattlegroundResult Group::CanJoinBattlegroundQueue(Battleground const* 
             return ERR_BATTLEGROUND_JOIN_FAILED;
 
         // not in the same battleground level braket, don't let join
-        PvPDifficultyEntry const* memberBracketEntry = GetBattlegroundBracketByLevel(bracketEntry->mapId, member->GetLevel());
+        PvPDifficultyEntry const* memberBracketEntry = GetBattlegroundBracketByLevel(bracketEntry->MapID, member->GetLevel());
         if (memberBracketEntry != bracketEntry)
             return ERR_BATTLEGROUND_JOIN_RANGE_INDEX;
 

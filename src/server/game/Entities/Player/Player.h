@@ -198,7 +198,7 @@ struct SpellModifier
     SpellModOp op;
     SpellModType type;
     int32 value;
-    flag96 mask;
+    flag128 mask;
     uint32 spellId;
     Aura* const ownerAura;
 };
@@ -2123,7 +2123,6 @@ public:
     void GetDodgeFromAgility(float& diminishing, float& nondiminishing);
     [[nodiscard]] float GetMissPercentageFromDefence() const;
     float GetSpellCritFromIntellect();
-    float OCTRegenHPPerSpirit();
     float OCTRegenMPPerSpirit();
     [[nodiscard]] float GetRatingMultiplier(CombatRating cr) const;
     [[nodiscard]] float GetRatingBonusValue(CombatRating cr) const;

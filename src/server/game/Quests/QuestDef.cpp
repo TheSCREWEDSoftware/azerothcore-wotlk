@@ -335,9 +335,6 @@ bool Quest::IsAllowedInRaid(Difficulty difficulty) const
 
 uint32 Quest::CalculateHonorGain(uint8 level) const
 {
-    if (level > GT_MAX_LEVEL)
-        level = GT_MAX_LEVEL;
-
     uint32 honor = 0;
 
     // TeamContributionPoints.dbc was removed in the real Cata client (matches upstream TC,

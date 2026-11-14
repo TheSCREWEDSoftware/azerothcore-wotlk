@@ -1084,7 +1084,7 @@ struct SpellEntry
 {
     uint32      ID;                                         // 0
     char*       Name_lang;                                  // 1
-    //char*     NameSubtext_lang;                           // 2
+    char*       NameSubtext_lang;                           // 2
     //char*     Description_lang;                           // 3
     //char*     AuraDescription_lang;                       // 4
     uint32      RuneCostID;                                 // 5
@@ -1540,11 +1540,6 @@ struct GameObjectArtKitEntry
     uint32 ID;                                              // 0
     //char* TextureVariation[3]                             // 1-3 m_textureVariations[3]
     //char* AttachModel[4]                                  // 4-8 m_attachModels[4]
-};
-
-struct GtOCTClassCombatRatingScalarEntry
-{
-    float    ratio;
 };
 
 // ResearchBranch.dbc
@@ -2170,81 +2165,6 @@ struct AchievementCriteriaEntry
     // ID is the Criteria.dbc id (a new id above every Criteria id when a criteria is shared by
     // more than one achievement) and CriteriaID is the id the client knows.
     uint32  CriteriaID;
-};
-
-// AzerothCore's flattened spell record that SpellInfo is built from (Spell, SpellMisc and the per spell stores)
-struct SpellEntryFlat
-{
-    uint32 Id;
-    uint32 Attributes;
-    uint32 AttributesEx;
-    uint32 AttributesEx2;
-    uint32 AttributesEx3;
-    uint32 AttributesEx4;
-    uint32 AttributesEx5;
-    uint32 AttributesEx6;
-    uint32 AttributesEx7;
-    uint32 AttributesEx8;
-    uint32 AttributesEx9;
-    uint32 AttributesEx10;
-    uint32 CastingTimeIndex;
-    uint32 DurationIndex;
-    uint32 PowerType;
-    uint32 RangeIndex;
-    float Speed;
-    std::array<uint32, 2> SpellVisualID;
-    uint32 SpellIconID;
-    uint32 ActiveIconID;
-    std::array<char const*, 16> Name;
-    std::array<char const*, 16> NameSubtext;
-    uint32 SchoolMask;
-    uint32 RuneCostID;
-    uint32 Difficulty;
-    float BonusCoefficient;
-    uint32 ScalingID;
-    uint32 AuraOptionsID;
-    uint32 AuraRestrictionsID;
-    uint32 CastingRequirementsID;
-    uint32 CategoriesID;
-    uint32 ClassOptionsID;
-    uint32 CooldownsID;
-    uint32 EquippedItemsID;
-    uint32 InterruptsID;
-    uint32 LevelsID;
-    uint32 PowerDisplayID;
-    uint32 ReagentsID;
-    uint32 ShapeshiftID;
-    uint32 TargetRestrictionsID;
-    uint32 TotemsID;
-    uint32 RequiredProjectID;
-};
-
-struct SpellEffectEntryFlat
-{
-    uint32 ID;
-    uint32 Effect;
-    float EffectAmplitude;
-    uint32 EffectAura;
-    uint32 EffectAuraPeriod;
-    int32 EffectBasePoints;
-    float EffectBonusCoefficient;
-    float EffectChainAmplitude;
-    uint32 EffectChainTargets;
-    int32 EffectDieSides;
-    uint32 EffectItemType;
-    uint32 EffectMechanic;
-    int32 EffectMiscValue;
-    int32 EffectMiscValueB;
-    float EffectPointsPerResource;
-    uint32 EffectRadiusIndex;
-    uint32 EffectRadiusMaxIndex;
-    float EffectRealPointsPerLevel;
-    flag96 EffectSpellClassMask;
-    uint32 EffectTriggerSpell;
-    uint32 EffectImplicitTargetA;
-    uint32 EffectImplicitTargetB;
-    uint32 SpellID;
-    uint32 EffectIndex;
 };
 
 // Structures not used for casting to loaded DBC data and not required then packing

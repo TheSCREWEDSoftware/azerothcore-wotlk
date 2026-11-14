@@ -23,6 +23,7 @@
 #include <map>
 
 class Player;
+struct PlayerConditionEntry;
 class Unit;
 class WorldObject;
 class LootTemplate;
@@ -263,6 +264,7 @@ public:
     ConditionList GetConditionReferences(uint32 refId);
 
     uint32 GetSearcherTypeMaskForConditionList(ConditionList const& conditions);
+    static bool IsPlayerMeetingCondition(Player const* player, PlayerConditionEntry const* condition);
     bool IsObjectMeetToConditions(WorldObject* object, ConditionList const& conditions);
     bool IsObjectMeetToConditions(WorldObject* object1, WorldObject* object2, ConditionList const& conditions);
     bool IsObjectMeetToConditions(ConditionSourceInfo& sourceInfo, ConditionList const& conditions);

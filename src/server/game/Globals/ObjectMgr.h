@@ -682,6 +682,15 @@ enum SkillRangeType
     SKILL_RANGE_NONE,                                       // 0..0 always
 };
 
+// 6.x: SkillTiers.dbc is gone; the skill caps per tier come from the skill_tiers world table
+#define MAX_SKILL_STEP 16
+
+struct SkillTiersEntry
+{
+    uint32      ID;
+    uint32      Value[MAX_SKILL_STEP];
+};
+
 SkillRangeType GetSkillRangeType(SkillRaceClassInfoEntry const* rcEntry);
 
 #define MAX_PLAYER_NAME          12                         // max allowed by client name length
@@ -1088,6 +1097,14 @@ public:
     void LoadGameObjectLocales();
     void LoadGameobjects();
     void LoadItemTemplates();
+    void LoadSkillTiers();
+    [[nodiscard]] SkillTiersEntry const* GetSkillTier(uint32 skillTierId) const
+    {
+        auto itr = _skillTiers.find(skillTierId);
+        return itr != _skillTiers.end() ? &itr->second : nullptr;
+    }
+    void LoadItemTemplateAddon();
+    void LoadItemScriptNames();
     void LoadItemLocales();
     void LoadItemSetNames();
     void LoadItemSetNameLocales();
@@ -1718,6 +1735,7 @@ private:
 
     BroadcastTextContainer _broadcastTextStore;
     ItemTemplateContainer _itemTemplateStore;
+    std::unordered_map<uint32, SkillTiersEntry> _skillTiers;
     std::vector<ItemTemplate*> _itemTemplateStoreFast; // pussywizard
     ItemLocaleContainer _itemLocaleStore;
     ItemSetNameLocaleContainer _itemSetNameLocaleStore;

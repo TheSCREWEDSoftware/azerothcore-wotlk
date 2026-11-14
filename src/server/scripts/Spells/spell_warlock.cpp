@@ -215,7 +215,7 @@ class spell_warl_improved_demonic_tactics : public AuraScript
             spellMod->op = SpellModOp(aurEff->GetMiscValue());
             spellMod->type = SPELLMOD_FLAT;
             spellMod->spellId = GetId();
-            spellMod->mask = flag96(0x0, 0x2000, 0x0); // Pet Passive
+            spellMod->mask = flag128(0x0, 0x2000, 0x0); // Pet Passive
         }
 
         spellMod->value = aurEff->GetAmount();

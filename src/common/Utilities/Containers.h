@@ -282,6 +282,29 @@ namespace Acore::Containers
             }
         }
     }
+
+    /**
+    * @fn bool Acore::Containers::Intersects(Iterator first1, Iterator last1, Iterator first2, Iterator last2)
+    *
+    * @brief Checks if two SORTED containers have a common element
+    *
+    * @return true if containers have a common element, false otherwise.
+    */
+    template<class Iterator1, class Iterator2>
+    bool Intersects(Iterator1 first1, Iterator1 last1, Iterator2 first2, Iterator2 last2)
+    {
+        while (first1 != last1 && first2 != last2)
+        {
+            if (*first1 < *first2)
+                ++first1;
+            else if (*first2 < *first1)
+                ++first2;
+            else
+                return true;
+        }
+
+        return false;
+    }
 }
 
 #endif //! #ifdef ACORE_CONTAINERS_H

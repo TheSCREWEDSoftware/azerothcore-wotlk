@@ -5309,14 +5309,11 @@ uint32 Player::GetShieldBlockValue() const
 
 float Player::GetMeleeCritFromAgility()
 {
-    uint8 level = GetLevel();
+    uint32 level = std::min<uint32>(GetLevel(), sGtChanceToMeleeCritStore.GetTableRowCount());
     uint32 pclass = getClass();
 
-    if (level > GT_MAX_LEVEL)
-        level = GT_MAX_LEVEL;
-
-    GtChanceToMeleeCritBaseEntry const* critBase  = sGtChanceToMeleeCritBaseStore.LookupEntry(pclass - 1);
-    GtChanceToMeleeCritEntry     const* critRatio = sGtChanceToMeleeCritStore.LookupEntry((pclass - 1) * GT_MAX_LEVEL + level - 1);
+    GtChanceToMeleeCritBaseEntry const* critBase  = sGtChanceToMeleeCritBaseStore.EvaluateTable(pclass - 1, 0);
+    GtChanceToMeleeCritEntry     const* critRatio = sGtChanceToMeleeCritStore.EvaluateTable(level - 1, pclass - 1);
     if (!critBase || !critRatio)
         return 0.0f;
 
@@ -5357,14 +5354,11 @@ void Player::GetDodgeFromAgility(float& diminishing, float& nondiminishing)
         2.00f / 1.15f   // Druid
     };
 
-    uint8 level = GetLevel();
+    uint32 level = std::min<uint32>(GetLevel(), sGtChanceToMeleeCritStore.GetTableRowCount());
     uint32 pclass = getClass();
 
-    if (level > GT_MAX_LEVEL)
-        level = GT_MAX_LEVEL;
-
     // Dodge per agility is proportional to crit per agility, which is available from DBC files
-    GtChanceToMeleeCritEntry  const* dodgeRatio = sGtChanceToMeleeCritStore.LookupEntry((pclass - 1) * GT_MAX_LEVEL + level - 1);
+    GtChanceToMeleeCritEntry  const* dodgeRatio = sGtChanceToMeleeCritStore.EvaluateTable(level - 1, pclass - 1);
     if (!dodgeRatio || pclass > MAX_CLASSES)
         return;
 
@@ -5379,14 +5373,11 @@ void Player::GetDodgeFromAgility(float& diminishing, float& nondiminishing)
 
 float Player::GetSpellCritFromIntellect()
 {
-    uint8 level = GetLevel();
+    uint32 level = std::min<uint32>(GetLevel(), sGtChanceToSpellCritStore.GetTableRowCount());
     uint32 pclass = getClass();
 
-    if (level > GT_MAX_LEVEL)
-        level = GT_MAX_LEVEL;
-
-    GtChanceToSpellCritBaseEntry const* critBase  = sGtChanceToSpellCritBaseStore.LookupEntry(pclass - 1);
-    GtChanceToSpellCritEntry     const* critRatio = sGtChanceToSpellCritStore.LookupEntry((pclass - 1) * GT_MAX_LEVEL + level - 1);
+    GtChanceToSpellCritBaseEntry const* critBase  = sGtChanceToSpellCritBaseStore.EvaluateTable(pclass - 1, 0);
+    GtChanceToSpellCritEntry     const* critRatio = sGtChanceToSpellCritStore.EvaluateTable(level - 1, pclass - 1);
     if (!critBase || !critRatio)
         return 0.0f;
 
@@ -5396,18 +5387,14 @@ float Player::GetSpellCritFromIntellect()
 
 float Player::GetRatingMultiplier(CombatRating cr) const
 {
-    uint8 level = GetLevel();
+    uint32 level = std::min<uint32>(GetLevel(), sGtCombatRatingsStore.GetTableRowCount());
 
-    if (level > GT_MAX_LEVEL)
-        level = GT_MAX_LEVEL;
-
-    GtCombatRatingsEntry const* Rating = sGtCombatRatingsStore.LookupEntry(cr * GT_MAX_LEVEL + level - 1);
-    // gtOCTClassCombatRatingScalarStore.dbc starts with 1, CombatRating with zero, so cr+1
-    GtOCTClassCombatRatingScalarEntry const* classRating = sGtOCTClassCombatRatingScalarStore.LookupEntry((getClass() - 1) * GT_MAX_RATING + cr + 1);
-    if (!Rating || !classRating)
+    // 6.x: gtCombatRatings has one column per rating and no class scalar table
+    GtCombatRatingsEntry const* Rating = sGtCombatRatingsStore.EvaluateTable(level - 1, cr);
+    if (!Rating || !Rating->ratio)
         return 1.0f;                                        // By default use minimum coefficient (not must be called)
 
-    return classRating->ratio / Rating->ratio;
+    return 1.0f / Rating->ratio;
 }
 
 float Player::GetRatingBonusValue(CombatRating cr) const
@@ -5434,39 +5421,12 @@ float Player::GetExpertiseDodgeOrParryReduction(WeaponAttackType attType) const
     return 0.0f;
 }
 
-float Player::OCTRegenHPPerSpirit()
-{
-    uint8 level = GetLevel();
-    uint32 pclass = getClass();
-
-    if (level > GT_MAX_LEVEL)
-        level = GT_MAX_LEVEL;
-
-    GtOCTRegenHPEntry     const* baseRatio = sGtOCTRegenHPStore.LookupEntry((pclass - 1) * GT_MAX_LEVEL + level - 1);
-    GtRegenHPPerSptEntry  const* moreRatio = sGtRegenHPPerSptStore.LookupEntry((pclass - 1) * GT_MAX_LEVEL + level - 1);
-    if (!baseRatio || !moreRatio)
-        return 0.0f;
-
-    // Formula from PaperDollFrame script
-    float spirit = GetStat(STAT_SPIRIT);
-    float baseSpirit = spirit;
-    if (baseSpirit > 50)
-        baseSpirit = 50;
-    float moreSpirit = spirit - baseSpirit;
-    float regen = (baseSpirit * baseRatio->ratio + moreSpirit * moreRatio->ratio) * 2;
-    return regen;
-}
-
 float Player::OCTRegenMPPerSpirit()
 {
-    uint8 level = GetLevel();
+    uint32 level = std::min<uint32>(GetLevel(), sGtRegenMPPerSptStore.GetTableRowCount());
     uint32 pclass = getClass();
 
-    if (level > GT_MAX_LEVEL)
-        level = GT_MAX_LEVEL;
-
-    //    GtOCTRegenMPEntry     const* baseRatio = sGtOCTRegenMPStore.LookupEntry((pclass-1)*GT_MAX_LEVEL + level-1);
-    GtRegenMPPerSptEntry  const* moreRatio = sGtRegenMPPerSptStore.LookupEntry((pclass - 1) * GT_MAX_LEVEL + level - 1);
+    GtRegenMPPerSptEntry  const* moreRatio = sGtRegenMPPerSptStore.EvaluateTable(level - 1, pclass - 1);
     if (!moreRatio)
         return 0.0f;
 
@@ -10358,7 +10318,7 @@ void Player::SendSpellModifiers() const
             modifier.ModIndex = op;
             for (uint8 classIndex = 0; classIndex < 96; ++classIndex)
             {
-                flag96 mask = 0;
+                flag128 mask = 0;
                 mask[classIndex / 32] = uint32(1) << (classIndex % 32);
                 float value = 0.0f;
                 for (SpellModifier const* spellModifier : m_spellMods[op])
@@ -12715,7 +12675,7 @@ void Player::LearnDefaultSkill(SkillRaceClassInfoEntry const* rcInfo)
             break;
         case SKILL_RANGE_RANK:
         {
-            SkillTiersEntry const* tier = sSkillTiersStore.LookupEntry(rcInfo->SkillTierID);
+            SkillTiersEntry const* tier = sObjectMgr->GetSkillTier(rcInfo->SkillTierID);
             if (!tier || !tier->Value[0])
             {
                 LOG_ERROR("entities.player.loading", "Missing initial tier {} for skill {}, race {}, class {}",
@@ -13419,7 +13379,7 @@ bool Player::CanNoReagentCast(SpellInfo const* spellInfo) const
         return true;
 
     // Check no reagent use mask
-    flag96 noReagentMask;
+    flag128 noReagentMask;
     noReagentMask[0] = GetUInt32Value(PLAYER_NO_REAGENT_COST_1);
     noReagentMask[1] = GetUInt32Value(PLAYER_NO_REAGENT_COST_1 + 1);
     noReagentMask[2] = GetUInt32Value(PLAYER_NO_REAGENT_COST_1 + 2);
@@ -14170,10 +14130,7 @@ bool Player::CanCaptureTowerPoint() const
 
 uint32 Player::GetBarberShopCost(uint8 newhairstyle, uint8 newhaircolor, uint8 newfacialhair, BarberShopStyleEntry const* newSkin)
 {
-    uint8 level = GetLevel();
-
-    if (level > GT_MAX_LEVEL)
-        level = GT_MAX_LEVEL;                               // max level in this dbc
+    uint32 level = std::min<uint32>(GetLevel(), sGtBarberShopCostBaseStore.GetTableRowCount());
 
     uint8 hairstyle = GetByteValue(PLAYER_BYTES, 2);
     uint8 haircolor = GetByteValue(PLAYER_BYTES, 3);
@@ -14183,7 +14140,7 @@ uint32 Player::GetBarberShopCost(uint8 newhairstyle, uint8 newhaircolor, uint8 n
     if ((hairstyle == newhairstyle) && (haircolor == newhaircolor) && (facialhair == newfacialhair) && (!newSkin || (newSkin->Data == skincolor)))
         return 0;
 
-    GtBarberShopCostBaseEntry const* bsc = sGtBarberShopCostBaseStore.LookupEntry(level - 1);
+    GtBarberShopCostBaseEntry const* bsc = sGtBarberShopCostBaseStore.EvaluateTable(level - 1, 0);
 
     if (!bsc)                                                // shouldn't happen
         return 0xFFFFFFFF;
@@ -14638,7 +14595,7 @@ void Player::_LoadSkills(PreparedQueryResult result)
             }
 
             uint16 skillStep = 0;
-            if (SkillTiersEntry const* skillTier = sSkillTiersStore.LookupEntry(rcEntry->SkillTierID))
+            if (SkillTiersEntry const* skillTier = sObjectMgr->GetSkillTier(rcEntry->SkillTierID))
             {
                 for (uint32 i = 0; i < MAX_SKILL_STEP; ++i)
                 {

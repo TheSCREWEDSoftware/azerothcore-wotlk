@@ -985,9 +985,9 @@ RealmZone = 1
 
 #
 #    DBC.Locale
-#        Description: DBC language settings.
-#        Default:     255 - (Auto Detect)
-#                     0   - (English)
+#        Description: Locale of the client data to load (the dbc/<locale> folder) and of the
+#                     strings in DB2 files.
+#        Default:     0   - (English)
 #                     1   - (Korean)
 #                     2   - (French)
 #                     3   - (German)
@@ -996,8 +996,10 @@ RealmZone = 1
 #                     6   - (Spanish)
 #                     7   - (Spanish Mexico)
 #                     8   - (Russian)
+#                     10  - (Portuguese Brazil)
+#                     11  - (Italian)
 
-DBC.Locale = 255
+DBC.Locale = 0
 
 #
 #    Expansion

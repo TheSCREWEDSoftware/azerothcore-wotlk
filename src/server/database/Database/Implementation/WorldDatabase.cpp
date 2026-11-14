@@ -117,6 +117,10 @@ void WorldDatabaseConnection::DoPrepareStatements()
     PrepareStatement(WORLD_SEL_PHASE_AREA, "SELECT AreaId, PhaseId, PhaseGroup FROM phase_area", CONNECTION_SYNCH);
     PrepareStatement(WORLD_SEL_TERRAIN_WORLD_MAP, "SELECT TerrainSwapMap, WorldMapArea FROM terrain_worldmap", CONNECTION_SYNCH);
     PrepareStatement(WORLD_SEL_TERRAIN_SWAP_DEFAULTS, "SELECT MapId, TerrainSwapMap FROM terrain_swap_defaults", CONNECTION_SYNCH);
+    PrepareStatement(WORLD_SEL_ITEM_TEMPLATE_ADDON, "SELECT Id, FlagsCu, FoodType, MinMoneyLoot, MaxMoneyLoot, SpellPPMChance FROM item_template_addon", CONNECTION_SYNCH);
+    PrepareStatement(WORLD_SEL_ITEM_SCRIPT_NAMES, "SELECT Id, ScriptName FROM item_script_names", CONNECTION_SYNCH);
+    PrepareStatement(WORLD_SEL_SKILL_TIERS, "SELECT ID, Value1, Value2, Value3, Value4, Value5, Value6, Value7, Value8, Value9, Value10, Value11, Value12, Value13, Value14, Value15, Value16 FROM skill_tiers", CONNECTION_SYNCH);
+    PrepareStatement(WORLD_SEL_SPELL_DIFFICULTY, "SELECT ID, DifficultySpellID_1, DifficultySpellID_2, DifficultySpellID_3, DifficultySpellID_4 FROM spelldifficulty_dbc", CONNECTION_SYNCH);
     PrepareStatement(WORLD_SEL_BLACKMARKET_TEMPLATE, "SELECT marketId, sellerNpc, itemEntry, quantity, minBid, duration, chance, bonusListIDs FROM blackmarket_template", CONNECTION_SYNCH);
 }
 

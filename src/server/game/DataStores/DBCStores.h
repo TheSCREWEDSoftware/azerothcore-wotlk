@@ -239,7 +239,6 @@ extern DBCStorage<AchievementCategoryEntry>         sAchievementCategoryStore;
 extern DBCStorage<CinematicCameraEntry>             sCinematicCameraStore;
 extern DBCStorage<CreatureSpellDataEntry>           sCreatureSpellDataStore;
 extern DBCStorage<GameObjectArtKitEntry>            sGameObjectArtKitStore;
-extern DBCStorage<GtOCTClassCombatRatingScalarEntry> sGtOCTClassCombatRatingScalarStore;
 extern DBCStorage<ResearchBranchEntry>              sResearchBranchStore;
 extern DBCStorage<ResearchFieldEntry>               sResearchFieldStore;
 extern DBCStorage<ResearchProjectEntry>             sResearchProjectStore;
