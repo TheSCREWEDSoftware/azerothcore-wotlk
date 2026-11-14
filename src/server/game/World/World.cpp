@@ -786,12 +786,14 @@ void World::SetInitialWorldSettings()
     LOG_INFO("server.loading", "Loading Skill Fishing Base Level Requirements...");
     sObjectMgr->LoadFishingBaseSkillLevel();
 
+    LOG_INFO("server.loading", "Loading Criteria Modifier Trees...");
+    sCriteriaMgr->LoadCriteriaModifiersTree();
+    LOG_INFO("server.loading", "Loading Criteria Lists...");
+    sCriteriaMgr->LoadCriteriaList();
+    LOG_INFO("server.loading", "Loading Criteria Data...");
+    sCriteriaMgr->LoadCriteriaData();
     LOG_INFO("server.loading", "Loading Achievements...");
     sAchievementMgr->LoadAchievementReferenceList();
-    LOG_INFO("server.loading", "Loading Achievement Criteria Lists...");
-    sAchievementMgr->LoadAchievementCriteriaList();
-    LOG_INFO("server.loading", "Loading Achievement Criteria Data...");
-    sAchievementMgr->LoadAchievementCriteriaData();
     LOG_INFO("server.loading", "Loading Achievement Rewards...");
     sAchievementMgr->LoadRewards();
     LOG_INFO("server.loading", "Loading Achievement Reward Locales...");

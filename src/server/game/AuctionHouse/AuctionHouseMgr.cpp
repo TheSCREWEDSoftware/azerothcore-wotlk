@@ -146,7 +146,7 @@ void AuctionHouseMgr::SendAuctionWonMail(AuctionEntry* auction, CharacterDatabas
                 bidder->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_WON_AUCTIONS, 1);
         }
         else if (updateAchievementCriteria)
-            sAchievementMgr->UpdateAchievementCriteriaForOfflinePlayer(auction->bidder.GetCounter(), ACHIEVEMENT_CRITERIA_TYPE_WON_AUCTIONS, 1);
+            sAchievementMgr->UpdateAchievementCriteriaForOfflinePlayer(auction->bidder.GetCounter(), CRITERIA_TYPE_WON_AUCTIONS, 1);
 
         if (sendMail) // can be changed in the hook
         {
@@ -209,8 +209,8 @@ void AuctionHouseMgr::SendAuctionSuccessfulMail(AuctionEntry* auction, Character
         }
         else if (updateAchievementCriteria)
         {
-            sAchievementMgr->UpdateAchievementCriteriaForOfflinePlayer(auction->owner.GetCounter(), ACHIEVEMENT_CRITERIA_TYPE_GOLD_EARNED_BY_AUCTIONS, profit);
-            sAchievementMgr->UpdateAchievementCriteriaForOfflinePlayer(auction->owner.GetCounter(), ACHIEVEMENT_CRITERIA_TYPE_HIGHEST_AUCTION_SOLD, auction->bid);
+            sAchievementMgr->UpdateAchievementCriteriaForOfflinePlayer(auction->owner.GetCounter(), CRITERIA_TYPE_GOLD_EARNED_BY_AUCTIONS, profit);
+            sAchievementMgr->UpdateAchievementCriteriaForOfflinePlayer(auction->owner.GetCounter(), CRITERIA_TYPE_HIGHEST_AUCTION_SOLD, auction->bid);
         }
 
         if (sendMail) // can be changed in the hook

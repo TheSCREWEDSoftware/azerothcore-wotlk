@@ -351,8 +351,8 @@ void KillRewarder::Reward()
             if (!guild || !creditedGuilds.insert(guild->GetId()).second)
                 return;
 
-            guild->GetAchievementMgr().UpdateCriteria(ACHIEVEMENT_CRITERIA_TYPE_KILL_CREATURE, victim->GetEntry(), 1, victim, player);
-            guild->GetAchievementMgr().UpdateCriteria(ACHIEVEMENT_CRITERIA_TYPE_KILL_CREATURE_TYPE_GUILD, 0, 0, victim, player);
+            guild->GetAchievementMgr().UpdateCriteria(CRITERIA_TYPE_KILL_CREATURE, victim->GetEntry(), 1, 0, victim, player);
+            guild->GetAchievementMgr().UpdateCriteria(CRITERIA_TYPE_KILL_CREATURE_TYPE_GUILD, 0, 0, 0, victim, player);
         };
 
         if (_group)

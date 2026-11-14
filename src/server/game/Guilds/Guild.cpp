@@ -1279,7 +1279,7 @@ void Guild::Disband()
     stmt->SetData(0, m_id);
     trans->Append(stmt);
 
-    m_achievementMgr.DeleteFromDB(trans);
+    GuildAchievementMgr::DeleteFromDB(GetGUID());
 
     // Free bank tab used memory and delete items stored in them
     _DeleteBankItems(trans, true);
@@ -1813,7 +1813,7 @@ void Guild::HandleBuyBankTab(WorldSession* session, uint8 tabId, bool unlockedBy
 
     _CreateNewBankTab();
     _BroadcastEvent(GE_BANK_TAB_PURCHASED);
-    m_achievementMgr.UpdateCriteria(ACHIEVEMENT_CRITERIA_TYPE_BUY_GUILD_BANK_SLOTS, _GetPurchasedTabsSize(), 0, nullptr, session->GetPlayer());
+    m_achievementMgr.UpdateCriteria(CRITERIA_TYPE_BUY_GUILD_BANK_SLOTS, _GetPurchasedTabsSize(), 0, 0, nullptr, session->GetPlayer());
     SendPermissions(session); /// Hack to force client to update permissions
 }
 
@@ -2191,7 +2191,7 @@ bool Guild::HandleMemberWithdrawMoney(WorldSession* session, uint32 amount, bool
         player->SaveGoldToDB(trans);
     }
     else
-        m_achievementMgr.UpdateCriteria(ACHIEVEMENT_CRITERIA_TYPE_SPENT_GOLD_GUILD_REPAIRS, amount, 0, nullptr, player);
+        m_achievementMgr.UpdateCriteria(CRITERIA_TYPE_SPENT_GOLD_GUILD_REPAIRS, amount, 0, 0, nullptr, player);
 
     // Update remaining money amount
     member->UpdateBankWithdrawValue(trans, GUILD_BANK_MAX_TABS, amount);
@@ -2666,6 +2666,52 @@ void Guild::BroadcastPacketToRank(WorldPacket const* packet, uint8 rankId) const
 {
     for (auto const& [guid, member] : m_members)
         if (member.IsRank(rankId))
+            if (Player* player = member.FindPlayer())
+                player->SendDirectMessage(packet);
+}
+
+bool Guild::HasAchieved(uint32 achievementId) const
+{
+    return m_achievementMgr.HasAchieved(achievementId);
+}
+
+void Guild::UpdateCriteria(CriteriaTypes type, uint64 miscValue1, uint64 miscValue2, uint64 miscValue3, Unit* unit, Player* player)
+{
+    m_achievementMgr.UpdateCriteria(type, miscValue1, miscValue2, miscValue3, unit, player);
+}
+
+void Guild::HandleSetAchievementTracking(WorldSession* session, std::set<uint32> const& achievementIds)
+{
+    Player* player = session->GetPlayer();
+
+    if (Member* member = GetMember(player->GetGUID()))
+    {
+        std::set<uint32> criteriaIds;
+
+        for (uint32 achievementId : achievementIds)
+        {
+            if (AchievementEntry const* achievement = sAchievementStore.LookupEntry(achievementId))
+            {
+                if (CriteriaTree const* tree = sCriteriaMgr->GetCriteriaTree(achievement->CriteriaTree))
+                {
+                    CriteriaMgr::WalkCriteriaTree(tree, [&criteriaIds](CriteriaTree const* node)
+                    {
+                        if (node->Criteria)
+                            criteriaIds.insert(node->Criteria->ID);
+                    });
+                }
+            }
+        }
+
+        member->SetTrackedCriteriaIds(criteriaIds);
+        m_achievementMgr.SendAllTrackedCriterias(player, member->GetTrackedCriteriaIds());
+    }
+}
+
+void Guild::BroadcastPacketIfTrackingAchievement(WorldPacket const* packet, uint32 criteriaId) const
+{
+    for (auto const& [guid, member] : m_members)
+        if (member.IsTrackingCriteriaId(criteriaId))
             if (Player* player = member.FindPlayer())
                 player->SendDirectMessage(packet);
 }
@@ -3709,8 +3755,8 @@ void Guild::CompleteChallenge(uint8 challengeType, Player* source)
 
     // Reward: XP via the existing guild-leveling GiveXP path (rewardedByChallenge=true keeps
     // this out of the today-XP daily cap, matching upstream), gold straight into the guild bank.
-    m_achievementMgr.UpdateCriteria(ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_GUILD_CHALLENGE_TYPE, challengeType, 0, nullptr, source);
-    m_achievementMgr.UpdateCriteria(ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_GUILD_CHALLENGE, 0, 0, nullptr, source);
+    m_achievementMgr.UpdateCriteria(CRITERIA_TYPE_COMPLETE_GUILD_CHALLENGE_TYPE, challengeType, 0, 0, nullptr, source);
+    m_achievementMgr.UpdateCriteria(CRITERIA_TYPE_COMPLETE_GUILD_CHALLENGE, 0, 0, 0, nullptr, source);
 
     CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
     _ModifyBankMoney(trans, gold * GOLD, true);

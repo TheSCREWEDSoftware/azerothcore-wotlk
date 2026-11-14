@@ -16,6 +16,7 @@
  */
 
 #include "AchievementMgr.h"
+#include "AchievementPackets.h"
 #include "Guild.h"
 #include "GameTime.h"
 #include "GuildMgr.h"
@@ -248,7 +249,7 @@ void WorldSession::HandleSaveGuildEmblem(WorldPackets::Guild::SaveGuildEmblem& p
 
         if (Guild* guild = GetPlayer()->GetGuild())
         {
-            guild->GetAchievementMgr().UpdateCriteria(ACHIEVEMENT_CRITERIA_TYPE_BUY_GUILD_TABARD, 0, 0, nullptr, GetPlayer());
+            guild->GetAchievementMgr().UpdateCriteria(CRITERIA_TYPE_BUY_GUILD_TABARD, 0, 0, 0, nullptr, GetPlayer());
             guild->HandleSetEmblem(this, emblemInfo);
         }
         else
@@ -517,12 +518,12 @@ void WorldSession::HandleGuildQueryMemberRecipes(WorldPackets::Guild::GuildQuery
 
 void WorldSession::HandleGuildSetAchievementTracking(WorldPackets::Guild::GuildSetAchievementTracking& packet)
 {
-    // the tracked achievements are not kept, the client gets their current progress
-    Guild* guild = GetPlayer()->GetGuild();
-    if (!guild)
-        return;
+    if (Guild* guild = GetPlayer()->GetGuild())
+        guild->HandleSetAchievementTracking(this, packet.AchievementIDs);
+}
 
-    for (uint32 achievementId : packet.AchievementIDs)
-        if (sAchievementMgr->GetAchievement(achievementId))
-            guild->GetAchievementMgr().SendCriteriaData(GetPlayer(), achievementId);
+void WorldSession::HandleGuildSetFocusedAchievement(WorldPackets::Achievement::GuildSetFocusedAchievement& setFocusedAchievement)
+{
+    if (Guild* guild = GetPlayer()->GetGuild())
+        guild->GetAchievementMgr().SendAchievementInfo(GetPlayer(), setFocusedAchievement.AchievementID);
 }

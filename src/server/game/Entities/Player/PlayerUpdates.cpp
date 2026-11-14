@@ -2445,7 +2445,7 @@ void Player::UpdateLootAchievements(LootItem* item, Loot* loot)
     // fish caught from a pool counts for the guild
     if (loot->loot_type == LOOT_FISHINGHOLE)
         if (Guild* guild = GetGuild())
-            guild->GetAchievementMgr().UpdateCriteria(ACHIEVEMENT_CRITERIA_TYPE_CATCH_FROM_POOL, item->itemid, item->count, nullptr, this);
+            guild->GetAchievementMgr().UpdateCriteria(CRITERIA_TYPE_CATCH_FROM_POOL, item->itemid, item->count, 0, nullptr, this);
 }
 
 void Player::UpdateAchievementCriteria(AchievementCriteriaTypes type,
@@ -2453,8 +2453,7 @@ void Player::UpdateAchievementCriteria(AchievementCriteriaTypes type,
                                        uint32                   miscValue2 /*= 0*/,
                                        Unit*                    unit /*= nullptr*/)
 {
-    m_achievementMgr->UpdateAchievementCriteria(type, miscValue1, miscValue2,
-                                                unit);
+    UpdateCriteria(CriteriaTypes(type), miscValue1, miscValue2, 0, unit);
 }
 
 void Player::UpdateFallInformationIfNeed(MovementInfo const& minfo,

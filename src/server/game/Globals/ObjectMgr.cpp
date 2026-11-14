@@ -10860,7 +10860,7 @@ void ObjectMgr::LoadScriptNames()
     _scriptNamesStore.emplace_back("");
 
     QueryResult result = WorldDatabase.Query(
-                             "SELECT DISTINCT(ScriptName) FROM achievement_criteria_data WHERE ScriptName <> '' AND type = 11 "
+                             "SELECT DISTINCT(ScriptName) FROM criteria_data WHERE ScriptName <> '' AND type = 11 "
                              "UNION "
                              "SELECT DISTINCT(ScriptName) FROM battleground_template WHERE ScriptName <> '' "
                              "UNION "

@@ -94,7 +94,8 @@ enum ShutdownMask : uint8;
 enum WeaponAttackType : uint8;
 enum WeatherState : uint32;
 
-struct AchievementCriteriaEntry;
+struct Criteria;
+class CriteriaHandler;
 struct AchievementEntry;
 struct AreaTrigger;
 struct AuctionEntry;

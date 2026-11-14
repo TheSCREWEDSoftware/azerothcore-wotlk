@@ -385,7 +385,7 @@ Player::Player(WorldSession* session): Unit(), m_mover(this), _cinematicMgr(*thi
 
     m_creationTime = 0s;
 
-    m_achievementMgr = new AchievementMgr(this);
+    m_achievementMgr = new PlayerAchievementMgr(this);
     m_reputationMgr = new ReputationMgr(this);
 
     m_NeedToSaveGlyphs = false;
@@ -6435,7 +6435,7 @@ bool Player::RewardHonor(Unit* uVictim, uint32 groupsize, int32 honor, bool awar
             UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_HONORABLE_KILL_AT_AREA, GetAreaId());
             UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_HONORABLE_KILL, 1, 0, victim);
             if (Guild* guild = GetGuild())
-                guild->GetAchievementMgr().UpdateCriteria(ACHIEVEMENT_CRITERIA_TYPE_HONORABLE_KILLS_GUILD, 0, 0, victim, this);
+                guild->GetAchievementMgr().UpdateCriteria(CRITERIA_TYPE_HONORABLE_KILLS_GUILD, 0, 0, 0, victim, this);
             UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_SPECIAL_PVP_KILL, 1, 0, victim);
             sScriptMgr->OnPlayerVictimRewardAfter(this, victim, killer_title, victim_rank, honor_f);
         }
@@ -12272,7 +12272,7 @@ void Player::SendInitialPacketsBeforeAddToMap(bool firstLogin)
     SendSpellModifiers();
     GetReputationMgr().SendForceReactions();
     SendCurrencies();
-    m_achievementMgr->SendAllAchievementData();
+    m_achievementMgr->SendAllData(this);
 
     WorldPackets::Misc::LoginSetTimeSpeed loginSetTimeSpeed;
     loginSetTimeSpeed.GameTime = GameTime::GetGameTime().count();
@@ -14767,7 +14767,7 @@ void Player::HandleFall(MovementInfo const& movementInfo)
 
 void Player::CheckAllAchievementCriteria()
 {
-    m_achievementMgr->CheckAllAchievementCriteria();
+    m_achievementMgr->CheckAllAchievementCriteria(this);
 }
 
 void Player::ResetAchievements()
@@ -14777,7 +14777,12 @@ void Player::ResetAchievements()
 
 void Player::SendRespondInspectAchievements(Player* player) const
 {
-    m_achievementMgr->SendRespondInspectAchievements(player);
+    m_achievementMgr->SendAchievementInfo(player);
+}
+
+uint32 Player::GetAchievementPoints() const
+{
+    return m_achievementMgr->GetAchievementPoints();
 }
 
 bool Player::HasAchieved(uint32 achievementId) const
@@ -14787,22 +14792,50 @@ bool Player::HasAchieved(uint32 achievementId) const
 
 void Player::StartTimedAchievement(AchievementCriteriaTimedTypes type, uint32 entry, uint32 timeLost/* = 0*/)
 {
-    m_achievementMgr->StartTimedAchievement(type, entry, timeLost);
+    StartCriteriaTimer(CriteriaTimedTypes(type), entry, timeLost);
 }
 
 void Player::RemoveTimedAchievement(AchievementCriteriaTimedTypes type, uint32 entry)
 {
-    m_achievementMgr->RemoveTimedAchievement(type, entry);
+    RemoveCriteriaTimer(CriteriaTimedTypes(type), entry);
+}
+
+void Player::StartCriteriaTimer(CriteriaTimedTypes type, uint32 entry, uint32 timeLost/* = 0*/)
+{
+    m_achievementMgr->StartCriteriaTimer(type, entry, timeLost);
+}
+
+void Player::RemoveCriteriaTimer(CriteriaTimedTypes type, uint32 entry)
+{
+    m_achievementMgr->RemoveCriteriaTimer(type, entry);
 }
 
 void Player::ResetAchievementCriteria(AchievementCriteriaCondition condition, uint32 value, bool evenIfCriteriaComplete /* = false*/)
 {
-    m_achievementMgr->ResetAchievementCriteria(condition, value, evenIfCriteriaComplete);
+    m_achievementMgr->ResetCriteriaByFailEvent(CriteriaCondition(condition), value, evenIfCriteriaComplete);
+}
+
+void Player::ResetCriteria(CriteriaTypes type, uint64 miscValue1 /*= 0*/, uint64 miscValue2 /*= 0*/, bool evenIfCriteriaComplete /*= false*/)
+{
+    m_achievementMgr->ResetCriteria(type, miscValue1, miscValue2, evenIfCriteriaComplete);
+}
+
+void Player::UpdateCriteria(CriteriaTypes type, uint64 miscValue1 /*= 0*/, uint64 miscValue2 /*= 0*/, uint64 miscValue3 /*= 0*/, Unit* unit /*= nullptr*/)
+{
+    m_achievementMgr->UpdateCriteria(type, miscValue1, miscValue2, miscValue3, unit, this);
+
+    // Update only individual achievement criteria here, otherwise we may get multiple updates
+    // from a single boss kill
+    if (CriteriaMgr::IsGroupCriteriaType(type))
+        return;
+
+    if (Guild* guild = GetGuild())
+        guild->UpdateCriteria(type, miscValue1, miscValue2, miscValue3, unit, this);
 }
 
 void Player::CompletedAchievement(AchievementEntry const* entry)
 {
-    m_achievementMgr->CompletedAchievement(entry);
+    m_achievementMgr->CompletedAchievement(entry, this);
 }
 
 bool Player::LearnTalent(uint32 talentId, bool command /*= false*/)

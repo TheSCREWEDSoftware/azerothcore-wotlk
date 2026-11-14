@@ -76,7 +76,7 @@ public:
             { "auctions",                      HandleReloadAuctionsCommand,                   rbac::RBAC_PERM_COMMAND_RELOAD_AUCTIONS, Console::Yes },
             { "dungeon_access_template",       HandleReloadDungeonAccessCommand,              rbac::RBAC_PERM_COMMAND_RELOAD_ACCESS_REQUIREMENT, Console::Yes },
             { "dungeon_access_requirements",   HandleReloadDungeonAccessCommand,              rbac::RBAC_PERM_COMMAND_RELOAD_ACCESS_REQUIREMENT, Console::Yes },
-            { "achievement_criteria_data",     HandleReloadAchievementCriteriaDataCommand,    rbac::RBAC_PERM_COMMAND_RELOAD_ACHIEVEMENT_CRITERIA_DATA, Console::Yes },
+            { "criteria_data",                 HandleReloadAchievementCriteriaDataCommand,    rbac::RBAC_PERM_COMMAND_RELOAD_ACHIEVEMENT_CRITERIA_DATA, Console::Yes },
             { "achievement_reward",            HandleReloadAchievementRewardCommand,          rbac::RBAC_PERM_COMMAND_RELOAD_ACHIEVEMENT_REWARD, Console::Yes },
             { "all", reloadAllCommandTable },
             { "areatrigger",                   HandleReloadQuestAreaTriggersCommand,          rbac::RBAC_PERM_COMMAND_RELOAD_AREATRIGGER_INVOLVEDRELATION, Console::Yes },
@@ -371,9 +371,9 @@ public:
 
     static bool HandleReloadAchievementCriteriaDataCommand(ChatHandler* handler)
     {
-        LOG_INFO("server.loading", "Reloading Additional Achievement Criteria Data...");
-        sAchievementMgr->LoadAchievementCriteriaData();
-        handler->SendGlobalGMSysMessage("DB table `achievement_criteria_data` reloaded.");
+        LOG_INFO("server.loading", "Reloading Additional Criteria Data...");
+        sCriteriaMgr->LoadCriteriaData();
+        handler->SendGlobalGMSysMessage("DB table `criteria_data` reloaded.");
         return true;
     }
 

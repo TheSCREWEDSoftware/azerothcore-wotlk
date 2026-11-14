@@ -322,12 +322,12 @@ void ScriptMgr::OnPlayerAchievementComplete(Player* player, AchievementEntry con
     CALL_ENABLED_HOOKS(PlayerScript, PLAYERHOOK_ON_ACHI_COMPLETE, script->OnPlayerAchievementComplete(player, achievement));
 }
 
-bool ScriptMgr::OnPlayerBeforeCriteriaProgress(Player* player, AchievementCriteriaEntry const* criteria)
+bool ScriptMgr::OnPlayerBeforeCriteriaProgress(Player* player, Criteria const* criteria)
 {
     CALL_ENABLED_BOOLEAN_HOOKS(PlayerScript, PLAYERHOOK_ON_BEFORE_CRITERIA_PROGRESS, !script->OnPlayerBeforeCriteriaProgress(player, criteria));
 }
 
-void ScriptMgr::OnPlayerCriteriaProgress(Player* player, AchievementCriteriaEntry const* criteria)
+void ScriptMgr::OnPlayerCriteriaProgress(Player* player, Criteria const* criteria)
 {
     CALL_ENABLED_HOOKS(PlayerScript, PLAYERHOOK_ON_CRITERIA_PROGRESS, script->OnPlayerCriteriaProgress(player, criteria));
 }

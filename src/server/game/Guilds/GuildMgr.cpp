@@ -437,29 +437,24 @@ void GuildMgr::LoadGuilds()
         uint32 oldMSTime = getMSTime();
         uint32 count = 0;
 
-        //          0          1            2     3
-        // SELECT guildId, achievement, date, guids FROM guild_achievement
-        if (PreparedQueryResult result = CharacterDatabase.Query(CharacterDatabase.GetPreparedStatement(CHAR_SEL_GUILD_ACHIEVEMENTS)))
+        for (auto const& [guildId, guild] : GuildStore)
         {
-            do
-            {
-                Field* fields = result->Fetch();
-                if (Guild* guild = GetGuildById(fields[0].Get<uint32>()))
-                    guild->GetAchievementMgr().LoadAchievementFromDB(fields);
-                ++count;
-            } while (result->NextRow());
-        }
+            //          0            1     2
+            // SELECT achievement, date, guids FROM guild_achievement WHERE guildId = ?
+            CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_GUILD_ACHIEVEMENTS);
+            stmt->SetData(0, guildId);
+            PreparedQueryResult achievementResult = CharacterDatabase.Query(stmt);
 
-        //          0        1         2       3        4
-        // SELECT guildId, criteria, counter, date, completedGuid FROM guild_achievement_progress
-        if (PreparedQueryResult result = CharacterDatabase.Query(CharacterDatabase.GetPreparedStatement(CHAR_SEL_GUILD_ACHIEVEMENT_CRITERIA)))
-        {
-            do
-            {
-                Field* fields = result->Fetch();
-                if (Guild* guild = GetGuildById(fields[0].Get<uint32>()))
-                    guild->GetAchievementMgr().LoadCriteriaFromDB(fields);
-            } while (result->NextRow());
+            //          0         1       2        3
+            // SELECT criteria, counter, date, completedGuid FROM guild_achievement_progress WHERE guildId = ?
+            stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_GUILD_ACHIEVEMENT_CRITERIA);
+            stmt->SetData(0, guildId);
+            PreparedQueryResult criteriaResult = CharacterDatabase.Query(stmt);
+
+            if (achievementResult)
+                count += achievementResult->GetRowCount();
+
+            guild->GetAchievementMgr().LoadFromDB(achievementResult, criteriaResult);
         }
 
         LOG_INFO("server.loading", ">> Loaded {} guild achievements in {} ms", count, GetMSTimeDiffToNow(oldMSTime));

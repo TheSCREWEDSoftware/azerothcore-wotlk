@@ -275,7 +275,7 @@ public:
             stmt->SetData(1, playerGuid.GetCounter());
             CharacterDatabase.Execute(stmt);
 
-            sAchievementMgr->UpdateAchievementCriteriaForOfflinePlayer(playerGuid.GetCounter(), ACHIEVEMENT_CRITERIA_TYPE_REACH_LEVEL);
+            sAchievementMgr->UpdateAchievementCriteriaForOfflinePlayer(playerGuid.GetCounter(), CRITERIA_TYPE_REACH_LEVEL);
 
             sCharacterCache->UpdateCharacterLevel(playerGuid, newLevel);
         }
@@ -304,9 +304,9 @@ public:
 
             if (titleInfo && target->HasTitle(titleInfo))
             {
-                char const* name = target->getGender() == GENDER_MALE ? titleInfo->nameMale[loc] : titleInfo->nameFemale[loc];
+                char const* name = target->getGender() == GENDER_MALE ? titleInfo->NameMale_lang : titleInfo->NameFemale_lang;
                 if (!*name)
-                    name = (target->getGender() == GENDER_MALE ? titleInfo->nameMale[sWorld->GetDefaultDbcLocale()] : titleInfo->nameFemale[sWorld->GetDefaultDbcLocale()]);
+                    name = (target->getGender() == GENDER_MALE ? titleInfo->NameMale_lang : titleInfo->NameFemale_lang);
 
                 if (!*name)
                     continue;
@@ -551,7 +551,7 @@ public:
         {
             FactionState const& faction = itr->second;
             FactionEntry const* factionEntry = sFactionStore.LookupEntry(faction.ID);
-            char const* factionName = factionEntry ? factionEntry->name[loc] : "#Not found#";
+            char const* factionName = factionEntry ? factionEntry->Name_lang : "#Not found#";
             ReputationRank rank = target->GetReputationMgr().GetRank(factionEntry);
             std::string rankName = handler->GetAcoreString(ReputationRankStrIndex[rank]);
             std::ostringstream ss;
@@ -998,10 +998,10 @@ public:
             if (!SkillInfo)
                 continue;
 
-            if ((SkillInfo->categoryId != SKILL_CATEGORY_PROFESSION) && !SkillInfo->canLink)
+            if ((SkillInfo->CategoryID != SKILL_CATEGORY_PROFESSION) && !SkillInfo->CanLink)
                 continue;
 
-            uint32 SkillID = SkillInfo->id;
+            uint32 SkillID = SkillInfo->ID;
 
             if (player->HasSkill(SkillID))
             {

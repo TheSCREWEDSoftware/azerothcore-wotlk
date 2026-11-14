@@ -57,12 +57,12 @@ public:
         if (player->IsConnected())
         {
             player->GetConnectedPlayer()->CompletedAchievement(achievementEntry);
-            handler->PSendSysMessage(LANG_ACHIEVEMENT_ADD_ONLINE, achievementEntry->ID, achievementEntry->name[0], player->GetName());
+            handler->PSendSysMessage(LANG_ACHIEVEMENT_ADD_ONLINE, achievementEntry->ID, achievementEntry->Title->Str[0], player->GetName());
         }
         else
         {
             sAchievementMgr->CompletedAchievementForOfflinePlayer(player->GetGUID().GetCounter(), achievementEntry);
-            handler->PSendSysMessage(LANG_ACHIEVEMENT_ADD_OFFLINE, achievementEntry->ID, achievementEntry->name[0], player->GetName());
+            handler->PSendSysMessage(LANG_ACHIEVEMENT_ADD_OFFLINE, achievementEntry->ID, achievementEntry->Title->Str[0], player->GetName());
         }
 
         return true;

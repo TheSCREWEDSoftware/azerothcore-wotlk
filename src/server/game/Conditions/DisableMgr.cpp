@@ -228,7 +228,7 @@ bool DisableMgr::HandleDisableType(DisableType type, uint32 entry, uint8 flags, 
             LOG_ERROR("sql.sql", "Disable flags specified for outdoor PvP {}, useless data.", entry);
         break;
     case DISABLE_TYPE_ACHIEVEMENT_CRITERIA:
-        if (!sAchievementCriteriaStore.LookupEntry(entry))
+        if (!sCriteriaStore.LookupEntry(entry))
         {
             LOG_ERROR("sql.sql", "Achievement Criteria entry {} from `disables` doesn't exist in dbc, skipped.", entry);
             return false;

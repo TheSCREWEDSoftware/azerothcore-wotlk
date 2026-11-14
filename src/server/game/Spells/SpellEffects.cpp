@@ -1896,7 +1896,7 @@ void Spell::DoCreateItem(uint8 /*effIndex*/, uint32 itemId)
             if (Guild::IsNewsworthyItem(pProto))
                 guild->AddGuildNews(GUILD_NEWS_ITEM_CRAFTED, player->GetGUID(), 0, pProto->ItemId);
 
-            guild->GetAchievementMgr().UpdateCriteria(ACHIEVEMENT_CRITERIA_TYPE_CRAFT_ITEMS_GUILD, pProto->ItemId, addNumber, nullptr, player);
+            guild->GetAchievementMgr().UpdateCriteria(CRITERIA_TYPE_CRAFT_ITEMS_GUILD, pProto->ItemId, addNumber, 0, nullptr, player);
         }
 
         sScriptMgr->OnPlayerCreateItem(player, pItem, addNumber);

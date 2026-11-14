@@ -56,7 +56,7 @@ struct Mail;
 struct TrainerSpell;
 struct VendorItem;
 
-class AchievementMgr;
+class PlayerAchievementMgr;
 class ReputationMgr;
 class Channel;
 class CharacterCreateInfo;
@@ -2318,6 +2318,7 @@ public:
 
     static TeamId TeamIdForRace(uint8 race);
     [[nodiscard]] TeamId GetTeamId(bool original = false) const { return original ? TeamIdForRace(getRace(true)) : m_team; };
+    [[nodiscard]] Team GetTeam(bool original = false) const { return GetTeamId(original) == TEAM_ALLIANCE ? ALLIANCE : HORDE; }
     void SetFactionForRace(uint8 race);
     // 5.4.8: neutral Pandaren pick a side at the end of the Wandering Isle
     void ShowNeutralPlayerFactionSelectUI();
@@ -2789,12 +2790,19 @@ public:
     [[nodiscard]] bool HasAchieved(uint32 achievementId) const;
     void ResetAchievements();
     void CheckAllAchievementCriteria();
+    // AzerothCore names, forwarded to the 6.x criteria handler (the enum values match CriteriaTypes)
     void ResetAchievementCriteria(AchievementCriteriaCondition condition, uint32 value, bool evenIfCriteriaComplete = false);
     void UpdateAchievementCriteria(AchievementCriteriaTypes type, uint32 miscValue1 = 0, uint32 miscValue2 = 0, Unit* unit = nullptr);
     void StartTimedAchievement(AchievementCriteriaTimedTypes type, uint32 entry, uint32 timeLost = 0);
     void RemoveTimedAchievement(AchievementCriteriaTimedTypes type, uint32 entry);
+    // TC 6.x names
+    [[nodiscard]] uint32 GetAchievementPoints() const;
+    void ResetCriteria(CriteriaTypes type, uint64 miscValue1 = 0, uint64 miscValue2 = 0, bool evenIfCriteriaComplete = false);
+    void UpdateCriteria(CriteriaTypes type, uint64 miscValue1 = 0, uint64 miscValue2 = 0, uint64 miscValue3 = 0, Unit* unit = nullptr);
+    void StartCriteriaTimer(CriteriaTimedTypes type, uint32 entry, uint32 timeLost = 0);
+    void RemoveCriteriaTimer(CriteriaTimedTypes type, uint32 entry);
     void CompletedAchievement(AchievementEntry const* entry);
-    [[nodiscard]] AchievementMgr* GetAchievementMgr() const { return m_achievementMgr; }
+    [[nodiscard]] PlayerAchievementMgr* GetAchievementMgr() const { return m_achievementMgr; }
 
     void SetCreationTime(Seconds creationTime) { m_creationTime = creationTime; }
     [[nodiscard]] Seconds GetCreationTime() const { return m_creationTime; }
@@ -3305,7 +3313,7 @@ private:
     uint32 m_temporaryUnsummonedPetNumber;
     uint32 m_oldpetspell;
 
-    AchievementMgr* m_achievementMgr;
+    PlayerAchievementMgr* m_achievementMgr;
     ReputationMgr*  m_reputationMgr;
 
     SpellCooldowns m_spellCooldowns;

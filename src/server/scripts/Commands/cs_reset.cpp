@@ -76,7 +76,7 @@ public:
         if (playerTarget)
             playerTarget->ResetAchievements();
         else
-            AchievementMgr::DeleteFromDB(target->GetGUID().GetCounter());
+            PlayerAchievementMgr::DeleteFromDB(target->GetGUID());
 
         return true;
     }
@@ -109,7 +109,7 @@ public:
             return false;
         }
 
-        uint8 powerType = classEntry->powerType;
+        uint8 powerType = classEntry->PowerType;
 
         // reset m_form if no aura
         if (!player->HasShapeshiftAura())

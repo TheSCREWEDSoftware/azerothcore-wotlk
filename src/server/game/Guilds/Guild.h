@@ -18,7 +18,7 @@
 #ifndef AZEROTHCORE_GUILD_H
 #define AZEROTHCORE_GUILD_H
 
-#include "GuildAchievementMgr.h"
+#include "AchievementMgr.h"
 #include "Item.h"
 #include "ObjectMgr.h"
 #include "Optional.h"
@@ -430,7 +430,13 @@ public: // pussywizard: public class Member
         void UpdateProfessionData();
         GuildMemberProfessionData const& GetProfessionData(uint8 index) const { return m_professions[index]; }
 
+        // 6.x guild achievement tracking (TC 6.x)
+        std::set<uint32> const& GetTrackedCriteriaIds() const { return m_trackedCriteriaIds; }
+        void SetTrackedCriteriaIds(std::set<uint32> criteriaIds) { m_trackedCriteriaIds.swap(criteriaIds); }
+        bool IsTrackingCriteriaId(uint32 criteriaId) const { return m_trackedCriteriaIds.find(criteriaId) != m_trackedCriteriaIds.end(); }
+
     private:
+        std::set<uint32> m_trackedCriteriaIds;
         uint32 m_guildId;
         // Fields from characters table
         ObjectGuid m_guid;
@@ -836,6 +842,10 @@ public:
 
     GuildAchievementMgr& GetAchievementMgr() { return m_achievementMgr; }
     GuildAchievementMgr const& GetAchievementMgr() const { return m_achievementMgr; }
+    bool HasAchieved(uint32 achievementId) const;
+    void UpdateCriteria(CriteriaTypes type, uint64 miscValue1, uint64 miscValue2, uint64 miscValue3, Unit* unit, Player* player);
+    void HandleSetAchievementTracking(WorldSession* session, std::set<uint32> const& achievementIds);
+    void BroadcastPacketIfTrackingAchievement(WorldPacket const* packet, uint32 criteriaId) const;
     void SendNewsUpdate(WorldSession* session);
     void HandleNewsSetSticky(WorldSession* session, uint32 newsId, bool sticky);
     void ClearExpiredNews();

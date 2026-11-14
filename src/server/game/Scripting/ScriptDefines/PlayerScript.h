@@ -412,10 +412,10 @@ public:
     virtual bool OnPlayerBeforeAchievementComplete(Player* /*player*/, AchievementEntry const* /*achievement*/) { return true; }
 
     // Called when a player complete an achievement criteria
-    virtual void OnPlayerCriteriaProgress(Player* /*player*/, AchievementCriteriaEntry const* /*criteria*/) { }
+    virtual void OnPlayerCriteriaProgress(Player* /*player*/, Criteria const* /*criteria*/) { }
 
     //  Called before player complete an achievement criteria, can be used to disable achievement criteria in certain conditions
-    virtual bool OnPlayerBeforeCriteriaProgress(Player* /*player*/, AchievementCriteriaEntry const* /*criteria*/) { return true; }
+    virtual bool OnPlayerBeforeCriteriaProgress(Player* /*player*/, Criteria const* /*criteria*/) { return true; }
 
     // Called when an Achievement is saved to DB
     virtual void OnPlayerAchievementSave(CharacterDatabaseTransaction /*trans*/, Player* /*player*/, uint16 /*achId*/, CompletedAchievementData /*achiData*/) { }

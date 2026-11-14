@@ -44,13 +44,13 @@ public:
     // After complete global acvievement
     virtual void SetRealmCompleted(AchievementEntry const* /*achievement*/) { }
 
-    [[nodiscard]] virtual bool IsCompletedCriteria(AchievementMgr* /*mgr*/, AchievementCriteriaEntry const* /*achievementCriteria*/, AchievementEntry const* /*achievement*/, CriteriaProgress const* /*progress*/) { return true; }
+    [[nodiscard]] virtual bool IsCompletedCriteria(CriteriaHandler* /*mgr*/, Criteria const* /*criteria*/, uint64 /*requiredAmount*/, CriteriaProgress const* /*progress*/) { return true; }
 
     [[nodiscard]] virtual bool IsRealmCompleted(AchievementGlobalMgr const* /*globalmgr*/, AchievementEntry const* /*achievement*/, SystemTimePoint /*completionTime*/) { return true; }
 
-    virtual void OnBeforeCheckCriteria(AchievementMgr* /*mgr*/, std::list<AchievementCriteriaEntry const*> const* /*achievementCriteriaList*/) { }
+    virtual void OnBeforeCheckCriteria(CriteriaHandler* /*mgr*/, std::vector<Criteria const*> const* /*achievementCriteriaList*/) { }
 
-    [[nodiscard]] virtual bool CanCheckCriteria(AchievementMgr* /*mgr*/, AchievementCriteriaEntry const* /*achievementCriteria*/) { return true; }
+    [[nodiscard]] virtual bool CanCheckCriteria(CriteriaHandler* /*mgr*/, Criteria const* /*achievementCriteria*/) { return true; }
 };
 
 #endif

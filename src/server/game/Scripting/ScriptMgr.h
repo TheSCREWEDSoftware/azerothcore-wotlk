@@ -352,8 +352,8 @@ public: /* PlayerScript */
     void OnPlayerRemoveFromBattleground(Player* player, Battleground* bg);
     void OnPlayerAchievementComplete(Player* player, AchievementEntry const* achievement);
     bool OnPlayerBeforeAchievementComplete(Player* player, AchievementEntry const* achievement);
-    void OnPlayerCriteriaProgress(Player* player, AchievementCriteriaEntry const* criteria);
-    bool OnPlayerBeforeCriteriaProgress(Player* player, AchievementCriteriaEntry const* criteria);
+    void OnPlayerCriteriaProgress(Player* player, Criteria const* criteria);
+    bool OnPlayerBeforeCriteriaProgress(Player* player, Criteria const* criteria);
     void OnPlayerAchievementSave(CharacterDatabaseTransaction trans, Player* player, uint16 achiId, CompletedAchievementData achiData);
     void OnPlayerCriteriaSave(CharacterDatabaseTransaction trans, Player* player, uint16 critId, CriteriaProgress criteriaData);
     void OnPlayerGossipSelect(Player* player, uint32 menu_id, uint32 sender, uint32 action);
@@ -668,10 +668,10 @@ public: /* MailScript */
 public: /* AchievementScript */
 
     void SetRealmCompleted(AchievementEntry const* achievement);
-    bool IsCompletedCriteria(AchievementMgr* mgr, AchievementCriteriaEntry const* achievementCriteria, AchievementEntry const* achievement, CriteriaProgress const* progress);
+    bool IsCompletedCriteria(CriteriaHandler* mgr, Criteria const* criteria, uint64 requiredAmount, CriteriaProgress const* progress);
     bool IsRealmCompleted(AchievementGlobalMgr const* globalmgr, AchievementEntry const* achievement, std::chrono::system_clock::time_point completionTime);
-    void OnBeforeCheckCriteria(AchievementMgr* mgr, AchievementCriteriaEntryList const* achievementCriteriaList);
-    bool CanCheckCriteria(AchievementMgr* mgr, AchievementCriteriaEntry const* achievementCriteria);
+    void OnBeforeCheckCriteria(CriteriaHandler* mgr, std::vector<Criteria const*> const* achievementCriteriaList);
+    bool CanCheckCriteria(CriteriaHandler* mgr, Criteria const* achievementCriteria);
 
 public: /* PetScript */
 
