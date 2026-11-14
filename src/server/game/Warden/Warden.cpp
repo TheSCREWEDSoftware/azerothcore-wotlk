@@ -16,6 +16,7 @@
  */
 
 #include "Warden.h"
+#include "WardenPackets.h"
 #include "AccountMgr.h"
 #include "BanMgr.h"
 #include "ByteBuffer.h"
@@ -317,8 +318,9 @@ WardenPayloadMgr* Warden::GetPayloadMgr()
     return &_payloadMgr;
 }
 
-void WorldSession::HandleWardenDataOpcode(WorldPacket& recvData)
+void WorldSession::HandleWardenData(WorldPackets::Warden::WardenData& packet)
 {
+    ByteBuffer& recvData = packet.Data;
     if (!_warden || recvData.empty())
         return;
 

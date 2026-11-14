@@ -76,6 +76,14 @@ class WorldPacket;
 class Creature;
 class Unit;
 
+// 6.x battlefield state (TC 6.x BattlefieldState)
+enum BattlefieldStateId : int8
+{
+    BATTLEFIELD_STATE_INACTIVE      = 0,
+    BATTLEFIELD_STATE_WARMUP        = 1,
+    BATTLEFIELD_STATE_IN_PROGRESS   = 2
+};
+
 class Battlefield;
 class BfGraveyard;
 
@@ -324,6 +332,10 @@ public:
     void PlayerAcceptInviteToQueue(Player* player);
     void PlayerAcceptInviteToWar(Player* player);
     uint32 GetBattleId() const { return BattleId; }
+    // 6.x names a battlefield by a queue id (TC 6.x)
+    uint64 GetQueueId() const { return (uint64(0x1F100000) << 32) | uint64(BattleId | 0x20000); }
+    // 6.x battlefield state sent with the queue packets (TC 6.x)
+    int8 GetState() const { return Active ? BATTLEFIELD_STATE_IN_PROGRESS : (Timer <= StartGroupingTimer ? BATTLEFIELD_STATE_WARMUP : BATTLEFIELD_STATE_INACTIVE); }
     void AskToLeaveQueue(Player* player);
     void PlayerAskToLeave(Player* player);
 

@@ -497,7 +497,7 @@ WorldSocket::ReadDataHandlerResult WorldSocket::ReadDataHandler()
             HandleConnectToFailed(connectToFailed);
             return ReadDataHandlerResult::Ok;
         }
-        case CMSG_TIME_SYNC_RESP:
+        case CMSG_TIME_SYNC_RESPONSE:
             packetToQueue = new WorldPacket(std::move(packet), GameTime::Now());
             break;
         default:
@@ -886,6 +886,7 @@ void WorldSocket::HandleAuthSessionCallback(std::shared_ptr<WorldPackets::Auth::
         account.Game.Security ? true : false, account.Game.TotalTime);
 
     _worldSession->SetBattlenetAccountId(account.BattleNet.Id);
+    _worldSession->SetOS(account.Game.OS);
     _worldSession->ReadAddonsInfo(authSession->AddonInfo);
 
     // Initialize Warden system only if it is enabled by config

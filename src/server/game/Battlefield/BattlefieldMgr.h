@@ -46,6 +46,7 @@ public:
     // return assigned battlefield
     Battlefield* GetBattlefieldToZoneId(uint32 zoneId);
     Battlefield* GetBattlefieldByBattleId(uint32 battleId);
+    Battlefield* GetBattlefieldByQueueId(uint64 queueId);
 
     // True iff the most recent Wintergrasp battle ended with the keep captured.
     [[nodiscard]] bool IsWintergraspAttackerVictory();

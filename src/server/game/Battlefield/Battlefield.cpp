@@ -140,7 +140,7 @@ void Battlefield::HandlePlayerLeaveZone(Player* player, uint32 /*zone*/)
                 LogoutGracePlayers[player->GetTeamId()][player->GetGUID()] =
                     GameTime::GetGameTime().count() + LOGOUT_GRACE_SECONDS;
             else
-                player->GetSession()->SendBfLeaveMessage(BattleId);
+                player->GetSession()->SendBfLeaveMessage(GetQueueId(), GetState(), player->GetZoneId() == GetZoneId());
 
             if (Group* group = player->GetGroup()) // Remove the player from the raid group
                 if (group->isBFGroup())
@@ -222,7 +222,7 @@ void Battlefield::InvitePlayerToQueue(Player* player)
         return;
 
     if (PlayersInQueue[player->GetTeamId()].size() <= MinPlayer || PlayersInQueue[GetOtherTeam(player->GetTeamId())].size() >= MinPlayer)
-        player->GetSession()->SendBfInvitePlayerToQueue(BattleId);
+        player->GetSession()->SendBfInvitePlayerToQueue(GetQueueId(), GetState());
 }
 
 void Battlefield::InvitePlayersInQueueToWar()
@@ -290,7 +290,7 @@ void Battlefield::InvitePlayerToWar(Player* player)
 
     PlayersWillBeKick[player->GetTeamId()].erase(player->GetGUID());
     InvitedPlayers[player->GetTeamId()][player->GetGUID()] = GameTime::GetGameTime().count() + TimeForAcceptInvite;
-    player->GetSession()->SendBfInvitePlayerToWar(BattleId, ZoneId, TimeForAcceptInvite);
+    player->GetSession()->SendBfInvitePlayerToWar(GetQueueId(), ZoneId, TimeForAcceptInvite);
 }
 
 void Battlefield::InitStalker(uint32 entry, float x, float y, float z, float o)
@@ -383,7 +383,7 @@ void Battlefield::StartBattle()
             for (ObjectGuid const& guid : expired)
             {
                 if (Player* player = ObjectAccessor::FindPlayer(guid))
-                    player->GetSession()->SendBfLeaveMessage(BattleId, BF_LEAVE_REASON_EXITED);
+                    player->GetSession()->SendBfLeaveMessage(GetQueueId(), GetState(), player->GetZoneId() == GetZoneId(), BF_LEAVE_REASON_EXITED);
                 InvitedPlayers[team].erase(guid);
                 KickPlayerFromBattlefield(guid);
             }
@@ -466,7 +466,7 @@ void Battlefield::PlayerAcceptInviteToQueue(Player* player)
     // Add player in queue
     PlayersInQueue[player->GetTeamId()].insert(player->GetGUID());
     // Send notification
-    player->GetSession()->SendBfQueueInviteResponse(BattleId, ZoneId);
+    player->GetSession()->SendBfQueueInviteResponse(GetQueueId(), ZoneId, GetState());
 }
 
 // Called in WorldSession::HandleBfExitRequest
@@ -475,7 +475,7 @@ void Battlefield::AskToLeaveQueue(Player* player)
     // Remove player from queue
     PlayersInQueue[player->GetTeamId()].erase(player->GetGUID());
     // Send notification
-    player->GetSession()->SendBfLeaveMessage(BattleId, BF_LEAVE_REASON_CLOSE);
+    player->GetSession()->SendBfLeaveMessage(GetQueueId(), GetState(), player->GetZoneId() == GetZoneId(), BF_LEAVE_REASON_CLOSE);
 }
 
 // Called in WorldSession::HandleHearthAndResurrect
@@ -502,7 +502,7 @@ void Battlefield::PlayerAcceptInviteToWar(Player* player)
 
     if (AddOrSetPlayerToCorrectBfGroup(player))
     {
-        player->GetSession()->SendBfEntered(BattleId);
+        player->GetSession()->SendBfEntered(GetQueueId(), player->GetZoneId() != GetZoneId(), player->GetTeamId() == GetAttackerTeam());
         PlayersInWar[player->GetTeamId()].insert(player->GetGUID());
         // Use pre-hook team: JoinWar may have just reassigned GetTeamId().
         InvitedPlayers[invitedTeam].erase(player->GetGUID());
@@ -662,7 +662,7 @@ void Battlefield::TryRejoinAfterLogout(Player* player)
 
     if (AddOrSetPlayerToCorrectBfGroup(player))
     {
-        player->GetSession()->SendBfEntered(BattleId);
+        player->GetSession()->SendBfEntered(GetQueueId(), player->GetZoneId() != GetZoneId(), player->GetTeamId() == GetAttackerTeam());
         PlayersInWar[player->GetTeamId()].insert(guid);
         OnPlayerJoinWar(player);
     }

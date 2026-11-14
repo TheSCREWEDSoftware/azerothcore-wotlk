@@ -41,6 +41,12 @@
 
 class BlackMarketEntry;
 class BattlePetMgr;
+class MessageBuffer;
+
+namespace google::protobuf
+{
+    class Message;
+}
 class CollectionMgr;
 class Creature;
 struct SpellCastRequest;
@@ -1069,6 +1075,21 @@ public:
     ObjectGuid GetBattlenetAccountGUID() const { return ObjectGuid::Create<HighGuid::BNetAccount>(GetBattlenetAccountId()); }
     CollectionMgr* GetCollectionMgr() const { return _collectionMgr.get(); }
     BattlePetMgr* GetBattlePetMgr() const { return _battlePetMgr.get(); }
+
+    // 6.x Battle.net services through the world connection (TC 6.x)
+    void SendBattlenetResponse(uint32 serviceHash, uint32 methodId, uint32 token, google::protobuf::Message const* response);
+    void SendBattlenetResponse(uint32 serviceHash, uint32 methodId, uint32 token, uint32 status);
+    void SendBattlenetRequest(uint32 serviceHash, uint32 methodId, google::protobuf::Message const* request, std::function<void(MessageBuffer)> callback);
+    void SendBattlenetRequest(uint32 serviceHash, uint32 methodId, google::protobuf::Message const* request);
+
+    std::array<uint8, 32> const& GetRealmListSecret() const { return _realmListSecret; }
+    void SetRealmListSecret(std::array<uint8, 32> const& secret) { _realmListSecret = secret; }
+
+    std::unordered_map<uint32, uint8> const& GetRealmCharacterCounts() const { return _realmCharacterCounts; }
+
+    std::string const& GetAccountName() const { return _accountName; }
+    std::string const& GetOS() const { return _os; }
+    void SetOS(std::string const& os) { _os = os; }
     void SetBattlenetAccountId(uint32 battlenetAccountId) { _battlenetAccountId = battlenetAccountId; }
     Player* GetPlayer() const { return _player; }
     std::string const& GetPlayerName() const;
@@ -1283,7 +1304,6 @@ public:                                                 // opcodes handlers
     void HandleUndeleteCooldownStatusCallback(PreparedQueryResult result);
     void HandleCharUndeleteOpcode(WorldPackets::Character::UndeleteCharacter& undeleteInfo);
     void HandlePlayedTime(WorldPackets::Character::RequestPlayedTime& packet);
-    void HandleLookingForGroup(WorldPacket& recvPacket);
     void HandlePortGraveyard(WorldPackets::Misc::PortGraveyard& packet);
     void HandleRequestCemeteryList(WorldPackets::Misc::RequestCemeteryList& packet);
     void HandleInspectOpcode(WorldPackets::Inspect::Inspect& inspect);
@@ -1298,7 +1318,6 @@ public:                                                 // opcodes handlers
     void HandleMoveTeleportAck(WorldPackets::Movement::MoveTeleportAck& packet);
     void HandleForceSpeedChangeAck(WorldPackets::Movement::MovementSpeedAck& packet);
     void HandleSetCollisionHeightAck(WorldPackets::Movement::MoveSetCollisionHeightAck& setCollisionHeightAck);
-    void HandlePingOpcode(WorldPacket& recvPacket);
     void HandleRepopRequest(WorldPackets::Misc::RepopRequest& packet);
     void HandleAutostoreLootItemOpcode(WorldPackets::Loot::LootItem& packet);
     void HandleLootMoneyOpcode(WorldPackets::Loot::LootMoney& packet);
@@ -1339,7 +1358,6 @@ public:                                                 // opcodes handlers
     void HandleSetAdvancedCombatLogging(WorldPackets::ClientConfig::SetAdvancedCombatLogging& setAdvancedCombatLogging);
     void HandleSetActionButtonOpcode(WorldPackets::Spells::SetActionButton& packet);
     void HandleGameObjectUseOpcode(WorldPackets::GameObject::GameObjUse& packet);
-    void HandleMeetingStoneInfo(WorldPacket& recPacket);
     void HandleGameobjectReportUse(WorldPackets::GameObject::GameObjReportUse& packet);
     void HandleNameQueryOpcode(WorldPackets::Query::QueryPlayerName& packet);
     void HandleQueryTimeOpcode(WorldPackets::Query::QueryTime& queryTime);
@@ -1452,14 +1470,6 @@ public:                                                 // opcodes handlers
     void HandleBinderActivateOpcode(WorldPackets::NPC::Hello& packet);
     void HandleRequestStabledPets(WorldPackets::NPC::RequestStabledPets& packet);
     void HandleSetPetSlot(WorldPackets::Pet::SetPetSlot& packet);
-    void HandleStablePet(WorldPacket& recvPacket);
-    void HandleStablePetCallback(PreparedQueryResult result);
-    void HandleUnstablePet(WorldPacket& recvPacket);
-    void HandleUnstablePetCallback(PreparedQueryResult result, uint32 petId);
-    void HandleBuyStableSlot(WorldPacket& recvPacket);
-    void HandleStableRevivePet(WorldPacket& recvPacket);
-    void HandleStableSwapPet(WorldPacket& recvPacket);
-    void HandleStableSwapPetCallback(PreparedQueryResult result, uint32 petId);
     void HandleCanDuel(WorldPackets::Duel::CanDuel& packet);
     void HandleDuelResponseOpcode(WorldPackets::Duel::DuelResponse& duelResponse);
     void HandleAcceptTradeOpcode(WorldPackets::Trade::AcceptTrade& acceptTrade);
@@ -1754,8 +1764,6 @@ public:                                                 // opcodes handlers
 
     // GM Ticket opcodes
 
-    void HandleSupportTicketSubmitComplaintOpcode(WorldPacket& recvData);
-
     void HandleMoveWorldportAck(); // for server-side calls
 
     void AcceptPartyInvite();
@@ -1794,11 +1802,11 @@ public:                                                 // opcodes handlers
     //Battleground
 
     // Battlefield
-    void SendBfInvitePlayerToWar(uint32 battleId, uint32 zoneId, uint32 time);
-    void SendBfInvitePlayerToQueue(uint32 battleId);
-    void SendBfQueueInviteResponse(uint32 battleId, uint32 zoneId, bool canQueue = true, bool full = false);
-    void SendBfEntered(uint32 battleId);
-    void SendBfLeaveMessage(uint32 battleId, BFLeaveReason reason = BF_LEAVE_REASON_EXITED);
+    void SendBfInvitePlayerToWar(uint64 queueId, uint32 zoneId, uint32 acceptTime);
+    void SendBfInvitePlayerToQueue(uint64 queueId, int8 battleState);
+    void SendBfQueueInviteResponse(uint64 queueId, uint32 zoneId, int8 battleStatus, bool canQueue = true, bool loggingIn = false);
+    void SendBfEntered(uint64 queueId, bool relocated, bool onOffense);
+    void SendBfLeaveMessage(uint64 queueId, int8 battleState, bool relocated, BFLeaveReason reason = BF_LEAVE_REASON_EXITED);
 
     // Looking for Dungeon/Raid
     void SendLfgPlayerLockInfo();
@@ -1925,6 +1933,12 @@ private:
     uint32 _battlenetAccountId = 0;
     std::unique_ptr<CollectionMgr> _collectionMgr;
     std::unique_ptr<BattlePetMgr> _battlePetMgr;
+
+    std::array<uint8, 32> _realmListSecret = { };
+    std::unordered_map<uint32 /*realmAddress*/, uint8> _realmCharacterCounts;
+    std::unordered_map<uint32, std::function<void(MessageBuffer)>> _battlenetResponseCallbacks;
+    uint32 _battlenetRequestToken = 0;
+    std::string _os;
     std::string m_Address;
 
     AccountTypes _security;

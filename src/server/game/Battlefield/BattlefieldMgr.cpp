@@ -103,6 +103,15 @@ Battlefield* BattlefieldMgr::GetBattlefieldToZoneId(uint32 zoneId)
     return itr->second;
 }
 
+Battlefield* BattlefieldMgr::GetBattlefieldByQueueId(uint64 queueId)
+{
+    for (Battlefield* bf : _battlefieldSet)
+        if (bf->GetQueueId() == queueId)
+            return bf;
+
+    return nullptr;
+}
+
 Battlefield* BattlefieldMgr::GetBattlefieldByBattleId(uint32 battleId)
 {
     for (Battlefield* bf : _battlefieldSet)

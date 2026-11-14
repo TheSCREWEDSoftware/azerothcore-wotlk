@@ -1512,15 +1512,20 @@ public:
         GLOBAL_ACCOUNT_HEIRLOOMS,
         BATTLE_PETS,
         BATTLE_PET_SLOTS,
+        GLOBAL_REALM_CHARACTER_COUNTS,
 
         MAX_QUERIES
     };
 
     AccountInfoQueryHolder() { SetSize(MAX_QUERIES); }
 
-    bool Initialize(uint32 battlenetAccountId)
+    bool Initialize(uint32 accountId, uint32 battlenetAccountId)
     {
         bool ok = true;
+
+        LoginDatabasePreparedStatement* countsStmt = LoginDatabase.GetPreparedStatement(LOGIN_SEL_BNET_CHARACTER_COUNTS_BY_ACCOUNT_ID);
+        countsStmt->SetData(0, accountId);
+        ok = SetPreparedQuery(GLOBAL_REALM_CHARACTER_COUNTS, countsStmt) && ok;
 
         LoginDatabasePreparedStatement* stmt = LoginDatabase.GetPreparedStatement(LOGIN_SEL_ACCOUNT_TOYS);
         stmt->SetData(0, battlenetAccountId);
@@ -1555,7 +1560,7 @@ void WorldSession::InitializeSession()
     }
 
     std::shared_ptr<AccountInfoQueryHolder> holder = std::make_shared<AccountInfoQueryHolder>();
-    if (!holder->Initialize(GetBattlenetAccountId()))
+    if (!holder->Initialize(GetAccountId(), GetBattlenetAccountId()))
     {
         SendAuthResponse(ERROR_INTERNAL, false);
         return;
@@ -1578,6 +1583,16 @@ void WorldSession::InitializeSessionCallback(CharacterDatabaseQueryHolder const&
     _collectionMgr->LoadAccountToys(holder.GetPreparedResult(AccountInfoQueryHolder::GLOBAL_ACCOUNT_TOYS));
     _collectionMgr->LoadAccountHeirlooms(holder.GetPreparedResult(AccountInfoQueryHolder::GLOBAL_ACCOUNT_HEIRLOOMS));
     _battlePetMgr->LoadFromDB(holder.GetPreparedResult(AccountInfoQueryHolder::BATTLE_PETS), holder.GetPreparedResult(AccountInfoQueryHolder::BATTLE_PET_SLOTS));
+
+    // character counts per realm for the 6.x Battle.net realm list (TC 6.x)
+    if (PreparedQueryResult characterCountsResult = holder.GetPreparedResult(AccountInfoQueryHolder::GLOBAL_REALM_CHARACTER_COUNTS))
+    {
+        do
+        {
+            Field* fields = characterCountsResult->Fetch();
+            _realmCharacterCounts[RealmHandle{ fields[3].Get<uint8>(), fields[4].Get<uint8>(), fields[2].Get<uint32>() }.GetAddress()] = fields[1].Get<uint8>();
+        } while (characterCountsResult->NextRow());
+    }
 
     if (!sToCloud9Sidecar->ClusterModeEnabled())
     {
