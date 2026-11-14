@@ -608,6 +608,8 @@ bool Creature::UpdateEntry(uint32 Entry, CreatureData const* data, bool changele
     else
         ReplaceAllNpcFlags(NPCFlags(npcflag));
 
+    ReplaceAllNpcFlags2(NPCFlags2(cInfo->npcflag2));
+
     // Xinef: NPC is in combat, keep this flag!
     unit_flags &= ~UNIT_FLAG_IN_COMBAT;
     if (IsInCombat())
@@ -2033,6 +2035,7 @@ void Creature::setDeathState(DeathState state, bool despawn)
         UpdateMovementFlags();
 
         ReplaceAllNpcFlags(NPCFlags(cinfo->npcflag));
+        ReplaceAllNpcFlags2(NPCFlags2(cinfo->npcflag2));
         ClearUnitState(uint32(UNIT_STATE_ALL_STATE & ~(UNIT_STATE_IGNORE_PATHFINDING | UNIT_STATE_NO_ENVIRONMENT_UPD)));
         SetMeleeDamageSchool(SpellSchools(cinfo->dmgschool));
 

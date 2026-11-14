@@ -2704,6 +2704,7 @@ void Spell::EffectSummonType(SpellEffIndex effIndex)
 
                         summon->SelectLevel();       // some summoned creaters have different from 1 DB data for level/hp
                         summon->ReplaceAllNpcFlags(NPCFlags(summon->GetCreatureTemplate()->npcflag));
+                        summon->ReplaceAllNpcFlags2(NPCFlags2(summon->GetCreatureTemplate()->npcflag2));
 
                         summon->SetImmuneToAll(true);
                         summon->SetReactState(REACT_PASSIVE);

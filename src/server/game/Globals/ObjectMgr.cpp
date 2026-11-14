@@ -618,7 +618,9 @@ void ObjectMgr::LoadCreatureTemplate(Field* fields, bool triggerHook)
     creatureTemplate.maxlevel         = fields[11].Get<uint8>();
     creatureTemplate.expansion        = uint32(fields[12].Get<int16>());
     creatureTemplate.faction          = uint32(fields[13].Get<uint16>());
-    creatureTemplate.npcflag          = fields[14].Get<uint32>();
+    uint64 npcFlags                   = fields[14].Get<uint64>();   // 6.x: bigint, the high half is NPCFlags2
+    creatureTemplate.npcflag          = uint32(npcFlags & 0xFFFFFFFF);
+    creatureTemplate.npcflag2         = uint32(npcFlags >> 32);
     creatureTemplate.speed_walk       = fields[15].Get<float>();
     creatureTemplate.speed_run        = fields[16].Get<float>();
     creatureTemplate.speed_swim       = fields[17].Get<float>();

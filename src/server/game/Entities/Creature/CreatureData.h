@@ -205,6 +205,7 @@ struct CreatureTemplate
     uint32  expansion;
     uint32  faction;
     uint32  npcflag;
+    uint32  npcflag2;                                       // 6.x: high 32 bits of `npcflag` (UNIT_NPC_FLAGS + 1)
     float   speed_walk;
     float   speed_run;
     float   speed_swim;
