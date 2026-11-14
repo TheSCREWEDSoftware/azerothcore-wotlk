@@ -21,6 +21,8 @@
 #include "AuctionHouseMgr.h"
 #include "Common.h"
 #include "Item.h"
+#include "AuctionHousePackets.h"
+#include "ItemPackets.h"
 #include "LockedQueue.h"
 #include "MPSCQueue.h"
 #include "PCQueue.h"
@@ -73,6 +75,8 @@ struct SearchableAuctionEntryItem
     uint32 count;
     int32 spellCharges;
     ItemTemplate const* itemTemplate;
+    ObjectGuid itemGuid;
+    WorldPackets::Item::ItemInstance instance;              // 6.x: item snapshot (bonus lists, modifiers) taken on the map thread
 };
 
 struct SearchableAuctionEntry
@@ -86,9 +90,10 @@ struct SearchableAuctionEntry
     uint32 bid;
     ObjectGuid bidderGuid;
     AuctionHouseFaction listFaction;
+    ObjectGuid ownerAccountGuid;
     SearchableAuctionEntryItem item;
 
-    void BuildAuctionInfo(WorldPacket& data) const;
+    void BuildAuctionInfo(std::vector<WorldPackets::AuctionHouse::AuctionItem>& items, bool listAuctionItems) const;
     void SetItemNames();
 
     int CompareAuctionEntry(uint32 column, SearchableAuctionEntry const& auc, int loc_idx) const;

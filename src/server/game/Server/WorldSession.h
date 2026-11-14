@@ -1172,8 +1172,10 @@ public:
     //auction
     void SendAuctionHello(ObjectGuid guid, Creature* unit);
     void SendAuctionCommandResult(AuctionEntry const* auction, uint32 action, uint32 errorCode, uint32 bidError = 0);
-    void SendAuctionBidderNotification(uint32 location, uint32 auctionId, ObjectGuid bidder, uint64 bidSum, uint64 diff, uint32 itemEntry);
-    void SendAuctionOwnerNotification(AuctionEntry* auction);
+    void SendAuctionOutBidNotification(AuctionEntry const* auction, Item const* item, uint32 newBid);
+    void SendAuctionClosedNotification(AuctionEntry const* auction, float mailDelay, bool sold, Item const* item);
+    void SendAuctionWonNotification(AuctionEntry const* auction, Item const* item);
+    void SendAuctionOwnerBidNotification(AuctionEntry const* auction, Item const* item);
 
     //Item Enchantment
     void SendEnchantmentLog(ObjectGuid target, ObjectGuid caster, ObjectGuid itemGuid, uint32 itemId, uint32 enchantId, uint32 slot);

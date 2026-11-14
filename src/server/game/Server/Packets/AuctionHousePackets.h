@@ -111,7 +111,7 @@ namespace WorldPackets
                  *
                  * @param   auction         The relevant auction object
                  */
-                void InitializeAuction(::AuctionEntry* auction);
+                void InitializeAuction(::AuctionEntry const* auction);
 
                 WorldPacket const* Write() override;
 

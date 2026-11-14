@@ -148,8 +148,8 @@ void AuctionHouseWorkerThread::SearchListRequest(AuctionSearchListRequest const&
 
     AuctionSearcherResponse* searchResponse = new AuctionSearcherResponse();
     searchResponse->playerGuid = searchListRequest.playerInfo.playerGuid;
-    searchResponse->packet.Initialize(SMSG_AUCTION_LIST_RESULT, (4 + 4 + 4));
-    searchResponse->packet << (uint32)0;
+    WorldPackets::AuctionHouse::AuctionListItemsResult result;
+    result.OnlyUsable = searchListRequest.searchInfo.usable;
 
     if (!searchListRequest.searchInfo.getAll)
     {
@@ -173,7 +173,7 @@ void AuctionHouseWorkerThread::SearchListRequest(AuctionSearchListRequest const&
 
         for (; itr != auctionEntries.end(); ++itr)
         {
-            (*itr)->BuildAuctionInfo(searchResponse->packet);
+            (*itr)->BuildAuctionInfo(result.Items, true);
 
             if (++count >= MAX_AUCTIONS_PER_PAGE)
                 break;
@@ -188,7 +188,7 @@ void AuctionHouseWorkerThread::SearchListRequest(AuctionSearchListRequest const&
         {
             std::shared_ptr<SearchableAuctionEntry> const& Aentry = pair.second;
             ++count;
-            Aentry->BuildAuctionInfo(searchResponse->packet);
+            Aentry->BuildAuctionInfo(result.Items, true);
 
             if (count >= MAX_GETALL_RETURN)
                 break;
@@ -197,9 +197,9 @@ void AuctionHouseWorkerThread::SearchListRequest(AuctionSearchListRequest const&
         totalCount = searchableAuctionMap.size();
     }
 
-    searchResponse->packet.put<uint32>(0, count);
-    searchResponse->packet << totalCount;
-    searchResponse->packet << uint32(AUCTION_SEARCH_DELAY);
+    result.TotalCount = totalCount;
+    result.DesiredDelay = AUCTION_SEARCH_DELAY;
+    searchResponse->packet = result.Move();
 
     _responseQueue->Enqueue(searchResponse);
 }
@@ -210,8 +210,7 @@ void AuctionHouseWorkerThread::SearchOwnerListRequest(AuctionSearchOwnerListRequ
 
     AuctionSearcherResponse* searchResponse = new AuctionSearcherResponse();
     searchResponse->playerGuid = searchOwnerListRequest.ownerGuid;
-    searchResponse->packet.Initialize(SMSG_AUCTION_OWNER_LIST_RESULT, (4 + 4 + 4));
-    searchResponse->packet << (uint32)0;                                     // amount place holder
+    WorldPackets::AuctionHouse::AuctionListOwnerItemsResult result;
 
     uint32 count = 0;
     uint32 totalcount = 0;
@@ -222,14 +221,14 @@ void AuctionHouseWorkerThread::SearchOwnerListRequest(AuctionSearchOwnerListRequ
             continue;
 
         std::shared_ptr<SearchableAuctionEntry> const& auctionEntry = pair.second;
-        auctionEntry->BuildAuctionInfo(searchResponse->packet);
+        auctionEntry->BuildAuctionInfo(result.Items, false);
         ++count;
         ++totalcount;
     }
 
-    searchResponse->packet.put<uint32>(0, count);
-    searchResponse->packet << (uint32)totalcount;
-    searchResponse->packet << uint32(AUCTION_SEARCH_DELAY);
+    result.TotalCount = totalcount;
+    result.DesiredDelay = AUCTION_SEARCH_DELAY;
+    searchResponse->packet = result.Move();
 
     _responseQueue->Enqueue(searchResponse);
 }
@@ -240,8 +239,7 @@ void AuctionHouseWorkerThread::SearchBidderListRequest(AuctionSearchBidderListRe
 
     AuctionSearcherResponse* searchResponse = new AuctionSearcherResponse();
     searchResponse->playerGuid = searchBidderListRequest.ownerGuid;
-    searchResponse->packet.Initialize(SMSG_AUCTION_BIDDER_LIST_RESULT, (4 + 4 + 4));
-    searchResponse->packet << (uint32)0;                                     //add 0 as count
+    WorldPackets::AuctionHouse::AuctionListBidderItemsResult result;
 
     uint32 count = 0;
     uint32 totalcount = 0;
@@ -253,7 +251,7 @@ void AuctionHouseWorkerThread::SearchBidderListRequest(AuctionSearchBidderListRe
             continue;
 
         std::shared_ptr<SearchableAuctionEntry> const& auctionEntry = itr->second;
-        auctionEntry->BuildAuctionInfo(searchResponse->packet);
+        auctionEntry->BuildAuctionInfo(result.Items, false);
         ++count;
         ++totalcount;
     }
@@ -264,14 +262,14 @@ void AuctionHouseWorkerThread::SearchBidderListRequest(AuctionSearchBidderListRe
             continue;
 
         std::shared_ptr<SearchableAuctionEntry> const& auctionEntry = pair.second;
-        auctionEntry->BuildAuctionInfo(searchResponse->packet);
+        auctionEntry->BuildAuctionInfo(result.Items, false);
         ++count;
         ++totalcount;
     }
 
-    searchResponse->packet.put<uint32>(0, count);                           // add count to placeholder
-    searchResponse->packet << totalcount;
-    searchResponse->packet << uint32(AUCTION_SEARCH_DELAY);
+    result.TotalCount = totalcount;
+    result.DesiredDelay = AUCTION_SEARCH_DELAY;
+    searchResponse->packet = result.Move();
 
     _responseQueue->Enqueue(searchResponse);
 }
@@ -402,6 +400,9 @@ void AuctionHouseSearcher::AddAuction(AuctionEntry const* auctionEntry)
     searchableAuctionEntry->item.count = item->GetCount();
     searchableAuctionEntry->item.spellCharges = item->GetSpellCharges();
     searchableAuctionEntry->item.itemTemplate = item->GetTemplate();
+    searchableAuctionEntry->item.itemGuid = item->GetGUID();
+    searchableAuctionEntry->item.instance.Initialize(item);
+    searchableAuctionEntry->ownerAccountGuid = ObjectGuid::Create<HighGuid::WowAccount>(sCharacterCache->GetCharacterAccountIdByGuid(auctionEntry->owner));
 
     searchableAuctionEntry->SetItemNames();
 
@@ -433,34 +434,37 @@ void AuctionHouseSearcher::NotifyOneWorker(std::shared_ptr<AuctionSearcherUpdate
     (*_workerThreads.begin())->AddAuctionSearchUpdateToQueue(auctionSearchUpdate);
 }
 
-void SearchableAuctionEntry::BuildAuctionInfo(WorldPacket& data) const
+void SearchableAuctionEntry::BuildAuctionInfo(std::vector<WorldPackets::AuctionHouse::AuctionItem>& items, bool listAuctionItems) const
 {
-    data << uint32(Id);
-    data << uint32(item.entry);
+    // 6.x 19342, from TrinityCore AuctionEntry::BuildAuctionInfo
+    WorldPackets::AuctionHouse::AuctionItem& auctionItem = items.emplace_back();
 
-    // 5.4.8 18414, from Project SkyFire: eight enchantment slots and a field before the random property
-    static constexpr uint8 AUCTION_ITEM_ENCHANTMENT_SLOTS = 8;
-    for (uint8 i = 0; i < AUCTION_ITEM_ENCHANTMENT_SLOTS; ++i)
+    auctionItem.AuctionItemID = Id;
+    auctionItem.Item = item.instance;
+    auctionItem.BuyoutPrice = buyout;
+    auctionItem.CensorBidInfo = false;
+    auctionItem.CensorServerSideInfo = listAuctionItems;
+    auctionItem.Charges = item.spellCharges;
+    auctionItem.Count = item.count;
+    auctionItem.DeleteReason = 0;
+    auctionItem.DurationLeft = int32((expire_time - GameTime::GetGameTime().count()) * IN_MILLISECONDS);
+    auctionItem.EndTime = uint32(expire_time);
+    auctionItem.Flags = 0;
+    auctionItem.ItemGuid = item.itemGuid;
+    auctionItem.MinBid = startbid;
+    auctionItem.Owner = ownerGuid;
+    auctionItem.OwnerAccountID = ownerAccountGuid;
+    auctionItem.MinIncrement = bidderGuid ? AuctionEntry::CalculateAuctionOutBid(bid) : 0;
+    auctionItem.Bidder = bidderGuid;
+    auctionItem.BidAmount = bidderGuid ? bid : 0;
+
+    for (uint8 i = 0; i < MAX_INSPECTED_ENCHANTMENT_SLOT; ++i)
     {
-        data << uint32(item.enchants[i].id);
-        data << uint32(item.enchants[i].duration);
-        data << uint32(item.enchants[i].charges);
-    }
+        if (!item.enchants[i].id)
+            continue;
 
-    data << int32(0);
-    data << int32(item.randomPropertyId);                           // Random item property id
-    data << uint32(item.suffixFactor);                              // SuffixFactor
-    data << uint32(item.count);                                     // item->count
-    data << uint32(item.spellCharges);                              // item->charge FFFFFFF
-    data << uint32(0);                                              // item->flags (client doesnt do anything with it)
-    data << ownerGuid;                                              // Auction->owner
-    data << uint64(startbid);                                       // Auction->startbid (not sure if useful)
-    data << uint64(bid ? AuctionEntry::CalculateAuctionOutBid(bid) : 0);
-    // Minimal outbid
-    data << uint64(buyout);                                         // Auction->buyout
-    data << uint32((expire_time - GameTime::GetGameTime().count()) * IN_MILLISECONDS); // time left
-    data << bidderGuid;                                             // auction->bidder current
-    data << uint64(bid);                                            // current bid
+        auctionItem.Enchantments.emplace_back(item.enchants[i].id, item.enchants[i].duration, item.enchants[i].charges, i);
+    }
 }
 
 void SearchableAuctionEntry::SetItemNames()
@@ -490,19 +494,19 @@ void SearchableAuctionEntry::SetItemNames()
             // Append the suffix to the name (ie: of the Monkey) if one exists
             // These are found in ItemRandomSuffix.dbc and ItemRandomProperties.dbc
             // even though the DBC name seems misleading
-            std::array<char const*, 16> const* suffix = nullptr;
+            LocalizedString const* suffix = nullptr;
 
             if (propRefID < 0)
             {
                 ItemRandomSuffixEntry const* itemRandEntry = sItemRandomSuffixStore.LookupEntry(-item.randomPropertyId);
                 if (itemRandEntry)
-                    suffix = &itemRandEntry->Name;
+                    suffix = itemRandEntry->Name;
             }
             else
             {
                 ItemRandomPropertiesEntry const* itemRandEntry = sItemRandomPropertiesStore.LookupEntry(item.randomPropertyId);
                 if (itemRandEntry)
-                    suffix = &itemRandEntry->Name;
+                    suffix = itemRandEntry->Name;
             }
 
             // dbc local name
@@ -511,7 +515,7 @@ void SearchableAuctionEntry::SetItemNames()
                 // Append the suffix (ie: of the Monkey) to the name using localization
                 // or default enUS if localization is invalid
                 itemName += ' ';
-                itemName += (*suffix)[locdbc_idx >= 0 ? locdbc_idx : LOCALE_enUS];
+                itemName += suffix->Str[locdbc_idx >= 0 ? locdbc_idx : LOCALE_enUS];
             }
         }
 

@@ -31,10 +31,20 @@ class Item;
 class Player;
 class AuctionHouseSearcher;
 
+namespace WorldPackets
+{
+    namespace AuctionHouse
+    {
+        struct AuctionItem;
+        class AuctionReplicateResponse;
+    }
+}
+
 #define MIN_AUCTION_TIME (12*HOUR)
 #define MAX_AUCTION_ITEMS 160
 #define MAX_AUCTIONS_PER_PAGE 50
 #define AUCTION_SEARCH_DELAY 300
+#define AUCTION_GETALL_DELAY 900                            // 6.x: seconds between two full replications (TC Auction.GetAllScanDelay)
 
 /*
     The max allowable single packet size in 3.3.5 client protocol is 0x7FFFFF. A single BuildAuctionInfo structure
@@ -120,6 +130,7 @@ struct AuctionEntry
     bool LoadFromDB(Field* fields);
     [[nodiscard]] std::string BuildAuctionMailSubject(MailAuctionAnswers response) const;
     static std::string BuildAuctionMailBody(ObjectGuid guid, uint32 bid, uint32 buyout, uint32 deposit = 0, uint32 cut = 0, uint32 moneyDelay = 0, uint32 eta = 0);
+    void BuildAuctionInfo(std::vector<WorldPackets::AuctionHouse::AuctionItem>& items, bool listAuctionItems, Item* sourceItem = nullptr) const;
 };
 
 //this class is used as auctionhouse instance
@@ -154,8 +165,26 @@ public:
 
     void Update();
 
+    // 6.x: CMSG_AUCTION_REPLICATE_ITEMS (getAll scan), from TrinityCore
+    struct PlayerGetAllThrottleData
+    {
+        uint32 Global = 0;
+        uint32 Cursor = 0;
+        uint32 Tombstone = 0;
+        time_t NextAllowedReplication = 0;
+
+        [[nodiscard]] bool IsReplicationInProgress() const { return Cursor != Tombstone && Global != 0; }
+    };
+
+    typedef std::unordered_map<ObjectGuid, PlayerGetAllThrottleData> PlayerGetAllThrottleMap;
+
+    void BuildReplicate(WorldPackets::AuctionHouse::AuctionReplicateResponse& auctionReplicateResult, Player* player, uint32 global, uint32 cursor, uint32 tombstone, uint32 count);
+
 private:
     AuctionEntryMap _auctionsMap;
+
+    // Map of throttled players for GetAll, and throttle expiry time
+    PlayerGetAllThrottleMap _getAllThrottleMap;
 
     // storage for "next" auction item for next Update()
     AuctionEntryMap::const_iterator _next;

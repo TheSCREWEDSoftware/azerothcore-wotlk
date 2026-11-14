@@ -110,7 +110,7 @@ WorldPacket const* WorldPackets::AuctionHouse::AuctionHelloResponse::Write()
 WorldPackets::AuctionHouse::AuctionCommandResult::AuctionCommandResult()
     : ServerPacket(SMSG_AUCTION_COMMAND_RESULT, 4 + 4 + 4 + 8 + 4 + 8 + 8 + 8) { }
 
-void WorldPackets::AuctionHouse::AuctionCommandResult::InitializeAuction(::AuctionEntry* auction)
+void WorldPackets::AuctionHouse::AuctionCommandResult::InitializeAuction(::AuctionEntry const* auction)
 {
     if (auction)
     {
