@@ -11,8 +11,8 @@ rem ===========================================================================
 rem --- settings -------------------------------------------------------------
 set "SRC=%~dp0"
 if "%SRC:~-1%"=="\" set "SRC=%SRC:~0,-1%"
-rem Build folder (created next to the source folder by default)
-set "BUILD=%SRC%\..\Build-tc434"
+rem Build folder
+set "BUILD=F:\TC to AC\Build\434"
 rem RelWithDebInfo, Release or Debug
 set "CONFIG=RelWithDebInfo"
 rem Client folder (the one with the Wow executable and Data\). Empty = build only.
