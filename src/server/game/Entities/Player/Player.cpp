@@ -6751,29 +6751,23 @@ void Player::DuelComplete(DuelCompleteType type)
 
     LOG_DEBUG("entities.unit", "Player::DuelComplete: Player '{}' ({}), Opponent: '{}' ({})", GetName(), GetGUID().ToString(), opponent->GetName(), opponent->GetGUID().ToString());
 
-    // 5.4.8 18414, from Project SkyFire
-    WorldPacket data(SMSG_DUEL_COMPLETE, 1);
-    data.WriteBit(type != DUEL_INTERRUPTED);
-    data.FlushBits();
-    SendDirectMessage(&data);
+    // 6.x 19342 (TC 6.x)
+    WorldPackets::Duel::DuelComplete duelComplete;
+    duelComplete.Started = type != DUEL_INTERRUPTED;
+    duelComplete.Write();
+    SendDirectMessage(duelComplete.GetRawPacket());
     if (opponent->GetSession())
-    {
-        opponent->SendDirectMessage(&data);
-    }
+        opponent->SendDirectMessage(duelComplete.GetRawPacket());
 
     if (type != DUEL_INTERRUPTED)
     {
-        // 5.4.8 18414, from Project SkyFire
-        data.Initialize(SMSG_DUEL_WINNER, 2 + 4 + 4 + opponent->GetName().size() + GetName().size());
-        data.WriteBit(type != DUEL_WON);             // 0 = just won; 1 = fled
-        data.WriteBits(opponent->GetName().size(), 6);
-        data.WriteBits(GetName().size(), 6);
-        data.FlushBits();
-        data << uint32(realm.Id.Realm);              // opponent's realm
-        data.WriteString(opponent->GetName());
-        data << uint32(realm.Id.Realm);              // winner's realm
-        data.WriteString(GetName());
-        SendMessageToSet(&data, true);
+        WorldPackets::Duel::DuelWinner duelWinner;
+        duelWinner.BeatenName = type == DUEL_WON ? opponent->GetName() : GetName();
+        duelWinner.WinnerName = type == DUEL_WON ? GetName() : opponent->GetName();
+        duelWinner.BeatenVirtualRealmAddress = realm.Id.Realm;
+        duelWinner.WinnerVirtualRealmAddress = realm.Id.Realm;
+        duelWinner.Fled = type != DUEL_WON;
+        SendMessageToSet(duelWinner.Write(), true);
     }
 
     sScriptMgr->OnPlayerDuelEnd(opponent, this, type);
@@ -16113,9 +16107,7 @@ std::string const& Player::GetGuildName()
 
 void Player::SendDuelCountdown(uint32 counter)
 {
-    WorldPacket data(SMSG_DUEL_COUNTDOWN, 4);
-    data << uint32(counter);                                // seconds
-    SendDirectMessage(&data);
+    SendDirectMessage(WorldPackets::Duel::DuelCountdown(counter).Write());
 }
 
 void Player::SetIsSpectator(bool on)

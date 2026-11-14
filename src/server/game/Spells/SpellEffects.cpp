@@ -24,6 +24,9 @@
 #include "Chat.h"
 #include "Common.h"
 #include "Creature.h"
+#include "DuelPackets.h"
+#include "SpellPackets.h"
+#include "CombatLogPackets.h"
 #include "DynamicObject.h"
 #include "Formulas.h"
 #include "GameObject.h"
@@ -311,31 +314,11 @@ void Spell::EffectInstaKill(SpellEffIndex /*effIndex*/)
     if (m_caster == unitTarget)                              // prevent interrupt message
         finish();
 
-    // 5.4.8 18414, from Project SkyFire
-    ObjectGuid targetGuid = unitTarget->GetGUID();
-    ObjectGuid casterGuid = m_caster->GetGUID();
-    WorldPacket data(SMSG_SPELLINSTAKILLLOG, 2 + 8 + 8 + 4);
-    data.WriteGuidMask(casterGuid, { 6 });
-    data.WriteGuidMask(targetGuid, { 0 });
-    data.WriteGuidMask(casterGuid, { 7 });
-    data.WriteGuidMask(targetGuid, { 2 });
-    data.WriteGuidMask(casterGuid, { 3, 1, 2, 0, 4 });
-    data.WriteGuidMask(targetGuid, { 4, 7, 1, 6, 5 });
-    data.WriteGuidMask(casterGuid, { 5 });
-    data.WriteGuidMask(targetGuid, { 3 });
-    data.FlushBits();
-    data.WriteGuidBytes(casterGuid, { 0 });
-    data.WriteGuidBytes(targetGuid, { 1 });
-    data.WriteGuidBytes(casterGuid, { 3, 4, 5, 7 });
-    data.WriteGuidBytes(targetGuid, { 0 });
-    data.WriteGuidBytes(casterGuid, { 6 });
-    data.WriteGuidBytes(targetGuid, { 2, 4 });
-    data.WriteGuidBytes(casterGuid, { 1 });
-    data << int32(m_spellInfo->Id);
-    data.WriteGuidBytes(targetGuid, { 3 });
-    data.WriteGuidBytes(casterGuid, { 2 });
-    data.WriteGuidBytes(targetGuid, { 7, 6, 5 });
-    m_caster->SendMessageToSet(&data, true);
+    WorldPackets::CombatLog::SpellInstakillLog data;
+    data.Target = unitTarget->GetGUID();
+    data.Caster = m_caster->GetGUID();
+    data.SpellID = m_spellInfo->Id;
+    m_caster->SendMessageToSet(data.Write(), true);
 
     Unit::DealDamage(GetUnitCasterForEffectHandlers(), unitTarget, unitTarget->GetHealth(), nullptr, NODAMAGE, SPELL_SCHOOL_MASK_NORMAL, nullptr, false);
 }
@@ -2790,44 +2773,26 @@ void Spell::EffectLearnSpell(SpellEffIndex effIndex)
 }
 
 typedef std::list<std::pair<uint32, ObjectGuid>> DispelList;
-// 5.4.8 18414 SMSG_SPELLDISPELLOG, from Project SkyFire
+// 6.x 19342: SMSG_SPELL_DISPELL_LOG (TC 6.x)
 static WorldPacket BuildSpellDispelLog(ObjectGuid casterGuid, ObjectGuid targetGuid, uint32 spellId, std::vector<uint32> const& dispelledSpells, bool steal)
 {
-    WorldPacket data(SMSG_SPELLDISPELLOG, 2 + 8 + 8 + 4 + 3 + dispelledSpells.size() * 4);
-    data.WriteGuidMask(casterGuid, { 2 });
-    data.WriteGuidMask(targetGuid, { 4 });
-    data.WriteGuidMask(casterGuid, { 6 });
-    data.WriteGuidMask(targetGuid, { 5 });
-    data.WriteBit(steal);
-    data.WriteBit(false);                                   // break
-    data.WriteGuidMask(casterGuid, { 5, 7, 4, 0, 1 });
-    data.WriteBits(dispelledSpells.size(), 22);
-    data.WriteGuidMask(targetGuid, { 0 });
-    for (std::size_t i = 0; i < dispelledSpells.size(); ++i)
-    {
-        data.WriteBit(false);                               // has needed
-        data.WriteBit(false);                               // has rolled
-        data.WriteBit(false);                               // harmful
-    }
-    data.WriteGuidMask(targetGuid, { 3, 2 });
-    data.WriteGuidMask(casterGuid, { 3 });
-    data.WriteGuidMask(targetGuid, { 1, 7, 6 });
-    data.FlushBits();
+    WorldPackets::CombatLog::SpellDispellLog spellDispellLog;
+    spellDispellLog.IsBreak = false; // TODO: use me
+    spellDispellLog.IsSteal = steal;
+    spellDispellLog.TargetGUID = targetGuid;
+    spellDispellLog.CasterGUID = casterGuid;
+    spellDispellLog.DispelledBySpellID = spellId;
 
     for (uint32 dispelledSpell : dispelledSpells)
-        data << uint32(dispelledSpell);
+    {
+        WorldPackets::CombatLog::SpellDispellData dispellData;
+        dispellData.SpellID = dispelledSpell;
+        dispellData.Harmful = false; // TODO: use me
+        spellDispellLog.DispellData.push_back(dispellData);
+    }
 
-    data.WriteGuidBytes(targetGuid, { 4 });
-    data.WriteGuidBytes(casterGuid, { 3 });
-    data.WriteGuidBytes(targetGuid, { 6, 0 });
-    data.WriteGuidBytes(casterGuid, { 5, 1 });
-    data.WriteGuidBytes(targetGuid, { 3, 2, 1, 5 });
-    data.WriteGuidBytes(casterGuid, { 0 });
-    data << uint32(spellId);
-    data.WriteGuidBytes(casterGuid, { 7, 6, 2 });
-    data.WriteGuidBytes(targetGuid, { 7 });
-    data.WriteGuidBytes(casterGuid, { 4 });
-    return data;
+    spellDispellLog.Write();
+    return spellDispellLog.Move();
 }
 
 void Spell::EffectDispel(SpellEffIndex effIndex)
@@ -2854,7 +2819,10 @@ void Spell::EffectDispel(SpellEffIndex effIndex)
     // Ok if exist some buffs for dispel try dispel it
     uint32 failCount = 0;
     DispelChargesList success_list;
-    WorldPacket dataFail(SMSG_DISPEL_FAILED, 8 + 8 + 4 + 4 + damage * 4);
+    WorldPackets::Spells::DispelFailed dispelFailed;
+    dispelFailed.CasterGUID = unitCaster->GetGUID();
+    dispelFailed.VictimGUID = unitTarget->GetGUID();
+    dispelFailed.SpellID = m_spellInfo->Id;
     // dispel N = damage buffs (or while exist buffs for dispel)
     for (int32 count = 0; count < damage && !dispel_list.empty();)
     {
@@ -2891,22 +2859,15 @@ void Spell::EffectDispel(SpellEffIndex effIndex)
             }
             else
             {
-                if (!failCount)
-                {
-                    // Failed to dispell
-                    dataFail << unitCaster->GetGUID();                    // Caster GUID
-                    dataFail << unitTarget->GetGUID();                  // Victim GUID
-                    dataFail << uint32(m_spellInfo->Id);                // dispel spell id
-                }
                 ++failCount;
-                dataFail << uint32(itr->first->GetId());                // Spell Id
+                dispelFailed.FailedSpells.push_back(int32(itr->first->GetId()));
             }
             ++count;
         }
     }
 
     if (failCount)
-        unitCaster->SendMessageToSet(&dataFail, true);
+        unitCaster->SendMessageToSet(dispelFailed.Write(), true);
 
     // put in combat
     if (unitTarget->IsFriendlyTo(unitCaster))
@@ -4489,29 +4450,14 @@ void Spell::EffectDuel(SpellEffIndex effIndex)
     //END
 
     // Send request
-    // 5.4.8 18414, from Project SkyFire
-    ObjectGuid arbiterGuid = pGameObj->GetGUID();
-    ObjectGuid casterGuid = caster->GetGUID();
-    WorldPacket data(SMSG_DUEL_REQUESTED, 2 + 8 + 8);
-    data.WriteGuidMask(arbiterGuid, { 5 });
-    data.WriteGuidMask(casterGuid, { 4, 2, 7 });
-    data.WriteGuidMask(arbiterGuid, { 0 });
-    data.WriteGuidMask(casterGuid, { 5 });
-    data.WriteGuidMask(arbiterGuid, { 4, 6 });
-    data.WriteGuidMask(casterGuid, { 1, 3, 6 });
-    data.WriteGuidMask(arbiterGuid, { 7, 3, 2, 1 });
-    data.WriteGuidMask(casterGuid, { 0 });
-    data.FlushBits();
-    data.WriteGuidBytes(arbiterGuid, { 5, 3 });
-    data.WriteGuidBytes(casterGuid, { 7, 4 });
-    data.WriteGuidBytes(arbiterGuid, { 7 });
-    data.WriteGuidBytes(casterGuid, { 3, 6, 0 });
-    data.WriteGuidBytes(arbiterGuid, { 4 });
-    data.WriteGuidBytes(casterGuid, { 2, 1 });
-    data.WriteGuidBytes(arbiterGuid, { 0, 2, 6, 1 });
-    data.WriteGuidBytes(casterGuid, { 5 });
-    caster->SendDirectMessage(&data);
-    target->SendDirectMessage(&data);
+    // 6.x 19342 (TC 6.x)
+    WorldPackets::Duel::DuelRequested packet;
+    packet.ArbiterGUID = pGameObj->GetGUID();
+    packet.RequestedByGUID = caster->GetGUID();
+    packet.RequestedByWowAccount = caster->GetSession()->GetAccountGUID();
+    packet.Write();
+    caster->SendDirectMessage(packet.GetRawPacket());
+    target->SendDirectMessage(packet.GetRawPacket());
 
     // create duel-info
     bool isMounted = (GetSpellInfo()->Id == 62875);
@@ -5197,12 +5143,10 @@ void Spell::EffectForceDeselect(SpellEffIndex /*effIndex*/)
     // xinef: clear focus
     unitCaster->SendClearTarget();
 
-    // 5.4.8 18414, from Project SkyFire
-    ObjectGuid casterGuid = unitCaster->GetGUID();
-    WorldPacket data(SMSG_CLEAR_TARGET, 1 + 8);
-    data.WriteGuidMask(casterGuid, { 6, 2, 0, 4, 7, 1, 3, 5 });
-    data.FlushBits();
-    data.WriteGuidBytes(casterGuid, { 4, 0, 3, 5, 2, 7, 6, 1 });
+    WorldPackets::Spells::ClearTarget clearTarget;
+    clearTarget.Guid = unitCaster->GetGUID();
+    clearTarget.Write();
+    WorldPacket data = clearTarget.Move();
 
     float dist = unitCaster->GetVisibilityRange() + VISIBILITY_COMPENSATION;
     Acore::MessageDistDelivererToHostile notifier(unitCaster, &data, dist);
@@ -6130,7 +6074,10 @@ void Spell::EffectStealBeneficialBuff(SpellEffIndex effIndex)
     // Ok if exist some buffs for dispel try dispel it
     uint32 failCount = 0;
     DispelList success_list;
-    WorldPacket dataFail(SMSG_DISPEL_FAILED, 8 + 8 + 4 + 4 + damage * 4);
+    WorldPackets::Spells::DispelFailed dispelFailed;
+    dispelFailed.CasterGUID = unitCaster->GetGUID();
+    dispelFailed.VictimGUID = unitTarget->GetGUID();
+    dispelFailed.SpellID = m_spellInfo->Id;
     // dispel N = damage buffs (or while exist buffs for dispel)
     for (int32 count = 0; count < damage && !steal_list.empty();)
     {
@@ -6156,22 +6103,15 @@ void Spell::EffectStealBeneficialBuff(SpellEffIndex effIndex)
             }
             else
             {
-                if (!failCount)
-                {
-                    // Failed to dispell
-                    dataFail << unitCaster->GetGUID();                    // Caster GUID
-                    dataFail << unitTarget->GetGUID();                  // Victim GUID
-                    dataFail << uint32(m_spellInfo->Id);                // dispel spell id
-                }
                 ++failCount;
-                dataFail << uint32(itr->first->GetId());                // Spell Id
+                dispelFailed.FailedSpells.push_back(int32(itr->first->GetId()));
             }
             ++count;
         }
     }
 
     if (failCount)
-        unitCaster->SendMessageToSet(&dataFail, true);
+        unitCaster->SendMessageToSet(dispelFailed.Write(), true);
 
     if (success_list.empty())
         return;
@@ -6871,25 +6811,16 @@ void Spell::EffectBind(SpellEffIndex effIndex)
     player->SetHomebind(homeLoc, areaId);
 
     // binding
-    WorldPacket data(SMSG_BIND_POINT_UPDATE, 4 + 4 + 4 + 4 + 4);
-    data << float(homeLoc.GetPositionX());
-    data << float(homeLoc.GetPositionY());
-    data << float(homeLoc.GetPositionZ());
-    data << uint32(homeLoc.GetMapId());
-    data << uint32(areaId);
-    player->SendDirectMessage(&data);
+    WorldPackets::Misc::BindPointUpdate packet;
+    packet.BindPosition = G3D::Vector3(homeLoc.GetPositionX(), homeLoc.GetPositionY(), homeLoc.GetPositionZ());
+    packet.BindMapID = homeLoc.GetMapId();
+    packet.BindAreaID = areaId;
+    player->SendDirectMessage(packet.Write());
 
     LOG_DEBUG("spells.aura", "EffectBind: New homebind X: {}, Y: {}, Z: {}, MapId: {}, AreaId: {}",
                    homeLoc.GetPositionX(), homeLoc.GetPositionY(), homeLoc.GetPositionZ(), homeLoc.GetMapId(), areaId);
     // zone update
-    // 5.4.8 18414, from Project SkyFire (which wrote the mask a second time where the bytes go)
-    ObjectGuid binderGuid = unitCaster->GetGUID();
-    data.Initialize(SMSG_PLAYERBOUND, 1 + 8 + 4);
-    data.WriteGuidMask(binderGuid, { 2, 4, 0, 3, 6, 7, 5, 1 });
-    data.FlushBits();
-    data.WriteGuidBytes(binderGuid, { 6, 1, 2, 3, 4, 5, 7, 0 });
-    data << uint32(areaId);
-    player->SendDirectMessage(&data);
+    player->SendDirectMessage(WorldPackets::Misc::PlayerBound(unitCaster->GetGUID(), areaId).Write());
 }
 
 void Spell::EffectSummonRaFFriend(SpellEffIndex  /*effIndex*/)

@@ -15,6 +15,7 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "DuelPackets.h"
 #include "GameTime.h"
 #include "Log.h"
 #include "Opcodes.h"
@@ -29,28 +30,26 @@ enum DuelSpells
     SPELL_MOUNTED_DUEL  = 62875
 };
 
-// 5.4.8 18414, from Project SkyFire: the client asks for a duel instead of casting the spell itself
-void WorldSession::HandleDuelProposedOpcode(WorldPacket& recvPacket)
+// 6.x 19342: ported from TrinityCore 6.x (Handlers/DuelHandler.cpp)
+void WorldSession::HandleCanDuel(WorldPackets::Duel::CanDuel& packet)
 {
-    ObjectGuid guid;
-    recvPacket.ReadGuidMask(guid, { 1, 5, 4, 6, 3, 2, 7, 0 });
-    recvPacket.ReadGuidBytes(guid, { 4, 2, 5, 7, 1, 3, 6, 0 });
+    Player* player = ObjectAccessor::GetPlayer(*GetPlayer(), packet.TargetGUID);
+    if (!player)
+        return;
 
-    if (Player* target = ObjectAccessor::GetPlayer(*GetPlayer(), guid))
-        GetPlayer()->CastSpell(target, GetPlayer()->IsMounted() ? SPELL_MOUNTED_DUEL : SPELL_DUEL, false);
+    WorldPackets::Duel::CanDuelResult response;
+    response.TargetGUID = packet.TargetGUID;
+    response.Result = !player->duel;
+    SendPacket(response.Write());
+
+    if (response.Result)
+        GetPlayer()->CastSpell(player, GetPlayer()->IsMounted() ? SPELL_MOUNTED_DUEL : SPELL_DUEL, false);
 }
 
-// 5.4.8 18414, from Project SkyFire: accepting and declining share one opcode
-void WorldSession::HandleDuelResponseOpcode(WorldPacket& recvPacket)
+void WorldSession::HandleDuelResponseOpcode(WorldPackets::Duel::DuelResponse& duelResponse)
 {
-    ObjectGuid guid;
-    recvPacket.ReadGuidMask(guid, { 7, 1, 3, 4, 0, 2, 6 });
-    bool accepted = recvPacket.ReadBit();
-    recvPacket.ReadGuidMask(guid, { 5 });
-    recvPacket.ReadGuidBytes(guid, { 6, 4, 5, 0, 1, 2, 7, 3 });
-
-    if (accepted)
-        HandleDuelAccepted(guid);
+    if (duelResponse.Accepted)
+        HandleDuelAccepted(duelResponse.ArbiterGUID);
     else
         HandleDuelCancelled();
 }

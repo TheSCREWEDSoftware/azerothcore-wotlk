@@ -25,12 +25,9 @@
 #include "WorldPacket.h"
 #include "WorldSession.h"
 
-void WorldSession::HandleAttackSwingOpcode(WorldPacket& recvData)
+void WorldSession::HandleAttackSwingOpcode(WorldPackets::Combat::AttackSwing& packet)
 {
-    // 5.4.8 18414, from Project SkyFire
-    ObjectGuid guid;
-    recvData.ReadGuidMask(guid, { 6, 5, 7, 0, 3, 1, 4, 2 });
-    recvData.ReadGuidBytes(guid, { 6, 7, 1, 3, 2, 0, 4, 5 });
+    ObjectGuid guid = packet.Victim;
 
     LOG_DEBUG("network", "WORLD: Recvd CMSG_ATTACKSWING: {}", guid.ToString());
 
@@ -57,7 +54,7 @@ void WorldSession::HandleAttackSwingOpcode(WorldPacket& recvData)
     {
         VehicleSeatEntry const* seat = vehicle->GetSeatForPassenger(_player);
         ASSERT(seat);
-        if (!(seat->m_flags & VEHICLE_SEAT_FLAG_CAN_ATTACK))
+        if (!(seat->Flags & VEHICLE_SEAT_FLAG_CAN_ATTACK))
         {
             _player->SendMeleeAttackStop(pEnemy);
             return;
@@ -67,7 +64,7 @@ void WorldSession::HandleAttackSwingOpcode(WorldPacket& recvData)
     _player->Attack(pEnemy, true);
 }
 
-void WorldSession::HandleAttackStopOpcode(WorldPacket& /*recvData*/)
+void WorldSession::HandleAttackStopOpcode(WorldPackets::Combat::AttackStop& /*packet*/)
 {
     GetPlayer()->AttackStop();
 }
