@@ -227,9 +227,9 @@ AllowLoggingIPAddressesInDatabase = 1
 #                                                                 section my.ini)
 #                     ".;/path/to/unix_socket;username;password;database" - (use Unix sockets on
 #                                                                           Unix/Linux)
-#        Default:     "127.0.0.1;3306;acore;acore;acore_auth"
+#        Default:     "127.0.0.1;3306;acore_434;acore_434;acore_434_auth"
 
-LoginDatabaseInfo = "127.0.0.1;3306;acore;acore;acore_auth"
+LoginDatabaseInfo = "127.0.0.1;3306;acore_434;acore_434;acore_434_auth"
 
 #
 #    Database.Reconnect.Seconds

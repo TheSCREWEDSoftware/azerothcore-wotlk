@@ -116,13 +116,13 @@ BindIP = "0.0.0.0"
 #                     (Use named pipes on Windows "enable-named-pipe" to [mysqld] section my.ini)
 #                     ".;/path/to/unix_socket;username;password;database"
 #                     (Use Unix sockets on Unix/Linux)
-#        Default:     "127.0.0.1;3306;acore;acore;acore_auth"       - (LoginDatabaseInfo)
-#                     "127.0.0.1;3306;acore;acore;acore_world"      - (WorldDatabaseInfo)
-#                     "127.0.0.1;3306;acore;acore;acore_characters" - (CharacterDatabaseInfo)
+#        Default:     "127.0.0.1;3306;acore_434;acore_434;acore_434_auth"       - (LoginDatabaseInfo)
+#                     "127.0.0.1;3306;acore_434;acore_434;acore_434_world"      - (WorldDatabaseInfo)
+#                     "127.0.0.1;3306;acore_434;acore_434;acore_434_characters" - (CharacterDatabaseInfo)
 
-LoginDatabaseInfo     = "127.0.0.1;3306;acore;acore;acore_auth"
-WorldDatabaseInfo     = "127.0.0.1;3306;acore;acore;acore_world"
-CharacterDatabaseInfo = "127.0.0.1;3306;acore;acore;acore_characters"
+LoginDatabaseInfo     = "127.0.0.1;3306;acore_434;acore_434;acore_434_auth"
+WorldDatabaseInfo     = "127.0.0.1;3306;acore_434;acore_434;acore_434_world"
+CharacterDatabaseInfo = "127.0.0.1;3306;acore_434;acore_434;acore_434_characters"
 
 #
 #    LoginDatabase.WorkerThreads
