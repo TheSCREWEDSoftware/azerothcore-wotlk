@@ -1600,7 +1600,11 @@ bool Item::HasStats() const
 
 bool Item::CanBeTransmogrified() const
 {
-    ItemTemplate const* proto = GetTemplate();
+    return CanTemplateBeTransmogrified(GetTemplate(), GetItemRandomPropertyId() != 0);
+}
+
+bool Item::CanTemplateBeTransmogrified(ItemTemplate const* proto, bool hasRandomProperty)
+{
     if (!proto)
         return false;
 
@@ -1616,10 +1620,14 @@ bool Item::CanBeTransmogrified() const
     if (proto->HasFlag2(ITEM_FLAG2_NO_ALTER_ITEM_VISUAL))
         return false;
 
-    if (!HasStats())
-        return false;
+    if (hasRandomProperty)
+        return true;
 
-    return true;
+    for (uint8 i = 0; i < MAX_ITEM_PROTO_STATS; ++i)
+        if (proto->ItemStat[i].ItemStatValue != 0)
+            return true;
+
+    return false;
 }
 
 bool Item::CanTransmogrify() const
@@ -1672,7 +1680,15 @@ bool Item::CanTransmogrifyItemWithItem(Item const* transmogrified, Item const* t
     if (!transmogrifier || !transmogrified)
         return false;
 
-    ItemTemplate const* sourceItem = transmogrifier->GetTemplate(); // source
+    return CanTransmogrifyItemWithTemplate(transmogrified, transmogrifier->GetTemplate(), transmogrifier->GetItemRandomPropertyId() != 0);
+}
+
+bool Item::CanTransmogrifyItemWithTemplate(Item const* transmogrified, ItemTemplate const* transmogrifier, bool transmogrifierHasRandomProperty)
+{
+    if (!transmogrifier || !transmogrified)
+        return false;
+
+    ItemTemplate const* sourceItem = transmogrifier;                // source
     ItemTemplate const* targetItem = transmogrified->GetTemplate(); // dest
 
     // The client checks these conditions on the source item, so the server does as well
@@ -1682,7 +1698,7 @@ bool Item::CanTransmogrifyItemWithItem(Item const* transmogrified, Item const* t
     if (sourceItem->ItemId == targetItem->ItemId)
         return false;
 
-    if (!transmogrified->CanTransmogrify() || !transmogrifier->CanBeTransmogrified())
+    if (!transmogrified->CanTransmogrify() || !CanTemplateBeTransmogrified(sourceItem, transmogrifierHasRandomProperty))
         return false;
 
     // Items which can never be transmogrified

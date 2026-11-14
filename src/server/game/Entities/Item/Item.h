@@ -383,10 +383,13 @@ public:
     [[nodiscard]] bool CanBeTransmogrified() const;
     [[nodiscard]] bool CanTransmogrify() const;
     static bool CanTransmogrifyItemWithItem(Item const* transmogrified, Item const* transmogrifier);
+    // the transmogrifier given by template, for a void storage item (6.x, TC 6.x)
+    static bool CanTransmogrifyItemWithTemplate(Item const* transmogrified, ItemTemplate const* transmogrifier, bool transmogrifierHasRandomProperty = false);
+    static bool CanTemplateBeTransmogrified(ItemTemplate const* proto, bool hasRandomProperty);
     // Entry the client displays: the transmogrification source if set, otherwise the item itself
     [[nodiscard]] uint32 GetVisibleEntry() const
     {
-        if (uint32 transmogrification = GetEnchantmentId(TRANSMOGRIFY_ENCHANTMENT_SLOT))
+        if (uint32 transmogrification = GetModifier(ITEM_MODIFIER_TRANSMOG_ITEM_ID))
             return transmogrification;
 
         return GetEntry();

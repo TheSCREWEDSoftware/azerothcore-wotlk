@@ -443,6 +443,22 @@ namespace WorldPackets
             int32 Slot = 0;
         };
 
+        // unhandled by TC 6.x, layout from WowPacketParser V6_0_2
+        class EnchantmentLog final : public ServerPacket
+        {
+        public:
+            EnchantmentLog() : ServerPacket(SMSG_ENCHANTMENT_LOG, 16 + 16 + 16 + 4 + 4 + 4) { }
+
+            WorldPacket const* Write() override;
+
+            ObjectGuid Caster;
+            ObjectGuid Owner;
+            ObjectGuid ItemGUID;
+            uint32 ItemID = 0;
+            uint32 Enchantment = 0;
+            uint32 EnchantSlot = 0;
+        };
+
         class ItemCooldown final : public ServerPacket
         {
         public:

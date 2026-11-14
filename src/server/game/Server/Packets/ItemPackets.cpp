@@ -481,6 +481,18 @@ void WorldPackets::Item::CancelTempEnchantment::Read()
     _worldPacket >> Slot;
 }
 
+WorldPacket const* WorldPackets::Item::EnchantmentLog::Write()
+{
+    _worldPacket << Caster;
+    _worldPacket << Owner;
+    _worldPacket << ItemGUID;
+    _worldPacket << uint32(ItemID);
+    _worldPacket << uint32(Enchantment);
+    _worldPacket << uint32(EnchantSlot);
+
+    return &_worldPacket;
+}
+
 WorldPacket const* WorldPackets::Item::ItemCooldown::Write()
 {
     _worldPacket << ItemGuid;

@@ -2978,9 +2978,10 @@ void Player::SetVisibleItemSlot(uint8 slot, Item* pItem)
 {
     if (pItem)
     {
+        // 6.x: the second field holds the appearance mod and the enchant item visual (TC 6.x)
         SetUInt32Value(PLAYER_VISIBLE_ITEM_1_ENTRYID + (slot * 2), pItem->GetVisibleEntry());
-        SetUInt16Value(PLAYER_VISIBLE_ITEM_1_ENCHANTMENT + (slot * 2), 0, pItem->GetEnchantmentId(PERM_ENCHANTMENT_SLOT));
-        SetUInt16Value(PLAYER_VISIBLE_ITEM_1_ENCHANTMENT + (slot * 2), 1, pItem->GetEnchantmentId(TEMP_ENCHANTMENT_SLOT));
+        SetUInt16Value(PLAYER_VISIBLE_ITEM_1_ENCHANTMENT + (slot * 2), 0, pItem->GetVisibleAppearanceModId());
+        SetUInt16Value(PLAYER_VISIBLE_ITEM_1_ENCHANTMENT + (slot * 2), 1, pItem->GetVisibleItemVisual());
     }
     else
     {
@@ -4451,7 +4452,7 @@ void Player::ApplyEnchantment(Item* item, EnchantmentSlot slot, bool apply, bool
     if (slot >= MAX_ENCHANTMENT_SLOT)
         return;
 
-    // Transmogrification is not implemented yet; its slot holds an item entry, not an enchant id
+    // 6.x keeps transmogrification in item modifiers; a 5.4.8 database may still hold an item entry in this slot
     if (slot == TRANSMOGRIFY_ENCHANTMENT_SLOT)
         return;
 
