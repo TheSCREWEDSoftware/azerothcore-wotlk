@@ -17,6 +17,7 @@
 
 #include "Mail.h"
 #include "MailPackets.h"
+#include "GameTime.h"
 #include "Player.h"
 #include "World.h"
 
@@ -31,7 +32,7 @@ WorldPackets::Mail::MailAttachedItem::MailAttachedItem(::Item const* item, uint8
     Durability = item->GetUInt32Value(ITEM_FIELD_DURABILITY);
     Unlocked = !item->IsLocked(); //TODO: Check
 
-    for (uint8 j = 0; j < MAX_INSPECTED_ENCHANTMENT_SLOT; j++)
+    for (uint8 j = 0; j < MAX_CLIENT_INSPECTED_ENCHANTMENT_SLOT; j++)
     {
         Enchants[j].Enchant = item->GetEnchantmentId((EnchantmentSlot)j);
         Enchants[j].Duration = item->GetEnchantmentDuration((EnchantmentSlot)j);
@@ -84,7 +85,7 @@ WorldPackets::Mail::MailListEntry::MailListEntry(::Mail const* mail, ::Player* p
     StationeryID = mail->stationery;
     SentMoney = mail->money;
     Flags = mail->checked;
-    DaysLeft = float(mail->expire_time - time(nullptr)) / DAY;
+    DaysLeft = float(mail->expire_time - GameTime::GetGameTime().count()) / DAY;
     MailTemplateID = mail->mailTemplateId;
     Subject = mail->subject;
     Body = mail->body;
@@ -135,7 +136,11 @@ ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::Mail::MailListEntry const
 void WorldPackets::Mail::MailGetList::Read()
 {
     _worldPacket >> Mailbox;
-    LowGuids.resize(_worldPacket.read<int32>());
+    uint32 count = _worldPacket.read<uint32>();
+    if (count > 50)                                         // client inbox capacity, guard against huge allocations
+        throw ByteBufferPositionException(false, _worldPacket.rpos(), count, sizeof(uint32));
+
+    LowGuids.resize(count);
 
     for (auto& l : LowGuids)
         _worldPacket >> l;
@@ -242,7 +247,7 @@ WorldPackets::Mail::MailQueryNextTimeResult::MailNextTimeEntry::MailNextTimeEntr
             break;
     }
 
-    TimeLeft = mail->deliver_time - time(nullptr);
+    TimeLeft = float(mail->deliver_time - GameTime::GetGameTime().count());
     AltSenderType = mail->messageType;
     StationeryID = mail->stationery;
 }

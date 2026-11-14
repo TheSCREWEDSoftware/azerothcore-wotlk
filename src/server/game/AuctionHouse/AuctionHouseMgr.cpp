@@ -745,7 +745,7 @@ void AuctionEntry::BuildAuctionInfo(std::vector<WorldPackets::AuctionHouse::Auct
     auctionItem.Bidder = bidder;
     auctionItem.BidAmount = bidder ? bid : 0;
 
-    for (uint8 i = 0; i < MAX_INSPECTED_ENCHANTMENT_SLOT; ++i)
+    for (uint8 i = 0; i < MAX_CLIENT_INSPECTED_ENCHANTMENT_SLOT; ++i)
     {
         if (!item->GetEnchantmentId(EnchantmentSlot(i)))
             continue;

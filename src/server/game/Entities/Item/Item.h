@@ -198,6 +198,10 @@ enum EnchantmentSlot : uint8
 // Reforging and transmogrification are not enchantment slots there.
 #define MAX_ITEM_FIELD_ENCHANTMENT_SLOT 13
 
+// 6.x packets (mail, auction, item instance lists) carry the eight inspected slots perm..use; reforge and
+// transmogrification are server side slots only
+#define MAX_CLIENT_INSPECTED_ENCHANTMENT_SLOT 8
+
 #define MAX_VISIBLE_ITEM_OFFSET       2                     // 2 fields per visible item (entry+enchantment)
 
 #define MAX_GEM_SOCKETS               MAX_ITEM_PROTO_SOCKETS// (BONUS_ENCHANTMENT_SLOT-SOCK_ENCHANTMENT_SLOT) and item proto size, equal value expected

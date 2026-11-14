@@ -69,7 +69,7 @@ struct SearchableAuctionEntryItem
 {
     std::wstring itemName[TOTAL_LOCALES];
     uint32 entry;
-    AuctionEntryItemEnchants enchants[MAX_INSPECTED_ENCHANTMENT_SLOT];
+    AuctionEntryItemEnchants enchants[MAX_CLIENT_INSPECTED_ENCHANTMENT_SLOT];
     int32 randomPropertyId;
     uint32 suffixFactor;
     uint32 count;

@@ -16,6 +16,7 @@
  */
 
 #include "Player.h"
+#include "MailPackets.h"
 #include "TaxiPackets.h"
 #include "AccountMgr.h"
 #include "AchievementMgr.h"
@@ -2918,23 +2919,28 @@ void Player::RemoveMail(uint32 id)
 
 void Player::SendMailResult(uint32 mailId, MailResponseType mailAction, MailResponseResult mailError, uint32 equipError, ObjectGuid::LowType item_guid, uint32 item_count)
 {
-    // 5.4.8 18414, from Project SkyFire: every field is always sent
-    WorldPacket data(SMSG_SEND_MAIL_RESULT, 4 * 6);
-    data << uint32(mailId);
-    data << uint32(mailError == MAIL_ERR_EQUIP_ERROR ? equipError : 0);
-    data << uint32(mailError);
-    data << uint32(mailAction);
-    data << uint32(mailAction == MAIL_ITEM_TAKEN ? item_guid : 0);
-    data << uint32(mailAction == MAIL_ITEM_TAKEN ? item_count : 0);
-    SendDirectMessage(&data);
+    WorldPackets::Mail::MailCommandResult result;
+    result.MailID = mailId;
+    result.Command = mailAction;
+    result.ErrorCode = mailError;
+
+    if (mailError == MAIL_ERR_EQUIP_ERROR)
+        result.BagResult = equipError;
+    else if (mailAction == MAIL_ITEM_TAKEN)
+    {
+        result.AttachID = item_guid;
+        result.QtyInInventory = item_count;
+    }
+
+    SendDirectMessage(result.Write());
 }
 
 void Player::SendNewMail()
 {
     // deliver undelivered mail
-    WorldPacket data(SMSG_RECEIVED_MAIL, 4);
-    data << float(0);                                       // 5.4.8: delay, from Project SkyFire
-    SendDirectMessage(&data);
+    WorldPackets::Mail::NotifyRecievedMail notify;
+    notify.Delay = 0.0f;
+    SendDirectMessage(notify.Write());
 
     // The client caches its inbox and refuses to re-query it more than once a minute, so a mailbox
     // opened inside that window still shows the old list. Pushing the inbox refreshes it in place.

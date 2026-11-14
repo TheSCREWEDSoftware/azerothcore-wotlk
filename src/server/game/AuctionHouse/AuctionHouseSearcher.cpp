@@ -388,7 +388,7 @@ void AuctionHouseSearcher::AddAuction(AuctionEntry const* auctionEntry)
     // Item info
     searchableAuctionEntry->item.entry = item->GetEntry();
 
-    for (uint8 i = 0; i < MAX_INSPECTED_ENCHANTMENT_SLOT; ++i)
+    for (uint8 i = 0; i < MAX_CLIENT_INSPECTED_ENCHANTMENT_SLOT; ++i)
     {
         searchableAuctionEntry->item.enchants[i].id = item->GetEnchantmentId(EnchantmentSlot(i));
         searchableAuctionEntry->item.enchants[i].duration = item->GetEnchantmentDuration(EnchantmentSlot(i));
@@ -458,7 +458,7 @@ void SearchableAuctionEntry::BuildAuctionInfo(std::vector<WorldPackets::AuctionH
     auctionItem.Bidder = bidderGuid;
     auctionItem.BidAmount = bidderGuid ? bid : 0;
 
-    for (uint8 i = 0; i < MAX_INSPECTED_ENCHANTMENT_SLOT; ++i)
+    for (uint8 i = 0; i < MAX_CLIENT_INSPECTED_ENCHANTMENT_SLOT; ++i)
     {
         if (!item.enchants[i].id)
             continue;
