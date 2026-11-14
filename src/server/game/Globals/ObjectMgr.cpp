@@ -8009,6 +8009,7 @@ void ObjectMgr::LoadGameObjectTemplate()
         if (!got.AIName.empty() && !sGameObjectAIRegistry->HasItem(got.AIName))
         {
             LOG_ERROR("sql.sql", "GameObject (Entry: {}) has non-registered `AIName` '{}' set, removing", got.entry, got.AIName);
+            got.AIName.clear();
         }
 
         switch (got.type)
