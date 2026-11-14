@@ -94,7 +94,7 @@ public:
     bool IsClosed() const { return  _type != TICKET_TYPE_OPEN; }
     bool IsCompleted() const { return _completed; }
     bool IsFromPlayer(ObjectGuid guid) const { return guid == _playerGuid; }
-    bool IsAssigned() const { return _assignedTo; }
+    bool IsAssigned() const { return !_assignedTo.IsEmpty(); }
     bool IsAssignedTo(ObjectGuid guid) const { return guid == _assignedTo; }
     bool IsAssignedNotTo(ObjectGuid guid) const { return IsAssigned() && !IsAssignedTo(guid); }
 

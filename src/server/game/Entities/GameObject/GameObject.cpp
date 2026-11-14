@@ -117,6 +117,7 @@ GameObject::GameObject() : WorldObject(), MovableMapObject(),
     m_updateFlag.Rotation = true;
 
     m_valuesCount = GAMEOBJECT_END;
+    _dynamicValuesCount = GAMEOBJECT_DYNAMIC_END;
     m_respawnTime = 0;
     m_respawnDelayTime = 300;
     m_despawnDelay = 0;
@@ -353,7 +354,7 @@ bool GameObject::Create(ObjectGuid::LowType guidlow, uint32 name_id, Map* map, u
         return false;
     }
 
-    Object::_Create(guidlow, goinfo->entry, HighGuid::GameObject);
+    Object::_Create(ObjectGuid::Create<HighGuid::GameObject>(map->GetId(), goinfo->entry, guidlow));
 
     m_goInfo = goinfo;
 
@@ -701,7 +702,7 @@ void GameObject::Update(uint32 diff)
                     time_t now = GameTime::GetGameTime().count();
                     if (m_respawnTime <= now)            // timer expired
                     {
-                        ObjectGuid dbtableHighGuid = ObjectGuid::Create<HighGuid::GameObject>(GetEntry(), m_spawnId);
+                        ObjectGuid dbtableHighGuid = ObjectGuid::Create<HighGuid::GameObject>(GetMapId(), GetEntry(), m_spawnId);
                         time_t linkedRespawntime = GetMap()->GetLinkedRespawnTime(dbtableHighGuid);
                         if (linkedRespawntime)             // Can't respawn, the master is dead
                         {
@@ -3022,7 +3023,6 @@ void GameObject::BuildValuesUpdate(uint8 updateType, ByteBuffer* data, Player* t
 
     updateMask.AppendToPacket(data);
     data->append(fieldBuffer);
-    *data << uint8(0);                                      // 5.4.8 dynamic fields, none sent yet
 }
 
 void GameObject::GetRespawnPosition(float& x, float& y, float& z, float* ori /* = nullptr*/) const

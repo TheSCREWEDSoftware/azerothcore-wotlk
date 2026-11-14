@@ -74,7 +74,7 @@ void WorldSession::HandleGuildFinderBrowseOpcode(WorldPackets::GuildFinder::Brow
             continue;
 
         WorldPackets::GuildFinder::BrowseEntry entry;
-        entry.GuildGuid = ObjectGuid(HighGuid::Guild, guild->GetId());
+        entry.GuildGuid = ObjectGuid::Create<HighGuid::Guild>(guild->GetId());
         entry.GuildName = guild->GetName();
         entry.Comment = guildSettings.GetComment();
         entry.EmblemStyle = guild->GetEmblemInfo().GetStyle();
@@ -117,7 +117,7 @@ void WorldSession::HandleGuildFinderGetApplicationsOpcode(WorldPackets::GuildFin
         LFGuildSettings guildSettings = sGuildFinderMgr->GetGuildSettings(request.GetGuildId());
 
         WorldPackets::GuildFinder::MembershipApplication app;
-        app.GuildGuid = ObjectGuid(HighGuid::Guild, guild->GetId());
+        app.GuildGuid = ObjectGuid::Create<HighGuid::Guild>(guild->GetId());
         app.GuildName = guild->GetName();
         app.Comment = request.GetComment();
         app.Availability = guildSettings.GetAvailability();

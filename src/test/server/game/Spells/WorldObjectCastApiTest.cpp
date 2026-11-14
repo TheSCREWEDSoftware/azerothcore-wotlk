@@ -68,7 +68,7 @@ TEST(WorldObjectCastApi, CastSpellExtraArgsOriginalCasterCtor)
 
 TEST(WorldObjectCastApi, CastSpellExtraArgsFluentChain)
 {
-    ObjectGuid guid = ObjectGuid::Create<HighGuid::Unit>(100, 7);
+    ObjectGuid guid = ObjectGuid::Create<HighGuid::Creature>(100, 7);
     CastSpellExtraArgs args = CastSpellExtraArgs()
         .SetTriggerFlags(TRIGGERED_IGNORE_POWER_AND_REAGENT_COST)
         .SetOriginalCaster(guid)

@@ -518,7 +518,7 @@ public:
             // No reputation gains - too troublesome to calculate them when the player is offline.
 
             ObjectGuid::LowType guid = playerTarget->GetGUID().GetCounter();
-            uint8 charLevel = sCharacterCache->GetCharacterLevelByGuid(ObjectGuid(HighGuid::Player, guid));
+            uint8 charLevel = sCharacterCache->GetCharacterLevelByGuid(ObjectGuid::Create<HighGuid::Player>(guid));
             CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
             CharacterDatabasePreparedStatement* stmt;
 

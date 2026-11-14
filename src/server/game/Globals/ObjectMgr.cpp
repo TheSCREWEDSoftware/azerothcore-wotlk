@@ -1997,8 +1997,8 @@ void ObjectMgr::LoadLinkedRespawn()
                         break;
                     }
 
-                    guid = ObjectGuid::Create<HighGuid::Unit>(slave->id, guidLow);
-                    linkedGuid = ObjectGuid::Create<HighGuid::Unit>(master->id, linkedGuidLow);
+                    guid = ObjectGuid::Create<HighGuid::Creature>(slave->mapid, slave->id, guidLow);
+                    linkedGuid = ObjectGuid::Create<HighGuid::Creature>(master->mapid, master->id, linkedGuidLow);
                     break;
                 }
             case CREATURE_TO_GO:
@@ -2034,8 +2034,8 @@ void ObjectMgr::LoadLinkedRespawn()
                         break;
                     }
 
-                    guid = ObjectGuid::Create<HighGuid::Unit>(slave->id, guidLow);
-                    linkedGuid = ObjectGuid::Create<HighGuid::GameObject>(master->id, linkedGuidLow);
+                    guid = ObjectGuid::Create<HighGuid::Creature>(slave->mapid, slave->id, guidLow);
+                    linkedGuid = ObjectGuid::Create<HighGuid::GameObject>(master->mapid, master->id, linkedGuidLow);
                     break;
                 }
             case GO_TO_GO:
@@ -2071,8 +2071,8 @@ void ObjectMgr::LoadLinkedRespawn()
                         break;
                     }
 
-                    guid = ObjectGuid::Create<HighGuid::GameObject>(slave->id, guidLow);
-                    linkedGuid = ObjectGuid::Create<HighGuid::GameObject>(master->id, linkedGuidLow);
+                    guid = ObjectGuid::Create<HighGuid::GameObject>(slave->mapid, slave->id, guidLow);
+                    linkedGuid = ObjectGuid::Create<HighGuid::GameObject>(master->mapid, master->id, linkedGuidLow);
                     break;
                 }
             case GO_TO_CREATURE:
@@ -2108,8 +2108,8 @@ void ObjectMgr::LoadLinkedRespawn()
                         break;
                     }
 
-                    guid = ObjectGuid::Create<HighGuid::GameObject>(slave->id, guidLow);
-                    linkedGuid = ObjectGuid::Create<HighGuid::Unit>(master->id, linkedGuidLow);
+                    guid = ObjectGuid::Create<HighGuid::GameObject>(slave->mapid, slave->id, guidLow);
+                    linkedGuid = ObjectGuid::Create<HighGuid::Creature>(master->mapid, master->id, linkedGuidLow);
                     break;
                 }
         }
@@ -2128,7 +2128,7 @@ bool ObjectMgr::SetCreatureLinkedRespawn(ObjectGuid::LowType guidLow, ObjectGuid
         return false;
 
     CreatureData const* master = GetCreatureData(guidLow);
-    ObjectGuid guid = ObjectGuid::Create<HighGuid::Unit>(master->id, guidLow);
+    ObjectGuid guid = ObjectGuid::Create<HighGuid::Creature>(master->mapid, master->id, guidLow);
 
     if (!linkedGuidLow) // we're removing the linking
     {
@@ -2159,7 +2159,7 @@ bool ObjectMgr::SetCreatureLinkedRespawn(ObjectGuid::LowType guidLow, ObjectGuid
         return false;
     }
 
-    ObjectGuid linkedGuid = ObjectGuid::Create<HighGuid::Unit>(slave->id, linkedGuidLow);
+    ObjectGuid linkedGuid = ObjectGuid::Create<HighGuid::Creature>(slave->mapid, slave->id, linkedGuidLow);
 
     _linkedRespawnStore[guid] = linkedGuid;
     WorldDatabasePreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_REP_CREATURE_LINKED_RESPAWN);
@@ -7776,7 +7776,7 @@ void ObjectMgr::SetHighestGuids()
 
     QueryResult result = WorldDatabase.Query("SELECT MAX(guid) FROM transports");
     if (result)
-        GetGuidSequenceGenerator<HighGuid::Mo_Transport>().Set((*result)[0].Get<uint32>() + 1);
+        GetGuidSequenceGenerator<HighGuid::Transport>().Set((*result)[0].Get<uint32>() + 1);
 
     result = CharacterDatabase.Query("SELECT MAX(id) FROM auctionhouse");
     if (result)

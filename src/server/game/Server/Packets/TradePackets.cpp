@@ -17,53 +17,60 @@
 
 #include "TradePackets.h"
 
+void WorldPackets::Trade::AcceptTrade::Read()
+{
+    _worldPacket >> StateIndex;
+}
+
+void WorldPackets::Trade::ClearTradeItem::Read()
+{
+    _worldPacket >> TradeSlot;
+}
+
+void WorldPackets::Trade::InitiateTrade::Read()
+{
+    _worldPacket >> Guid;
+}
+
+void WorldPackets::Trade::SetTradeCurrency::Read()
+{
+    _worldPacket >> Type >> Quantity;
+}
+
+void WorldPackets::Trade::SetTradeGold::Read()
+{
+    _worldPacket >> Coinage;
+}
+
+void WorldPackets::Trade::SetTradeItem::Read()
+{
+    _worldPacket >> TradeSlot >> PackSlot >> ItemSlotInPack;
+}
+
 WorldPacket const* WorldPackets::Trade::TradeStatus::Write()
 {
     _worldPacket.WriteBit(PartnerIsSameBnetAccount);
     _worldPacket.WriteBits(Status, 5);
-
     switch (Status)
     {
-        case TRADE_STATUS_BEGIN_TRADE:
-            _worldPacket.WriteBit(Partner[2]);
-            _worldPacket.WriteBit(Partner[4]);
-            _worldPacket.WriteBit(Partner[6]);
-            _worldPacket.WriteBit(Partner[0]);
-            _worldPacket.WriteBit(Partner[1]);
-            _worldPacket.WriteBit(Partner[3]);
-            _worldPacket.WriteBit(Partner[7]);
-            _worldPacket.WriteBit(Partner[5]);
-            _worldPacket.FlushBits();
-
-            _worldPacket.WriteByteSeq(Partner[4]);
-            _worldPacket.WriteByteSeq(Partner[1]);
-            _worldPacket.WriteByteSeq(Partner[2]);
-            _worldPacket.WriteByteSeq(Partner[3]);
-            _worldPacket.WriteByteSeq(Partner[0]);
-            _worldPacket.WriteByteSeq(Partner[7]);
-            _worldPacket.WriteByteSeq(Partner[6]);
-            _worldPacket.WriteByteSeq(Partner[5]);
-            break;
-        case TRADE_STATUS_INITIATED:
-            _worldPacket.FlushBits();
-            _worldPacket << uint32(ID);
-            break;
         case TRADE_STATUS_FAILED:
             _worldPacket.WriteBit(FailureForYou);
-            _worldPacket.FlushBits();
-
             _worldPacket << int32(BagResult);
-            _worldPacket << uint32(ItemID);
+            _worldPacket << int32(ItemID);
+            break;
+        case TRADE_STATUS_INITIATED:
+            _worldPacket << uint32(ID);
+            break;
+        case TRADE_STATUS_PROPOSED:
+            _worldPacket << Partner;
+            _worldPacket << PartnerAccount;
             break;
         case TRADE_STATUS_WRONG_REALM:
         case TRADE_STATUS_NOT_ON_TAPLIST:
-            _worldPacket.FlushBits();
             _worldPacket << uint8(TradeSlot);
             break;
-        case TRADE_STATUS_CURRENCY:
+        case TRADE_STATUS_NOT_ENOUGH_CURRENCY:
         case TRADE_STATUS_CURRENCY_NOT_TRADABLE:
-            _worldPacket.FlushBits();
-            // Only two test currencies in CurrencyTypes.dbc can be traded; the client never sends these
             _worldPacket << int32(CurrencyType);
             _worldPacket << int32(CurrencyQuantity);
             break;
@@ -75,98 +82,48 @@ WorldPacket const* WorldPackets::Trade::TradeStatus::Write()
     return &_worldPacket;
 }
 
+ByteBuffer& operator<<(ByteBuffer& buffer, WorldPackets::Trade::TradeUpdated::UnwrappedTradeItem const& unwrappedTradeItem)
+{
+    buffer << unwrappedTradeItem.Item;
+    buffer << int32(unwrappedTradeItem.EnchantID);
+    buffer << int32(unwrappedTradeItem.OnUseEnchantmentID);
+    buffer.append(unwrappedTradeItem.SocketEnchant, MAX_GEM_SOCKETS);
+    buffer << unwrappedTradeItem.Creator;
+    buffer << int32(unwrappedTradeItem.Charges);
+    buffer << uint32(unwrappedTradeItem.MaxDurability);
+    buffer << uint32(unwrappedTradeItem.Durability);
+    buffer.WriteBit(unwrappedTradeItem.Lock);
+    buffer.FlushBits();
+
+    return buffer;
+}
+
+ByteBuffer& operator<<(ByteBuffer& buffer, WorldPackets::Trade::TradeUpdated::TradeItem const& tradeItem)
+{
+    buffer << uint8(tradeItem.Slot);
+    buffer << uint32(tradeItem.EntryID);
+    buffer << uint32(tradeItem.StackCount);
+    buffer << tradeItem.GiftCreator;
+    if (buffer.WriteBit(tradeItem.Unwrapped.has_value()))
+        buffer << *tradeItem.Unwrapped;
+
+    return buffer;
+}
+
 WorldPacket const* WorldPackets::Trade::TradeUpdated::Write()
 {
-    _worldPacket << uint32(ID);
-    _worldPacket << int32(CurrencyType);
-    _worldPacket << uint64(Gold);
-    _worldPacket << int32(ProposedEnchantment);
-    _worldPacket << uint32(ClientStateIndex);
-    _worldPacket << int32(CurrencyQuantity);
     _worldPacket << uint8(WhichPlayer);
+    _worldPacket << uint32(ID);
+    _worldPacket << uint32(ClientStateIndex);
     _worldPacket << uint32(CurrentStateIndex);
-    _worldPacket.WriteBits(Items.size(), 22);
+    _worldPacket << uint64(Gold);
+    _worldPacket << int32(CurrencyType);
+    _worldPacket << int32(CurrencyQuantity);
+    _worldPacket << int32(ProposedEnchantment);
+    _worldPacket << uint32(Items.size());
 
     for (TradeItem const& item : Items)
-    {
-        _worldPacket.WriteBit(item.GiftCreator[7]);
-        _worldPacket.WriteBit(item.GiftCreator[1]);
-        _worldPacket.WriteBit(item.Unwrapped.has_value());
-        _worldPacket.WriteBit(item.GiftCreator[3]);
-
-        if (item.Unwrapped)
-        {
-            _worldPacket.WriteBit(item.Unwrapped->Creator[7]);
-            _worldPacket.WriteBit(item.Unwrapped->Creator[1]);
-            _worldPacket.WriteBit(item.Unwrapped->Creator[4]);
-            _worldPacket.WriteBit(item.Unwrapped->Creator[6]);
-            _worldPacket.WriteBit(item.Unwrapped->Creator[2]);
-            _worldPacket.WriteBit(item.Unwrapped->Creator[3]);
-            _worldPacket.WriteBit(item.Unwrapped->Creator[5]);
-            _worldPacket.WriteBit(item.Unwrapped->Lock);
-            _worldPacket.WriteBit(item.Unwrapped->Creator[0]);
-        }
-
-        _worldPacket.WriteBit(item.GiftCreator[6]);
-        _worldPacket.WriteBit(item.GiftCreator[4]);
-        _worldPacket.WriteBit(item.GiftCreator[2]);
-        _worldPacket.WriteBit(item.GiftCreator[0]);
-        _worldPacket.WriteBit(item.GiftCreator[5]);
-    }
-
-    _worldPacket.FlushBits();
-
-    for (TradeItem const& item : Items)
-    {
-        if (item.Unwrapped)
-        {
-            _worldPacket.WriteByteSeq(item.Unwrapped->Creator[1]);
-
-            _worldPacket << int32(item.Unwrapped->EnchantID);
-            for (int32 socketEnchant : item.Unwrapped->SocketEnchant)
-                _worldPacket << int32(socketEnchant);
-
-            _worldPacket << uint32(item.Unwrapped->MaxDurability);
-
-            _worldPacket.WriteByteSeq(item.Unwrapped->Creator[6]);
-            _worldPacket.WriteByteSeq(item.Unwrapped->Creator[2]);
-            _worldPacket.WriteByteSeq(item.Unwrapped->Creator[7]);
-            _worldPacket.WriteByteSeq(item.Unwrapped->Creator[4]);
-
-            _worldPacket << int32(item.Unwrapped->ReforgeEnchantmentID);
-            _worldPacket << uint32(item.Unwrapped->Durability);
-            _worldPacket << int32(item.Unwrapped->RandomPropertiesID);
-
-            _worldPacket.WriteByteSeq(item.Unwrapped->Creator[3]);
-
-            _worldPacket << int32(0); // unk
-
-            _worldPacket.WriteByteSeq(item.Unwrapped->Creator[0]);
-
-            _worldPacket << int32(item.Unwrapped->Charges);
-            _worldPacket << int32(item.Unwrapped->RandomPropertiesSeed);
-
-            _worldPacket.WriteByteSeq(item.Unwrapped->Creator[5]);
-        }
-
-        _worldPacket.WriteByteSeq(item.GiftCreator[6]);
-        _worldPacket.WriteByteSeq(item.GiftCreator[1]);
-        _worldPacket.WriteByteSeq(item.GiftCreator[7]);
-        _worldPacket.WriteByteSeq(item.GiftCreator[4]);
-
-        _worldPacket << int32(item.EntryID);
-
-        _worldPacket.WriteByteSeq(item.GiftCreator[0]);
-
-        _worldPacket << int32(item.StackCount);
-
-        _worldPacket.WriteByteSeq(item.GiftCreator[5]);
-
-        _worldPacket << uint8(item.Slot);
-
-        _worldPacket.WriteByteSeq(item.GiftCreator[2]);
-        _worldPacket.WriteByteSeq(item.GiftCreator[3]);
-    }
+        _worldPacket << item;
 
     return &_worldPacket;
 }

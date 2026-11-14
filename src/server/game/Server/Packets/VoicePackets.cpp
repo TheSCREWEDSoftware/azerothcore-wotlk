@@ -15,24 +15,16 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "LFGPacketsCommon.h"
+#include "VoicePackets.h"
 
-ByteBuffer& operator>>(ByteBuffer& data, WorldPackets::LFG::RideTicket& ticket)
+void WorldPackets::Voice::VoiceSessionEnable::Read()
 {
-    data >> ticket.RequesterGuid;
-    data >> ticket.Id;
-    ticket.Type = data.read<WorldPackets::LFG::RideType>();
-    data >> ticket.Time;
-
-    return data;
+    EnableVoiceChat = _worldPacket.ReadBit();
+    EnableMicrophone = _worldPacket.ReadBit();
 }
 
-ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::LFG::RideTicket const& ticket)
+void WorldPackets::Voice::SetActiveVoiceChannel::Read()
 {
-    data << ticket.RequesterGuid;
-    data << uint32(ticket.Id);
-    data << uint32(ticket.Type);
-    data << int32(ticket.Time);
-
-    return data;
+    _worldPacket >> ChannelType;
+    ChannelName = _worldPacket.ReadString(_worldPacket.ReadBits(7));
 }

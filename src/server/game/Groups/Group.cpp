@@ -165,7 +165,7 @@ bool Group::Create(Player* leader)
     ObjectGuid leaderGuid = leader->GetGUID();
     ObjectGuid::LowType lowguid = sGroupMgr->GenerateGroupId();
 
-    m_guid = ObjectGuid::Create<HighGuid::Group>(lowguid);
+    m_guid = ObjectGuid::Create<HighGuid::Party>(lowguid);
     m_leaderGuid = leaderGuid;
     m_leaderName = leader->GetName();
     leader->SetPlayerFlag(PLAYER_FLAGS_GROUP_LEADER);
@@ -229,7 +229,7 @@ bool Group::Create(Player* leader)
 bool Group::LoadGroupFromDB(Field* fields)
 {
     ObjectGuid::LowType groupLowGuid = fields[16].Get<uint32>();
-    m_guid = ObjectGuid::Create<HighGuid::Group>(groupLowGuid);
+    m_guid = ObjectGuid::Create<HighGuid::Party>(groupLowGuid);
 
     m_leaderGuid = ObjectGuid::Create<HighGuid::Player>(fields[0].Get<uint32>());
 
@@ -255,7 +255,7 @@ bool Group::LoadGroupFromDB(Field* fields)
     m_lootThreshold = ItemQualities(fields[3].Get<uint8>());
 
     for (uint8 i = 0; i < TARGETICONCOUNT; ++i)
-        m_targetIcons[i].Set(fields[4 + i].Get<uint64>());
+        m_targetIcons[i] = ObjectGuid::FromRawValue(fields[4 + i].Get<Binary>());
 
     m_groupType  = GroupType(fields[12].Get<uint8>());
     if (m_groupType & GROUPTYPE_RAID)
@@ -304,7 +304,7 @@ void Group::LoadMemberFromDB(ObjectGuid::LowType guidLow, uint8 memberFlags, uin
 
     if (!isBGGroup() && !isBFGroup())
     {
-        sCharacterCache->UpdateCharacterGroup(ObjectGuid(HighGuid::Player, guidLow), GetGUID());
+        sCharacterCache->UpdateCharacterGroup(ObjectGuid::Create<HighGuid::Player>(guidLow), GetGUID());
     }
 
     SubGroupCounterIncrease(subgroup);

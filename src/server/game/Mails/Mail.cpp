@@ -154,7 +154,7 @@ void MailDraft::SendReturnToSender(uint32 /*sender_acc*/, ObjectGuid::LowType se
 {
     Player* receiver = ObjectAccessor::FindPlayerByLowGUID(receiver_guid);
 
-    if (!receiver && !sCharacterCache->GetCharacterAccountIdByGuid(ObjectGuid(HighGuid::Player, receiver_guid)))
+    if (!receiver && !sCharacterCache->GetCharacterAccountIdByGuid(ObjectGuid::Create<HighGuid::Player>(receiver_guid)))
     {
         deleteIncludedItems(trans, true);
         return;

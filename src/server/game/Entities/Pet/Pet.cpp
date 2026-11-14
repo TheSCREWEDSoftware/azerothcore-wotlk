@@ -1649,7 +1649,7 @@ void Pet::_LoadAuras(PreparedQueryResult result, uint32 timediff)
             int32 damage[3];
             int32 baseDamage[3];
             Field* fields = result->Fetch();
-            ObjectGuid caster_guid = ObjectGuid(fields[0].Get<uint64>());
+            ObjectGuid caster_guid = ObjectGuid::FromRawValue(fields[0].Get<Binary>());
             // nullptr guid stored - pet is the caster of the spell - see Pet::_SaveAuras
             if (!caster_guid)
                 caster_guid = GetGUID();
@@ -2290,14 +2290,14 @@ bool Pet::IsPermanentPetFor(Player* owner) const
     }
 }
 
-bool Pet::Create(ObjectGuid::LowType guidlow, Map* map, uint32 phaseMask, uint32 Entry, uint32 pet_number)
+bool Pet::Create(ObjectGuid::LowType guidlow, Map* map, uint32 phaseMask, uint32 Entry, uint32 /*pet_number*/)
 {
     ASSERT(map);
     SetMap(map);
 
     SetPhaseMask(phaseMask, false);
 
-    Object::_Create(guidlow, pet_number, HighGuid::Pet);
+    Object::_Create(ObjectGuid::Create<HighGuid::Pet>(map->GetId(), Entry, guidlow));
 
     m_spawnId = guidlow;
     m_originalEntry = Entry;

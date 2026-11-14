@@ -56,7 +56,7 @@ public:
 
     void BuildValuesUpdate(uint8 updateType, ByteBuffer* data, Player* target) override;
 
-    bool Create(ObjectGuid::LowType guidlow);
+    bool Create(ObjectGuid::LowType guidlow, Map* map);
     bool Create(ObjectGuid::LowType guidlow, Player* owner);
 
     void SaveToDB();

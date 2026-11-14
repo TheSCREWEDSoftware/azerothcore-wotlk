@@ -33,6 +33,7 @@ Corpse::Corpse(CorpseType type) : WorldObject(), m_type(type)
     m_objectTypeId = TYPEID_CORPSE;
     m_updateFlag.Stationary = true;
     m_valuesCount = CORPSE_END;
+    _dynamicValuesCount = CORPSE_DYNAMIC_END;
     m_time = GameTime::GetGameTime().count();
     lootRecipient = nullptr;
 }
@@ -68,9 +69,9 @@ uint32 Corpse::GetFaction() const
     return rEntry ? rEntry->FactionID : 0;
 }
 
-bool Corpse::Create(ObjectGuid::LowType guidlow)
+bool Corpse::Create(ObjectGuid::LowType guidlow, Map* map)
 {
-    Object::_Create(guidlow, 0, HighGuid::Corpse);
+    Object::_Create(ObjectGuid::Create<HighGuid::Corpse>(map->GetId(), 0, guidlow));
     return true;
 }
 
@@ -87,7 +88,7 @@ bool Corpse::Create(ObjectGuid::LowType guidlow, Player* owner)
         return false;
     }
 
-    WorldObject::_Create(guidlow, HighGuid::Corpse, owner->GetPhaseMask());
+    WorldObject::_Create(ObjectGuid::Create<HighGuid::Corpse>(owner->GetMapId(), 0, guidlow), owner->GetPhaseMask());
 
     SetObjectScale(1);
     SetGuidValue(CORPSE_FIELD_OWNER, owner->GetGUID());
@@ -151,7 +152,7 @@ bool Corpse::LoadCorpseFromDB(ObjectGuid::LowType guid, Field* fields)
     float o      = fields[3].Get<float>();
     uint32 mapId = fields[4].Get<uint16>();
 
-    Object::_Create(guid, 0, HighGuid::Corpse);
+    Object::_Create(ObjectGuid::Create<HighGuid::Corpse>(mapId, 0, guid));
 
     SetObjectScale(1.0f);
     SetUInt32Value(CORPSE_FIELD_DISPLAY_ID, fields[5].Get<uint32>());
@@ -267,5 +268,4 @@ void Corpse::BuildValuesUpdate(uint8 updateType, ByteBuffer* data, Player* targe
 
     updateMask.AppendToPacket(data);
     data->append(fieldBuffer);
-    *data << uint8(0);                                      // 5.4.8 dynamic fields, none sent yet
 }

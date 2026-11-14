@@ -1417,7 +1417,7 @@ class MeleeRequestTest : public IntegrationTestFixture { };
 TEST_F(MeleeRequestTest, UnknownAndSpoofedTargetsCannotStartAttack)
 {
     TestPlayer* player = CreateTestPlayer();
-    for (ObjectGuid target : {ObjectGuid::Create<HighGuid::Unit>(12345, 99),
+    for (ObjectGuid target : {ObjectGuid::Create<HighGuid::Creature>(12345, 99),
                              ObjectGuid::Create<HighGuid::GameObject>(2843, 99)})
     {
         WorldPacket request(CMSG_ATTACKSWING, 9);

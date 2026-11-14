@@ -247,7 +247,7 @@ public:
             }
 
         Creature* creature = new Creature();
-        if (!creature->Create(map->GenerateLowGuid<HighGuid::Unit>(), map, chr->GetPhaseMaskForSpawn(), id, 0, x, y, z, o))
+        if (!creature->Create(map->GenerateLowGuid<HighGuid::Creature>(), map, chr->GetPhaseMaskForSpawn(), id, 0, x, y, z, o))
         {
             delete creature;
             return false;
@@ -732,7 +732,7 @@ public:
 
         handler->PSendSysMessage("(Not in world - showing DB data)");
         uint32 scriptId = cData->ScriptId ? cData->ScriptId : cInfo->ScriptID;
-        handler->PSendSysMessage(LANG_NPCINFO_CHAR, lowGuid, ObjectGuid::Create<HighGuid::Unit>(cData->id, lowGuid).ToString(), cData->id,
+        handler->PSendSysMessage(LANG_NPCINFO_CHAR, lowGuid, ObjectGuid::Create<HighGuid::Creature>(cData->mapid, cData->id, lowGuid).ToString(), cData->id,
             cData->id, cData->id2, cData->id3, cData->displayid, cData->displayid, cInfo->faction,
             cData->npcflag);
         handler->PSendSysMessage(LANG_NPCINFO_PHASEMASK, cData->phaseMask);

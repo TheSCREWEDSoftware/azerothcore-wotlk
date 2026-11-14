@@ -811,7 +811,7 @@ ObjectGuid::LowType ChatHandler::extractLowGuidFromLink(char* text, HighGuid& gu
             }
         case SPELL_LINK_CREATURE:
             {
-                guidHigh = HighGuid::Unit;
+                guidHigh = HighGuid::Creature;
 
                 ObjectGuid::LowType lowguid = (uint32)atol(idS);
 

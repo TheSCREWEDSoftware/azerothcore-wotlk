@@ -1307,7 +1307,7 @@ public:
     [[nodiscard]] bool IsControlledByPlayer() const { return m_ControlledByPlayer; }
     [[nodiscard]] bool IsCreatedByPlayer() const { return m_CreatedByPlayer; }
     [[nodiscard]] bool IsCharmedOwnedByPlayerOrPlayer() const { return GetCharmerOrOwnerOrOwnGUID().IsPlayer(); }
-    [[nodiscard]] bool IsCharmed() const { return GetCharmerGUID(); }
+    [[nodiscard]] bool IsCharmed() const { return !GetCharmerGUID().IsEmpty(); }
     [[nodiscard]] bool isPossessed() const { return HasUnitState(UNIT_STATE_POSSESSED); }
     [[nodiscard]] bool isPossessedByPlayer() const { return HasUnitState(UNIT_STATE_POSSESSED) && GetCharmerGUID().IsPlayer(); }
     [[nodiscard]] bool isPossessing() const

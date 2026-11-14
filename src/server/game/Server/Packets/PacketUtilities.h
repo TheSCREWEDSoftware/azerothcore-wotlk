@@ -21,7 +21,33 @@
 #include "ByteBuffer.h"
 #include "StringFormat.h"
 #include "Tuples.h"
+#include <G3D/Vector2.h>
+#include <G3D/Vector3.h>
 #include <string_view>
+
+inline ByteBuffer& operator<<(ByteBuffer& data, G3D::Vector2 const& v)
+{
+    data << v.x << v.y;
+    return data;
+}
+
+inline ByteBuffer& operator>>(ByteBuffer& data, G3D::Vector2& v)
+{
+    data >> v.x >> v.y;
+    return data;
+}
+
+inline ByteBuffer& operator<<(ByteBuffer& data, G3D::Vector3 const& v)
+{
+    data << v.x << v.y << v.z;
+    return data;
+}
+
+inline ByteBuffer& operator>>(ByteBuffer& data, G3D::Vector3& v)
+{
+    data >> v.x >> v.y >> v.z;
+    return data;
+}
 
 namespace WorldPackets
 {

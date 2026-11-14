@@ -274,6 +274,7 @@ Creature::Creature(): Unit(), MovableMapObject(), m_groupLootTimer(0), lootingGr
 {
     m_regenTimer = CREATURE_REGEN_INTERVAL;
     m_valuesCount = UNIT_END;
+    _dynamicValuesCount = UNIT_DYNAMIC_END;
 
     for (uint8 i = 0; i < MAX_CREATURE_SPELLS; ++i)
         m_spells[i] = 0;
@@ -1649,7 +1650,10 @@ bool Creature::CreateFromProto(ObjectGuid::LowType guidlow, uint32 Entry, uint32
 
     SetOriginalEntry(Entry);
 
-    Object::_Create(guidlow, Entry, (vehId || normalInfo->VehicleId) ? HighGuid::Vehicle : HighGuid::Unit);
+    if (vehId || normalInfo->VehicleId)
+        Object::_Create(ObjectGuid::Create<HighGuid::Vehicle>(GetMapId(), Entry, guidlow));
+    else
+        Object::_Create(ObjectGuid::Create<HighGuid::Creature>(GetMapId(), Entry, guidlow));
 
     // Xinef: select proper vehicle id
     if (!vehId)
@@ -1743,7 +1747,7 @@ bool Creature::LoadCreatureFromDB(ObjectGuid::LowType spawnId, Map* map, bool ad
     // Add to world
     uint32 entry = GetRandomId(data->id, data->id2, data->id3);
 
-    if (!Create(map->GenerateLowGuid<HighGuid::Unit>(), map, data->phaseMask, entry, 0, data->posX, data->posY, data->posZ, data->orientation, data))
+    if (!Create(map->GenerateLowGuid<HighGuid::Creature>(), map, data->phaseMask, entry, 0, data->posX, data->posY, data->posZ, data->orientation, data))
         return false;
 
     SetSpawnPhaseId(data->phaseId);
@@ -2076,7 +2080,7 @@ void Creature::Respawn(bool force)
     if (!allowed && !force) // Will be rechecked on next Update call
         return;
 
-    ObjectGuid dbtableHighGuid = ObjectGuid::Create<HighGuid::Unit>(m_creatureData ? m_creatureData->id : GetEntry(), m_spawnId);
+    ObjectGuid dbtableHighGuid = ObjectGuid::Create<HighGuid::Creature>(GetMapId(), m_creatureData ? m_creatureData->id : GetEntry(), m_spawnId);
     time_t linkedRespawntime = GetMap()->GetLinkedRespawnTime(dbtableHighGuid);
 
     CreatureTemplate const* cInfo = sObjectMgr->GetCreatureTemplate(GetEntry());

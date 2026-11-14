@@ -18,9 +18,11 @@
 #ifndef PetPackets_h__
 #define PetPackets_h__
 
-#include "ObjectGuid.h"
 #include "Packet.h"
-#include "G3D/Vector3.h"
+#include "PacketUtilities.h"
+#include "ObjectGuid.h"
+#include "Unit.h"
+#include "WorldSession.h"
 
 namespace WorldPackets
 {
@@ -36,6 +38,14 @@ namespace WorldPackets
             ObjectGuid CritterGUID;
         };
 
+        class RequestPetInfo final : public ClientPacket
+        {
+        public:
+            RequestPetInfo(WorldPacket&& packet) : ClientPacket(CMSG_REQUEST_PET_INFO, std::move(packet)) { }
+
+            void Read() override { }
+        };
+
         class PetAbandon final : public ClientPacket
         {
         public:
@@ -43,7 +53,7 @@ namespace WorldPackets
 
             void Read() override;
 
-            ObjectGuid PetGUID;
+            ObjectGuid Pet;
         };
 
         class PetStopAttack final : public ClientPacket
@@ -68,57 +78,174 @@ namespace WorldPackets
             bool AutocastEnabled = false;
         };
 
-        class PetLearnedSpell final : public ServerPacket
+        struct PetSpellCooldown
+        {
+            int32 SpellID = 0;
+            int32 Duration = 0;
+            int32 CategoryDuration = 0;
+            int Category = 0;
+        };
+
+        struct PetSpellHistory
+        {
+            int32 CategoryID = 0;
+            int32 RecoveryTime = 0;
+            int8 ConsumedCharges = 0;
+        };
+
+        class PetSpells final : public ServerPacket
         {
         public:
-            PetLearnedSpell() : ServerPacket(SMSG_PET_LEARNED_SPELL, 4) { }
+            PetSpells() : ServerPacket(SMSG_PET_SPELLS_MESSAGE, 100) { }
 
             WorldPacket const* Write() override;
 
-            uint32 SpellID = 0;
+            ObjectGuid PetGUID;
+            uint16 _CreatureFamily = 0; ///< @see enum CreatureFamily
+            uint16 Specialization = 0;
+            uint32 TimeLimit = 0;
+            uint8 ReactState = 0;
+            uint8 CommandState = 0;
+            uint16 Flag = 0;
+
+            std::array<int, 10> ActionButtons;
+
+            std::vector<uint32> Actions;
+            std::vector<PetSpellCooldown> Cooldowns;
+            std::vector<PetSpellHistory> SpellHistory;
         };
 
-        class PetUnlearnedSpell final : public ServerPacket
+        struct PetStableInfo
+        {
+            uint32 PetSlot = 0;
+            uint32 PetNumber = 0;
+            uint32 CreatureID = 0;
+            uint32 DisplayID = 0;
+            uint32 ExperienceLevel = 0;
+            uint32 PetFlags = 0;
+            std::string PetName;
+        };
+
+        class PetStableList final : public ServerPacket
         {
         public:
-            PetUnlearnedSpell() : ServerPacket(SMSG_PET_UNLEARNED_SPELL, 4) { }
+            PetStableList() : ServerPacket(SMSG_PET_STABLE_LIST, 18 + 2) { }
 
             WorldPacket const* Write() override;
 
-            uint32 SpellID = 0;
+            ObjectGuid StableMaster;
+            std::vector<PetStableInfo> Pets;
         };
 
-        class RequestPetInfo final : public ClientPacket
+        class PetLearnedSpells final : public ServerPacket
         {
         public:
-            RequestPetInfo(WorldPacket&& packet) : ClientPacket(CMSG_REQUEST_PET_INFO, std::move(packet)) { }
-
-            void Read() override { }
-        };
-
-        class PetActionSound final : public ServerPacket
-        {
-        public:
-            PetActionSound(ObjectGuid unitGUID, int32 action)
-                : ServerPacket(SMSG_PET_ACTION_SOUND, 8 + 4), UnitGUID(unitGUID), Action(action) { }
+            PetLearnedSpells() : ServerPacket(SMSG_PET_LEARNED_SPELLS, 4) { }
 
             WorldPacket const* Write() override;
 
-            ObjectGuid UnitGUID;
-            int32 Action = 0;
+            std::vector<uint32> Spells;
         };
 
-        class PetDismissSound final : public ServerPacket
+        class PetUnlearnedSpells final : public ServerPacket
         {
         public:
-            PetDismissSound(int32 modelId, G3D::Vector3 modelPosition)
-                : ServerPacket(SMSG_PET_DISMISS_SOUND, 4 + 12), ModelId(modelId), ModelPosition(modelPosition) { }
+            PetUnlearnedSpells() : ServerPacket(SMSG_PET_UNLEARNED_SPELLS, 4) { }
 
             WorldPacket const* Write() override;
 
-            int32 ModelId = 0;
-            G3D::Vector3 ModelPosition;
+            std::vector<uint32> Spells;
         };
+
+
+        struct PetRenameData
+        {
+            ObjectGuid PetGUID;
+            int32 PetNumber = 0;
+            std::string NewName;
+            Optional<DeclinedName> DeclinedNames;
+        };
+
+        class PetNameInvalid final : public ServerPacket
+        {
+        public:
+            PetNameInvalid() : ServerPacket(SMSG_PET_NAME_INVALID, 18 + 4 + 2 + 1 + 5 * 2 + 2) { }
+
+            WorldPacket const* Write() override;
+
+            PetRenameData RenameData;
+
+            uint8 Result = 0;
+        };
+
+        class PetRename final : public ClientPacket
+        {
+        public:
+            PetRename(WorldPacket&& packet) : ClientPacket(CMSG_PET_RENAME, std::move(packet)) { }
+
+            void Read() override;
+
+            PetRenameData RenameData;
+        };
+
+        class PetAction final : public ClientPacket
+        {
+        public:
+            PetAction(WorldPacket&& packet) : ClientPacket(CMSG_PET_ACTION, std::move(packet)) { }
+
+            void Read() override;
+
+            ObjectGuid PetGUID;
+            uint32 Action = 0;
+            ObjectGuid TargetGUID;
+            G3D::Vector3 ActionPosition;
+        };
+
+        class PetSetAction final : public ClientPacket
+        {
+        public:
+            PetSetAction(WorldPacket&& packet) : ClientPacket(CMSG_PET_SET_ACTION, std::move(packet)) { }
+
+            void Read() override;
+
+            ObjectGuid PetGUID;
+
+            uint32 Index = 0;
+            uint32 Action = 0;
+        };
+
+        class PetCancelAura final : public ClientPacket
+        {
+        public:
+            PetCancelAura(WorldPacket&& packet) : ClientPacket(CMSG_PET_CANCEL_AURA, std::move(packet)) { }
+
+            void Read() override;
+
+            ObjectGuid PetGUID;
+            int32 SpellID = 0;
+        };
+
+        class LearnPetSpecializationGroup final : public ClientPacket
+        {
+        public:
+            LearnPetSpecializationGroup(WorldPacket&& packet) : ClientPacket(CMSG_LEARN_PET_SPECIALIZATION_GROUP, std::move(packet)) { }
+
+            void Read() override;
+
+            ObjectGuid PetGUID;
+            uint32 SpecGroupIndex = 0;
+        };
+
+        class SetPetSpecialization final : public ServerPacket
+        {
+        public:
+            SetPetSpecialization() : ServerPacket(SMSG_SET_PET_SPECIALIZATION, 2) { }
+
+            WorldPacket const* Write() override;
+
+            uint16 SpecID = 0;
+        };
+
     }
 }
 

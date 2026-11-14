@@ -195,6 +195,14 @@ public:
     bool AddGuidValue(uint16 index, ObjectGuid value);
     bool RemoveGuidValue(uint16 index, ObjectGuid value);
 
+    // 6.x dynamic update fields
+    [[nodiscard]] std::vector<uint32> const& GetDynamicValues(uint16 index) const;
+    [[nodiscard]] uint32 GetDynamicValue(uint16 index, uint16 offset) const;
+    void AddDynamicValue(uint16 index, uint32 value);
+    void RemoveDynamicValue(uint16 index, uint32 value);
+    void ClearDynamicValue(uint16 index);
+    void SetDynamicValue(uint16 index, uint16 offset, uint32 value);
+
     void ApplyModUInt32Value(uint16 index, int32 val, bool apply);
     void ApplyModInt32Value(uint16 index, int32 val, bool apply);
     void ApplyModUInt64Value(uint16 index, int32 val, bool apply);
@@ -274,15 +282,16 @@ protected:
     Object();
 
     void _InitValues();
-    void _Create(ObjectGuid::LowType guidlow, uint32 entry, HighGuid guidhigh);
-    void _Create(ObjectGuid guid);
+    void _Create(ObjectGuid const& guid);
     [[nodiscard]] std::string _ConcatFields(uint16 startIndex, uint16 size) const;
     bool _LoadIntoDataField(std::string const& data, uint32 startOffset, uint32 count);
 
     uint32 GetUpdateFieldData(Player const* target, uint32*& flags) const;
+    uint32 GetDynamicUpdateFieldData(Player const* target, uint32*& flags) const;
 
     void BuildMovementUpdate(ByteBuffer* data, CreateObjectBits flags) const;
     virtual void BuildValuesUpdate(uint8 updateType, ByteBuffer* data, Player* target);
+    virtual void BuildDynamicValuesUpdate(uint8 updateType, ByteBuffer* data, Player* target) const;
 
     uint16 m_objectType;
 
@@ -299,6 +308,11 @@ protected:
     UpdateMask _changesMask;
 
     uint16 m_valuesCount;
+
+    std::vector<uint32>* _dynamicValues;
+    std::vector<uint8> _dynamicChangesMask;                 // UpdateMask::DynamicFieldChangeType per field, 0 = unchanged
+    std::vector<uint8>* _dynamicChangesArrayMask;
+    uint16 _dynamicValuesCount;
 
     uint16 _fieldNotifyFlags;
 
@@ -517,7 +531,7 @@ public:
 
     virtual void Update(uint32 diff);
 
-    void _Create(ObjectGuid::LowType guidlow, HighGuid guidhigh, uint32 phaseMask);
+    void _Create(ObjectGuid const& guid, uint32 phaseMask);
 
     void AddToWorld() override;
     void RemoveFromWorld() override;

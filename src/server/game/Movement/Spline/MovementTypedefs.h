@@ -29,6 +29,14 @@ namespace G3D
 
 namespace Movement
 {
+    enum MonsterMoveType
+    {
+        MONSTER_MOVE_NORMAL         = 0,
+        MONSTER_MOVE_FACING_SPOT    = 1,
+        MONSTER_MOVE_FACING_TARGET  = 2,
+        MONSTER_MOVE_FACING_ANGLE   = 3
+    };
+
     using G3D::Vector2;
     using G3D::Vector3;
     using G3D::Vector4;

@@ -1,14 +1,14 @@
 /*
  * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -19,117 +19,180 @@
 
 void WorldPackets::NPC::Hello::Read()
 {
-    // 5.4.8 18414 CMSG_TRAINER_LIST, from Project SkyFire
-    _worldPacket.ReadGuidMask(Unit, { 0, 2, 7, 6, 1, 4, 5, 3 });
-    _worldPacket.ReadGuidBytes(Unit, { 3, 6, 7, 5, 1, 0, 2, 4 });
+    _worldPacket >> Unit;
+}
+
+WorldPacket const* WorldPackets::NPC::GossipMessage::Write()
+{
+    _worldPacket << GossipGUID;
+    _worldPacket << GossipID;
+    _worldPacket << FriendshipFactionID;
+    _worldPacket << TextID;
+
+    _worldPacket << int32(GossipOptions.size());
+    _worldPacket << int32(GossipText.size());
+
+    for (ClientGossipOptions const& options : GossipOptions)
+    {
+        _worldPacket << options.ClientOption;
+        _worldPacket << options.OptionNPC;
+        _worldPacket << options.OptionFlags;
+        _worldPacket << options.OptionCost;
+
+        _worldPacket.WriteBits(options.Text.size(), 12);
+        _worldPacket.WriteBits(options.Confirm.size(), 12);
+        _worldPacket.FlushBits();
+
+        _worldPacket.WriteString(options.Text);
+        _worldPacket.WriteString(options.Confirm);
+    }
+
+    for (ClientGossipText const& text : GossipText)
+    {
+        _worldPacket << text.QuestID;
+        _worldPacket << text.QuestType;
+        _worldPacket << text.QuestLevel;
+        _worldPacket << text.QuestFlags[0];
+        _worldPacket << text.QuestFlags[1];
+
+        _worldPacket.WriteBit(text.Repeatable);
+        _worldPacket.WriteBits(text.QuestTitle.size(), 9);
+        _worldPacket.FlushBits();
+
+        _worldPacket.WriteString(text.QuestTitle);
+    }
+
+    return &_worldPacket;
+}
+
+WorldPacket const* WorldPackets::NPC::VendorInventory::Write()
+{
+    _worldPacket << Vendor;
+    _worldPacket << Reason;
+
+    _worldPacket << int32(Items.size());
+    for (VendorItem const& item : Items)
+    {
+        _worldPacket << item.MuID;
+        _worldPacket << item.Type;
+        _worldPacket << item.Item;
+        _worldPacket << item.Quantity;
+        _worldPacket << item.Price;
+        _worldPacket << item.Durability;
+        _worldPacket << item.StackCount;
+        _worldPacket << item.ExtendedCostID;
+        _worldPacket << item.PlayerConditionFailed;
+
+        _worldPacket.WriteBit(item.DoNotFilterOnVendor);
+        _worldPacket.FlushBits();
+    }
+
+    return &_worldPacket;
 }
 
 WorldPacket const* WorldPackets::NPC::TrainerList::Write()
 {
-    // 5.4.8 18414, from Project SkyFire
-    _worldPacket.WriteGuidMask(TrainerGUID, { 4, 5 });
-    _worldPacket.WriteBits(Spells.size(), 19);
-    _worldPacket.WriteBits(Greeting.size(), 11);
-    _worldPacket.WriteGuidMask(TrainerGUID, { 6, 2, 7, 1, 3, 0 });
-    _worldPacket.FlushBits();
+    _worldPacket << TrainerGUID;
+    _worldPacket << TrainerType;
+    _worldPacket << TrainerID;
 
-    _worldPacket.WriteGuidBytes(TrainerGUID, { 4 });
-
+    _worldPacket << int32(Spells.size());
     for (TrainerListSpell const& spell : Spells)
     {
-        _worldPacket << uint8(spell.ReqLevel);
-        _worldPacket << uint32(spell.MoneyCost);
-        _worldPacket << uint32(spell.SpellID);
-        for (int32 reqAbility : spell.ReqAbility)
-            _worldPacket << int32(reqAbility);
-        _worldPacket << uint32(spell.ReqSkillLine);
-        _worldPacket << uint32(spell.ReqSkillRank);
-        _worldPacket << uint8(spell.Usable);
+        _worldPacket << spell.SpellID;
+        _worldPacket << spell.MoneyCost;
+        _worldPacket << spell.ReqSkillLine;
+        _worldPacket << spell.ReqSkillRank;
+
+        for (uint32 i = 0; i < MAX_TRAINERSPELL_ABILITY_REQS; ++i)
+            _worldPacket << spell.ReqAbility[i];
+
+        _worldPacket << spell.Usable;
+        _worldPacket << spell.ReqLevel;
     }
 
+    _worldPacket.WriteBits(Greeting.length(), 11);
+    _worldPacket.FlushBits();
     _worldPacket.WriteString(Greeting);
-    _worldPacket.WriteGuidBytes(TrainerGUID, { 6, 7, 1, 3 });
-    _worldPacket << uint32(TrainerID);
-    _worldPacket.WriteGuidBytes(TrainerGUID, { 5, 0, 2 });
-    _worldPacket << uint32(TrainerType);
+
+    return &_worldPacket;
+}
+
+WorldPacket const* WorldPackets::NPC::ShowBank::Write()
+{
+    _worldPacket << Guid;
+
+    return &_worldPacket;
+}
+
+void WorldPackets::NPC::GossipSelectOption::Read()
+{
+    _worldPacket >> GossipUnit;
+    _worldPacket >> GossipID;
+    _worldPacket >> GossipIndex;
+
+    uint32 length = _worldPacket.ReadBits(8);
+    PromotionCode = _worldPacket.ReadString(length);
+}
+
+WorldPacket const* WorldPackets::NPC::PlayerTabardVendorActivate::Write()
+{
+    _worldPacket << Vendor;
+
+    return &_worldPacket;
+}
+
+WorldPacket const* WorldPackets::NPC::SuppressNPCGreetings::Write()
+{
+    _worldPacket << UnitGUID;
+    _worldPacket.WriteBit(SuppressNPCGreeting);
+    _worldPacket.FlushBits();
+
+    return &_worldPacket;
+}
+
+WorldPacket const* WorldPackets::NPC::GossipPOI::Write()
+{
+    _worldPacket.WriteBits(Flags, 14);
+    _worldPacket.WriteBits(Name.length(), 6);
+    _worldPacket << Pos.x;
+    _worldPacket << Pos.y;
+    _worldPacket << Icon;
+    _worldPacket << Importance;
+    _worldPacket.WriteString(Name);
+
+    return &_worldPacket;
+}
+
+void WorldPackets::NPC::SpiritHealerActivate::Read()
+{
+    _worldPacket >> Healer;
+}
+
+WorldPacket const* WorldPackets::NPC::SpiritHealerConfirm::Write()
+{
+    _worldPacket << Unit;
 
     return &_worldPacket;
 }
 
 void WorldPackets::NPC::TrainerBuySpell::Read()
 {
-    // 5.4.8 18414, from Project SkyFire
-    _worldPacket >> SpellID;
+    _worldPacket >> TrainerGUID;
     _worldPacket >> TrainerID;
-    _worldPacket.ReadGuidMask(TrainerGUID, { 1, 4, 0, 6, 3, 2, 5, 7 });
-    _worldPacket.ReadGuidBytes(TrainerGUID, { 3, 1, 4, 7, 0, 5, 6, 2 });
+    _worldPacket >> SpellID;
 }
 
 WorldPacket const* WorldPackets::NPC::TrainerBuyFailed::Write()
 {
-    // 5.4.8 18414, from Project SkyFire
-    _worldPacket.WriteGuidMask(TrainerGUID, { 3, 0, 4, 7, 6, 1, 5, 2 });
-    _worldPacket.FlushBits();
-
-    _worldPacket.WriteGuidBytes(TrainerGUID, { 1, 2, 0, 3, 4 });
-    _worldPacket << int32(TrainerFailedReason);
-    _worldPacket.WriteGuidBytes(TrainerGUID, { 5, 6, 7 });
-    _worldPacket << int32(SpellID);
-
-    return &_worldPacket;
-}
-
-WorldPacket const* WorldPackets::NPC::TrainerBuySucceeded::Write()
-{
     _worldPacket << TrainerGUID;
-    _worldPacket << int32(SpellID);
+    _worldPacket << SpellID;
+    _worldPacket << TrainerFailedReason;
 
     return &_worldPacket;
 }
 
-ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::NPC::VendorItem const& item)
+void WorldPackets::NPC::RequestStabledPets::Read()
 {
-    // 5.4.8 18414, from Project SkyFire
-    data << int32(item.Quantity);
-    data << uint32(item.Price);
-    data << uint32(item.Type);
-    data << int32(item.Durability);
-    data << uint32(item.ItemDisplayInfoID);
-    data << uint32(item.StackCount);
-    data << uint32(item.ItemID);
-
-    if (item.ExtendedCostID.has_value())
-        data << uint32(*item.ExtendedCostID);
-
-    data << int32(item.PlayerConditionFailed.value_or(0));
-    data << int32(item.MuID);
-
-    return data;
-}
-
-WorldPacket const* WorldPackets::NPC::VendorInventory::Write()
-{
-    // 5.4.8 18414, from Project SkyFire
-    _worldPacket.WriteGuidMask(Vendor, { 5, 7, 1, 3, 6 });
-    _worldPacket.WriteBits(Items.size(), 18);
-
-    for (VendorItem const& item : Items)
-    {
-        _worldPacket.WriteBit(false);
-        _worldPacket.WriteBit(!item.ExtendedCostID.has_value());
-        _worldPacket.WriteBit(true);
-    }
-
-    _worldPacket.WriteGuidMask(Vendor, { 4, 0, 2 });
-    _worldPacket.FlushBits();
-
-    // with no item shown the client only opens the window when this is not 0
-    _worldPacket << uint8(Reason);
-
-    for (VendorItem const& item : Items)
-        _worldPacket << item;
-
-    _worldPacket.WriteGuidBytes(Vendor, { 3, 7, 0, 6, 2, 1, 4, 5 });
-
-    return &_worldPacket;
+    _worldPacket >> StableMaster;
 }

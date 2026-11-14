@@ -15,33 +15,41 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "ArchaeologyPackets.h"
+#include "ToyPackets.h"
 
-ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::Archaeology::ResearchHistory const& researchHistory)
+void WorldPackets::Toy::AddToy::Read()
 {
-    data << int32(researchHistory.ProjectID);
-    data << int32(researchHistory.CompletionCount);
-    data << uint32(researchHistory.FirstCompleted);
-
-    return data;
+    _worldPacket >> Guid;
 }
 
-WorldPacket const* WorldPackets::Archaeology::SetupResearchHistory::Write()
+void WorldPackets::Toy::UseToy::Read()
 {
-    _worldPacket.WriteBits(History.size(), 22);
+    _worldPacket >> ItemID;
+    _worldPacket >> Cast;
+}
+
+WorldPacket const* WorldPackets::Toy::AccountToysUpdate::Write()
+{
+    _worldPacket.WriteBit(IsFullUpdate);
     _worldPacket.FlushBits();
 
-    for (WorldPackets::Archaeology::ResearchHistory const& history : History)
-        _worldPacket << history;
+    // both lists have to have the same size
+    _worldPacket << int32(Toys->size());
+    _worldPacket << int32(Toys->size());
+
+    for (auto const& item : *Toys)
+        _worldPacket << uint32(item.first);
+
+    for (auto const& favourite : *Toys)
+        _worldPacket.WriteBit(favourite.second);
+
+    _worldPacket.FlushBits();
 
     return &_worldPacket;
 }
 
-WorldPacket const* WorldPackets::Archaeology::ResearchComplete::Write()
+void WorldPackets::Toy::ToySetFavorite::Read()
 {
-    _worldPacket << uint32(Research.FirstCompleted);
-    _worldPacket << int32(Research.CompletionCount);
-    _worldPacket << int32(Research.ProjectID);
-
-    return &_worldPacket;
+    _worldPacket >> ItemID;
+    Favorite = _worldPacket.ReadBit();
 }

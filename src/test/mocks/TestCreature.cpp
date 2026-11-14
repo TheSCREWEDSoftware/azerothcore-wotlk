@@ -41,7 +41,7 @@ void TestCreature::CleanupCombatState()
 
 void TestCreature::ForceInitValues(ObjectGuid::LowType guidLow, uint32 entry)
 {
-    Object::_Create(guidLow, entry, HighGuid::Unit);
+    Object::_Create(guidLow, entry, HighGuid::Creature);
 
     m_objectType |= TYPEMASK_UNIT;
     m_objectTypeId = TYPEID_UNIT;

@@ -245,7 +245,7 @@ public:
         stmt->SetData(0, delInfo.lowGuid);
         if (PreparedQueryResult result = CharacterDatabase.Query(stmt))
         {
-            sCharacterCache->AddCharacterCacheEntry(ObjectGuid(HighGuid::Player, delInfo.lowGuid), delInfo.accountId, delInfo.name, (*result)[2].Get<uint8>(), (*result)[0].Get<uint8>(), (*result)[1].Get<uint8>(), (*result)[3].Get<uint8>());
+            sCharacterCache->AddCharacterCacheEntry(ObjectGuid::Create<HighGuid::Player>(delInfo.lowGuid), delInfo.accountId, delInfo.name, (*result)[2].Get<uint8>(), (*result)[0].Get<uint8>(), (*result)[1].Get<uint8>(), (*result)[3].Get<uint8>());
         }
     }
 
@@ -809,7 +809,7 @@ public:
 
         if (characterGUID)
         {
-            if (sCharacterCache->GetCharacterAccountIdByGuid(ObjectGuid(HighGuid::Player, *characterGUID)))
+            if (sCharacterCache->GetCharacterAccountIdByGuid(ObjectGuid::Create<HighGuid::Player>(*characterGUID)))
             {
                 handler->SendErrorMessage(LANG_CHARACTER_GUID_IN_USE, *characterGUID);
                 return false;

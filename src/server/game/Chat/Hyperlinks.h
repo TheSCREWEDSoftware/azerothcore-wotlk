@@ -137,13 +137,19 @@ namespace Acore::Hyperlinks
 
             static bool StoreTo(ObjectGuid& val, std::string_view data)
             {
-                if (Optional<uint64> res = Acore::StringTo<uint64>(data, 16))
-                {
-                    val.Set(*res);
-                    return true;
-                }
-                else
+                // 128 bit guid as up to 32 hex digits, high half first
+                if (data.empty() || data.size() > 32)
                     return false;
+
+                std::string_view highPart = data.size() > 16 ? data.substr(0, data.size() - 16) : std::string_view();
+                std::string_view lowPart = data.size() > 16 ? data.substr(data.size() - 16) : data;
+                Optional<uint64> low = Acore::StringTo<uint64>(lowPart, 16);
+                Optional<uint64> high = highPart.empty() ? Optional<uint64>(0) : Acore::StringTo<uint64>(highPart, 16);
+                if (!low || !high)
+                    return false;
+
+                val.SetRawValue(*high, *low);
+                return true;
             }
         };
 

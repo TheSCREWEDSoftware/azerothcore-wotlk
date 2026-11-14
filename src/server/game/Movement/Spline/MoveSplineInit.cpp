@@ -170,7 +170,7 @@ namespace Movement
     void MoveSplineInit::SetFacing(Unit const* target)
     {
         args.flags.EnableFacingTarget();
-        args.facing.target = target->GetGUID().GetRawValue();
+        args.facing.target = target->GetGUID();
     }
 
     void MoveSplineInit::SetFacing(float angle)

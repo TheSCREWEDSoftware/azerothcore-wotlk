@@ -16,350 +16,552 @@
  */
 
 #include "ItemPackets.h"
+#include "Player.h"
 
-void WorldPackets::Item::SplitItem::Read()
+bool WorldPackets::Item::ItemBonusInstanceData::operator==(ItemBonusInstanceData const& r) const
 {
-    _worldPacket >> SourceBag;
-    _worldPacket >> SourceSlot;
-    _worldPacket >> DestinationBag;
-    _worldPacket >> DestinationSlot;
-    _worldPacket >> Count;
+    if (Context != r.Context)
+        return false;
+
+    if (BonusListIDs.size() != r.BonusListIDs.size())
+        return false;
+
+    return std::is_permutation(BonusListIDs.begin(), BonusListIDs.end(), r.BonusListIDs.begin());
 }
 
-void WorldPackets::Item::SwapInventoryItem::Read()
+void WorldPackets::Item::BuyBackItem::Read()
 {
-    _worldPacket >> DestinationSlot;
-    _worldPacket >> SourceSlot;
-}
-
-void WorldPackets::Item::AutoEquipItemSlot::Read()
-{
-    // 5.4.8 18414, from Project SkyFire: an inventory position list follows the guid mask
-    _worldPacket >> DestinationSlot;
-    _worldPacket.ReadGuidMask(ItemGuid, { 6, 3, 0 });
-    uint32 count = _worldPacket.ReadBits(2);
-    _worldPacket.ReadGuidMask(ItemGuid, { 7 });
-    std::vector<std::pair<bool, bool>> positions(count);
-    for (std::pair<bool, bool>& position : positions)
-    {
-        position.second = _worldPacket.ReadBit();          // has slot
-        position.first = _worldPacket.ReadBit();           // has bag
-    }
-    _worldPacket.ReadGuidMask(ItemGuid, { 5, 2, 1, 4 });
-    _worldPacket.ReadGuidBytes(ItemGuid, { 6, 3, 1, 7, 2, 0, 4, 5 });
-    for (std::pair<bool, bool> const& position : positions)
-    {
-        if (position.second)
-            _worldPacket.read_skip<uint8>();
-        if (position.first)
-            _worldPacket.read_skip<uint8>();
-    }
-}
-
-void WorldPackets::Item::SwapItem::Read()
-{
-    // 5.4.8 18414, from Project SkyFire: the positions may be repeated in an optional list
-    uint8 srcSlotAlt, srcBagAlt, dstBagAlt, dstSlotAlt;
-    _worldPacket >> srcSlotAlt >> srcBagAlt >> dstBagAlt >> dstSlotAlt;
-    uint32 count = _worldPacket.ReadBits(2);
-    std::array<bool, 2> hasSlot = { };
-    std::array<bool, 2> hasBag = { };
-    for (uint32 i = 0; i < count; ++i)
-    {
-        bool slot = !_worldPacket.ReadBit();
-        bool bag = !_worldPacket.ReadBit();
-        if (i < 2)
-        {
-            hasSlot[i] = slot;
-            hasBag[i] = bag;
-        }
-    }
-
-    DestinationBag = hasBag[0] ? _worldPacket.read<uint8>() : dstBagAlt;
-    DestinationSlot = hasSlot[0] ? _worldPacket.read<uint8>() : dstSlotAlt;
-    SourceBag = hasBag[1] ? _worldPacket.read<uint8>() : srcBagAlt;
-    SourceSlot = hasSlot[1] ? _worldPacket.read<uint8>() : srcSlotAlt;
-}
-
-void WorldPackets::Item::AutoEquipItem::Read()
-{
-    _worldPacket >> SourceBag;
-    _worldPacket >> SourceSlot;
-}
-
-void WorldPackets::Item::DestroyItem::Read()
-{
-    _worldPacket >> Bag;
-    _worldPacket >> Slot;
-    _worldPacket >> Count;
-}
-
-void WorldPackets::Item::ReadItem::Read()
-{
-    _worldPacket >> Bag;
-    _worldPacket >> Slot;
-}
-
-void WorldPackets::Item::TransmogrifyItems::Read()
-{
-    Items.resize(_worldPacket.ReadBits(22));
-
-    for (TransmogrifyItem& item : Items)
-    {
-        item.SrcItemGUID[0] = _worldPacket.ReadBit();
-        item.SrcItemGUID[5] = _worldPacket.ReadBit();
-        item.SrcItemGUID[6] = _worldPacket.ReadBit();
-        item.SrcItemGUID[2] = _worldPacket.ReadBit();
-        item.SrcItemGUID[3] = _worldPacket.ReadBit();
-        item.SrcItemGUID[7] = _worldPacket.ReadBit();
-        item.SrcItemGUID[4] = _worldPacket.ReadBit();
-        item.SrcItemGUID[1] = _worldPacket.ReadBit();
-    }
-
-    Npc[7] = _worldPacket.ReadBit();
-    Npc[3] = _worldPacket.ReadBit();
-    Npc[5] = _worldPacket.ReadBit();
-    Npc[6] = _worldPacket.ReadBit();
-    Npc[1] = _worldPacket.ReadBit();
-    Npc[4] = _worldPacket.ReadBit();
-    Npc[0] = _worldPacket.ReadBit();
-    Npc[2] = _worldPacket.ReadBit();
-
-    for (TransmogrifyItem& item : Items)
-    {
-        _worldPacket >> item.ItemID;
-
-        _worldPacket.ReadByteSeq(item.SrcItemGUID[1]);
-        _worldPacket.ReadByteSeq(item.SrcItemGUID[5]);
-        _worldPacket.ReadByteSeq(item.SrcItemGUID[0]);
-        _worldPacket.ReadByteSeq(item.SrcItemGUID[4]);
-        _worldPacket.ReadByteSeq(item.SrcItemGUID[6]);
-        _worldPacket.ReadByteSeq(item.SrcItemGUID[7]);
-        _worldPacket.ReadByteSeq(item.SrcItemGUID[3]);
-        _worldPacket.ReadByteSeq(item.SrcItemGUID[2]);
-
-        _worldPacket >> item.Slot;
-    }
-
-    _worldPacket.ReadByteSeq(Npc[7]);
-    _worldPacket.ReadByteSeq(Npc[2]);
-    _worldPacket.ReadByteSeq(Npc[5]);
-    _worldPacket.ReadByteSeq(Npc[4]);
-    _worldPacket.ReadByteSeq(Npc[3]);
-    _worldPacket.ReadByteSeq(Npc[1]);
-    _worldPacket.ReadByteSeq(Npc[6]);
-    _worldPacket.ReadByteSeq(Npc[0]);
-}
-
-void WorldPackets::Item::SellItem::Read()
-{
-    // 5.4.8 18414, from Project SkyFire
-    _worldPacket >> Count;
-
-    _worldPacket.ReadGuidMask(ItemGuid, { 4, 3, 7 });
-    _worldPacket.ReadGuidMask(VendorGuid, { 6, 5, 1 });
-    _worldPacket.ReadGuidMask(ItemGuid, { 5, 2, 1 });
-    _worldPacket.ReadGuidMask(VendorGuid, { 2 });
-    _worldPacket.ReadGuidMask(ItemGuid, { 6 });
-    _worldPacket.ReadGuidMask(VendorGuid, { 4, 0, 7, 3 });
-    _worldPacket.ReadGuidMask(ItemGuid, { 0 });
-
-    _worldPacket.ReadGuidBytes(VendorGuid, { 6, 3, 1 });
-    _worldPacket.ReadGuidBytes(ItemGuid, { 1 });
-    _worldPacket.ReadGuidBytes(VendorGuid, { 2 });
-    _worldPacket.ReadGuidBytes(ItemGuid, { 7, 5 });
-    _worldPacket.ReadGuidBytes(VendorGuid, { 7 });
-    _worldPacket.ReadGuidBytes(ItemGuid, { 2 });
-    _worldPacket.ReadGuidBytes(VendorGuid, { 0, 5 });
-    _worldPacket.ReadGuidBytes(ItemGuid, { 3, 6 });
-    _worldPacket.ReadGuidBytes(VendorGuid, { 4 });
-    _worldPacket.ReadGuidBytes(ItemGuid, { 4, 0 });
-}
-
-void WorldPackets::Item::BuybackItem::Read()
-{
-    // 5.4.8 18414, from Project SkyFire
-    _worldPacket >> Slot;
-    _worldPacket.ReadGuidMask(VendorGuid, { 2, 3, 0, 4, 1, 7, 5, 6 });
-    _worldPacket.ReadGuidBytes(VendorGuid, { 0, 6, 1, 7, 5, 2, 3, 4 });
-}
-
-void WorldPackets::Item::BuyItemInSlot::Read()
-{
-    _worldPacket >> VendorGuid;
-    _worldPacket >> Item;
-    _worldPacket >> Slot;
-    _worldPacket >> BagGuid;
-    _worldPacket >> BagSlot;
-    _worldPacket >> Count;
+    _worldPacket >> VendorGUID
+                 >> Slot;
 }
 
 void WorldPackets::Item::BuyItem::Read()
 {
-    // 5.4.8 18414, from Project SkyFire
-    BagSlot = uint8(_worldPacket.read<uint32>());
-    _worldPacket >> Count;
-    _worldPacket >> Item;
-    _worldPacket >> Slot;
+    _worldPacket >> VendorGUID
+                 >> ContainerGUID
+                 >> Item
+                 >> Quantity
+                 >> Muid
+                 >> Slot;
 
-    _worldPacket.ReadGuidMask(VendorGuid, { 6 });
-    _worldPacket.ReadGuidMask(BagGuid, { 6, 4 });
-    _worldPacket.ReadGuidMask(VendorGuid, { 4 });
-    ItemType = _worldPacket.ReadBits(2);
-    _worldPacket.ReadGuidMask(VendorGuid, { 0, 3 });
-    _worldPacket.ReadGuidMask(BagGuid, { 3 });
-    _worldPacket.ReadGuidMask(VendorGuid, { 7, 5 });
-    _worldPacket.ReadGuidMask(BagGuid, { 2 });
-    _worldPacket.ReadGuidMask(VendorGuid, { 1 });
-    _worldPacket.ReadGuidMask(BagGuid, { 7 });
-    _worldPacket.ReadGuidMask(VendorGuid, { 2 });
-    _worldPacket.ReadGuidMask(BagGuid, { 1, 0, 5 });
-
-    _worldPacket.ReadGuidBytes(VendorGuid, { 5, 0 });
-    _worldPacket.ReadGuidBytes(BagGuid, { 3, 1, 6 });
-    _worldPacket.ReadGuidBytes(VendorGuid, { 2, 7, 6 });
-    _worldPacket.ReadGuidBytes(BagGuid, { 0, 5 });
-    _worldPacket.ReadGuidBytes(VendorGuid, { 4 });
-    _worldPacket.ReadGuidBytes(BagGuid, { 2 });
-    _worldPacket.ReadGuidBytes(VendorGuid, { 3 });
-    _worldPacket.ReadGuidBytes(BagGuid, { 7 });
-    _worldPacket.ReadGuidBytes(VendorGuid, { 1 });
-    _worldPacket.ReadGuidBytes(BagGuid, { 4 });
+    ItemType = static_cast<ItemVendorType>(_worldPacket.ReadBits(2));
 }
 
-void WorldPackets::Item::ListInventory::Read()
+WorldPacket const* WorldPackets::Item::BuySucceeded::Write()
 {
-    // 5.4.8 18414, from Project SkyFire
-    _worldPacket.ReadGuidMask(VendorGuid, { 6, 7, 3, 1, 2, 0, 4, 5 });
-    _worldPacket.ReadGuidBytes(VendorGuid, { 0, 7, 1, 6, 4, 3, 5, 2 });
-}
-
-void WorldPackets::Item::AutoStoreBagItem::Read()
-{
-    _worldPacket >> SourceBag;
-    _worldPacket >> SourceSlot;
-    _worldPacket >> DestinationBag;
-}
-
-WorldPacket const* WorldPackets::Item::EnchantmentLog::Write()
-{
-    // 5.4.8 18414, from Project SkyFire. SkyFire writes caster byte 3 twice and target byte 3 never;
-    // the second one is the target's
-    _worldPacket << uint32(ItemId);
-    _worldPacket << uint32(Slot);
-    _worldPacket << uint32(EnchantId);
-
-    _worldPacket.WriteGuidMask(Caster, { 6, 7 });
-    _worldPacket.WriteGuidMask(Target, { 6, 4 });
-    _worldPacket.WriteGuidMask(Caster, { 5 });
-    _worldPacket.WriteGuidMask(ItemGuid, { 7, 2, 3 });
-    _worldPacket.WriteGuidMask(Caster, { 4, 3 });
-    _worldPacket.WriteGuidMask(ItemGuid, { 6 });
-    _worldPacket.WriteGuidMask(Target, { 1 });
-    _worldPacket.WriteGuidMask(Caster, { 2 });
-    _worldPacket.WriteGuidMask(Target, { 5 });
-    _worldPacket.WriteGuidMask(ItemGuid, { 4 });
-    _worldPacket.WriteGuidMask(Target, { 0 });
-    _worldPacket.WriteGuidMask(ItemGuid, { 1 });
-    _worldPacket.WriteGuidMask(Caster, { 0 });
-    _worldPacket.WriteGuidMask(Target, { 3, 7 });
-    _worldPacket.WriteGuidMask(ItemGuid, { 5, 0 });
-    _worldPacket.WriteGuidMask(Target, { 2 });
-    _worldPacket.WriteGuidMask(Caster, { 1 });
-    _worldPacket.FlushBits();
-
-    _worldPacket.WriteGuidBytes(Caster, { 0 });
-    _worldPacket.WriteGuidBytes(Target, { 2 });
-    _worldPacket.WriteGuidBytes(ItemGuid, { 7 });
-    _worldPacket.WriteGuidBytes(Caster, { 1 });
-    _worldPacket.WriteGuidBytes(Target, { 4 });
-    _worldPacket.WriteGuidBytes(ItemGuid, { 5 });
-    _worldPacket.WriteGuidBytes(Caster, { 4 });
-    _worldPacket.WriteGuidBytes(ItemGuid, { 2 });
-    _worldPacket.WriteGuidBytes(Target, { 6, 0 });
-    _worldPacket.WriteGuidBytes(ItemGuid, { 0, 4 });
-    _worldPacket.WriteGuidBytes(Caster, { 3 });
-    _worldPacket.WriteGuidBytes(Target, { 5 });
-    _worldPacket.WriteGuidBytes(ItemGuid, { 1 });
-    _worldPacket.WriteGuidBytes(Target, { 3 });
-    _worldPacket.WriteGuidBytes(Target, { 7 });
-    _worldPacket.WriteGuidBytes(Caster, { 7 });
-    _worldPacket.WriteGuidBytes(ItemGuid, { 3 });
-    _worldPacket.WriteGuidBytes(Caster, { 6, 2, 5 });
-    _worldPacket.WriteGuidBytes(ItemGuid, { 6 });
-    _worldPacket.WriteGuidBytes(Target, { 1 });
+    _worldPacket << VendorGUID
+                 << uint32(Muid)
+                 << int32(NewQuantity)
+                 << uint32(QuantityBought);
 
     return &_worldPacket;
 }
 
-WorldPacket const* WorldPackets::Item::ItemEnchantTimeUpdate::Write()
+WorldPacket const* WorldPackets::Item::BuyFailed::Write()
 {
-    // 5.4.8 18414, from Project SkyFire
-    _worldPacket.WriteGuidMask(ItemGuid, { 4, 0 });
-    _worldPacket.WriteGuidMask(PlayerGuid, { 3 });
-    _worldPacket.WriteGuidMask(ItemGuid, { 3 });
-    _worldPacket.WriteGuidMask(PlayerGuid, { 2, 6, 7 });
-    _worldPacket.WriteGuidMask(ItemGuid, { 1 });
-    _worldPacket.WriteGuidMask(PlayerGuid, { 4 });
-    _worldPacket.WriteGuidMask(ItemGuid, { 6, 5 });
-    _worldPacket.WriteGuidMask(PlayerGuid, { 0 });
-    _worldPacket.WriteGuidMask(ItemGuid, { 2 });
-    _worldPacket.WriteGuidMask(PlayerGuid, { 5, 1 });
-    _worldPacket.WriteGuidMask(ItemGuid, { 7 });
+    _worldPacket << VendorGUID
+                 << uint32(Muid)
+                 << uint8(Reason);
+
+    return &_worldPacket;
+}
+
+void WorldPackets::Item::GetItemPurchaseData::Read()
+{
+    _worldPacket >> ItemGUID;
+}
+
+ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::Item::ItemPurchaseRefundItem& refundItem)
+{
+    data << refundItem.ItemID;
+    data << refundItem.ItemCount;
+
+    return data;
+}
+
+ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::Item::ItemPurchaseRefundCurrency& refundCurrency)
+{
+    data << refundCurrency.CurrencyID;
+    data << refundCurrency.CurrencyCount;
+
+    return data;
+}
+
+ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::Item::ItemPurchaseContents& purchaseContents)
+{
+    data << purchaseContents.Money;
+    for (uint32 i = 0; i < 5; ++i)
+        data << purchaseContents.Items[i];
+
+    for (uint32 i = 0; i < 5; ++i)
+        data << purchaseContents.Currencies[i];
+
+    return data;
+}
+
+WorldPacket const* WorldPackets::Item::SetItemPurchaseData::Write()
+{
+    _worldPacket << ItemGUID;
+    _worldPacket << Contents;
+    _worldPacket << Flags;
+    _worldPacket << PurchaseTime;
+
+    return &_worldPacket;
+}
+
+void WorldPackets::Item::ItemPurchaseRefund::Read()
+{
+    _worldPacket >> ItemGUID;
+}
+
+WorldPacket const* WorldPackets::Item::ItemPurchaseRefundResult::Write()
+{
+    _worldPacket << ItemGUID;
+    _worldPacket << uint8(Result);
+    _worldPacket.WriteBit(Contents.has_value());
+    _worldPacket.FlushBits();
+    if (Contents)
+        _worldPacket << *Contents;
+
+    return &_worldPacket;
+}
+
+WorldPacket const* WorldPackets::Item::ItemExpirePurchaseRefund::Write()
+{
+    _worldPacket << ItemGUID;
+
+    return &_worldPacket;
+}
+
+void WorldPackets::Item::RepairItem::Read()
+{
+    _worldPacket >> NpcGUID;
+    _worldPacket >> ItemGUID;
+    UseGuildBank = _worldPacket.ReadBit();
+}
+
+void WorldPackets::Item::SellItem::Read()
+{
+    _worldPacket >> VendorGUID;
+    _worldPacket >> ItemGUID;
+    _worldPacket >> Amount;
+}
+
+WorldPacket const* WorldPackets::Item::ItemTimeUpdate::Write()
+{
+    _worldPacket << ItemGuid;
+    _worldPacket << DurationLeft;
+
+    return &_worldPacket;
+}
+
+WorldPacket const* WorldPackets::Item::SetProficiency::Write()
+{
+    _worldPacket << ProficiencyMask;
+    _worldPacket << ProficiencyClass;
+
+    return &_worldPacket;
+}
+
+ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::Item::ItemBonusInstanceData const& itemBonusInstanceData)
+{
+    data << itemBonusInstanceData.Context;
+    data << uint32(itemBonusInstanceData.BonusListIDs.size());
+    for (uint32 bonusID : itemBonusInstanceData.BonusListIDs)
+        data << bonusID;
+
+    return data;
+}
+
+ByteBuffer& operator>>(ByteBuffer& data, Optional<WorldPackets::Item::ItemBonusInstanceData>& itemBonusInstanceData)
+{
+    uint32 bonusListIdSize;
+
+    itemBonusInstanceData.emplace();
+
+    data >> itemBonusInstanceData->Context;
+    data >> bonusListIdSize;
+
+    for (uint32 i = 0u; i < bonusListIdSize; ++i)
+    {
+        uint32 bonusId;
+        data >> bonusId;
+        itemBonusInstanceData->BonusListIDs.push_back(bonusId);
+    }
+
+    return data;
+}
+
+ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::Item::ItemInstance const& itemInstance)
+{
+    data << int32(itemInstance.ItemID);
+    data << int32(itemInstance.RandomPropertiesSeed);
+    data << int32(itemInstance.RandomPropertiesID);
+
+    data.WriteBit(itemInstance.ItemBonus.has_value());
+    data.WriteBit(itemInstance.Modifications.has_value());
+    data.FlushBits();
+
+    if (itemInstance.ItemBonus)
+        data << *itemInstance.ItemBonus;
+
+    if (itemInstance.Modifications)
+        data << *itemInstance.Modifications;
+
+    return data;
+}
+
+ByteBuffer& operator>>(ByteBuffer& data, WorldPackets::Item::ItemInstance& itemInstance)
+{
+    data >> itemInstance.ItemID;
+    data >> itemInstance.RandomPropertiesSeed;
+    data >> itemInstance.RandomPropertiesID;
+
+    bool const hasItemBonus = data.ReadBit();
+    bool const hasModifications = data.ReadBit();
+
+    if (hasItemBonus)
+        data >> itemInstance.ItemBonus;
+
+    if (hasModifications)
+    {
+        WorldPackets::CompactArray<int32> modifications;
+        data >> modifications;
+        itemInstance.Modifications = std::move(modifications);
+    }
+
+    return data;
+}
+
+ByteBuffer& WorldPackets::Item::operator>>(ByteBuffer& data, InvUpdate& invUpdate)
+{
+    invUpdate.Items.resize(data.ReadBits(2));
+    for (size_t i = 0; i < invUpdate.Items.size(); ++i)
+    {
+        data >> invUpdate.Items[i].ContainerSlot;
+        data >> invUpdate.Items[i].Slot;
+    }
+
+    return data;
+}
+
+void WorldPackets::Item::ItemInstance::Initialize(::Item const* item)
+{
+    ItemID               = item->GetEntry();
+    RandomPropertiesSeed = item->GetItemSuffixFactor();
+    RandomPropertiesID   = item->GetItemRandomPropertyId();
+    std::vector<uint32> const& bonusListIds = item->GetDynamicValues(ITEM_DYNAMIC_FIELD_BONUSLIST_IDS);
+    if (!bonusListIds.empty())
+    {
+        ItemBonus.emplace();
+        ItemBonus->BonusListIDs.insert(ItemBonus->BonusListIDs.end(), bonusListIds.begin(), bonusListIds.end());
+        ItemBonus->Context = item->GetUInt32Value(ITEM_FIELD_CONTEXT);
+    }
+
+    if (uint32 mask = item->GetUInt32Value(ITEM_FIELD_MODIFIERS_MASK))
+    {
+        Modifications.emplace();
+
+        for (size_t i = 0; mask != 0; mask >>= 1, ++i)
+            if ((mask & 1) != 0)
+                Modifications->Insert(i, item->GetModifier(ItemModifier(i)));
+    }
+}
+
+void WorldPackets::Item::ItemInstance::Initialize(::LootItem const& lootItem)
+{
+    ItemID               = lootItem.itemid;
+    RandomPropertiesSeed = lootItem.randomSuffix;
+    RandomPropertiesID   = lootItem.randomPropertyId;
+    if (!lootItem.BonusListIDs.empty())
+    {
+        ItemBonus.emplace();
+        ItemBonus->BonusListIDs = lootItem.BonusListIDs;
+        ItemBonus->Context = 0; /// @todo
+    }
+
+    if (lootItem.upgradeId)
+    {
+        Modifications.emplace();
+        Modifications->Insert(ITEM_MODIFIER_UPGRADE_ID, lootItem.upgradeId);
+    }
+}
+
+void WorldPackets::Item::ItemInstance::Initialize(::VoidStorageItem const* voidItem)
+{
+    ItemID = voidItem->ItemEntry;
+    RandomPropertiesID = voidItem->ItemRandomPropertyId;
+    RandomPropertiesSeed = voidItem->ItemSuffixFactor;
+    if (voidItem->ItemUpgradeId)
+    {
+        Modifications.emplace();
+        Modifications->Insert(ITEM_MODIFIER_UPGRADE_ID, voidItem->ItemUpgradeId);
+    }
+
+    if (!voidItem->BonusListIDs.empty())
+    {
+        ItemBonus.emplace();
+        ItemBonus->BonusListIDs = voidItem->BonusListIDs;
+    }
+}
+
+bool WorldPackets::Item::ItemInstance::operator==(ItemInstance const& r) const
+{
+    if (ItemID != r.ItemID || RandomPropertiesID != r.RandomPropertiesID || RandomPropertiesSeed != r.RandomPropertiesSeed)
+        return false;
+
+    if (ItemBonus.has_value() != r.ItemBonus.has_value() || Modifications.has_value() != r.Modifications.has_value())
+        return false;
+
+    if (Modifications.has_value() && *Modifications != *r.Modifications)
+        return false;
+
+    if (ItemBonus.has_value() && *ItemBonus != *r.ItemBonus)
+        return false;
+
+    return true;
+}
+
+WorldPacket const* WorldPackets::Item::InventoryChangeFailure::Write()
+{
+    _worldPacket << int8(BagResult);
+    _worldPacket << Item[0];
+    _worldPacket << Item[1];
+    _worldPacket << uint8(ContainerBSlot); // bag type subclass, used with EQUIP_ERR_EVENT_AUTOEQUIP_BIND_CONFIRM and EQUIP_ERR_WRONG_BAG_TYPE_2
+
+    switch (BagResult)
+    {
+        case EQUIP_ERR_CANT_EQUIP_LEVEL_I:
+        case EQUIP_ERR_PURCHASE_LEVEL_TOO_LOW:
+            _worldPacket << int32(Level);
+            break;
+        case EQUIP_ERR_EVENT_AUTOEQUIP_BIND_CONFIRM:
+            _worldPacket << SrcContainer;
+            _worldPacket << int32(SrcSlot);
+            _worldPacket << DstContainer;
+            break;
+        case EQUIP_ERR_ITEM_MAX_LIMIT_CATEGORY_COUNT_EXCEEDED_IS:
+        case EQUIP_ERR_ITEM_MAX_LIMIT_CATEGORY_SOCKETED_EXCEEDED_IS:
+        case EQUIP_ERR_ITEM_MAX_LIMIT_CATEGORY_EQUIPPED_EXCEEDED_IS:
+            _worldPacket << int32(LimitCategory);
+            break;
+        default:
+            break;
+    }
+
+    return &_worldPacket;
+}
+
+void WorldPackets::Item::SplitItem::Read()
+{
+    _worldPacket >> Inv
+                 >> FromPackSlot
+                 >> FromSlot
+                 >> ToPackSlot
+                 >> ToSlot
+                 >> Quantity;
+}
+
+void WorldPackets::Item::SwapInvItem::Read()
+{
+    _worldPacket >> Inv
+                 >> Slot2
+                 >> Slot1;
+}
+
+void WorldPackets::Item::SwapItem::Read()
+{
+    _worldPacket >> Inv
+                 >> ContainerSlotB
+                 >> ContainerSlotA
+                 >> SlotB
+                 >> SlotA;
+}
+
+void WorldPackets::Item::AutoEquipItem::Read()
+{
+    _worldPacket >> Inv
+                 >> PackSlot
+                 >> Slot;
+}
+
+void WorldPackets::Item::AutoEquipItemSlot::Read()
+{
+    _worldPacket >> Inv
+                 >> Item
+                 >> ItemDstSlot;
+}
+
+void WorldPackets::Item::AutoStoreBagItem::Read()
+{
+    _worldPacket >> Inv
+                 >> ContainerSlotB
+                 >> ContainerSlotA
+                 >> SlotA;
+}
+
+void WorldPackets::Item::DestroyItem::Read()
+{
+    _worldPacket >> Count
+                 >> ContainerId
+                 >> SlotNum;
+}
+
+WorldPacket const* WorldPackets::Item::SellResponse::Write()
+{
+    _worldPacket << VendorGUID
+                 << ItemGUID
+                 << uint8(Reason);
+
+    return &_worldPacket;
+}
+
+WorldPacket const* WorldPackets::Item::ItemPushResult::Write()
+{
+    _worldPacket << PlayerGUID;
+
+    _worldPacket << uint8(Slot);
+    _worldPacket << int32(SlotInBag);
+
+    _worldPacket << Item;
+
+    _worldPacket << uint32(QuestLogItemID);
+    _worldPacket << int32(Quantity);
+    _worldPacket << int32(QuantityInInventory);
+    _worldPacket << uint32(DungeonEncounterID);
+    _worldPacket << int32(BattlePetBreedID);
+    _worldPacket << int32(BattlePetBreedQuality);
+    _worldPacket << int32(BattlePetSpeciesID);
+    _worldPacket << int32(BattlePetLevel);
+
+    _worldPacket << ItemGUID;
+
+    _worldPacket.WriteBit(Pushed);
+    _worldPacket.WriteBit(Created);
+    _worldPacket.WriteBits(DisplayText, 2);
+    _worldPacket.WriteBit(IsBonusRoll);
+    _worldPacket.WriteBit(IsEncounterLoot);
+
     _worldPacket.FlushBits();
 
-    _worldPacket << uint32(Slot);
-    _worldPacket.WriteGuidBytes(PlayerGuid, { 4, 2 });
-    _worldPacket.WriteGuidBytes(ItemGuid, { 5, 4 });
-    _worldPacket.WriteGuidBytes(PlayerGuid, { 6 });
-    _worldPacket.WriteGuidBytes(ItemGuid, { 1 });
-    _worldPacket.WriteGuidBytes(PlayerGuid, { 0, 1 });
-    _worldPacket.WriteGuidBytes(ItemGuid, { 6, 2 });
-    _worldPacket.WriteGuidBytes(PlayerGuid, { 7 });
-    _worldPacket.WriteGuidBytes(ItemGuid, { 0, 3, 7 });
-    _worldPacket.WriteGuidBytes(PlayerGuid, { 3, 5 });
-    _worldPacket << uint32(Duration);
+    return &_worldPacket;
+}
+
+void WorldPackets::Item::ReadItem::Read()
+{
+    _worldPacket >> PackSlot;
+    _worldPacket >> Slot;
+}
+
+WorldPacket const* WorldPackets::Item::ReadItemResultFailed::Write()
+{
+    _worldPacket << Item;
+    _worldPacket << Delay;
+    _worldPacket.WriteBits(Subcode, 3);
+
+    _worldPacket.FlushBits();
+
+    return &_worldPacket;
+}
+
+WorldPacket const* WorldPackets::Item::ReadItemResultOK::Write()
+{
+    _worldPacket << Item;
 
     return &_worldPacket;
 }
 
 void WorldPackets::Item::WrapItem::Read()
 {
-    _worldPacket >> GiftBag;
-    _worldPacket >> GiftSlot;
-    _worldPacket >> ItemBag;
-    _worldPacket >> ItemSlot;
-}
-
-void WorldPackets::Item::SocketGems::Read()
-{
-    // 5.4.8 18414, from Project SkyFire
-    for (uint8 index : { 4, 0, 6, 2, 1, 7, 3, 5 })
-        for (ObjectGuid& gemGuid : GemGuids)
-            gemGuid[index] = _worldPacket.ReadBit();
-    _worldPacket.ReadGuidMask(ItemGuid, { 5, 0, 6, 2, 3, 4, 7, 1 });
-    _worldPacket.ReadGuidBytes(ItemGuid, { 7, 2, 6 });
-    for (uint8 index : { 6, 4, 3, 2, 0, 1, 7, 5 })
-        for (ObjectGuid& gemGuid : GemGuids)
-            _worldPacket.ReadByteSeq(gemGuid[index]);
-    _worldPacket.ReadGuidBytes(ItemGuid, { 4, 3, 1, 5, 0 });
+    _worldPacket >> Inv;
 }
 
 void WorldPackets::Item::CancelTempEnchantment::Read()
 {
-    _worldPacket >> EquipmentSlot;
+    _worldPacket >> Slot;
 }
 
-void WorldPackets::Item::ItemRefundInfo::Read()
+WorldPacket const* WorldPackets::Item::ItemCooldown::Write()
 {
-    // 5.4.8 18414, from Project SkyFire
-    _worldPacket.ReadGuidMask(ItemGuid, { 1, 0, 3, 2, 7, 4, 5, 6 });
-    _worldPacket.ReadGuidBytes(ItemGuid, { 3, 7, 5, 1, 0, 6, 4, 2 });
+    _worldPacket << ItemGuid;
+    _worldPacket << uint32(SpellID);
+    _worldPacket << uint32(Cooldown);
+
+    return &_worldPacket;
 }
 
-void WorldPackets::Item::ItemRefund::Read()
+WorldPacket const* WorldPackets::Item::ItemEnchantTimeUpdate::Write()
 {
-    // 5.4.8 18414, from Project SkyFire
-    _worldPacket.ReadGuidMask(ItemGuid, { 2, 4, 1, 6, 3, 0, 5, 7 });
-    _worldPacket.ReadGuidBytes(ItemGuid, { 3, 5, 6, 2, 7, 0, 1, 4 });
+    _worldPacket << ItemGuid;
+    _worldPacket << uint32(DurationLeft);
+    _worldPacket << uint32(Slot);
+    _worldPacket << OwnerGuid;
+
+    return &_worldPacket;
+}
+
+ByteBuffer& operator>>(ByteBuffer& data, WorldPackets::Item::TransmogrifyItem& transmogItem)
+{
+    if (data.ReadBit())
+        transmogItem.SrcItemGUID.emplace();
+
+    if (data.ReadBit())
+        transmogItem.SrcVoidItemGUID.emplace();
+
+    data >> transmogItem.Item;
+    data >> transmogItem.Slot;
+
+    if (transmogItem.SrcItemGUID.has_value())
+        data >> *transmogItem.SrcItemGUID;
+
+    if (transmogItem.SrcVoidItemGUID.has_value())
+        data >> *transmogItem.SrcVoidItemGUID;
+
+    return data;
+}
+
+void WorldPackets::Item::TransmogrifyItems::Read()
+{
+    Items.resize(_worldPacket.read<uint32>());
+    _worldPacket >> Npc;
+    for (TransmogrifyItem& item : Items)
+        _worldPacket >> item;
+}
+
+void WorldPackets::Item::UseCritterItem::Read()
+{
+    _worldPacket >> ItemGuid;
+}
+
+void WorldPackets::Item::UpgradeItem::Read()
+{
+    _worldPacket >> ItemMaster;
+    _worldPacket >> ItemGUID;
+    _worldPacket >> UpgradeID;
+    _worldPacket >> ContainerSlot;
+    _worldPacket >> Slot;
+}
+
+void WorldPackets::Item::SocketGems::Read()
+{
+    _worldPacket >> ItemGuid;
+    for (uint32 i = 0; i < MAX_GEM_SOCKETS; ++i)
+        _worldPacket >> GemItem[i];
+}
+
+WorldPacket const* WorldPackets::Item::SocketGemsResult::Write()
+{
+    _worldPacket << Item;
+    _worldPacket.append(Sockets, MAX_GEM_SOCKETS);
+    _worldPacket << int32(SocketMatch);
+
+    return &_worldPacket;
+}
+
+WorldPacket const* WorldPackets::Item::ItemUpgradeResult::Write()
+{
+    _worldPacket.WriteBit(Success);
+    _worldPacket.FlushBits();
+
+    return &_worldPacket;
 }

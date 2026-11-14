@@ -21,6 +21,15 @@
 #include "MoveSplineInitArgs.h"
 #include "Spline.h"
 
+namespace WorldPackets
+{
+    namespace Movement
+    {
+        class CommonMovement;
+        class MonsterMove;
+    }
+}
+
 namespace Movement
 {
     struct Location : public Vector3
@@ -48,7 +57,8 @@ namespace Movement
             Result_NextSegment  = 0x08,
             Result_JustArrived  = 0x10,
         };
-        friend class PacketBuilder;
+        friend class WorldPackets::Movement::CommonMovement;
+        friend class WorldPackets::Movement::MonsterMove;
     protected:
         MySpline        spline;
 

@@ -18,10 +18,11 @@
 #include "TC9GuildHooks.h"
 #include "ObjectAccessor.h"
 #include "Player.h"
+#include "TC9Guid.h"
 
 void ToCloud9GuildHooks::OnGuildMemberAdded(uint64 guild, uint64 character)
 {
-    Player *player = ObjectAccessor::FindPlayer(ObjectGuid(character));
+    Player *player = ObjectAccessor::FindPlayer(TC9Guid::Player(character));
     if (!player)
         return;
 
@@ -30,7 +31,7 @@ void ToCloud9GuildHooks::OnGuildMemberAdded(uint64 guild, uint64 character)
 
 void ToCloud9GuildHooks::OnGuildMemberRemoved(uint64 /*guild*/, uint64 character)
 {
-    Player *player = ObjectAccessor::FindPlayer(ObjectGuid(character));
+    Player *player = ObjectAccessor::FindPlayer(TC9Guid::Player(character));
     if (!player)
         return;
 
@@ -39,7 +40,7 @@ void ToCloud9GuildHooks::OnGuildMemberRemoved(uint64 /*guild*/, uint64 character
 
 void ToCloud9GuildHooks::OnGuildMemberLeft(uint64 /*guild*/, uint64 character)
 {
-    Player *player = ObjectAccessor::FindPlayer(ObjectGuid(character));
+    Player *player = ObjectAccessor::FindPlayer(TC9Guid::Player(character));
     if (!player)
         return;
 

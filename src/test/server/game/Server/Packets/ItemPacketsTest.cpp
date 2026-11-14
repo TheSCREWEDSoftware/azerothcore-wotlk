@@ -81,7 +81,7 @@ namespace
 TEST(ItemPacketsTest, BuyItemReads548Layout)
 {
     EXPECT_EQ(uint16(CMSG_BUY_ITEM), 0x02E2);
-    ObjectGuid vendor = ObjectGuid::Create<HighGuid::Unit>(911, 79964);
+    ObjectGuid vendor = ObjectGuid::Create<HighGuid::Creature>(911, 79964);
     WorldPackets::Item::BuyItem packet(BuildBuyItem(vendor, ObjectGuid::Empty, ITEM_VENDOR_TYPE_ITEM, 42, 1000, 0xABCD, 3));
     packet.Read();
     EXPECT_EQ(packet.VendorGuid, vendor);
@@ -96,7 +96,7 @@ TEST(ItemPacketsTest, BuyItemReads548Layout)
 
 TEST(ItemPacketsTest, BuyItemReads548DestinationBag)
 {
-    ObjectGuid vendor = ObjectGuid::Create<HighGuid::Unit>(911, 79964);
+    ObjectGuid vendor = ObjectGuid::Create<HighGuid::Creature>(911, 79964);
     ObjectGuid bag = ObjectGuid::Create<HighGuid::Item>(0x12345);
     WorldPackets::Item::BuyItem packet(BuildBuyItem(vendor, bag, ITEM_VENDOR_TYPE_CURRENCY, 7, 2, 0xABCD, 3));
     packet.Read();
@@ -117,7 +117,7 @@ TEST(ItemPacketsTest, BuyItemRejectsTruncatedPacket)
 
 TEST(ItemPacketsTest, SellItemReads548Layout)
 {
-    ObjectGuid vendor = ObjectGuid::Create<HighGuid::Unit>(911, 79964);
+    ObjectGuid vendor = ObjectGuid::Create<HighGuid::Creature>(911, 79964);
     ObjectGuid item = ObjectGuid::Create<HighGuid::Item>(0x12345);
     WorldPacket raw(CMSG_SELL_ITEM, 24);
     raw << uint32(5);
@@ -285,7 +285,7 @@ namespace
 TEST(LootViewTest, NoPermissionSendsAnEmptyWindow)
 {
     Loot loot(123);
-    ObjectGuid source = ObjectGuid::Create<HighGuid::Unit>(911, 79964);
+    ObjectGuid source = ObjectGuid::Create<HighGuid::Creature>(911, 79964);
     ByteBuffer response;
     LootView(loot, nullptr, NONE_PERMISSION).Write(source, source, LOOT_NONE, response);
 
@@ -303,7 +303,7 @@ TEST(LootViewTest, NoPermissionSendsAnEmptyWindow)
 TEST_F(ItemInventoryTest, EmptyLootViewSendsGold)
 {
     Loot loot(123);
-    ObjectGuid source = ObjectGuid::Create<HighGuid::Unit>(911, 79964);
+    ObjectGuid source = ObjectGuid::Create<HighGuid::Creature>(911, 79964);
     ByteBuffer response;
     LootView(loot, _player).Write(source, source, LOOT_CORPSE, response);
 
@@ -324,7 +324,7 @@ TEST_F(ItemInventoryTest, LootItemIsWrittenAfterTheBits)
     item.itemid = 1;
     item.count = 3;
     loot.items.push_back(item);
-    ObjectGuid source = ObjectGuid::Create<HighGuid::Unit>(911, 79964);
+    ObjectGuid source = ObjectGuid::Create<HighGuid::Creature>(911, 79964);
     ByteBuffer response;
     LootView(loot, _player).Write(source, source, LOOT_CORPSE, response);
 

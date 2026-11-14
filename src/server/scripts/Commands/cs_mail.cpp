@@ -124,7 +124,7 @@ public:
             {
                 std::string senderName;
                 if (mail->messageType == MAIL_NORMAL)
-                    sCharacterCache->GetCharacterNameByGuid(ObjectGuid(HighGuid::Player, mail->sender), senderName);
+                    sCharacterCache->GetCharacterNameByGuid(ObjectGuid::Create<HighGuid::Player>(mail->sender), senderName);
 
                 std::string expireStr = Acore::Time::TimeToTimestampStr(Seconds(mail->expire_time));
                 std::string deliverStr = Acore::Time::TimeToTimestampStr(Seconds(mail->deliver_time));
@@ -171,7 +171,7 @@ public:
 
                 std::string senderName;
                 if (messageType == MAIL_NORMAL)
-                    sCharacterCache->GetCharacterNameByGuid(ObjectGuid(HighGuid::Player, sender), senderName);
+                    sCharacterCache->GetCharacterNameByGuid(ObjectGuid::Create<HighGuid::Player>(sender), senderName);
 
                 std::string expireStr = Acore::Time::TimeToTimestampStr(Seconds(expireTime));
                 std::string deliverStr = Acore::Time::TimeToTimestampStr(Seconds(deliverTime));
@@ -332,7 +332,7 @@ public:
         // covering DB-loaded attachments as well, before any deletion
         if (player)
         {
-            ObjectGuid senderGuid = ObjectGuid(HighGuid::Player, sender);
+            ObjectGuid senderGuid = ObjectGuid::Create<HighGuid::Player>(sender);
             bool blocked = false;
 
             if (attachments.empty())
@@ -387,7 +387,7 @@ public:
             draft.AddItem(item);
         }
 
-        uint32 accountId = sCharacterCache->GetCharacterAccountIdByGuid(ObjectGuid(HighGuid::Player, receiver));
+        uint32 accountId = sCharacterCache->GetCharacterAccountIdByGuid(ObjectGuid::Create<HighGuid::Player>(receiver));
         draft.AddMoney(money).SendReturnToSender(accountId, receiver, sender, trans);
 
         CharacterDatabase.CommitTransaction(trans);

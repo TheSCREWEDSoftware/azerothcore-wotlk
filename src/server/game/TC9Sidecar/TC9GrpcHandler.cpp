@@ -21,10 +21,11 @@
 #include "Item.h"
 #include "ObjectAccessor.h"
 #include "Player.h"
+#include "TC9Guid.h"
 
 GetPlayerItemsByGuidsResponse ToCloud9GrpcHandler::GetPlayerItemsByGuids(uint64 playerGuid, uint64* items, int itemsLen)
 {
-    Player *player = ObjectAccessor::FindPlayer(ObjectGuid(playerGuid));
+    Player *player = ObjectAccessor::FindPlayer(TC9Guid::Player(playerGuid));
     if (!player)
     {
         GetPlayerItemsByGuidsResponse resp;
@@ -45,7 +46,7 @@ GetPlayerItemsByGuidsResponse ToCloud9GrpcHandler::GetPlayerItemsByGuids(uint64 
     std::unique_ptr<Item* []> foundItems(new Item * [itemsLen]);
     for (int i = 0; i < itemsLen; i++)
     {
-        foundItems[i] = player->GetItemByGuid(ObjectGuid(items[i]));
+        foundItems[i] = player->GetItemByGuid(TC9Guid::Item(items[i]));
         if (foundItems[i])
             itemsFound++;
     }
@@ -61,7 +62,7 @@ GetPlayerItemsByGuidsResponse ToCloud9GrpcHandler::GetPlayerItemsByGuids(uint64 
         Item* pItem = foundItems[i];
 
         PlayerItem item;
-        item.guid = pItem->GetGUID().GetRawValue();
+        item.guid = TC9Guid::ToRaw(pItem->GetGUID());
         item.entry = pItem->GetEntry();
         item.owner = playerGuid;
         item.bagSlot = pItem->GetBagSlot();
@@ -91,7 +92,7 @@ GetPlayerItemsByGuidsResponse ToCloud9GrpcHandler::GetPlayerItemsByGuids(uint64 
 
 RemoveItemsWithGuidsFromPlayerResponse ToCloud9GrpcHandler::RemoveItemsWithGuidsFromPlayer(uint64 playerGuid, uint64* items, int itemsLen, uint64 assignToPlayerGuid)
 {
-    Player *player = ObjectAccessor::FindPlayer(ObjectGuid(playerGuid));
+    Player *player = ObjectAccessor::FindPlayer(TC9Guid::Player(playerGuid));
     if (!player)
     {
         RemoveItemsWithGuidsFromPlayerResponse resp;
@@ -114,7 +115,7 @@ RemoveItemsWithGuidsFromPlayerResponse ToCloud9GrpcHandler::RemoveItemsWithGuids
     std::unique_ptr<uint64[]> deletedItems(new uint64 [itemsLen]);
     for (int i = 0; i < itemsLen; i++)
     {
-        Item *item = player->GetItemByGuid(ObjectGuid(items[i]));
+        Item *item = player->GetItemByGuid(TC9Guid::Item(items[i]));
         if (!item)
         {
             deletedItems[i] = 0;
@@ -122,13 +123,13 @@ RemoveItemsWithGuidsFromPlayerResponse ToCloud9GrpcHandler::RemoveItemsWithGuids
         }
 
         itemsFound++;
-        deletedItems[i] = item->GetGUID().GetRawValue();
+        deletedItems[i] = TC9Guid::ToRaw(item->GetGUID());
 
         item->SetNotRefundable(player);
         player->MoveItemFromInventory(item->GetBagSlot(), item->GetSlot(), true);
 
         item->DeleteFromInventoryDB(trans);
-        item->SetOwnerGUID(ObjectGuid(assignToPlayerGuid));
+        item->SetOwnerGUID(TC9Guid::Player(assignToPlayerGuid));
         item->SetState(ITEM_CHANGED);
         item->SaveToDB(trans);
 
@@ -163,7 +164,7 @@ RemoveItemsWithGuidsFromPlayerResponse ToCloud9GrpcHandler::RemoveItemsWithGuids
 
 PlayerItemErrorCode ToCloud9GrpcHandler::AddExistingItemToPlayer(AddExistingItemToPlayerRequest* request)
 {
-    Player *player = ObjectAccessor::FindPlayer(ObjectGuid(request->playerGuid));
+    Player *player = ObjectAccessor::FindPlayer(TC9Guid::Player(request->playerGuid));
     if (!player)
         return PlayerItemErrorCodePlayerNotFound;
 
@@ -172,7 +173,7 @@ PlayerItemErrorCode ToCloud9GrpcHandler::AddExistingItemToPlayer(AddExistingItem
         return PlayerItemErrorUnknownTemplate;
 
     Item* item = NewItemOrBag(proto);
-    if (!item->Create(ObjectGuid(request->itemGuid).GetCounter(), request->itemEntry, player))
+    if (!item->Create(TC9Guid::Item(request->itemGuid).GetCounter(), request->itemEntry, player))
     {
         delete item;
         return PlayerItemErrorFailedToCreateItem;
@@ -204,7 +205,7 @@ PlayerItemErrorCode ToCloud9GrpcHandler::AddExistingItemToPlayer(AddExistingItem
 
 GetMoneyForPlayerResponse ToCloud9GrpcHandler::GetMoneyForPlayer(uint64 playerGuid)
 {
-    Player *player = ObjectAccessor::FindPlayer(ObjectGuid(playerGuid));
+    Player *player = ObjectAccessor::FindPlayer(TC9Guid::Player(playerGuid));
     if (!player)
     {
         GetMoneyForPlayerResponse resp;
@@ -220,7 +221,7 @@ GetMoneyForPlayerResponse ToCloud9GrpcHandler::GetMoneyForPlayer(uint64 playerGu
 
 ModifyMoneyForPlayerResponse ToCloud9GrpcHandler::ModifyMoneyForPlayer(uint64 playerGuid, int32 value)
 {
-    Player *player = ObjectAccessor::FindPlayer(ObjectGuid(playerGuid));
+    Player *player = ObjectAccessor::FindPlayer(TC9Guid::Player(playerGuid));
     if (!player)
     {
         ModifyMoneyForPlayerResponse resp;
@@ -244,7 +245,7 @@ ModifyMoneyForPlayerResponse ToCloud9GrpcHandler::ModifyMoneyForPlayer(uint64 pl
 
 CanPlayerInteractWithGOAndTypeResponse ToCloud9GrpcHandler::CanPlayerInteractWithGOAndType(uint64 playerGuid, uint64 go, uint8 goType)
 {
-    Player *player = ObjectAccessor::FindPlayer(ObjectGuid(playerGuid));
+    Player *player = ObjectAccessor::FindPlayer(TC9Guid::Player(playerGuid));
     if (!player)
     {
         CanPlayerInteractWithGOAndTypeResponse resp;
@@ -254,13 +255,13 @@ CanPlayerInteractWithGOAndTypeResponse ToCloud9GrpcHandler::CanPlayerInteractWit
 
     CanPlayerInteractWithGOAndTypeResponse resp;
     resp.errorCode = PlayerInteractionErrorCodeNoError;
-    resp.canInteract = player->GetGameObjectIfCanInteractWith(ObjectGuid(go), (GameobjectTypes)goType) != nullptr;
+    resp.canInteract = player->GetGameObjectIfCanInteractWith(TC9Guid::WorldObject(go, player->GetMapId()), (GameobjectTypes)goType) != nullptr;
     return resp;
 }
 
 CanPlayerInteractWithNPCAndFlagsResponse ToCloud9GrpcHandler::CanPlayerInteractWithNPCAndFlags(uint64 playerGuid, uint64 npc, uint32 unitFlags)
 {
-    Player *player = ObjectAccessor::FindPlayer(ObjectGuid(playerGuid));
+    Player *player = ObjectAccessor::FindPlayer(TC9Guid::Player(playerGuid));
     if (!player)
     {
         CanPlayerInteractWithNPCAndFlagsResponse resp;
@@ -270,7 +271,7 @@ CanPlayerInteractWithNPCAndFlagsResponse ToCloud9GrpcHandler::CanPlayerInteractW
 
     CanPlayerInteractWithNPCAndFlagsResponse resp;
     resp.errorCode = PlayerInteractionErrorCodeNoError;
-    resp.canInteract = player->GetNPCIfCanInteractWith(ObjectGuid(npc), (NPCFlags)unitFlags) != nullptr;
+    resp.canInteract = player->GetNPCIfCanInteractWith(TC9Guid::WorldObject(npc, player->GetMapId()), (NPCFlags)unitFlags) != nullptr;
     return resp;
 }
 
@@ -316,7 +317,7 @@ BattlegroundErrorCode ToCloud9GrpcHandler::AddPlayersToBattleground(Battleground
 
     for (int i = 0; i < request->alliancePlayersToAddSize; i++)
     {
-        Player *player = ObjectAccessor::FindPlayer(ObjectGuid(request->alliancePlayersToAdd[i]));
+        Player *player = ObjectAccessor::FindPlayer(TC9Guid::Player(request->alliancePlayersToAdd[i]));
         if (player)
         {
             player->SetEntryPoint();
@@ -327,7 +328,7 @@ BattlegroundErrorCode ToCloud9GrpcHandler::AddPlayersToBattleground(Battleground
 
     for (int i = 0; i < request->hordePlayersToAddSize; i++)
     {
-        Player *player = ObjectAccessor::FindPlayer(ObjectGuid(request->hordePlayersToAdd[i]));
+        Player *player = ObjectAccessor::FindPlayer(TC9Guid::Player(request->hordePlayersToAdd[i]));
         if (player)
         {
             player->SetEntryPoint();
@@ -341,7 +342,7 @@ BattlegroundErrorCode ToCloud9GrpcHandler::AddPlayersToBattleground(Battleground
 
 BattlegroundJoinCheckErrorCode ToCloud9GrpcHandler::CanPlayerJoinBattlegroundQueue(uint64 playerGuid)
 {
-    Player *player = ObjectAccessor::FindPlayer(ObjectGuid(playerGuid));
+    Player *player = ObjectAccessor::FindPlayer(TC9Guid::Player(playerGuid));
     if (!player)
         return BattlegroundJoinCheckErrorCodePlayerNotFound;
 
@@ -363,7 +364,7 @@ BattlegroundJoinCheckErrorCode ToCloud9GrpcHandler::CanPlayerJoinBattlegroundQue
 
 BattlegroundJoinCheckErrorCode ToCloud9GrpcHandler::CanPlayerTeleportToBattleground(uint64 playerGuid)
 {
-    Player *player = ObjectAccessor::FindPlayer(ObjectGuid(playerGuid));
+    Player *player = ObjectAccessor::FindPlayer(TC9Guid::Player(playerGuid));
     if (!player)
         return BattlegroundJoinCheckErrorCodePlayerNotFound;
 

@@ -281,7 +281,7 @@ ObjectGuid SpellCastTargets::GetUnitTargetGUID() const
     {
         case HighGuid::Player:
         case HighGuid::Vehicle:
-        case HighGuid::Unit:
+        case HighGuid::Creature:
         case HighGuid::Pet:
             return m_objectTargetGUID;
         default:
@@ -313,7 +313,7 @@ ObjectGuid SpellCastTargets::GetGOTargetGUID() const
     switch (m_objectTargetGUID.GetHigh())
     {
         case HighGuid::Transport:
-        case HighGuid::Mo_Transport:
+        case HighGuid::Transport:
         case HighGuid::GameObject:
             return m_objectTargetGUID;
         default:

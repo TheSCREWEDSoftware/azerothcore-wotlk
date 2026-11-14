@@ -50,7 +50,7 @@ public:                                                 // constructors
     void SetSpell(uint32 spell_id, Item* castItem = nullptr);
 
     [[nodiscard]] Item*  GetSpellCastItem() const;
-    [[nodiscard]] bool HasSpellCastItem() const { return m_spellCastItem; }
+    [[nodiscard]] bool HasSpellCastItem() const { return !m_spellCastItem.IsEmpty(); }
 
     [[nodiscard]] uint64 GetMoney() const { return _money; }
     void SetMoney(uint64 money);

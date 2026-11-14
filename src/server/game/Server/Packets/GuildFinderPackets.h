@@ -18,241 +18,219 @@
 #ifndef GuildFinderPackets_h__
 #define GuildFinderPackets_h__
 
-#include "GuildFinderMgr.h"
-#include "ObjectGuid.h"
 #include "Packet.h"
-#include <vector>
+#include "ObjectGuid.h"
 
 namespace WorldPackets
 {
     namespace GuildFinder
     {
-        // CMSG_LF_GUILD_ADD_APPLICATION (CMSG_LF_GUILD_ADD_RECRUIT before 5.x) - a guildless player files a membership request against a guild.
-        class AddRecruit final : public ClientPacket
+        class LFGuildAddRecruit final : public ClientPacket
         {
         public:
-            AddRecruit(WorldPacket&& packet) : ClientPacket(CMSG_LF_GUILD_ADD_APPLICATION, std::move(packet)) { }
+            LFGuildAddRecruit(WorldPacket&& packet) : ClientPacket(CMSG_LF_GUILD_ADD_RECRUIT, std::move(packet)) { }
 
             void Read() override;
 
-            ObjectGuid GuildGuid;
-            uint32 ClassRoles = 0;
-            uint32 Interests = 0;
-            uint32 Availability = 0;
+            ObjectGuid GuildGUID;
+            int32 Availability = 0;
+            int32 ClassRoles = 0;
+            int32 PlayStyle = 0;
             std::string Comment;
-            // The client also sends its own name here; the real 4.3.4 server never uses it (the
-            // applicant is always the sender of the packet), so it's read and discarded, exactly
-            // like upstream TrinityCore's HandleGuildFinderAddRecruit.
         };
 
-        // CMSG_LF_GUILD_BROWSE - a guildless player searches for guilds matching their own criteria.
-        class Browse final : public ClientPacket
+        class LFGuildApplicationsListChanged final : public ServerPacket
         {
         public:
-            Browse(WorldPacket&& packet) : ClientPacket(CMSG_LF_GUILD_BROWSE, std::move(packet)) { }
+            LFGuildApplicationsListChanged() : ServerPacket(SMSG_LF_GUILD_APPLICATIONS_LIST_CHANGED, 0) { }
+
+            WorldPacket const* Write() override { return &_worldPacket; }
+        };
+
+        class LFGuildApplicantListChanged final : public ServerPacket
+        {
+        public:
+            LFGuildApplicantListChanged() : ServerPacket(SMSG_LF_GUILD_APPLICANT_LIST_CHANGED, 0) { }
+
+            WorldPacket const* Write() override { return &_worldPacket; }
+        };
+
+        class LFGuildBrowse final : public ClientPacket
+        {
+        public:
+            LFGuildBrowse(WorldPacket&& packet) : ClientPacket(CMSG_LF_GUILD_BROWSE, std::move(packet)) { }
 
             void Read() override;
 
-            uint32 ClassRoles = 0;
-            uint32 Availability = 0;
-            uint32 Interests = 0;
-            uint32 PlayerLevel = 0;
+            int32 CharacterLevel = 0;
+            int32 Availability = 0;
+            int32 ClassRoles = 0;
+            int32 PlayStyle = 0;
         };
 
-        // SMSG_LF_GUILD_BROWSE_UPDATED - response to Browse, one entry per matching guild.
-        struct BrowseEntry
+        struct LFGuildBrowseData
         {
-            ObjectGuid GuildGuid;
             std::string GuildName;
+            ObjectGuid GuildGUID;
+            uint32 GuildVirtualRealm = 0;
+            int32 GuildMembers = 0;
+            int32 GuildAchievementPoints = 0;
+            int32 PlayStyle = 0;
+            int32 Availability = 0;
+            int32 ClassRoles = 0;
+            int32 LevelRange = 0;
+            int32 EmblemStyle = 0;
+            int32 EmblemColor = 0;
+            int32 BorderStyle = 0;
+            int32 BorderColor = 0;
+            int32 Background = 0;
             std::string Comment;
-            uint32 EmblemStyle = 0;
-            uint32 EmblemColor = 0;
-            uint32 BorderStyle = 0;
-            uint32 BorderColor = 0;
-            uint32 BackgroundColor = 0;
-            uint32 GuildLevel = 0;
-            uint32 MemberCount = 0;
-            uint32 AchievementPoints = 0;
-            uint32 Interests = 0;
-            uint32 Availability = 0;
-            uint32 ClassRoles = 0;
-            bool RequestPending = false;
+            int8 Cached = 0;
+            int8 MembershipRequested = 0;
         };
 
-        class BrowseUpdated final : public ServerPacket
+        class LFGuildBrowseResult final : public ServerPacket
         {
         public:
-            BrowseUpdated() : ServerPacket(SMSG_LF_GUILD_BROWSE_UPDATED, 4) { }
+            LFGuildBrowseResult() : ServerPacket(SMSG_LF_GUILD_BROWSE) { }
 
             WorldPacket const* Write() override;
 
-            std::vector<BrowseEntry> Guilds;
+            std::vector<LFGuildBrowseData> Post;
         };
 
-        // CMSG_LF_GUILD_DECLINE_RECRUIT - a guild officer/leader declines one applicant.
-        class DeclineRecruit final : public ClientPacket
+        class LFGuildDeclineRecruit final : public ClientPacket
         {
         public:
-            DeclineRecruit(WorldPacket&& packet) : ClientPacket(CMSG_LF_GUILD_DECLINE_RECRUIT, std::move(packet)) { }
+            LFGuildDeclineRecruit(WorldPacket&& packet) : ClientPacket(CMSG_LF_GUILD_DECLINE_RECRUIT, std::move(packet)) { }
 
             void Read() override;
 
-            ObjectGuid PlayerGuid;
+            ObjectGuid RecruitGUID;
         };
 
-        // CMSG_LF_GUILD_GET_APPLICATIONS - a guildless player requests their own pending applications.
-        class GetApplications final : public ClientPacket
+        class LFGuildGetApplications final : public ClientPacket
         {
         public:
-            GetApplications(WorldPacket&& packet) : ClientPacket(CMSG_LF_GUILD_GET_APPLICATIONS, std::move(packet)) { }
+            LFGuildGetApplications(WorldPacket&& packet) : ClientPacket(CMSG_LF_GUILD_GET_APPLICATIONS, std::move(packet)) { }
 
             void Read() override { }
         };
 
-        // SMSG_LF_GUILD_MEMBERSHIP_LIST_UPDATED - response to GetApplications, one entry per pending
-        // application the requesting player has filed.
-        struct MembershipApplication
+        struct LFGuildApplicationData
         {
-            ObjectGuid GuildGuid;
+            ObjectGuid GuildGUID;
+            uint32 GuildVirtualRealm = 0;
             std::string GuildName;
+            int32 ClassRoles = 0;
+            int32 PlayStyle = 0;
+            int32 Availability = 0;
+            uint32 SecondsSinceCreated = 0;
+            uint32 SecondsUntilExpiration = 0;
             std::string Comment;
-            uint32 Availability = 0;
-            uint32 ClassRoles = 0;
-            uint32 Interests = 0;
-            uint32 SecondsSinceSubmit = 0;
-            uint32 SecondsUntilExpiry = 0;
         };
 
-        class MembershipListUpdated final : public ServerPacket
+        class LFGuildApplications final : public ServerPacket
         {
         public:
-            MembershipListUpdated() : ServerPacket(SMSG_LF_GUILD_MEMBERSHIP_LIST_UPDATED, 8) { }
+            LFGuildApplications() : ServerPacket(SMSG_LF_GUILD_APPLICATIONS) { }
 
             WorldPacket const* Write() override;
 
-            std::vector<MembershipApplication> Applications;
-            uint32 ApplicationsLeft = 0;
+            std::vector<LFGuildApplicationData> Application;
+            int32 NumRemaining = 0;
         };
 
-        // CMSG_LF_GUILD_GET_RECRUITS - a guild officer/leader requests the guild's pending applicant list.
-        class GetRecruits final : public ClientPacket
+        class LFGuildGetGuildPost final : public ClientPacket
         {
         public:
-            GetRecruits(WorldPacket&& packet) : ClientPacket(CMSG_LF_GUILD_GET_RECRUITS, std::move(packet)) { }
+            LFGuildGetGuildPost(WorldPacket&& packet) : ClientPacket(CMSG_LF_GUILD_GET_GUILD_POST, std::move(packet)) { }
+
+            void Read() override { }
+        };
+
+        struct GuildPostData
+        {
+            bool Active = false;
+            int32 PlayStyle = 0;
+            int32 Availability = 0;
+            int32 ClassRoles = 0;
+            int32 LevelRange = 0;
+            time_t SecondsRemaining = time_t(0);
+            std::string Comment;
+        };
+
+        class LFGuildPost final : public ServerPacket
+        {
+        public:
+            LFGuildPost() : ServerPacket(SMSG_LF_GUILD_POST, 1 + 1 + 4 + 4 + 4 + 4 + 4 + 255) { }
+
+            WorldPacket const* Write() override;
+
+            Optional<GuildPostData> Post;
+        };
+
+        class LFGuildGetRecruits final : public ClientPacket
+        {
+        public:
+            LFGuildGetRecruits(WorldPacket&& packet) : ClientPacket(CMSG_LF_GUILD_GET_RECRUITS, std::move(packet)) { }
 
             void Read() override;
 
-            uint32 UnkTime = 0;
+            uint32 LastUpdate = 0;
         };
 
-        // SMSG_LF_GUILD_RECRUIT_LIST_UPDATED - response to GetRecruits, one entry per applicant.
-        struct RecruitEntry
+        struct LFGuildRecruitData
         {
-            ObjectGuid PlayerGuid;
+            ObjectGuid RecruitGUID;
             std::string Name;
+            uint32 RecruitVirtualRealm = 0;
             std::string Comment;
-            bool Available = false; // Application has not yet expired
-            int32 Level = 0;
-            int32 Class = 0;
-            uint32 SecondsSinceSubmit = 0;
-            uint32 SecondsUntilExpiry = 0;
-            uint32 Availability = 0;
-            uint32 ClassRoles = 0;
-            uint32 Interests = 0;
+            int32 CharacterClass = 0;
+            int32 CharacterGender = 0;
+            int32 CharacterLevel = 0;
+            int32 ClassRoles = 0;
+            int32 PlayStyle = 0;
+            int32 Availability = 0;
+            uint32 SecondsSinceCreated = 0;
+            uint32 SecondsUntilExpiration = 0;
         };
 
-        class RecruitListUpdated final : public ServerPacket
+        class LFGuildRecruits final : public ServerPacket
         {
         public:
-            RecruitListUpdated() : ServerPacket(SMSG_LF_GUILD_RECRUIT_LIST_UPDATED, 8) { }
+            LFGuildRecruits() : ServerPacket(SMSG_LF_GUILD_RECRUITS) { }
 
             WorldPacket const* Write() override;
 
-            std::vector<RecruitEntry> Recruits;
+            std::vector<LFGuildRecruitData> Recruits;
+            time_t UpdateTime = time_t(0);
         };
 
-        // CMSG_LF_GUILD_POST_REQUEST - a guild member opens the Guild Finder tab of their own guild.
-        class PostRequest final : public ClientPacket
+        class LFGuildRemoveRecruit final : public ClientPacket
         {
         public:
-            PostRequest(WorldPacket&& packet) : ClientPacket(CMSG_LF_GUILD_POST_REQUEST, std::move(packet)) { }
-
-            void Read() override { }
-        };
-
-        // SMSG_LF_GUILD_POST_UPDATED - response to PostRequest (and echoed after SetGuildPost changes).
-        class PostUpdated final : public ServerPacket
-        {
-        public:
-            PostUpdated() : ServerPacket(SMSG_LF_GUILD_POST_UPDATED, 5) { }
-
-            WorldPacket const* Write() override;
-
-            // Only the requester being the guild master/an officer matters client-side; when false
-            // the client is shown a read-only "not permitted to edit" view and none of the fields
-            // below are sent (mirrors upstream TrinityCore's HandleGuildFinderPostRequest exactly).
-            bool IsGuildMaster = false;
-            bool Listed = false;
-            uint32 Level = 0;
-            std::string Comment;
-            uint32 Availability = 0;
-            uint32 ClassRoles = 0;
-            uint32 Interests = 0;
-        };
-
-        // CMSG_LF_GUILD_REMOVE_APPLICATION (CMSG_LF_GUILD_REMOVE_RECRUIT before 5.x) - an applicant withdraws their own pending application.
-        class RemoveRecruit final : public ClientPacket
-        {
-        public:
-            RemoveRecruit(WorldPacket&& packet) : ClientPacket(CMSG_LF_GUILD_REMOVE_APPLICATION, std::move(packet)) { }
+            LFGuildRemoveRecruit(WorldPacket&& packet) : ClientPacket(CMSG_LF_GUILD_REMOVE_RECRUIT, std::move(packet)) { }
 
             void Read() override;
 
-            ObjectGuid GuildGuid;
+            ObjectGuid GuildGUID;
         };
 
-        // CMSG_LF_GUILD_SET_GUILD_POST - a guild master edits and/or (un)lists their guild's recruitment post.
-        class SetGuildPost final : public ClientPacket
+        class LFGuildSetGuildPost final : public ClientPacket
         {
         public:
-            SetGuildPost(WorldPacket&& packet) : ClientPacket(CMSG_LF_GUILD_SET_GUILD_POST, std::move(packet)) { }
+            LFGuildSetGuildPost(WorldPacket&& packet) : ClientPacket(CMSG_LF_GUILD_SET_GUILD_POST, std::move(packet)) { }
 
             void Read() override;
 
-            uint32 Level = 0;
-            uint32 Availability = 0;
-            uint32 Interests = 0;
-            uint32 ClassRoles = 0;
+            int32 Availability = 0;
+            int32 PlayStyle = 0;
+            int32 ClassRoles = 0;
+            int32 LevelRange = 0;
+            bool Active = false;
             std::string Comment;
-            bool Listed = false;
         };
-
-        // SMSG_LF_GUILD_APPLICANT_LIST_UPDATED - empty notification: a guild's applicant list changed
-        // (sent to the guild master and officers).
-        class ApplicantListUpdated final : public ServerPacket
-        {
-        public:
-            ApplicantListUpdated() : ServerPacket(SMSG_LF_GUILD_APPLICANT_LIST_UPDATED, 0) { }
-
-            WorldPacket const* Write() override { return &_worldPacket; }
-        };
-
-        // SMSG_LF_GUILD_APPLICATIONS_LIST_CHANGED - empty notification: one of a player's own
-        // membership requests changed (added/removed).
-        class ApplicationsListChanged final : public ServerPacket
-        {
-        public:
-            ApplicationsListChanged() : ServerPacket(SMSG_LF_GUILD_APPLICATIONS_LIST_CHANGED, 0) { }
-
-            WorldPacket const* Write() override { return &_worldPacket; }
-        };
-
-        // SMSG_LF_GUILD_COMMAND_RESULT is reserved in Opcodes.h (matching real Cata's protocol) but,
-        // like upstream TrinityCore, is never actually sent anywhere by this subsystem - nothing
-        // server-side needs to report a generic Guild Finder error/result code to the client, since
-        // every failure path here is either a silent no-op (bad bitmask, not in a guild, not the
-        // guild master) or surfaced through one of the *Updated packets above. No packet class is
-        // defined for it, exactly as TrinityCore leaves it: an opcode with a value and zero senders.
     }
 }
 

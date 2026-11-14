@@ -56,6 +56,16 @@
 ZoneDynamicInfo::ZoneDynamicInfo() : MusicId(0), DefaultWeather(nullptr), WeatherId(WEATHER_STATE_FINE),
                                      WeatherGrade(0.0f), OverrideLightId(0), LightFadeInTime(0) { }
 
+ObjectGuid::LowType Map::GetGuidSequenceStart(HighGuid high)
+{
+    // Global transports (`transports` table) take their counters from ObjectMgr, elevators and other
+    // map local transports start in the upper half of the counter space so the two never collide
+    if (high == HighGuid::Transport)
+        return ObjectGuid::GetMaxCounter(high) / 2 + 1;
+
+    return UI64LIT(1);
+}
+
 Map::~Map()
 {
     // UnloadAll must be called before deleting the map
@@ -2700,7 +2710,7 @@ Pet* Map::GetPet(ObjectGuid const& guid)
 
 Transport* Map::GetTransport(ObjectGuid const& guid)
 {
-    if (guid.GetHigh() != HighGuid::Mo_Transport && guid.GetHigh() != HighGuid::Transport)
+    if (guid.GetHigh() != HighGuid::Transport)
         return nullptr;
 
     GameObject* go = GetGameObject(guid);
@@ -3129,7 +3139,7 @@ void Map::ProcessCreatureRespawn(ObjectGuid::LowType spawnId)
     // This mirrors the check in Creature::Respawn() for compat-mode creatures:
     // hard-reset creatures and forced respawns bypass it (the former despawn on
     // evade and must always come back), and a creature linked to itself never auto-respawns.
-    ObjectGuid dbtableHighGuid = ObjectGuid::Create<HighGuid::Unit>(data->id, spawnId);
+    ObjectGuid dbtableHighGuid = ObjectGuid::Create<HighGuid::Creature>(data->mapid, data->id, spawnId);
     time_t linkedRespawntime = GetLinkedRespawnTime(dbtableHighGuid);
     CreatureTemplate const* cInfo = sObjectMgr->GetCreatureTemplate(data->id);
     if (linkedRespawntime && !forced && !(cInfo && cInfo->HasFlagsExtra(CREATURE_FLAG_EXTRA_HARD_RESET)))
@@ -3371,7 +3381,7 @@ time_t Map::GetLinkedRespawnTime(ObjectGuid guid) const
     ObjectGuid linkedGuid = sObjectMgr->GetLinkedRespawnGuid(guid);
     switch (linkedGuid.GetHigh())
     {
-        case HighGuid::Unit:
+        case HighGuid::Creature:
             return GetCreatureRespawnTime(linkedGuid.GetCounter());
         case HighGuid::GameObject:
             return GetGORespawnTime(linkedGuid.GetCounter());

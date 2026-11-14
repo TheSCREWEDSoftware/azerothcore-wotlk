@@ -1959,7 +1959,7 @@ public:
     }
     void clearResurrectRequestData() { setResurrectRequestData(ObjectGuid::Empty, 0, 0.0f, 0.0f, 0.0f, 0, 0); }
     [[nodiscard]] bool isResurrectRequestedBy(ObjectGuid guid) const { return m_resurrectGUID && m_resurrectGUID == guid; }
-    [[nodiscard]] bool isResurrectRequested() const { return m_resurrectGUID; }
+    [[nodiscard]] bool isResurrectRequested() const { return !m_resurrectGUID.IsEmpty(); }
     void ResurectUsingRequestData();
 
     [[nodiscard]] uint8 getCinematic() const
@@ -2044,9 +2044,9 @@ public:
     void SetInGuild(uint32 GuildId)
     {
         // Cata moved guild membership off a dedicated Player field and onto the base
-        // Object's OBJECT_FIELD_DATA slot, packed as an ObjectGuid(HighGuid::Guild, id)
+        // Object's OBJECT_FIELD_DATA slot, packed as an ObjectGuid::Create<HighGuid::Guild>(id)
         // -- matches the pinned TrinityCore reference (Player::SetInGuild).
-        SetGuidValue(OBJECT_FIELD_DATA, GuildId ? ObjectGuid(HighGuid::Guild, GuildId) : ObjectGuid::Empty);
+        SetGuidValue(OBJECT_FIELD_DATA, GuildId ? ObjectGuid::Create<HighGuid::Guild>(GuildId) : ObjectGuid::Empty);
         // xinef: update global storage
         sCharacterCache->UpdateCharacterGuildId(GetGUID(), GetGuildId());
         // Cata Guild Perks: PLAYER_FLAGS_GUILD_LEVEL_ENABLED gates the client's guild-level/perk UI.

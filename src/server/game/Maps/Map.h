@@ -713,12 +713,15 @@ private:
 
     IntervalTimer _corpseUpdateTimer;
 
+    // Map local transports start in the upper half of the counter space, the global ones share HighGuid::Transport
+    static ObjectGuid::LowType GetGuidSequenceStart(HighGuid high);
+
     template<HighGuid high>
     inline ObjectGuidGeneratorBase& GetGuidSequenceGenerator()
     {
         auto itr = _guidGenerators.find(high);
         if (itr == _guidGenerators.end())
-            itr = _guidGenerators.insert(std::make_pair(high, std::unique_ptr<ObjectGuidGenerator<high>>(new ObjectGuidGenerator<high>()))).first;
+            itr = _guidGenerators.insert(std::make_pair(high, std::unique_ptr<ObjectGuidGenerator<high>>(new ObjectGuidGenerator<high>(GetGuidSequenceStart(high))))).first;
 
         return *itr->second;
     }

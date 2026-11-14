@@ -82,6 +82,9 @@ Object::Object() : m_PackGUID(sizeof(uint64) + 1)
 
     m_uint32Values      = nullptr;
     m_valuesCount       = 0;
+    _dynamicValues      = nullptr;
+    _dynamicChangesArrayMask = nullptr;
+    _dynamicValuesCount = 0;
     _fieldNotifyFlags   = UF_FLAG_DYNAMIC;
 
     m_inWorld           = false;
@@ -114,7 +117,13 @@ Object::~Object()
     }
 
     delete [] m_uint32Values;
-    m_uint32Values = 0;
+    m_uint32Values = nullptr;
+
+    delete [] _dynamicValues;
+    _dynamicValues = nullptr;
+
+    delete [] _dynamicChangesArrayMask;
+    _dynamicChangesArrayMask = nullptr;
 }
 
 void Object::_InitValues()
@@ -124,20 +133,22 @@ void Object::_InitValues()
 
     _changesMask.SetCount(m_valuesCount);
 
+    _dynamicChangesMask.assign(_dynamicValuesCount, 0);
+    if (_dynamicValuesCount)
+    {
+        _dynamicValues = new std::vector<uint32>[_dynamicValuesCount];
+        _dynamicChangesArrayMask = new std::vector<uint8>[_dynamicValuesCount];
+    }
+
     m_objectUpdated = false;
 }
 
-void Object::_Create(ObjectGuid::LowType guidlow, uint32 entry, HighGuid guidhigh)
-{
-    _Create(ObjectGuid(guidhigh, entry, guidlow));
-}
-
-void Object::_Create(ObjectGuid guid)
+void Object::_Create(ObjectGuid const& guid)
 {
     if (!m_uint32Values) _InitValues();
 
     SetGuidValue(OBJECT_FIELD_GUID, guid);
-    SetUInt32Value(OBJECT_FIELD_TYPE, m_objectType);
+    SetUInt16Value(OBJECT_FIELD_TYPE, 0, m_objectType);
     m_PackGUID.Set(guid);
 }
 
@@ -246,6 +257,7 @@ void Object::BuildCreateUpdateBlockForPlayer(UpdateData* data, Player* target)
 
     BuildMovementUpdate(&buf, flags);
     BuildValuesUpdate(updatetype, &buf, target);
+    BuildDynamicValuesUpdate(updatetype, &buf, target);
     data->AddUpdateBlock(buf);
 }
 
@@ -268,6 +280,7 @@ void Object::BuildValuesUpdateBlockForPlayer(UpdateData* data, Player* target)
     buf << GetPackGUID();
 
     BuildValuesUpdate(UPDATETYPE_VALUES, &buf, target);
+    BuildDynamicValuesUpdate(UPDATETYPE_VALUES, &buf, target);
 
     data->AddUpdateBlock(buf);
 }
@@ -347,7 +360,7 @@ void Object::DestroyForPlayer(Player* target, bool onDeath) const
 
 [[nodiscard]] ObjectGuid Object::GetGuidValue(uint16 index) const
 {
-    ASSERT(index + 1 < m_valuesCount || PrintIndexError(index, false));
+    ASSERT(index + 3 < m_valuesCount || PrintIndexError(index, false));
     return *((ObjectGuid*) &(m_uint32Values[index]));
 }
 
@@ -696,7 +709,47 @@ void Object::BuildValuesUpdate(uint8 updateType, ByteBuffer* data, Player* targe
 
     updateMask.AppendToPacket(data);
     data->append(fieldBuffer);
-    *data << uint8(0);                                      // 5.4.8 dynamic fields, none sent yet
+}
+
+void Object::BuildDynamicValuesUpdate(uint8 updateType, ByteBuffer* data, Player* target) const
+{
+    if (!target)
+        return;
+
+    std::size_t blockCount = UpdateMask::BlockCountFor(_dynamicValuesCount);
+
+    uint32* flags = nullptr;
+    uint32 visibleFlag = GetDynamicUpdateFieldData(target, flags);
+
+    *data << uint8(blockCount);
+    std::size_t maskPos = data->wpos();
+    data->resize(data->size() + blockCount * sizeof(UpdateMask::ClientUpdateMaskType));
+
+    for (uint16 index = 0; index < _dynamicValuesCount; ++index)
+    {
+        std::vector<uint32> const& values = _dynamicValues[index];
+        if ((flags && (_fieldNotifyFlags & flags[index])) ||
+            ((updateType == UPDATETYPE_VALUES ? _dynamicChangesMask[index] != 0 : !values.empty()) && flags && (flags[index] & visibleFlag)))
+        {
+            UpdateMask::SetUpdateBit(data->contents() + maskPos, index);
+
+            std::size_t arrayBlockCount = UpdateMask::BlockCountFor(values.size());
+            *data << uint8(UpdateMask::EncodeDynamicFieldChangeType(arrayBlockCount, _dynamicChangesMask[index], updateType));
+            if (_dynamicChangesMask[index] == UpdateMask::VALUE_AND_SIZE_CHANGED && updateType == UPDATETYPE_VALUES)
+                *data << uint16(values.size());
+
+            std::size_t arrayMaskPos = data->wpos();
+            data->resize(data->size() + arrayBlockCount * sizeof(UpdateMask::ClientUpdateMaskType));
+            for (std::size_t v = 0; v < values.size(); ++v)
+            {
+                if (updateType == UPDATETYPE_VALUES ? (v < _dynamicChangesArrayMask[index].size() && _dynamicChangesArrayMask[index][v]) : values[v] != 0)
+                {
+                    UpdateMask::SetUpdateBit(data->contents() + arrayMaskPos, v);
+                    *data << uint32(values[v]);
+                }
+            }
+        }
+    }
 }
 
 void Object::AddToObjectUpdateIfNeeded()
@@ -711,6 +764,9 @@ void Object::AddToObjectUpdateIfNeeded()
 void Object::ClearUpdateMask(bool remove)
 {
     _changesMask.Clear();
+    std::fill(_dynamicChangesMask.begin(), _dynamicChangesMask.end(), uint8(0));
+    for (uint16 i = 0; i < _dynamicValuesCount; ++i)
+        std::fill(_dynamicChangesArrayMask[i].begin(), _dynamicChangesArrayMask[i].end(), uint8(0));
 
     if (m_objectUpdated)
     {
@@ -781,6 +837,51 @@ uint32 Object::GetUpdateFieldData(Player const* target, uint32*& flags) const
                 visibleFlag |= UF_FLAG_OWNER;
             break;
         case TYPEID_OBJECT:
+            break;
+    }
+
+    return visibleFlag;
+}
+
+uint32 Object::GetDynamicUpdateFieldData(Player const* target, uint32*& flags) const
+{
+    uint32 visibleFlag = UF_FLAG_PUBLIC;
+
+    if (target == this)
+        visibleFlag |= UF_FLAG_PRIVATE;
+
+    switch (GetTypeId())
+    {
+        case TYPEID_ITEM:
+        case TYPEID_CONTAINER:
+            flags = ItemDynamicUpdateFieldFlags;
+            if (((Item const*)this)->GetOwnerGUID() == target->GetGUID())
+                visibleFlag |= UF_FLAG_OWNER | UF_FLAG_ITEM_OWNER;
+            break;
+        case TYPEID_UNIT:
+        case TYPEID_PLAYER:
+        {
+            Player* plr = ToUnit()->GetCharmerOrOwnerPlayerOrPlayerItself();
+            flags = UnitDynamicUpdateFieldFlags;
+            if (ToUnit()->GetOwnerGUID() == target->GetGUID())
+                visibleFlag |= UF_FLAG_OWNER;
+
+            if (HasDynamicFlag(UNIT_DYNFLAG_SPECIALINFO))
+                if (ToUnit()->HasAuraTypeWithCaster(SPELL_AURA_EMPATHY, target->GetGUID()))
+                    visibleFlag |= UF_FLAG_SPECIAL_INFO;
+
+            if (plr && plr->IsInSameRaidWith(target))
+                visibleFlag |= UF_FLAG_PARTY_MEMBER;
+            break;
+        }
+        case TYPEID_GAMEOBJECT:
+            flags = GameObjectDynamicUpdateFieldFlags;
+            break;
+        case TYPEID_CONVERSATION:
+            flags = ConversationDynamicUpdateFieldFlags;
+            break;
+        default:
+            flags = nullptr;
             break;
     }
 
@@ -865,13 +966,13 @@ void Object::SetUInt64Value(uint16 index, uint64 value)
 
 bool Object::AddGuidValue(uint16 index, ObjectGuid value)
 {
-    ASSERT(index + 1 < m_valuesCount || PrintIndexError(index, true));
+    ASSERT(index + 3 < m_valuesCount || PrintIndexError(index, true));
 
     if (value && !*((ObjectGuid*)&(m_uint32Values[index])))
     {
         *((ObjectGuid*)&(m_uint32Values[index])) = value;
-        _changesMask.SetBit(index);
-        _changesMask.SetBit(index + 1);
+        for (uint16 i = 0; i < 4; ++i)
+            _changesMask.SetBit(index + i);
 
         AddToObjectUpdateIfNeeded();
 
@@ -883,14 +984,13 @@ bool Object::AddGuidValue(uint16 index, ObjectGuid value)
 
 bool Object::RemoveGuidValue(uint16 index, ObjectGuid value)
 {
-    ASSERT(index + 1 < m_valuesCount || PrintIndexError(index, true));
+    ASSERT(index + 3 < m_valuesCount || PrintIndexError(index, true));
 
     if (value && *((ObjectGuid*)&(m_uint32Values[index])) == value)
     {
-        m_uint32Values[index] = 0;
-        m_uint32Values[index + 1] = 0;
-        _changesMask.SetBit(index);
-        _changesMask.SetBit(index + 1);
+        ((ObjectGuid*)&(m_uint32Values[index]))->Clear();
+        for (uint16 i = 0; i < 4; ++i)
+            _changesMask.SetBit(index + i);
 
         AddToObjectUpdateIfNeeded();
 
@@ -902,13 +1002,90 @@ bool Object::RemoveGuidValue(uint16 index, ObjectGuid value)
 
 void Object::SetGuidValue(uint16 index, ObjectGuid value)
 {
-    ASSERT(index + 1 < m_valuesCount || PrintIndexError(index, true));
+    ASSERT(index + 3 < m_valuesCount || PrintIndexError(index, true));
 
     if (*((ObjectGuid*)&(m_uint32Values[index])) != value)
     {
         *((ObjectGuid*)&(m_uint32Values[index])) = value;
-        _changesMask.SetBit(index);
-        _changesMask.SetBit(index + 1);
+        for (uint16 i = 0; i < 4; ++i)
+            _changesMask.SetBit(index + i);
+
+        AddToObjectUpdateIfNeeded();
+    }
+}
+
+std::vector<uint32> const& Object::GetDynamicValues(uint16 index) const
+{
+    ASSERT(index < _dynamicValuesCount || PrintIndexError(index, false));
+    return _dynamicValues[index];
+}
+
+uint32 Object::GetDynamicValue(uint16 index, uint16 offset) const
+{
+    ASSERT(index < _dynamicValuesCount || PrintIndexError(index, false));
+    if (offset >= _dynamicValues[index].size())
+        return 0;
+
+    return _dynamicValues[index][offset];
+}
+
+void Object::AddDynamicValue(uint16 index, uint32 value)
+{
+    ASSERT(index < _dynamicValuesCount || PrintIndexError(index, true));
+    SetDynamicValue(index, uint16(_dynamicValues[index].size()), value);
+}
+
+void Object::RemoveDynamicValue(uint16 index, uint32 value)
+{
+    ASSERT(index < _dynamicValuesCount || PrintIndexError(index, true));
+
+    // Removing shifts the following entries, so the whole array is resent with its new size
+    std::vector<uint32>& values = _dynamicValues[index];
+    auto itr = std::find(values.begin(), values.end(), value);
+    if (itr == values.end())
+        return;
+
+    values.erase(itr);
+    _dynamicChangesMask[index] = UpdateMask::VALUE_AND_SIZE_CHANGED;
+    _dynamicChangesArrayMask[index].assign(UpdateMask::BlockCountFor(values.size()) * UpdateMask::CLIENT_UPDATE_MASK_BITS, uint8(1));
+    AddToObjectUpdateIfNeeded();
+}
+
+void Object::ClearDynamicValue(uint16 index)
+{
+    ASSERT(index < _dynamicValuesCount || PrintIndexError(index, true));
+
+    if (!_dynamicValues[index].empty())
+    {
+        _dynamicValues[index].clear();
+        _dynamicChangesMask[index] = UpdateMask::VALUE_AND_SIZE_CHANGED;
+        _dynamicChangesArrayMask[index].clear();
+
+        AddToObjectUpdateIfNeeded();
+    }
+}
+
+void Object::SetDynamicValue(uint16 index, uint16 offset, uint32 value)
+{
+    ASSERT(index < _dynamicValuesCount || PrintIndexError(index, true));
+
+    uint8 changeType = UpdateMask::VALUE_CHANGED;
+    std::vector<uint32>& values = _dynamicValues[index];
+    if (values.size() <= offset)
+    {
+        values.resize(offset + 1);
+        changeType = UpdateMask::VALUE_AND_SIZE_CHANGED;
+    }
+
+    if (_dynamicChangesArrayMask[index].size() <= offset)
+        _dynamicChangesArrayMask[index].resize((offset / 32 + 1) * 32);
+
+    if (values[offset] != value || changeType == UpdateMask::VALUE_AND_SIZE_CHANGED)
+    {
+        values[offset] = value;
+        if (_dynamicChangesMask[index] != UpdateMask::VALUE_AND_SIZE_CHANGED)
+            _dynamicChangesMask[index] = changeType;
+        _dynamicChangesArrayMask[index][offset] = 1;
 
         AddToObjectUpdateIfNeeded();
     }
@@ -1355,9 +1532,9 @@ void WorldObject::CleanupsBeforeDelete(bool /*finalCleanup*/)
     m_Events.KillAllEvents(false);                      // non-delatable (currently cast spells) will not deleted now but it will deleted at call in Map::RemoveAllObjectsInRemoveList
 }
 
-void WorldObject::_Create(ObjectGuid::LowType guidlow, HighGuid guidhigh, uint32 phaseMask)
+void WorldObject::_Create(ObjectGuid const& guid, uint32 phaseMask)
 {
-    Object::_Create(guidlow, 0, guidhigh);
+    Object::_Create(guid);
     SetPhaseMask(phaseMask, false);
 }
 
@@ -2844,7 +3021,7 @@ TempSummon* Map::SummonCreature(uint32 entry, Position const& pos, SummonPropert
     }
 
     EnsureGridLoaded(Cell(pos.GetPositionX(), pos.GetPositionY()));
-    if (!summon->Create(GenerateLowGuid<HighGuid::Unit>(), this, phase, entry, vehId, pos.GetPositionX(), pos.GetPositionY(), pos.GetPositionZ(), pos.GetOrientation()))
+    if (!summon->Create(GenerateLowGuid<HighGuid::Creature>(), this, phase, entry, vehId, pos.GetPositionX(), pos.GetPositionY(), pos.GetPositionZ(), pos.GetOrientation()))
     {
         delete summon;
         return nullptr;

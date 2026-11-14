@@ -18,8 +18,10 @@
 #ifndef BankPackets_h__
 #define BankPackets_h__
 
-#include "ObjectGuid.h"
+#include "ItemPackets.h"
 #include "Packet.h"
+#include "ObjectGuid.h"
+#include "WorldSession.h"
 
 namespace WorldPackets
 {
@@ -32,6 +34,7 @@ namespace WorldPackets
 
             void Read() override;
 
+            WorldPackets::Item::InvUpdate Inv;
             uint8 Bag = 0;
             uint8 Slot = 0;
         };
@@ -43,6 +46,7 @@ namespace WorldPackets
 
             void Read() override;
 
+            WorldPackets::Item::InvUpdate Inv;
             uint8 Bag = 0;
             uint8 Slot = 0;
         };
@@ -54,27 +58,7 @@ namespace WorldPackets
 
             void Read() override;
 
-            ObjectGuid Banker;
-        };
-
-        class BuyBankSlotResult final : public ServerPacket
-        {
-        public:
-            BuyBankSlotResult() : ServerPacket(SMSG_BUY_BANK_SLOT_RESULT, 4) { }
-
-            WorldPacket const* Write() override;
-
-            uint32 Result = 0;
-        };
-
-        class ShowBank final : public ServerPacket
-        {
-        public:
-            ShowBank() : ServerPacket(SMSG_SHOW_BANK, 8) { }
-
-            WorldPacket const* Write() override;
-
-            ObjectGuid Banker;
+            ObjectGuid Guid;
         };
     }
 }

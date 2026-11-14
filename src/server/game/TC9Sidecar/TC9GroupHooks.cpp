@@ -20,6 +20,7 @@
 #include "Group.h"
 #include "GroupMgr.h"
 #include "Log.h"
+#include "TC9Guid.h"
 
 void ToCloud9GroupHooks::OnGroupCreated(EventObjectGroup *group)
 {
@@ -30,15 +31,15 @@ void ToCloud9GroupHooks::OnGroupCreated(EventObjectGroup *group)
         return;
 
     Group* g = new Group();
-    g->m_guid = ObjectGuid(HighGuid::Group, group->guid);
-    g->m_leaderGuid = ObjectGuid(group->leader);
+    g->m_guid = ObjectGuid::Create<HighGuid::Party>(group->guid);
+    g->m_leaderGuid = TC9Guid::Player(group->leader);
     sCharacterCache->GetCharacterNameByGuid(g->m_leaderGuid, g->m_leaderName);
     g->m_dungeonDifficulty = Difficulty(group->difficulty);
     g->m_raidDifficulty = Difficulty(group->raidDifficulty);
     g->m_lootMethod = LootMethod(group->lootMethod);
     g->m_lootThreshold = ItemQualities(group->lootThreshold);
-    g->m_looterGuid = ObjectGuid(group->looterGuid);
-    g->m_masterLooterGuid = ObjectGuid(group->masterLooterGuid);
+    g->m_looterGuid = TC9Guid::Player(group->looterGuid);
+    g->m_masterLooterGuid = TC9Guid::Player(group->masterLooterGuid);
     g->m_groupType = GroupType(group->groupType);
 
     // Must precede member insertion: it zeroes the subgroup counters that AddMemberWithGuid increments.
@@ -46,7 +47,7 @@ void ToCloud9GroupHooks::OnGroupCreated(EventObjectGroup *group)
         g->_initRaidSubGroupsCounter();
 
     for (int i = 0; i < group->membersSize; i++)
-        g->AddMemberWithGuid(ObjectGuid(group->members[i]));
+        g->AddMemberWithGuid(TC9Guid::Player(group->members[i]));
 
     sGroupMgr->AddGroup(g);
     // Mark the service-assigned id used so a locally generated group can't collide with it.
@@ -66,7 +67,7 @@ void ToCloud9GroupHooks::OnGroupMemberAdded(uint32 group, uint64 member)
     LOG_INFO("server", "Group member added. ID: {}; Member: {}.", group, member);
 
     if (Group* g = sGroupMgr->GetGroupByGUID(group))
-        g->AddMemberWithGuid(ObjectGuid(member));
+        g->AddMemberWithGuid(TC9Guid::Player(member));
 }
 
 void ToCloud9GroupHooks::OnGroupMemberRemoved(uint32 group, uint64 member, uint64 newLeader)
@@ -74,7 +75,7 @@ void ToCloud9GroupHooks::OnGroupMemberRemoved(uint32 group, uint64 member, uint6
     LOG_INFO("server", "Group member removed. ID: {}; Member: {}; NewLeader: {}.", group, member, newLeader);
 
     if (Group* g = sGroupMgr->GetGroupByGUID(group))
-        g->RemoveMember(ObjectGuid(member));
+        g->RemoveMember(TC9Guid::Player(member));
 }
 
 void ToCloud9GroupHooks::OnGroupLootTypeChanged(uint32 group, uint8 lootType, uint64 looter, uint8 lootThreshold)
@@ -85,7 +86,7 @@ void ToCloud9GroupHooks::OnGroupLootTypeChanged(uint32 group, uint8 lootType, ui
     if (Group* g = sGroupMgr->GetGroupByGUID(group))
     {
         g->SetLootMethod((LootMethod)lootType);
-        g->SetMasterLooterGuid(ObjectGuid(looter));
+        g->SetMasterLooterGuid(TC9Guid::Player(looter));
         g->SetLootThreshold((ItemQualities)lootThreshold);
     }
 }

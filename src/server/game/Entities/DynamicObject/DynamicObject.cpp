@@ -31,6 +31,7 @@ DynamicObject::DynamicObject() : WorldObject(), MovableMapObject(),
     m_updateFlag.Stationary = true;
 
     m_valuesCount = DYNAMICOBJECT_END;
+    _dynamicValuesCount = DYNAMICOBJECT_DYNAMIC_END;
 }
 
 DynamicObject::~DynamicObject()
@@ -106,7 +107,7 @@ bool DynamicObject::CreateDynamicObject(ObjectGuid::LowType guidlow, Unit* caste
         return false;
     }
 
-    WorldObject::_Create(guidlow, HighGuid::DynamicObject, caster->GetPhaseMask());
+    WorldObject::_Create(ObjectGuid::Create<HighGuid::DynamicObject>(GetMapId(), spellInfo->Id, guidlow), caster->GetPhaseMask());
 
     UpdatePositionData();
 

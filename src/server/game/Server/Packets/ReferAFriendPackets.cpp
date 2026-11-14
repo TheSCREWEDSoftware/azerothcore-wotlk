@@ -15,35 +15,33 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef LFGPacketsCommon_h__
-#define LFGPacketsCommon_h__
+#include "ReferAFriendPackets.h"
 
-#include "Packet.h"
-#include "ObjectGuid.h"
-
-namespace WorldPackets
+void WorldPackets::RaF::AcceptLevelGrant::Read()
 {
-    namespace LFG
-    {
-        enum class RideType : uint32
-        {
-            None = 0,
-            Battlegrounds = 1,
-            Lfg = 3
-        };
-
-        struct RideTicket
-        {
-            int32 Time = 0;
-            RideType Type = RideType::None;
-            uint32 Id = 0;
-
-            ObjectGuid RequesterGuid;
-        };
-    }
+    _worldPacket >> Granter;
 }
 
-ByteBuffer& operator>>(ByteBuffer& data, WorldPackets::LFG::RideTicket& ticket);
-ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::LFG::RideTicket const& ticket);
+void WorldPackets::RaF::GrantLevel::Read()
+{
+    _worldPacket >> Target;
+}
 
-#endif // LFGPacketsCommon_h__
+WorldPacket const* WorldPackets::RaF::ProposeLevelGrant::Write()
+{
+    _worldPacket << Sender;
+
+    return &_worldPacket;
+}
+
+WorldPacket const* WorldPackets::RaF::ReferAFriendFailure::Write()
+{
+    _worldPacket << int32(Reason);
+    // Client uses this string only if Reason == ERR_REFER_A_FRIEND_NOT_IN_GROUP || Reason == ERR_REFER_A_FRIEND_SUMMON_OFFLINE_S
+    // but always reads it from packet
+    _worldPacket.WriteBits(Str.length(), 6);
+    _worldPacket.FlushBits();
+    _worldPacket.WriteString(Str);
+
+    return &_worldPacket;
+}

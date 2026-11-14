@@ -25,40 +25,16 @@ class WorldPacket;
 
 enum OBJECT_UPDATE_TYPE
 {
-    // Cata 4.3.4 dropped the WotLK UPDATETYPE_MOVEMENT=1 variant from this byte
-    // (movement travels over separate MSG_MOVE_*/SMSG_ON_MONSTER_MOVE opcodes instead),
-    // which shifts every other value down by one versus WotLK -- verified against
-    // cata-js's proven-working reference (docs/smsg-update-object.md). Sending the
-    // old WotLK numbering (CREATE_OBJECT2=3) makes the real client read a player's
-    // own create block as UPDATETYPE_OUT_OF_RANGE_OBJECTS and never construct the
-    // local player object, hanging the loading screen at 90% forever.
     UPDATETYPE_VALUES               = 0,
     UPDATETYPE_CREATE_OBJECT        = 1,
     UPDATETYPE_CREATE_OBJECT2       = 2,
-    UPDATETYPE_OUT_OF_RANGE_OBJECTS = 3,
-    UPDATETYPE_NEAR_OBJECTS         = 4
-};
-
-enum OBJECT_UPDATE_FLAGS
-{
-    UPDATEFLAG_NONE                 = 0x0000,
-    UPDATEFLAG_SELF                 = 0x0001,
-    UPDATEFLAG_TRANSPORT            = 0x0002,
-    UPDATEFLAG_HAS_TARGET           = 0x0004,
-    UPDATEFLAG_UNKNOWN              = 0x0008,
-    UPDATEFLAG_LOWGUID              = 0x0010,
-    UPDATEFLAG_LIVING               = 0x0020,
-    UPDATEFLAG_STATIONARY_POSITION  = 0x0040,
-    UPDATEFLAG_VEHICLE              = 0x0080,
-    UPDATEFLAG_POSITION             = 0x0100,
-    UPDATEFLAG_ROTATION             = 0x0200
+    UPDATETYPE_OUT_OF_RANGE_OBJECTS = 3,                    // not a block type in 6.x, the guids precede the blocks
 };
 
 class UpdateData
 {
 public:
-    // The map prefix is part of every 4.3.4 SMSG_UPDATE_OBJECT; require it so a sender
-    // cannot leave it at 0 by default (issues #193, #194).
+    // The map is part of every SMSG_UPDATE_OBJECT; require it so a sender cannot leave it at 0 by default.
     explicit UpdateData(uint16 map);
 
     void AddOutOfRangeGUID(ObjectGuid guid);

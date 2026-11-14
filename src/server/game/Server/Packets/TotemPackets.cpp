@@ -19,23 +19,25 @@
 
 void WorldPackets::Totem::TotemDestroyed::Read()
 {
-    // 5.4.8 18414, from Project SkyFire; the totem GUID is not used
-    ObjectGuid totemGuid;
     _worldPacket >> Slot;
-    _worldPacket.ReadGuidMask(totemGuid, { 4, 2, 1, 3, 0, 6, 7, 5 });
-    _worldPacket.ReadGuidBytes(totemGuid, { 6, 2, 4, 1, 5, 0, 3, 7 });
+    _worldPacket >> TotemGUID;
 }
 
 WorldPacket const* WorldPackets::Totem::TotemCreated::Write()
 {
-    // 5.4.8 18414, from Project SkyFire
-    _worldPacket.WriteGuidMask(Totem, { 6, 1, 2, 5, 3, 4, 7, 0 });
-    _worldPacket.FlushBits();
-    _worldPacket << uint32(Duration);
-    _worldPacket << uint32(SpellID);
-    _worldPacket.WriteGuidBytes(Totem, { 3, 4, 5, 6, 0, 2 });
+    _worldPacket << Slot;
+    _worldPacket << Totem;
+    _worldPacket << int32(Duration);
+    _worldPacket << int32(SpellID);
+
+    return &_worldPacket;
+}
+
+WorldPacket const* WorldPackets::Totem::TotemMoved::Write()
+{
     _worldPacket << uint8(Slot);
-    _worldPacket.WriteGuidBytes(Totem, { 1, 7 });
+    _worldPacket << uint8(NewSlot);
+    _worldPacket << Totem;
 
     return &_worldPacket;
 }

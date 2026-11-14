@@ -34,18 +34,18 @@ MailMgr* MailMgr::instance()
 
 void MailMgr::OnMailSent(ObjectGuid::LowType receiverLow)
 {
-    sCharacterCache->IncreaseCharacterMailCount(ObjectGuid(HighGuid::Player, receiverLow));
+    sCharacterCache->IncreaseCharacterMailCount(ObjectGuid::Create<HighGuid::Player>(receiverLow));
 }
 
 void MailMgr::OnMailDeleted(ObjectGuid::LowType receiverLow)
 {
-    sCharacterCache->DecreaseCharacterMailCount(ObjectGuid(HighGuid::Player, receiverLow));
+    sCharacterCache->DecreaseCharacterMailCount(ObjectGuid::Create<HighGuid::Player>(receiverLow));
 }
 
 void MailMgr::OnMailReturned(ObjectGuid::LowType oldReceiverLow, ObjectGuid::LowType newReceiverLow)
 {
-    sCharacterCache->DecreaseCharacterMailCount(ObjectGuid(HighGuid::Player, oldReceiverLow));
-    sCharacterCache->IncreaseCharacterMailCount(ObjectGuid(HighGuid::Player, newReceiverLow));
+    sCharacterCache->DecreaseCharacterMailCount(ObjectGuid::Create<HighGuid::Player>(oldReceiverLow));
+    sCharacterCache->IncreaseCharacterMailCount(ObjectGuid::Create<HighGuid::Player>(newReceiverLow));
 }
 
 void MailMgr::LoadMailCounts()
@@ -57,7 +57,7 @@ void MailMgr::LoadMailCounts()
     do
     {
         Field* fields = result->Fetch();
-        sCharacterCache->UpdateCharacterMailCount(ObjectGuid(HighGuid::Player, fields[0].Get<uint32>()), static_cast<int32>(fields[1].Get<uint64>()), true);
+        sCharacterCache->UpdateCharacterMailCount(ObjectGuid::Create<HighGuid::Player>(fields[0].Get<uint32>()), static_cast<int32>(fields[1].Get<uint64>()), true);
     } while (result->NextRow());
 }
 
@@ -67,7 +67,7 @@ void MailMgr::RecountMailCount(ObjectGuid::LowType receiverLow)
     if (QueryResult result = CharacterDatabase.Query("SELECT COUNT(*) FROM mail WHERE receiver = {}", receiverLow))
         count = static_cast<int32>((*result)[0].Get<uint64>());
 
-    sCharacterCache->UpdateCharacterMailCount(ObjectGuid(HighGuid::Player, receiverLow), count, true);
+    sCharacterCache->UpdateCharacterMailCount(ObjectGuid::Create<HighGuid::Player>(receiverLow), count, true);
 }
 
 void MailMgr::DeleteEmptyExpiredMail(uint32 mailId, ObjectGuid::LowType receiverLow)

@@ -53,7 +53,7 @@ protected:
 TEST_F(AuraLoadedStateTest, UnresolvedCasterPreservesSavedAmount)
 {
     TestPlayer* target = CreateTestPlayer();
-    ObjectGuid casterGuid = ObjectGuid::Create<HighGuid::Unit>(9098, 1);
+    ObjectGuid casterGuid = ObjectGuid::Create<HighGuid::Creature>(9098, 1);
     Aura* aura = Aura::TryCreate(_spellInfo.get(), 1, target, nullptr, nullptr, nullptr, casterGuid);
     ASSERT_NE(aura, nullptr);
 

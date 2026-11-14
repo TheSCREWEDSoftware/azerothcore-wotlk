@@ -673,6 +673,52 @@ public:
         append(packGUID, size);
     }
 
+    void ReadPackedUInt64(uint64& value)
+    {
+        value = 0;
+        ReadPackedUInt64(read<uint8>(), value);
+    }
+
+    void ReadPackedUInt64(uint8 mask, uint64& value)
+    {
+        for (uint32 i = 0; i < 8; ++i)
+            if (mask & (uint8(1) << i))
+                value |= (uint64(read<uint8>()) << (i * 8));
+    }
+
+    void AppendPackedUInt64(uint64 value)
+    {
+        uint8 mask = 0;
+        std::size_t pos = wpos();
+        *this << uint8(mask);
+
+        uint8 packed[8];
+        if (std::size_t packedSize = PackUInt64(value, &mask, packed))
+            append(packed, packedSize);
+
+        put<uint8>(pos, mask);
+    }
+
+    static std::size_t PackUInt64(uint64 value, uint8* mask, uint8* result)
+    {
+        std::size_t resultSize = 0;
+        *mask = 0;
+        std::memset(result, 0, 8);
+
+        for (uint8 i = 0; value != 0; ++i)
+        {
+            if (value & 0xFF)
+            {
+                *mask |= uint8(1 << i);
+                result[resultSize++] = uint8(value & 0xFF);
+            }
+
+            value >>= 8;
+        }
+
+        return resultSize;
+    }
+
     void AppendPackedTime(time_t time);
     void put(std::size_t pos, uint8 const* src, std::size_t cnt);
     void print_storage() const;

@@ -78,7 +78,7 @@ bool MotionTransport::CreateMoTrans(ObjectGuid::LowType guidlow, uint32 entry, u
         return false;
     }
 
-    Object::_Create(guidlow, 0, HighGuid::Mo_Transport);
+    Object::_Create(ObjectGuid::Create<HighGuid::Transport>(guidlow));
 
     GameObjectTemplate const* goinfo = sObjectMgr->GetGameObjectTemplate(entry);
 
@@ -866,7 +866,7 @@ bool StaticTransport::Create(ObjectGuid::LowType guidlow, uint32 name_id, Map* m
         return false;
     }
 
-    Object::_Create(guidlow, 0, HighGuid::Transport);
+    Object::_Create(ObjectGuid::Create<HighGuid::Transport>(guidlow));
 
     m_goInfo = goinfo;
 

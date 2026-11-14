@@ -14,100 +14,71 @@
  * You should have received a copy of the GNU General Public License along
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
+
 #ifndef GuildPackets_h__
 #define GuildPackets_h__
 
-#include "Guild.h"
-#include "ObjectGuid.h"
-#include "Optional.h"
 #include "Packet.h"
-#include "PacketUtilities.h"
-#include <array>
-#include <boost/container/static_vector.hpp>
+#include "ObjectGuid.h"
+#include "Guild.h"
+#include "ItemPackets.h"
 
 namespace WorldPackets
 {
     namespace Guild
     {
-        class GuildNameChanged final : public ServerPacket
-        {
-        public:
-            GuildNameChanged() : ServerPacket(SMSG_GUILD_RENAMED, 1 + 8 + 24) { }
-
-            WorldPacket const* Write() override;
-
-            ObjectGuid GuildGUID;
-            std::string GuildName;
-        };
-
         class QueryGuildInfo final : public ClientPacket
         {
         public:
-            QueryGuildInfo(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_QUERY, std::move(packet)) { }
+            QueryGuildInfo(WorldPacket&& packet) : ClientPacket(CMSG_QUERY_GUILD_INFO, std::move(packet)) { }
 
             void Read() override;
 
-            ObjectGuid GuildGuid;
             ObjectGuid PlayerGuid;
-        };
-
-        struct GuildInfo
-        {
-            std::string GuildName;
-
-            std::array<std::string, GUILD_RANKS_MAX_COUNT> Ranks;
-            std::array<uint32, GUILD_RANKS_MAX_COUNT> RankOrders = {};
-            std::array<uint32, GUILD_RANKS_MAX_COUNT> RankIds = {};
-            uint32 RankCount = 0;
-
-            uint32 EmblemStyle = 0;
-            uint32 EmblemColor = 0;
-            uint32 BorderStyle = 0;
-            uint32 BorderColor = 0;
-            uint32 BackgroundColor = 0;
+            ObjectGuid GuildGuid;
         };
 
         class QueryGuildInfoResponse final : public ServerPacket
         {
         public:
+            struct GuildInfo
+            {
+                ObjectGuid GuildGUID;
+
+                uint32 VirtualRealmAddress = 0; ///< a special identifier made from the Index, BattleGroup and Region.
+
+                std::string GuildName;
+
+                struct GuildInfoRank
+                {
+                    GuildInfoRank(uint32 id, uint32 order, std::string const& name)
+                        : RankID(id), RankOrder(order), RankName(name) { }
+
+                    uint32 RankID;
+                    uint32 RankOrder;
+                    std::string RankName;
+
+                    bool operator<(GuildInfoRank const& right) const
+                    {
+                        return RankID < right.RankID;
+                    }
+                };
+
+                std::set<GuildInfoRank> Ranks;
+
+                uint32 EmblemStyle = 0;
+                uint32 EmblemColor = 0;
+                uint32 BorderStyle = 0;
+                uint32 BorderColor = 0;
+                uint32 BackgroundColor = 0;
+            };
+
             QueryGuildInfoResponse();
 
             WorldPacket const* Write() override;
 
             ObjectGuid GuildGuid;
-            GuildInfo Info;
-            uint32 VirtualRealmAddress = 0;
-        };
-
-        class GuildCreate final : public ClientPacket
-        {
-        public:
-            GuildCreate(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_CREATE, std::move(packet)) { }
-
-            void Read() override;
-
-            std::string GuildName;
-        };
-
-        class GuildGetInfo final : ClientPacket
-        {
-        public:
-            GuildGetInfo(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_INFO, std::move(packet)) { }
-
-            void Read() override { }
-        };
-
-        class GuildInfoResponse final : ServerPacket
-        {
-        public:
-            GuildInfoResponse() : ServerPacket(SMSG_GUILD_INFO, 123) { }
-
-            WorldPacket const* Write() override;
-
-            std::string GuildName;
-            time_t CreateDate = time_t(0);
-            int32 NumMembers = 0;
-            int32 NumAccounts = 0;
+            Optional<GuildInfo> Info;
         };
 
         class GuildGetRoster final : public ClientPacket
@@ -132,242 +103,21 @@ namespace WorldPackets
             int64 TotalXP = 0;
             int32 RankID = 0;
             int32 AreaID = 0;
+            int32 PersonalAchievementPoints = 0;
+            int32 GuildReputation = 0;
+            int32 GuildRepToCap = 0;
             float LastSave = 0.0f;
             std::string Name;
+            uint32 VirtualRealmAddress = 0;
             std::string Note;
             std::string OfficerNote;
             uint8 Status = 0;
             uint8 Level = 0;
             uint8 ClassID = 0;
             uint8 Gender = 0;
-            // Cata
-            int32 GuildReputation = 0;
-            int32 GuildRepToCap = 0;
-            int32 PersonalAchievementPoints = 0;
-            int32 VirtualRealmAddress = 0;
             bool Authenticated = false;
             bool SorEligible = false;
             GuildRosterProfessionData Profession[2];
-        };
-
-        struct GuildRankData
-        {
-            uint32 RankID = 0;
-            uint32 RankOrder = 0;
-            std::string RankName;
-            uint32 Flags = 0;
-            uint32 WithdrawGoldLimit = 0;
-            uint32 TabFlags[GUILD_BANK_MAX_TABS];
-            uint32 TabWithdrawItemLimit[GUILD_BANK_MAX_TABS];
-        };
-
-        class GuildXPQuery final : public ClientPacket
-        {
-        public:
-            GuildXPQuery(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_XP_QUERY, std::move(packet)) { }
-
-            void Read() override;
-
-            ObjectGuid GuildGuid;
-        };
-
-        class GuildRequestMaxDailyXP final : public ClientPacket
-        {
-        public:
-            GuildRequestMaxDailyXP(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_REQUEST_MAX_DAILY_XP, std::move(packet)) { }
-
-            void Read() override;
-
-            ObjectGuid GuildGuid;
-        };
-
-        class GuildMaxDailyXP final : public ServerPacket
-        {
-        public:
-            GuildMaxDailyXP() : ServerPacket(SMSG_GUILD_MAX_DAILY_XP, 8) { }
-
-            WorldPacket const* Write() override;
-
-            uint64 Xp = 0;
-        };
-
-        class GuildXP final : public ServerPacket
-        {
-        public:
-            GuildXP() : ServerPacket(SMSG_GUILD_XP, 40) { }
-
-            WorldPacket const* Write() override;
-
-            int64 WeeklyXP = 0;
-            int64 TotalXP = 0;
-            int64 GuildTodayXP = 0;
-            int64 GuildRemainingXP = 0;
-            int64 GuildCurrentXP = 0;
-        };
-
-        // Cata guild reputation
-        class GuildReputationWeeklyCap final : public ServerPacket
-        {
-        public:
-            GuildReputationWeeklyCap() : ServerPacket(SMSG_GUILD_REPUTATION_WEEKLY_CAP, 4) { }
-
-            WorldPacket const* Write() override;
-
-            uint32 Cap = 0;
-        };
-
-        class GuildMemberUpdateNote final : public ServerPacket
-        {
-        public:
-            GuildMemberUpdateNote() : ServerPacket(SMSG_GUILD_MEMBER_UPDATE_NOTE, 1 + 1 + 1 + 8 + 256) { }
-
-            WorldPacket const* Write() override;
-
-            ObjectGuid Member;
-            bool IsPublic = false;
-            std::string Note;
-        };
-
-        class GuildRanksUpdate final : public ServerPacket
-        {
-        public:
-            GuildRanksUpdate() : ServerPacket(SMSG_GUILD_RANKS_UPDATE, 2 + 4 + 16) { }
-
-            WorldPacket const* Write() override;
-
-            ObjectGuid Officer;
-            ObjectGuid Other;
-            int32 RankID = 0;
-            bool Promote = false;
-        };
-
-        class GuildRequestPartyState final : public ClientPacket
-        {
-        public:
-            GuildRequestPartyState(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_REQUEST_PARTY_STATE, std::move(packet)) { }
-
-            void Read() override;
-
-            ObjectGuid GuildGUID;
-        };
-
-        class GuildPartyState final : public ServerPacket
-        {
-        public:
-            GuildPartyState() : ServerPacket(SMSG_GUILD_PARTY_STATE_RESPONSE, 1 + 4 + 4 + 4) { }
-
-            WorldPacket const* Write() override;
-
-            bool InGuildParty = false;
-            float GuildXPEarnedMult = 0.0f;
-            uint32 NumMembers = 0;
-            uint32 NumRequired = 0;
-        };
-
-        class ReplaceGuildMaster final : public ClientPacket
-        {
-        public:
-            ReplaceGuildMaster(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_REPLACE_GUILD_MASTER, std::move(packet)) { }
-
-            void Read() override { }
-        };
-
-        class AutoDeclineGuildInvites final : public ClientPacket
-        {
-        public:
-            AutoDeclineGuildInvites(WorldPacket&& packet) : ClientPacket(CMSG_AUTO_DECLINE_GUILD_INVITES, std::move(packet)) { }
-
-            void Read() override;
-
-            bool Allow = false;
-        };
-
-        class GuildQueryMembersForRecipe final : public ClientPacket
-        {
-        public:
-            GuildQueryMembersForRecipe(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_QUERY_MEMBERS_FOR_RECIPE, std::move(packet)) { }
-
-            void Read() override;
-
-            ObjectGuid GuildGUID;
-            int32 UniqueBit = 0;
-            int32 SkillLineID = 0;
-            int32 SpellID = 0;
-        };
-
-        class GuildMembersWithRecipe final : public ServerPacket
-        {
-        public:
-            GuildMembersWithRecipe() : ServerPacket(SMSG_GUILD_MEMBERS_WITH_RECIPE, 8) { }
-
-            WorldPacket const* Write() override;
-
-            int32 SpellID = 0;
-            std::vector<ObjectGuid> Members;
-            int32 SkillLineID = 0;
-        };
-
-        class GuildQueryMemberRecipes final : public ClientPacket
-        {
-        public:
-            GuildQueryMemberRecipes(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_QUERY_MEMBER_RECIPES, std::move(packet)) { }
-
-            void Read() override;
-
-            ObjectGuid GuildMember;
-            ObjectGuid GuildGUID;
-            int32 SkillLineID = 0;
-        };
-
-        class GuildMemberRecipes final : public ServerPacket
-        {
-        public:
-            GuildMemberRecipes() : ServerPacket(SMSG_GUILD_MEMBER_RECIPES, 8 + 4 * 3 + GUILD_RECIPES_COUNT) { }
-
-            WorldPacket const* Write() override;
-
-            ObjectGuid Member;
-            int32 SkillRank = 0;
-            int32 SkillLineID = 0;
-            int32 SkillStep = 0;
-            std::array<uint8, GUILD_RECIPES_COUNT> SkillLineBitArray = { };
-        };
-
-        // Cata Guild Challenges
-        class GuildChallengeUpdateRequest final : public ClientPacket
-        {
-        public:
-            GuildChallengeUpdateRequest(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_REQUEST_CHALLENGE_UPDATE, std::move(packet)) { }
-
-            void Read() override { }
-        };
-
-        class GuildChallengeUpdate final : public ServerPacket
-        {
-        public:
-            GuildChallengeUpdate() : ServerPacket(SMSG_GUILD_CHALLENGE_UPDATED, 80) { }
-
-            WorldPacket const* Write() override;
-
-            std::array<int32, MAX_GUILD_CHALLENGE_TYPES> Xp = { };
-            std::array<int32, MAX_GUILD_CHALLENGE_TYPES> CurrentCount = { };
-            std::array<int32, MAX_GUILD_CHALLENGE_TYPES> MaxCount = { };
-            std::array<int32, MAX_GUILD_CHALLENGE_TYPES> Gold = { };
-            std::array<int32, MAX_GUILD_CHALLENGE_TYPES> MaxLevelGold = { };
-        };
-
-        class GuildChallengeCompleted final : public ServerPacket
-        {
-        public:
-            GuildChallengeCompleted() : ServerPacket(SMSG_GUILD_CHALLENGE_COMPLETED, 20) { }
-
-            WorldPacket const* Write() override;
-
-            int32 ChallengeType = 0;
-            int32 GoldAwarded = 0;
-            int32 CurrentCount = 0;
-            int32 XpAwarded = 0;
-            int32 MaxCount = 0;
         };
 
         class GuildRoster final : public ServerPacket
@@ -380,70 +130,35 @@ namespace WorldPackets
             std::vector<GuildRosterMemberData> MemberData;
             std::string WelcomeText;
             std::string InfoText;
-            uint32 NumAccounts = 0;
-            uint32 WeeklyRepCap = 0;
-            time_t CreateDate = time_t(0);
-            uint32 GuildFlags = 0;
+            uint32 CreateDate = 0;
+            int32 NumAccounts = 0;
+            int32 GuildFlags = 0;
         };
 
-        class GuildQueryRanks final : public ClientPacket
+        class GuildRosterUpdate final : public ServerPacket
         {
         public:
-            GuildQueryRanks(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_QUERY_RANKS, std::move(packet)) { }
-
-            void Read() override;
-
-            ObjectGuid GuildGuid;
-        };
-
-        class GuildRanks final : public ServerPacket
-        {
-        public:
-            GuildRanks() : ServerPacket(SMSG_GUILD_RANKS, 4 + 10 * 4) { }
+            GuildRosterUpdate() : ServerPacket(SMSG_GUILD_ROSTER_UPDATE, 4) { }
 
             WorldPacket const* Write() override;
 
-            std::vector<GuildRankData> Ranks;
-        };
-
-        class GuildAssignMemberRank final : public ClientPacket
-        {
-        public:
-            GuildAssignMemberRank(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_ASSIGN_MEMBER_RANK, std::move(packet)) { }
-
-            void Read() override;
-
-            ObjectGuid Member;
-            ObjectGuid Setter;
-            uint32 RankOrder = 0;
-        };
-
-        class GuildSwitchRank final : public ClientPacket
-        {
-        public:
-            GuildSwitchRank(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_SWITCH_RANK, std::move(packet)) { }
-
-            void Read() override;
-
-            uint32 RankOrder = 0;
-            bool Up = false;
+            std::vector<GuildRosterMemberData> MemberData;
         };
 
         class GuildUpdateMotdText final : public ClientPacket
         {
         public:
-            GuildUpdateMotdText(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_MOTD, std::move(packet)) { }
+            GuildUpdateMotdText(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_UPDATE_MOTD_TEXT, std::move(packet)) { }
 
             void Read() override;
 
-            String<128, Strings::NoHyperlinks> MotdText;
+            std::string MotdText;
         };
 
         class GuildCommandResult final : public ServerPacket
         {
         public:
-            // SMSG_GUILD_COMMAND_RESULT has the same layout; the client handles _2 as soon as it is read
-            GuildCommandResult() : ServerPacket(SMSG_GUILD_COMMAND_RESULT_2, 9) { }
+            GuildCommandResult() : ServerPacket(SMSG_GUILD_COMMAND_RESULT, 9) { }
 
             WorldPacket const* Write() override;
 
@@ -455,7 +170,7 @@ namespace WorldPackets
         class AcceptGuildInvite final : public ClientPacket
         {
         public:
-            AcceptGuildInvite(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_ACCEPT, std::move(packet)) { }
+            AcceptGuildInvite(WorldPacket&& packet) : ClientPacket(CMSG_ACCEPT_GUILD_INVITE, std::move(packet)) { }
 
             void Read() override { }
         };
@@ -463,52 +178,124 @@ namespace WorldPackets
         class GuildDeclineInvitation final : public ClientPacket
         {
         public:
-            GuildDeclineInvitation(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_DECLINE, std::move(packet)) { }
+            GuildDeclineInvitation(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_DECLINE_INVITATION, std::move(packet)) { }
 
             void Read() override { }
+        };
+
+        class DeclineGuildInvites final : public ClientPacket
+        {
+        public:
+            DeclineGuildInvites(WorldPacket&& packet) : ClientPacket(CMSG_DECLINE_GUILD_INVITES, std::move(packet)) { }
+
+            void Read() override;
+
+            bool Allow = false;
         };
 
         class GuildInviteByName final : public ClientPacket
         {
         public:
-            GuildInviteByName(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_INVITE, std::move(packet)) { }
+            GuildInviteByName(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_INVITE_BY_NAME, std::move(packet)) { }
 
             void Read() override;
 
-            String<48> Name;
+            std::string Name;
         };
 
         class GuildInvite final : public ServerPacket
         {
         public:
-            GuildInvite() : ServerPacket(SMSG_GUILD_INVITE, 144) { }
+            GuildInvite() : ServerPacket(SMSG_GUILD_INVITE, 68) { }
 
             WorldPacket const* Write() override;
 
+            ObjectGuid GuildGUID;
+            ObjectGuid OldGuildGUID;
+            int32 Level = 0;
+            uint32 EmblemColor = 0;
+            uint32 EmblemStyle = 0;
+            uint32 BorderStyle = 0;
+            uint32 BorderColor = 0;
+            uint32 Background = 0;
+            uint32 GuildVirtualRealmAddress = 0;
+            uint32 OldGuildVirtualRealmAddress = 0;
+            uint32 InviterVirtualRealmAddress = 0;
             std::string InviterName;
             std::string GuildName;
             std::string OldGuildName;
-            ObjectGuid GuildGuid;
-            ObjectGuid OldGuildGuid;
-            uint32 GuildLevel = 0;
-            uint32 EmblemStyle = 0;
-            uint32 EmblemColor = 0;
-            uint32 BorderStyle = 0;
-            uint32 BorderColor = 0;
-            uint32 BackgroundColor = 0;
-            uint32 VirtualRealmAddress = 0;
         };
 
-        class GuildEvent final : public ServerPacket
+        class GuildEventPresenceChange final : public ServerPacket
         {
         public:
-            GuildEvent() : ServerPacket(SMSG_GUILD_EVENT) { }
+            GuildEventPresenceChange() : ServerPacket(SMSG_GUILD_EVENT_PRESENCE_CHANGE, 16 + 4 + 1 + 1) { }
 
             WorldPacket const* Write() override;
 
-            uint8 Type = 0;
-            boost::container::static_vector<std::string_view, 3> Params;
             ObjectGuid Guid;
+            uint32 VirtualRealmAddress = 0;
+            std::string Name;
+            bool Mobile = false;
+            bool LoggedOn = false;
+        };
+
+        class GuildEventMotd final : public ServerPacket
+        {
+        public:
+            GuildEventMotd() : ServerPacket(SMSG_GUILD_EVENT_MOTD, 1) { }
+
+            WorldPacket const* Write() override;
+
+            std::string MotdText;
+        };
+
+        class GuildEventPlayerJoined final : public ServerPacket
+        {
+        public:
+            GuildEventPlayerJoined() : ServerPacket(SMSG_GUILD_EVENT_PLAYER_JOINED, 21) { }
+
+            WorldPacket const* Write() override;
+
+            ObjectGuid Guid;
+            std::string Name;
+            uint32 VirtualRealmAddress = 0;
+        };
+
+        class GuildEventRankChanged final : public ServerPacket
+        {
+        public:
+            GuildEventRankChanged() : ServerPacket(SMSG_GUILD_EVENT_RANK_CHANGED, 4) { }
+
+            WorldPacket const* Write() override;
+
+            int32 RankID = 0;
+        };
+
+        class GuildEventRanksUpdated final : public ServerPacket
+        {
+        public:
+            GuildEventRanksUpdated() : ServerPacket(SMSG_GUILD_EVENT_RANKS_UPDATED, 0) { }
+
+            WorldPacket const* Write() override { return &_worldPacket; }
+        };
+
+        class GuildEventBankMoneyChanged final : public ServerPacket
+        {
+        public:
+            GuildEventBankMoneyChanged() : ServerPacket(SMSG_GUILD_EVENT_BANK_MONEY_CHANGED, 8) { }
+
+            WorldPacket const* Write() override;
+
+            uint64 Money = 0;
+        };
+
+        class GuildEventDisbanded final : public ServerPacket
+        {
+        public:
+            GuildEventDisbanded() : ServerPacket(SMSG_GUILD_EVENT_DISBANDED, 0) { }
+
+            WorldPacket const* Write() override { return &_worldPacket; }
         };
 
         struct GuildEventEntry
@@ -538,6 +325,76 @@ namespace WorldPackets
             std::vector<GuildEventEntry> Entry;
         };
 
+        class GuildEventPlayerLeft final : public ServerPacket
+        {
+        public:
+            GuildEventPlayerLeft() : ServerPacket(SMSG_GUILD_EVENT_PLAYER_LEFT, 43) { }
+
+            WorldPacket const* Write() override;
+
+            ObjectGuid LeaverGUID;
+            std::string LeaverName;
+            uint32 LeaverVirtualRealmAddress = 0;
+            ObjectGuid RemoverGUID;
+            std::string RemoverName;
+            uint32 RemoverVirtualRealmAddress = 0;
+            bool Removed = false;
+        };
+
+        class GuildEventNewLeader final : public ServerPacket
+        {
+        public:
+            GuildEventNewLeader() : ServerPacket(SMSG_GUILD_EVENT_NEW_LEADER, 43) { }
+
+            WorldPacket const* Write() override;
+
+            ObjectGuid NewLeaderGUID;
+            std::string NewLeaderName;
+            uint32 NewLeaderVirtualRealmAddress = 0;
+            ObjectGuid OldLeaderGUID;
+            std::string OldLeaderName;
+            uint32 OldLeaderVirtualRealmAddress = 0;
+            bool SelfPromoted = false;
+        };
+
+        class GuildEventTabAdded final : public ServerPacket
+        {
+        public:
+            GuildEventTabAdded() : ServerPacket(SMSG_GUILD_EVENT_TAB_ADDED, 0) { }
+
+            WorldPacket const* Write() override { return &_worldPacket; }
+        };
+
+        class GuildEventTabModified final : public ServerPacket
+        {
+        public:
+            GuildEventTabModified() : ServerPacket(SMSG_GUILD_EVENT_TAB_MODIFIED, 6) { }
+
+            WorldPacket const* Write() override;
+
+            std::string Icon;
+            std::string Name;
+            int32 Tab = 0;
+        };
+
+        class GuildEventTabTextChanged final : public ServerPacket
+        {
+        public:
+            GuildEventTabTextChanged() : ServerPacket(SMSG_GUILD_EVENT_TAB_TEXT_CHANGED, 4) { }
+
+            WorldPacket const* Write() override;
+
+            int32 Tab = 0;
+        };
+
+        class GuildEventBankContentsChanged final : public ServerPacket
+        {
+        public:
+            GuildEventBankContentsChanged() : ServerPacket(SMSG_GUILD_EVENT_BANK_CONTENTS_CHANGED, 0) { }
+
+            WorldPacket const* Write() override { return &_worldPacket; }
+        };
+
         class GuildPermissionsQuery final : public ClientPacket
         {
         public:
@@ -559,11 +416,11 @@ namespace WorldPackets
 
             WorldPacket const* Write() override;
 
-            int8 NumTabs = 0;
+            int32 NumTabs = 0;
             int32 WithdrawGoldLimit = 0;
             int32 Flags = 0;
             uint32 RankID = 0;
-            std::array<GuildRankTabPermissions, GUILD_BANK_MAX_TABS> Tab;
+            std::vector<GuildRankTabPermissions> Tab;
         };
 
         class GuildSetRankPermissions final : public ClientPacket
@@ -573,14 +430,14 @@ namespace WorldPackets
 
             void Read() override;
 
-            uint32 OldRankID = 0;
-            uint32 OldFlags = 0;
-            uint32 RankID = 0;
-            uint32 WithdrawGoldLimit = 0;
+            int32 RankID = 0;
+            int32 RankOrder = 0;
+            int32 WithdrawGoldLimit = 0;
             uint32 Flags = 0;
-            uint32 TabFlags[GUILD_BANK_MAX_TABS];
-            uint32 TabWithdrawItemLimit[GUILD_BANK_MAX_TABS];
-            String<15, Strings::NoHyperlinks> RankName;
+            uint32 OldFlags = 0;
+            int32 TabFlags[GUILD_BANK_MAX_TABS];
+            int32 TabWithdrawItemLimit[GUILD_BANK_MAX_TABS];
+            std::string RankName;
         };
 
         class GuildAddRank final : public ClientPacket
@@ -590,45 +447,132 @@ namespace WorldPackets
 
             void Read() override;
 
-            String<15, Strings::NoHyperlinks> Name;
+            std::string Name;
+            int32 RankOrder = 0;
+        };
+
+        class GuildAssignMemberRank final : public ClientPacket
+        {
+        public:
+            GuildAssignMemberRank(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_ASSIGN_MEMBER_RANK, std::move(packet)) { }
+
+            void Read() override;
+
+            ObjectGuid Member;
+            int32 RankOrder = 0;
         };
 
         class GuildDeleteRank final : public ClientPacket
         {
         public:
-            GuildDeleteRank(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_DEL_RANK, std::move(packet)) { }
+            GuildDeleteRank(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_DELETE_RANK, std::move(packet)) { }
 
             void Read() override;
 
+            int32 RankOrder = 0;
+        };
+
+        class GuildGetRanks final : public ClientPacket
+        {
+        public:
+            GuildGetRanks(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_GET_RANKS, std::move(packet)) { }
+
+            void Read() override;
+
+            ObjectGuid GuildGUID;
+        };
+
+        struct GuildRankData
+        {
+            uint32 RankID = 0;
             uint32 RankOrder = 0;
+            uint32 Flags = 0;
+            uint32 WithdrawGoldLimit = 0;
+            std::string RankName;
+            uint32 TabFlags[GUILD_BANK_MAX_TABS];
+            uint32 TabWithdrawItemLimit[GUILD_BANK_MAX_TABS];
+        };
+
+        class GuildRanks final : public ServerPacket
+        {
+        public:
+            GuildRanks() : ServerPacket(SMSG_GUILD_RANKS, 4) { }
+
+            WorldPacket const* Write() override;
+
+            std::vector<GuildRankData> Ranks;
+        };
+
+        class GuildSendRankChange final : public ServerPacket
+        {
+        public:
+            GuildSendRankChange() : ServerPacket(SMSG_GUILD_SEND_RANK_CHANGE, 43) { }
+
+            WorldPacket const* Write() override;
+
+            ObjectGuid Other;
+            ObjectGuid Officer;
+            bool Promote = false;
+            uint32 RankID = 0;
+        };
+
+        class GuildShiftRank final : public ClientPacket
+        {
+        public:
+            GuildShiftRank(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_SHIFT_RANK, std::move(packet)) { }
+
+            void Read() override;
+
+            bool ShiftUp = false;
+            int32 RankOrder = 0;
         };
 
         class GuildUpdateInfoText final : public ClientPacket
         {
         public:
-            GuildUpdateInfoText(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_INFO_TEXT, std::move(packet)) { }
+            GuildUpdateInfoText(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_UPDATE_INFO_TEXT, std::move(packet)) { }
 
             void Read() override;
 
-            String<500, Strings::NoHyperlinks> InfoText;
+            std::string InfoText;
         };
 
         class GuildSetMemberNote final : public ClientPacket
         {
         public:
-            GuildSetMemberNote(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_SET_NOTE, std::move(packet)) { }
+            GuildSetMemberNote(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_SET_MEMBER_NOTE, std::move(packet)) { }
 
             void Read() override;
 
             ObjectGuid NoteeGUID;
-            bool IsPublic = false;
-            String<31, Strings::NoHyperlinks> Note;
+            bool IsPublic = false;          ///< 0 == Officer, 1 == Public
+            std::string Note;
+        };
+
+        class GuildMemberUpdateNote final : public ServerPacket
+        {
+        public:
+            GuildMemberUpdateNote() : ServerPacket(SMSG_GUILD_MEMBER_UPDATE_NOTE, 21) { }
+
+            WorldPacket const* Write() override;
+
+            ObjectGuid Member;
+            bool IsPublic = false;          ///< 0 == Officer, 1 == Public
+            std::string Note;
+        };
+
+        class GuildMemberDailyReset final : public ServerPacket
+        {
+        public:
+            GuildMemberDailyReset() : ServerPacket(SMSG_GUILD_MEMBER_DAILY_RESET, 0) { }
+
+            WorldPacket const* Write() override { return &_worldPacket; }
         };
 
         class GuildDelete final : public ClientPacket
         {
         public:
-            GuildDelete(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_DISBAND, std::move(packet)) { }
+            GuildDelete(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_DELETE, std::move(packet)) { }
 
             void Read() override { }
         };
@@ -636,7 +580,7 @@ namespace WorldPackets
         class GuildDemoteMember final : public ClientPacket
         {
         public:
-            GuildDemoteMember(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_DEMOTE, std::move(packet)) { }
+            GuildDemoteMember(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_DEMOTE_MEMBER, std::move(packet)) { }
 
             void Read() override;
 
@@ -646,7 +590,7 @@ namespace WorldPackets
         class GuildPromoteMember final : public ClientPacket
         {
         public:
-            GuildPromoteMember(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_PROMOTE, std::move(packet)) { }
+            GuildPromoteMember(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_PROMOTE_MEMBER, std::move(packet)) { }
 
             void Read() override;
 
@@ -656,7 +600,7 @@ namespace WorldPackets
         class GuildOfficerRemoveMember : public ClientPacket
         {
         public:
-            GuildOfficerRemoveMember(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_REMOVE, std::move(packet)) { }
+            GuildOfficerRemoveMember(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_OFFICER_REMOVE_MEMBER, std::move(packet)) { }
 
             void Read() override;
 
@@ -669,6 +613,81 @@ namespace WorldPackets
             GuildLeave(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_LEAVE, std::move(packet)) { }
 
             void Read() override { }
+        };
+
+        class GuildChangeNameRequest final : public ClientPacket
+        {
+        public:
+            GuildChangeNameRequest(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_CHANGE_NAME_REQUEST, std::move(packet)) { }
+
+            void Read() override;
+
+            std::string NewName;
+        };
+
+        class GuildFlaggedForRename final : public ServerPacket
+        {
+        public:
+            GuildFlaggedForRename() : ServerPacket(SMSG_GUILD_FLAGGED_FOR_RENAME, 1) { }
+
+            WorldPacket const* Write() override;
+
+            bool FlagSet = false;
+        };
+
+        class RequestGuildPartyState final : public ClientPacket
+        {
+        public:
+            RequestGuildPartyState(WorldPacket&& packet) : ClientPacket(CMSG_REQUEST_GUILD_PARTY_STATE, std::move(packet)) { }
+
+            void Read() override;
+
+            ObjectGuid GuildGUID;
+        };
+
+        class GuildPartyState final : public ServerPacket
+        {
+        public:
+            GuildPartyState() : ServerPacket(SMSG_GUILD_PARTY_STATE, 15) { }
+
+            WorldPacket const* Write() override;
+
+            float GuildXPEarnedMult = 0.0f;
+            int32 NumMembers = 0;
+            int32 NumRequired = 0;
+            bool InGuildParty = false;
+        };
+
+        class RequestGuildRewardsList final : public ClientPacket
+        {
+        public:
+            RequestGuildRewardsList(WorldPacket&& packet) : ClientPacket(CMSG_REQUEST_GUILD_REWARDS_LIST, std::move(packet)) { }
+
+            void Read() override;
+
+            uint32 CurrentVersion = 0;
+        };
+
+        struct GuildRewardItem
+        {
+            uint32 ItemID = 0;
+            uint32 Unk4 = 0;
+            std::vector<uint32> AchievementsRequired;
+            uint32 RaceMask = 0;
+            int32 MinGuildLevel = 0;
+            int32 MinGuildRep = 0;
+            uint64 Cost = 0;
+        };
+
+        class GuildRewardList final : public ServerPacket
+        {
+        public:
+            GuildRewardList() : ServerPacket(SMSG_GUILD_REWARD_LIST, 8) { }
+
+            WorldPacket const* Write() override;
+
+            std::vector<GuildRewardItem> RewardItems;
+            uint32 Version = 0;
         };
 
         class GuildBankActivate final : public ClientPacket
@@ -702,8 +721,8 @@ namespace WorldPackets
 
             ObjectGuid Banker;
             uint8 BankTab = 0;
-            String<16, Strings::NoHyperlinks> Name;
-            String<100> Icon;
+            std::string Name;
+            std::string Icon;
         };
 
         class GuildBankDepositMoney final : public ClientPacket
@@ -729,11 +748,11 @@ namespace WorldPackets
             bool FullUpdate = false;
         };
 
+
         class GuildBankRemainingWithdrawMoneyQuery final : public ClientPacket
         {
         public:
-            GuildBankRemainingWithdrawMoneyQuery(WorldPacket&& packet)
-                : ClientPacket(CMSG_GUILD_BANK_REMAINING_WITHDRAW_MONEY_QUERY, std::move(packet)) { }
+            GuildBankRemainingWithdrawMoneyQuery(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_BANK_REMAINING_WITHDRAW_MONEY_QUERY, std::move(packet)) { }
 
             void Read() override { }
         };
@@ -741,7 +760,7 @@ namespace WorldPackets
         class GuildBankRemainingWithdrawMoney final : public ServerPacket
         {
         public:
-            GuildBankRemainingWithdrawMoney() : ServerPacket(SMSG_GUILD_BANK_MONEY_WITHDRAWN, 8) { }
+            GuildBankRemainingWithdrawMoney() : ServerPacket(SMSG_GUILD_BANK_REMAINING_WITHDRAW_MONEY, 8) { }
 
             WorldPacket const* Write() override;
 
@@ -759,24 +778,21 @@ namespace WorldPackets
             uint64 Money = 0;
         };
 
-        struct GuildBankSocketEnchant
-        {
-            uint32 SocketIndex = 0;
-            int32 SocketEnchantID = 0;
-        };
-
         struct GuildBankItemInfo
         {
-            uint32 ItemID = 0;
-            int32 RandomPropertiesSeed = 0;
-            int32 RandomPropertiesID = 0;
-            uint8 Slot = 0;
+            struct GuildBankSocketEnchant
+            {
+                int32 SocketIndex = 0;
+                int32 SocketEnchantID = 0;
+            };
+
+            WorldPackets::Item::ItemInstance Item;
+            int32 Slot = 0;
             int32 Count = 0;
             int32 EnchantmentID = 0;
             int32 Charges = 0;
-            int32 Flags = 0;
-            int32 ReforgeEnchantmentID = 0;
             int32 OnUseEnchantmentID = 0;
+            int32 Flags = 0;
             bool Locked = false;
             std::vector<GuildBankSocketEnchant> SocketEnchant;
         };
@@ -791,7 +807,7 @@ namespace WorldPackets
         class GuildBankQueryResults final : public ServerPacket
         {
         public:
-            GuildBankQueryResults() : ServerPacket(SMSG_GUILD_BANK_LIST, 25) { }
+            GuildBankQueryResults() : ServerPacket(SMSG_GUILD_BANK_QUERY_RESULTS, 25) { }
 
             WorldPacket const* Write() override;
 
@@ -801,11 +817,6 @@ namespace WorldPackets
             int32 Tab = 0;
             uint64 Money = 0;
             bool FullUpdate = false;
-
-            void SetWithdrawalsRemaining(int32 withdrawalsRemaining);
-
-        private:
-            std::size_t _withdrawalsRemainingPos = 0;
         };
 
         class GuildBankSwapItems final : public ClientPacket
@@ -855,7 +866,7 @@ namespace WorldPackets
         class GuildBankLogQueryResults final : public ServerPacket
         {
         public:
-            GuildBankLogQueryResults() : ServerPacket(SMSG_GUILD_BANK_LOG_QUERY_RESULT, 25) { }
+            GuildBankLogQueryResults() : ServerPacket(SMSG_GUILD_BANK_LOG_QUERY_RESULTS, 25) { }
 
             WorldPacket const* Write() override;
 
@@ -867,33 +878,77 @@ namespace WorldPackets
         class GuildBankTextQuery final : public ClientPacket
         {
         public:
-            GuildBankTextQuery(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_BANK_QUERY_TEXT, std::move(packet)) { }
+            GuildBankTextQuery(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_BANK_TEXT_QUERY, std::move(packet)) { }
 
             void Read() override;
 
-            uint8 Tab = 0;
+            int32 Tab = 0;
         };
 
         class GuildBankTextQueryResult : public ServerPacket
         {
         public:
-            GuildBankTextQueryResult() : ServerPacket(SMSG_GUILD_BANK_QUERY_TEXT_RESULT, 4 + 2) { }
+            GuildBankTextQueryResult() : ServerPacket(SMSG_GUILD_BANK_TEXT_QUERY_RESULT, 5) { }
 
             WorldPacket const* Write() override;
 
-            uint8 Tab = 0;
+            int32 Tab = 0;
             std::string Text;
         };
 
         class GuildBankSetTabText final : public ClientPacket
         {
         public:
-            GuildBankSetTabText(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_BANK_NOTE, std::move(packet)) { }
+            GuildBankSetTabText(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_BANK_SET_TAB_TEXT, std::move(packet)) { }
 
             void Read() override;
 
-            uint8 Tab = 0;
-            String<500, Strings::NoHyperlinks> TabText;
+            int32 Tab = 0;
+            std::string TabText;
+        };
+
+        class GuildQueryNews final : public ClientPacket
+        {
+        public:
+            GuildQueryNews(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_QUERY_NEWS, std::move(packet)) { }
+
+            void Read() override;
+
+            ObjectGuid GuildGUID;
+        };
+
+        struct GuildNewsEvent
+        {
+            int32 Id = 0;
+            uint32 CompletedDate = 0;
+            int32 Type = 0;
+            int32 Flags = 0;
+            int32 Data[2];
+            ObjectGuid MemberGuid;
+            GuidList MemberList;
+            Optional<Item::ItemInstance> Item;
+        };
+
+        class GuildNews final : public ServerPacket
+        {
+        public:
+            GuildNews() : ServerPacket(SMSG_GUILD_NEWS, 25) { }
+
+            WorldPacket const* Write() override;
+
+            std::vector<GuildNewsEvent> NewsEvents;
+        };
+
+        class GuildNewsUpdateSticky final : public ClientPacket
+        {
+        public:
+            GuildNewsUpdateSticky(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_NEWS_UPDATE_STICKY, std::move(packet)) { }
+
+            void Read() override;
+
+            int32 NewsID = 0;
+            ObjectGuid GuildGUID;
+            bool Sticky = false;
         };
 
         class GuildSetGuildMaster final : public ClientPacket
@@ -904,13 +959,33 @@ namespace WorldPackets
             void Read() override;
 
             std::string NewMasterName;
-            bool IsDethrone = false;
+        };
+
+        class GuildChallengeUpdateRequest final : public ClientPacket
+        {
+        public:
+            GuildChallengeUpdateRequest(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_CHALLENGE_UPDATE_REQUEST, std::move(packet)) { }
+
+            void Read() override { }
+        };
+
+        class GuildChallengeUpdate final : public ServerPacket
+        {
+        public:
+            GuildChallengeUpdate() : ServerPacket(SMSG_GUILD_CHALLENGE_UPDATE, 120) { }
+
+            WorldPacket const* Write() override;
+
+            int32 CurrentCount[GUILD_CHALLENGES_TYPES];
+            int32 MaxCount[GUILD_CHALLENGES_TYPES];
+            int32 Gold[GUILD_CHALLENGES_TYPES];
+            int32 MaxLevelGold[GUILD_CHALLENGES_TYPES];
         };
 
         class SaveGuildEmblem final : public ClientPacket
         {
         public:
-            SaveGuildEmblem(WorldPacket&& packet) : ClientPacket(MSG_SAVE_GUILD_EMBLEM, std::move(packet)) { }
+            SaveGuildEmblem(WorldPacket&& packet) : ClientPacket(CMSG_SAVE_GUILD_EMBLEM, std::move(packet)) { }
 
             void Read() override;
 
@@ -925,122 +1000,29 @@ namespace WorldPackets
         class PlayerSaveGuildEmblem final : public ServerPacket
         {
         public:
-            PlayerSaveGuildEmblem() : ServerPacket(MSG_SAVE_GUILD_EMBLEM_SERVER, 4) { }
+            PlayerSaveGuildEmblem() : ServerPacket(SMSG_PLAYER_SAVE_GUILD_EMBLEM, 4) { }
 
             WorldPacket const* Write() override;
 
             int32 Error = 0;
         };
 
-        // Cata guild rewards: rep/gold-gated mount/item rewards from the world table
-        // `guild_rewards`. Eligibility (has the required reputation standing/achievement, can
-        // afford the gold cost) is computed client-side from this list plus the player's own
-        // state - the server just hands over the full reward catalog, matching TrinityCore's
-        // real HandleRequestGuildRewardsList (no server-side filtering there either).
-        class RequestGuildRewardsList final : public ClientPacket
+        class GuildSetAchievementTracking final : public ClientPacket
         {
         public:
-            RequestGuildRewardsList(WorldPacket&& packet) : ClientPacket(CMSG_REQUEST_GUILD_REWARDS_LIST, std::move(packet)) { }
+            GuildSetAchievementTracking(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_SET_ACHIEVEMENT_TRACKING, std::move(packet)) { }
 
             void Read() override;
 
-            uint32 CurrentVersion = 0;
-        };
-
-        struct GuildRewardItem
-        {
-            uint32 ItemID = 0;
-            uint32 Unk4 = 0;
-            uint32 AchievementRequired = 0;
-            uint32 RaceMask = 0;
-            int32 MinGuildRep = 0;
-            uint64 Cost = 0;
-        };
-
-        class GuildRewardList final : public ServerPacket
-        {
-        public:
-            GuildRewardList() : ServerPacket(SMSG_GUILD_REWARDS_LIST, 8) { }
-
-            WorldPacket const* Write() override;
-
-            std::vector<GuildRewardItem> RewardItems;
-            int32 Version = 0;
-        };
-
-        // Cata guild profession/recipe tracking (see .agents/docs/porting-from-trinitycore.md).
-        class GuildQueryRecipes final : public ClientPacket
-        {
-        public:
-            GuildQueryRecipes(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_QUERY_RECIPES, std::move(packet)) { }
-
-            void Read() override { }
-        };
-
-        struct GuildRecipesData
-        {
-            int32 SkillLineID = 0;
-            std::array<uint8, GUILD_RECIPES_COUNT> SkillLineBitArray = { };
-        };
-
-        class GuildKnownRecipes final : public ServerPacket
-        {
-        public:
-            GuildKnownRecipes() : ServerPacket(SMSG_GUILD_KNOWN_RECIPES, 4) { }
-
-            WorldPacket const* Write() override;
-
-            std::vector<GuildRecipesData> Recipes;
-        };
-
-        class GuildQueryNews final : public ClientPacket
-        {
-        public:
-            GuildQueryNews(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_QUERY_NEWS, std::move(packet)) { }
-
-            void Read() override;
-
-            uint32 GuildID = 0;
-        };
-
-        class GuildNewsUpdateSticky final : public ClientPacket
-        {
-        public:
-            GuildNewsUpdateSticky(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_NEWS_UPDATE_STICKY, std::move(packet)) { }
-
-            void Read() override;
-
-            ObjectGuid GuildGUID;
-            int32 NewsID = 0;
-            bool Sticky = false;
-        };
-
-        struct GuildNewsEvent
-        {
-            int32 Id = 0;
-            int32 Type = 0;
-            int32 Flags = 0;
-            uint32 CompletedDate = 0;
-            std::array<int32, 2> Data = { };
-            ObjectGuid MemberGuid;
-            std::vector<ObjectGuid> MemberList;
-        };
-
-        class GuildNews final : public ServerPacket
-        {
-        public:
-            GuildNews() : ServerPacket(SMSG_GUILD_NEWS, 25) { }
-
-            WorldPacket const* Write() override;
-
-            std::vector<GuildNewsEvent> NewsEvents;
+            std::set<uint32> AchievementIDs;
         };
     }
 }
 
+ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::Guild::GuildRosterProfessionData const& rosterProfessionData);
 ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::Guild::GuildRosterMemberData const& rosterMemberData);
 ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::Guild::GuildRankData const& rankData);
 ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::Guild::GuildRewardItem const& rewardItem);
-ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::Guild::GuildRosterProfessionData const& rosterProfessionData);
+ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::Guild::GuildNewsEvent const& newsEvent);
 
 #endif // GuildPackets_h__

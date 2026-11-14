@@ -143,11 +143,11 @@ WorldObject* ObjectAccessor::GetWorldObject(WorldObject const& p, ObjectGuid con
         case HighGuid::Player:
             return GetPlayer(p, guid);
         case HighGuid::Transport:
-        case HighGuid::Mo_Transport:
+        case HighGuid::Transport:
         case HighGuid::GameObject:
             return GetGameObject(p, guid);
         case HighGuid::Vehicle:
-        case HighGuid::Unit:
+        case HighGuid::Creature:
             return GetCreature(p, guid);
         case HighGuid::Pet:
             return GetPet(p, guid);
@@ -175,12 +175,12 @@ Object* ObjectAccessor::GetObjectByTypeMask(WorldObject const& p, ObjectGuid con
                 return GetPlayer(p, guid);
             break;
         case HighGuid::Transport:
-        case HighGuid::Mo_Transport:
+        case HighGuid::Transport:
         case HighGuid::GameObject:
             if (typemask & TYPEMASK_GAMEOBJECT)
                 return GetGameObject(p, guid);
             break;
-        case HighGuid::Unit:
+        case HighGuid::Creature:
         case HighGuid::Vehicle:
             if (typemask & TYPEMASK_UNIT)
                 return GetCreature(p, guid);

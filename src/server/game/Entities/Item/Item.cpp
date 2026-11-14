@@ -268,6 +268,7 @@ Item::Item()
     // WotLK's UPDATEFLAG_LOWGUID has no equivalent in the bit-packed CreateObjectBits header.
 
     m_valuesCount = ITEM_END;
+    _dynamicValuesCount = ITEM_DYNAMIC_END;
     m_slot = 0;
     uState = ITEM_NEW;
     uQueuePos = -1;
@@ -283,7 +284,7 @@ Item::Item()
 
 bool Item::Create(ObjectGuid::LowType guidlow, uint32 itemid, Player const* owner)
 {
-    Object::_Create(guidlow, 0, HighGuid::Item);
+    Object::_Create(ObjectGuid::Create<HighGuid::Item>(guidlow));
 
     SetEntry(itemid);
     SetObjectScale(1.0f);
@@ -350,7 +351,7 @@ void Item::SaveToDB(CharacterDatabaseTransaction trans)
                 uint8 index = 0;
                 CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(uState == ITEM_NEW ? CHAR_REP_ITEM_INSTANCE : CHAR_UPD_ITEM_INSTANCE);
                 stmt->SetData(  index, GetEntry());
-                stmt->SetData(++index, GetOwnerGUID().GetRawValue());
+                stmt->SetData(++index, GetOwnerGUID().GetCounter());
                 stmt->SetData(++index, GetGuidValue(ITEM_FIELD_CREATOR).GetCounter());
                 stmt->SetData(++index, GetGuidValue(ITEM_FIELD_GIFTCREATOR).GetCounter());
                 stmt->SetData(++index, GetCount());
@@ -376,7 +377,7 @@ void Item::SaveToDB(CharacterDatabaseTransaction trans)
                 if ((uState == ITEM_CHANGED) && IsWrapped())
                 {
                     stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_GIFT_OWNER);
-                    stmt->SetData(0, GetOwnerGUID().GetRawValue());
+                    stmt->SetData(0, GetOwnerGUID().GetCounter());
                     stmt->SetData(1, guid);
                     trans->Append(stmt);
                 }
@@ -418,7 +419,7 @@ bool Item::LoadFromDB(ObjectGuid::LowType guid, ObjectGuid owner_guid, Field* fi
 
     // create item before any checks for store correct guid
     // and allow use "FSetState(ITEM_REMOVED); SaveToDB();" for deleting item from DB
-    Object::_Create(guid, 0, HighGuid::Item);
+    Object::_Create(ObjectGuid::Create<HighGuid::Item>(guid));
 
     // Set entry, MUST be before proto check
     SetEntry(entry);

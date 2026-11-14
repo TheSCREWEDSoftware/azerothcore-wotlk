@@ -49,20 +49,24 @@ bool UpdateData::BuildPacket(WorldPacket& packet)
 {
     ASSERT(packet.empty());
 
-    packet.reserve(2 + 4 + (m_outOfRangeGUIDs.empty() ? 0 : 1 + 4 + 9 * m_outOfRangeGUIDs.size()) + m_data.wpos());
+    packet.reserve(4 + 2 + (m_outOfRangeGUIDs.empty() ? 0 : 1 + 2 + 4 + 18 * m_outOfRangeGUIDs.size()) + 4 + m_data.wpos());
 
-    packet << (uint16) m_map;
-    packet << (uint32) (!m_outOfRangeGUIDs.empty() ? m_blockCount + 1 : m_blockCount);
+    // 6.2.4: block count and map first, the out of range guids sit in front of the blocks behind a bit
+    packet << uint32(m_blockCount);
+    packet << uint16(m_map);
 
-    if (!m_outOfRangeGUIDs.empty())
+    if (packet.WriteBit(!m_outOfRangeGUIDs.empty()))
     {
-        packet << (uint8) UPDATETYPE_OUT_OF_RANGE_OBJECTS;
-        packet << (uint32) m_outOfRangeGUIDs.size();
+        packet << uint16(0);                                // DestroyObjectsCount, objects removed on death
+        packet << uint32(m_outOfRangeGUIDs.size());
 
         for (ObjectGuid const& guid : m_outOfRangeGUIDs)
-            packet << guid.WriteAsPacked();
+            packet << guid;
     }
+    else
+        packet.FlushBits();
 
+    packet << uint32(m_data.size());
     packet.append(m_data);
     packet.SetOpcode(SMSG_UPDATE_OBJECT);
 

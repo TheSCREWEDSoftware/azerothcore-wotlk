@@ -32,6 +32,30 @@ public:
         CLIENT_UPDATE_MASK_BITS = sizeof(ClientUpdateMaskType) * 8,
     };
 
+    // Dynamic field (6.x) helpers, from TrinityCore 6.x
+    enum DynamicFieldChangeType : uint8
+    {
+        VALUE_CHANGED           = 0x7F,
+        VALUE_AND_SIZE_CHANGED  = 0x80
+    };
+
+    static std::size_t BlockCountFor(std::size_t bitCount)
+    {
+        return (bitCount + CLIENT_UPDATE_MASK_BITS - 1) / CLIENT_UPDATE_MASK_BITS;
+    }
+
+    static std::size_t EncodeDynamicFieldChangeType(std::size_t blockCount, uint8 changeType, uint8 updateType)
+    {
+        // the size changed bit is only sent with values updates (updateType 0), creates always carry the size
+        return blockCount | ((changeType & VALUE_AND_SIZE_CHANGED) * ((3 - updateType) / 3));
+    }
+
+    static void SetUpdateBit(uint8* data, std::size_t bitIndex)
+    {
+        ClientUpdateMaskType* blocks = reinterpret_cast<ClientUpdateMaskType*>(data);
+        blocks[bitIndex / CLIENT_UPDATE_MASK_BITS] |= ClientUpdateMaskType(1) << (bitIndex % CLIENT_UPDATE_MASK_BITS);
+    }
+
     UpdateMask()  = default;
 
     UpdateMask(UpdateMask const& right)
@@ -54,12 +78,10 @@ public:
     void UnsetBit(uint32 index) { _bits[index] = 0; }
     [[nodiscard]] bool GetBit(uint32 index) const { return _bits[index] != 0; }
 
-    // Cata build 15595: the client only expects mask blocks up to the highest set bit
-    // (trailing all-zero blocks are omitted), unlike WotLK which always sent GetBlockCount()
-    // (i.e. every block for the object's full field count).
+    // 6.x sends every block for the object's full field count, like TrinityCore 6.x
     void AppendToPacket(ByteBuffer* data)
     {
-        uint32 usedBlockCount = _hasSetBit ? (_lastSetBit / CLIENT_UPDATE_MASK_BITS) + 1 : 0;
+        uint32 usedBlockCount = _blockCount;
         *data << uint8(usedBlockCount);
 
         for (uint32 i = 0; i < usedBlockCount; ++i)

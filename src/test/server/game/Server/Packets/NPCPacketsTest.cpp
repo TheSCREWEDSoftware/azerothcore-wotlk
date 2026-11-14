@@ -26,7 +26,7 @@ TEST(NPCPacketsTest, VendorInventoryWrites548Layout)
     EXPECT_EQ(uint16(SMSG_VENDOR_INVENTORY), 0x1AAE);
 
     WorldPackets::NPC::VendorInventory packet;
-    packet.Vendor = ObjectGuid::Create<HighGuid::Unit>(911, 79964);
+    packet.Vendor = ObjectGuid::Create<HighGuid::Creature>(911, 79964);
     packet.Reason = 2;
 
     WorldPackets::NPC::VendorItem item;
@@ -76,7 +76,7 @@ TEST(NPCPacketsTest, VendorInventoryWrites548Layout)
 TEST(NPCPacketsTest, VendorInventoryWritesEmptyList)
 {
     WorldPackets::NPC::VendorInventory packet;
-    packet.Vendor = ObjectGuid::Create<HighGuid::Unit>(911, 79964);
+    packet.Vendor = ObjectGuid::Create<HighGuid::Creature>(911, 79964);
     packet.Reason = 1;                                  // opens the empty window
 
     WorldPacket written = *packet.Write();
@@ -95,7 +95,7 @@ TEST(NPCPacketsTest, TrainerListWrites548Layout)
     EXPECT_EQ(uint16(SMSG_TRAINER_LIST), 0x189F);
 
     WorldPackets::NPC::TrainerList packet;
-    packet.TrainerGUID = ObjectGuid::Create<HighGuid::Unit>(911, 79964);
+    packet.TrainerGUID = ObjectGuid::Create<HighGuid::Creature>(911, 79964);
     packet.TrainerType = 0;     // class trainer
     packet.TrainerID = 2;       // the trainer table id, echoed back by the buy request
     packet.Greeting = "Hello";
@@ -141,7 +141,7 @@ TEST(NPCPacketsTest, TrainerBuySpellReads548Layout)
 {
     EXPECT_EQ(uint16(CMSG_TRAINER_BUY_SPELL), 0x0352);
 
-    ObjectGuid trainer = ObjectGuid::Create<HighGuid::Unit>(911, 79964);
+    ObjectGuid trainer = ObjectGuid::Create<HighGuid::Creature>(911, 79964);
     WorldPacket raw(CMSG_TRAINER_BUY_SPELL, 17);
     raw << int32(6673);                                 // spell
     raw << int32(2);                                    // trainer id from the list
@@ -170,7 +170,7 @@ TEST(NPCPacketsTest, TrainerBuyFailedWrites548Layout)
     EXPECT_EQ(uint16(SMSG_TRAINER_BUY_FAILED), 0x042E);
 
     WorldPackets::NPC::TrainerBuyFailed packet;
-    packet.TrainerGUID = ObjectGuid::Create<HighGuid::Unit>(911, 79964);
+    packet.TrainerGUID = ObjectGuid::Create<HighGuid::Creature>(911, 79964);
     packet.SpellID = 6673;
     packet.TrainerFailedReason = 1;
 

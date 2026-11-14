@@ -184,7 +184,7 @@ void WorldSession::HandleLootMoneyOpcode(WorldPacket& /*recvData*/)
                 }
                 break;
             }
-        case HighGuid::Unit:
+        case HighGuid::Creature:
         case HighGuid::Vehicle:
             {
                 Creature* creature = player->GetMap()->GetCreature(guid);

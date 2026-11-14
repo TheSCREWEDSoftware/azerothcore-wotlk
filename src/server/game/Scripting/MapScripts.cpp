@@ -295,7 +295,7 @@ void Map::ScriptsProcess()
                     if (Player* player = ObjectAccessor::GetPlayer(this, step.ownerGUID))
                         source = player->GetItemByGuid(step.sourceGUID);
                     break;
-                case HighGuid::Unit:
+                case HighGuid::Creature:
                 case HighGuid::Vehicle:
                     source = GetCreature(step.sourceGUID);
                     break;
@@ -312,7 +312,7 @@ void Map::ScriptsProcess()
                 case HighGuid::Corpse:
                     source = GetCorpse(step.sourceGUID);
                     break;
-                case HighGuid::Mo_Transport:
+                case HighGuid::Transport:
                     source = GetTransport(step.sourceGUID);
                     break;
                 default:
@@ -327,7 +327,7 @@ void Map::ScriptsProcess()
         {
             switch (step.targetGUID.GetHigh())
             {
-                case HighGuid::Unit:
+                case HighGuid::Creature:
                 case HighGuid::Vehicle:
                     target = GetCreature(step.targetGUID);
                     break;
@@ -344,7 +344,7 @@ void Map::ScriptsProcess()
                 case HighGuid::Corpse:
                     target = GetCorpse(step.targetGUID);
                     break;
-                case HighGuid::Mo_Transport:
+                case HighGuid::Transport:
                     target = GetTransport(step.targetGUID);
                     break;
                 default:
