@@ -144,3 +144,94 @@ void WorldPackets::Loot::SetLootSpecialization::Read()
 {
     _worldPacket >> SpecID;
 }
+
+static void WriteLootItemData(ByteBuffer& data, WorldPackets::Loot::LootItemData const& item)
+{
+    data.WriteBits(item.Type, 2);
+    data.WriteBits(item.UIType, 3);
+    data.WriteBit(item.CanTradeToTapList);
+    data.FlushBits();
+    data << uint32(item.Quantity);
+    data << uint8(item.LootItemType);
+    data << uint8(item.LootListID);
+    data << item.Loot; // WorldPackets::Item::ItemInstance
+}
+
+WorldPacket const* WorldPackets::Loot::StartLootRoll::Write()
+{
+    _worldPacket << LootObj;
+    _worldPacket << int32(MapID);
+    WriteLootItemData(_worldPacket, Item);
+    _worldPacket << uint32(RollTime);
+    _worldPacket << uint8(ValidRolls);
+    _worldPacket << uint8(Method);
+
+    return &_worldPacket;
+}
+
+WorldPacket const* WorldPackets::Loot::LootRollBroadcast::Write()
+{
+    _worldPacket << LootObj;
+    _worldPacket << Player;
+    WriteLootItemData(_worldPacket, Item);
+    _worldPacket << int32(Roll);
+    _worldPacket << uint8(RollType);
+    _worldPacket.WriteBit(Autopassed);
+    _worldPacket.FlushBits();
+
+    return &_worldPacket;
+}
+
+WorldPacket const* WorldPackets::Loot::LootRollWon::Write()
+{
+    _worldPacket << LootObj;
+    WriteLootItemData(_worldPacket, Item);
+    _worldPacket << Winner;
+    _worldPacket << int32(Roll);
+    _worldPacket << uint8(RollType);
+
+    return &_worldPacket;
+}
+
+WorldPacket const* WorldPackets::Loot::LootAllPassed::Write()
+{
+    _worldPacket << LootObj;
+    WriteLootItemData(_worldPacket, Item);
+
+    return &_worldPacket;
+}
+
+WorldPacket const* WorldPackets::Loot::LootRollsComplete::Write()
+{
+    _worldPacket << LootObj;
+    _worldPacket << uint8(LootListID);
+
+    return &_worldPacket;
+}
+
+void WorldPackets::Loot::MasterLootItem::Read()
+{
+    uint32 count;
+    _worldPacket >> count;
+    _worldPacket >> Target;
+
+    if (count > 1000)
+        throw PacketArrayMaxCapacityException(count, 1000);
+
+    Loot.resize(count);
+    for (LootRequest& request : Loot)
+    {
+        _worldPacket >> request.Object;
+        _worldPacket >> request.LootListID;
+    }
+}
+
+WorldPacket const* WorldPackets::Loot::MasterLootCandidateList::Write()
+{
+    _worldPacket << LootObj;
+    _worldPacket << uint32(Players.size());
+    for (ObjectGuid const& player : Players)
+        _worldPacket << player;
+
+    return &_worldPacket;
+}

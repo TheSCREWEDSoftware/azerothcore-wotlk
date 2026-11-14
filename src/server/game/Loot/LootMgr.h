@@ -308,6 +308,11 @@ public:
 //=====================================================
 struct LootView;
 
+namespace WorldPackets::Loot
+{
+    class LootResponse;
+}
+
 struct Loot
 {
     friend struct LootView;
@@ -419,8 +424,9 @@ struct LootView
     // the items this viewer is shown, with the client slot and the slot type
     [[nodiscard]] std::vector<Entry> GetEntries() const;
 
-    // 5.4.8 18414 SMSG_LOOT_RESPONSE body, from Project SkyFire
-    void Write(ObjectGuid guid, ObjectGuid lootGuid, uint8 lootType, ByteBuffer& data) const;
+    // 6.x 19342: fills SMSG_LOOT_RESPONSE (TC 6.x Loot::BuildLootResponse). The 6.x client uses
+    // 1-based loot list ids: LootListID = slot + 1.
+    void BuildLootResponse(WorldPackets::Loot::LootResponse& packet) const;
 };
 
 extern LootStore LootTemplates_Creature;

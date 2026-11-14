@@ -22,6 +22,7 @@
 #include "ItemRecovery.h"
 #include "LootItemStorage.h"
 #include "LootMgr.h"
+#include "LootPackets.h"
 #include "Object.h"
 #include "ObjectAccessor.h"
 #include "ObjectMgr.h"
@@ -32,24 +33,13 @@
 #include "WorldPacket.h"
 #include "WorldSession.h"
 
-void WorldSession::HandleAutostoreLootItemOpcode(WorldPacket& recvData)
+void WorldSession::HandleAutostoreLootItemOpcode(WorldPackets::Loot::LootItem& packet)
 {
-    LOG_DEBUG("network", "WORLD: CMSG_AUTOSTORE_LOOT_ITEM");
-
-    // 5.4.8 18414, from Project SkyFire: a list of loot GUID and slot pairs (AoE looting). AC loots
-    // one object at a time and uses its GUID as the loot GUID, other entries are ignored.
-    uint32 count = recvData.ReadBits(23);
-    std::vector<ObjectGuid> guids(count);
-    for (ObjectGuid& guid : guids)
-        recvData.ReadGuidMask(guid, { 2, 7, 0, 6, 5, 3, 1, 4 });
-
-    for (ObjectGuid& guid : guids)
-    {
-        recvData.ReadGuidBytes(guid, { 0, 4, 1, 7, 6, 5, 3, 2 });
-        uint8 lootSlot = recvData.read<uint8>();
-        if (guid == GetPlayer()->GetLootGUID())
-            AutoStoreLootItem(lootSlot);
-    }
+    // 6.x 19342: a list of loot object and 1-based loot list id pairs (AoE looting). AC loots one
+    // object at a time and uses its GUID as the loot GUID, other entries are ignored.
+    for (WorldPackets::Loot::LootRequest const& request : packet.Loot)
+        if (request.Object == GetPlayer()->GetLootGUID() && request.LootListID > 0)
+            AutoStoreLootItem(request.LootListID - 1);
 }
 
 void WorldSession::AutoStoreLootItem(uint8 lootSlot)
@@ -137,7 +127,7 @@ void WorldSession::AutoStoreLootItem(uint8 lootSlot)
         DoLootRelease(lguid);
 }
 
-void WorldSession::HandleLootMoneyOpcode(WorldPacket& /*recvData*/)
+void WorldSession::HandleLootMoneyOpcode(WorldPackets::Loot::LootMoney& /*packet*/)
 {
     LOG_DEBUG("network", "WORLD: CMSG_LOOT_MONEY");
 
@@ -252,12 +242,10 @@ void WorldSession::HandleLootMoneyOpcode(WorldPacket& /*recvData*/)
                 (*i)->ModifyMoney(finalGold);
                 (*i)->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_LOOT_MONEY, finalGold);
 
-                // 5.4.8 18414, from Project SkyFire
-                WorldPacket data(SMSG_LOOT_MONEY_NOTIFY, 4 + 1);
-                data.WriteBit(playersNear.size() <= 1);            // Controls the text displayed in chat. 0 is "Your share is..." and 1 is "You loot..."
-                data.FlushBits();
-                data << uint32(finalGold);
-                (*i)->SendDirectMessage(&data);
+                WorldPackets::Loot::LootMoneyNotify packet;
+                packet.Money = finalGold;
+                packet.SoleLooter = playersNear.size() <= 1;       // Controls the text displayed in chat. 0 is "Your share is..." and 1 is "You loot..."
+                (*i)->SendDirectMessage(packet.Write());
             }
         }
         else
@@ -281,12 +269,10 @@ void WorldSession::HandleLootMoneyOpcode(WorldPacket& /*recvData*/)
                 player->ModifyMoney(finalGold);
                 player->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_LOOT_MONEY, finalGold);
 
-                // 5.4.8 18414, from Project SkyFire
-                WorldPacket data(SMSG_LOOT_MONEY_NOTIFY, 4 + 1);
-                data.WriteBit(true);   // "You loot..."
-                data.FlushBits();
-                data << uint32(finalGold);
-                SendPacket(&data);
+                WorldPackets::Loot::LootMoneyNotify packet;
+                packet.Money = finalGold;
+                packet.SoleLooter = true;                           // "You loot..."
+                SendPacket(packet.Write());
             }
         }
 
@@ -306,14 +292,9 @@ void WorldSession::HandleLootMoneyOpcode(WorldPacket& /*recvData*/)
     }
 }
 
-void WorldSession::HandleLootOpcode(WorldPacket& recvData)
+void WorldSession::HandleLootOpcode(WorldPackets::Loot::LootUnit& packet)
 {
-    LOG_DEBUG("network", "WORLD: CMSG_LOOT");
-
-    ObjectGuid guid;
-    // 5.4.8 18414, from Project SkyFire
-    recvData.ReadGuidMask(guid, { 4, 5, 2, 7, 0, 1, 3, 6 });
-    recvData.ReadGuidBytes(guid, { 3, 5, 0, 6, 4, 1, 7, 2 });
+    ObjectGuid guid = packet.Unit;
 
     Player* player = GetPlayer();
 
@@ -334,16 +315,11 @@ void WorldSession::HandleLootOpcode(WorldPacket& recvData)
     player->SendLoot(guid, LOOT_CORPSE);
 }
 
-void WorldSession::HandleLootReleaseOpcode(WorldPacket& recvData)
+void WorldSession::HandleLootReleaseOpcode(WorldPackets::Loot::LootRelease& packet)
 {
-    LOG_DEBUG("network", "WORLD: CMSG_LOOT_RELEASE");
-
     // cheaters can modify lguid to prevent correct apply loot release code and re-loot
     // use internal stored guid
-    ObjectGuid guid;
-    // 5.4.8 18414, from Project SkyFire
-    recvData.ReadGuidMask(guid, { 7, 4, 2, 3, 0, 5, 6, 1 });
-    recvData.ReadGuidBytes(guid, { 0, 6, 4, 2, 5, 3, 7, 1 });
+    ObjectGuid guid = packet.Unit;
 
     if (ObjectGuid lguid = GetPlayer()->GetLootGUID())
         if (lguid == guid)
@@ -512,12 +488,15 @@ void WorldSession::DoLootRelease(ObjectGuid lguid)
     }
 }
 
-void WorldSession::HandleLootMasterGiveOpcode(WorldPacket& recvData)
+void WorldSession::HandleLootMasterGiveOpcode(WorldPackets::Loot::MasterLootItem& masterLootItem)
 {
-    uint8 slotid;
-    ObjectGuid lootguid, target_playerguid;
+    // 6.x 19342: CMSG_MASTER_LOOT_ITEM, AC gives one item per packet (the first request)
+    if (masterLootItem.Loot.empty() || !masterLootItem.Loot[0].LootListID)
+        return;
 
-    recvData >> lootguid >> slotid >> target_playerguid;
+    uint8 slotid = masterLootItem.Loot[0].LootListID - 1;
+    ObjectGuid lootguid = masterLootItem.Loot[0].Object;
+    ObjectGuid target_playerguid = masterLootItem.Target;
 
     if (!_player->GetGroup() || _player->GetGroup()->GetMasterLooterGuid() != _player->GetGUID() || _player->GetGroup()->GetLootMethod() != MASTER_LOOT)
     {
@@ -531,8 +510,6 @@ void WorldSession::HandleLootMasterGiveOpcode(WorldPacket& recvData)
         _player->SendLootError(lootguid, LOOT_ERROR_PLAYER_NOT_FOUND);
         return;
     }
-
-    LOG_DEBUG("network", "WorldSession::HandleLootMasterGiveOpcode (CMSG_LOOT_MASTER_GIVE, 0x02A3) Target = [{}].", target->GetName());
 
     if (_player->GetLootGUID() != lootguid)
     {

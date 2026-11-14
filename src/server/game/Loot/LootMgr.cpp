@@ -16,6 +16,7 @@
  */
 
 #include "LootMgr.h"
+#include "LootPackets.h"
 #include "Containers.h"
 #include "DB2Stores.h"
 #include "DisableMgr.h"
@@ -1212,73 +1213,22 @@ std::vector<LootView::Entry> LootView::GetEntries() const
     return entries;
 }
 
-void LootView::Write(ObjectGuid guid, ObjectGuid lootGuid, uint8 lootType, ByteBuffer& data) const
+void LootView::BuildLootResponse(WorldPackets::Loot::LootResponse& packet) const
 {
-    std::vector<Entry> entries = GetEntries();
-    bool hasGold = permission != NONE_PERMISSION && loot.gold;
+    if (permission == NONE_PERMISSION)
+        return;
 
-    data.WriteBit(true);                                    // no failure reason
-    data.WriteBit(false);                                   // has acquire reason
-    data.WriteGuidMask(guid, { 4 });
-    data.WriteBits(0, 20);                                  // currencies
-    data.WriteGuidMask(lootGuid, { 2, 3, 7, 1 });
-    data.WriteGuidMask(guid, { 6, 7 });
-    data.WriteBit(!hasGold);
-    data.WriteBit(true);                                    // personal looting
-    data.WriteBit(true);                                    // no failure reason
-    data.WriteBit(false);                                   // AoE looting
-    data.WriteGuidMask(guid, { 5 });
-    data.WriteGuidMask(lootGuid, { 6 });
+    packet.Coins = loot.gold;
 
-    data.WriteBits(entries.size(), 19);
-    data.WriteGuidMask(lootGuid, { 0 });
-    for (Entry const& entry : entries)
+    for (Entry const& entry : GetEntries())
     {
-        data.WriteBits(entry.SlotType, 3);
-        data.WriteBit(false);                               // can trade to tap list
-        data.WriteBit(true);                                // no optional slot type byte
-        data.WriteBit(false);                               // slot is always present
-        data.WriteBits(3, 2);                               // every sniffed 18414 loot item sets both bits
+        WorldPackets::Loot::LootItemData lootItem;
+        lootItem.LootListID = entry.Slot + 1;
+        lootItem.UIType = entry.SlotType;
+        lootItem.Quantity = entry.Item->count;
+        lootItem.Loot.Initialize(*entry.Item);
+        packet.Items.push_back(lootItem);
     }
-
-    data.WriteGuidMask(guid, { 1, 0 });
-    data.WriteGuidMask(lootGuid, { 5 });
-    data.WriteGuidMask(guid, { 3 });
-    data.WriteGuidMask(lootGuid, { 4 });
-    data.WriteBit(false);                                   // has loot method and threshold
-    data.WriteGuidMask(guid, { 2 });
-    data.WriteBits(0, 8);                                   // loot method: free for all
-    data.WriteBits(2, 2);                                   // threshold: uncommon
-    data.FlushBits();
-
-    for (Entry const& entry : entries)
-    {
-        ItemTemplate const* itemTemplate = sObjectMgr->GetItemTemplate(entry.Item->itemid);
-        data << uint32(entry.Item->randomSuffix);
-        data << uint32(entry.Item->count);
-        data << uint32(entry.Item->itemid);
-        data << uint32(4);                                  // item bonus data size
-        data << uint32(0);                                  // item bonus data
-        data << int32(entry.Item->randomPropertyId);
-        data << uint8(entry.Slot);
-        data << uint32(itemTemplate ? itemTemplate->DisplayInfoID : 0);
-    }
-
-    data.WriteGuidBytes(lootGuid, { 2 });
-    if (hasGold)
-        data << uint32(loot.gold);
-    data.WriteGuidBytes(lootGuid, { 7 });
-    data.WriteGuidBytes(guid, { 5 });
-    data.WriteGuidBytes(lootGuid, { 3, 4 });
-    data << uint8(lootType);
-    data.WriteGuidBytes(guid, { 4 });
-    data.WriteGuidBytes(lootGuid, { 5 });
-    data.WriteGuidBytes(guid, { 2, 3 });
-    data.WriteGuidBytes(lootGuid, { 1 });
-    data.WriteGuidBytes(guid, { 0 });
-    data.WriteGuidBytes(lootGuid, { 0 });
-    data.WriteGuidBytes(guid, { 6, 7, 1 });
-    data.WriteGuidBytes(lootGuid, { 6 });
 }
 
 //

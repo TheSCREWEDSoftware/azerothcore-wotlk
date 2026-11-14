@@ -393,6 +393,7 @@ namespace WorldPackets
         class LootRelease;
         class LootMoney;
         class LootRoll;
+        class MasterLootItem;
         class SetLootSpecialization;
     }
 
@@ -1302,7 +1303,7 @@ public:                                                 // opcodes handlers
     void HandleLootMoneyOpcode(WorldPackets::Loot::LootMoney& packet);
     void HandleLootOpcode(WorldPackets::Loot::LootUnit& packet);
     void HandleLootReleaseOpcode(WorldPackets::Loot::LootRelease& packet);
-    void HandleLootMasterGiveOpcode(WorldPacket& recvPacket);
+    void HandleLootMasterGiveOpcode(WorldPackets::Loot::MasterLootItem& masterLootItem);
     void HandleSetLootSpecialization(WorldPackets::Loot::SetLootSpecialization& packet);
     void HandleWhoOpcode(WorldPackets::Who::WhoRequestPkt& whoRequest);
     void HandleLogoutRequestOpcode(WorldPackets::Character::LogoutRequest& logoutRequest);

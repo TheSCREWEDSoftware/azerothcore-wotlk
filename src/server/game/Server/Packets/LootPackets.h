@@ -188,6 +188,96 @@ namespace WorldPackets
 
             uint32 SpecID = 0;
         };
+
+        // 6.x 19342: roll packets unhandled by TC 6.x, layouts from WowPacketParser V6_0_2
+        class StartLootRoll final : public ServerPacket
+        {
+        public:
+            StartLootRoll() : ServerPacket(SMSG_START_LOOT_ROLL, 16 + 4 + 40 + 4 + 1 + 1) { }
+
+            WorldPacket const* Write() override;
+
+            ObjectGuid LootObj;
+            int32 MapID = 0;
+            LootItemData Item;
+            uint32 RollTime = 0;
+            uint8 ValidRolls = 0;
+            uint8 Method = 0;
+        };
+
+        class LootRollBroadcast final : public ServerPacket
+        {
+        public:
+            LootRollBroadcast() : ServerPacket(SMSG_LOOT_ROLL, 16 + 16 + 40 + 4 + 1 + 1) { }
+
+            WorldPacket const* Write() override;
+
+            ObjectGuid LootObj;
+            ObjectGuid Player;
+            LootItemData Item;
+            int32 Roll = 0;             ///< Roll value can be negative, it means that it is an "offspec" roll but only during roll selection broadcast (not when sending the result)
+            uint8 RollType = 0;
+            bool Autopassed = false;    ///< Triggers message |HlootHistory:%d|h[Loot]|h: You automatically passed on: %s because you cannot loot that item.
+        };
+
+        class LootRollWon final : public ServerPacket
+        {
+        public:
+            LootRollWon() : ServerPacket(SMSG_LOOT_ROLL_WON, 16 + 40 + 16 + 4 + 1) { }
+
+            WorldPacket const* Write() override;
+
+            ObjectGuid LootObj;
+            LootItemData Item;
+            ObjectGuid Winner;
+            int32 Roll = 0;
+            uint8 RollType = 0;
+        };
+
+        class LootAllPassed final : public ServerPacket
+        {
+        public:
+            LootAllPassed() : ServerPacket(SMSG_LOOT_ALL_PASSED, 16 + 40) { }
+
+            WorldPacket const* Write() override;
+
+            ObjectGuid LootObj;
+            LootItemData Item;
+        };
+
+        class LootRollsComplete final : public ServerPacket
+        {
+        public:
+            LootRollsComplete() : ServerPacket(SMSG_LOOT_ROLLS_COMPLETE, 16 + 1) { }
+
+            WorldPacket const* Write() override;
+
+            ObjectGuid LootObj;
+            uint8 LootListID = 0;
+        };
+
+        // master loot: no 6.x layout in TC 6.x or WowPacketParser, layouts from TrinityCore 7.x
+        class MasterLootItem final : public ClientPacket
+        {
+        public:
+            MasterLootItem(WorldPacket&& packet) : ClientPacket(CMSG_MASTER_LOOT_ITEM, std::move(packet)) { }
+
+            void Read() override;
+
+            std::vector<LootRequest> Loot;
+            ObjectGuid Target;
+        };
+
+        class MasterLootCandidateList final : public ServerPacket
+        {
+        public:
+            MasterLootCandidateList() : ServerPacket(SMSG_MASTER_LOOT_CANDIDATE_LIST, 4 + 16) { }
+
+            WorldPacket const* Write() override;
+
+            std::vector<ObjectGuid> Players;
+            ObjectGuid LootObj;
+        };
     }
 }
 
