@@ -88,7 +88,25 @@ for dir in updates/db_world updates/pending_db_world; do
     done < <(find "$root/data/sql/$dir" -maxdepth 1 -name '*.sql' -print0 | sort -z)
 done
 
-echo "== 3. emptying the world content tables"
+echo "== 3. keeping the fork's script bindings and phasing, emptying the world content tables"
+# The fork binds its C++ scripts by name and curates the 4.3.4 phasing (phase_area, phase conditions,
+# spell_area) and SmartAI of templates TDB leaves unscripted; TDB uses TrinityCore's script names and its own
+# phasing. Snapshot them before the content
+# tables are emptied; step 4b restores them where the converted world leaves a gap.
+mysql_run "$TARGET_DB" <<'SQL'
+DROP TABLE IF EXISTS _fork_scripts, _fork_phase_area, _fork_phase_conditions, _fork_spell_area,
+    _fork_smart_scripts, _fork_creature_text;
+CREATE TABLE _fork_scripts (kind TINYINT UNSIGNED NOT NULL, entry INT UNSIGNED NOT NULL, ScriptName VARCHAR(64) NOT NULL,
+    PRIMARY KEY (kind, entry));
+INSERT INTO _fork_scripts SELECT 0, entry, ScriptName FROM creature_template WHERE ScriptName <> '';
+INSERT INTO _fork_scripts SELECT 1, entry, ScriptName FROM gameobject_template WHERE ScriptName <> '';
+INSERT INTO _fork_scripts SELECT 2, entry, ScriptName FROM item_template WHERE ScriptName <> '';
+CREATE TABLE _fork_phase_area AS SELECT * FROM phase_area;
+CREATE TABLE _fork_phase_conditions AS SELECT * FROM conditions WHERE SourceTypeOrReferenceId = 26;
+CREATE TABLE _fork_spell_area AS SELECT * FROM spell_area;
+CREATE TABLE _fork_smart_scripts AS SELECT * FROM smart_scripts WHERE source_type IN (0, 1, 9) AND entryorguid > 0;
+CREATE TABLE _fork_creature_text AS SELECT * FROM creature_text;
+SQL
 # The tables build_clean_world.py and the zone import refill from TDB. Everything else (*_dbc,
 # acore_string, player stats, spell overrides, game events, instance and dungeon data) stays.
 content_tables="gameobject_template gameobject_template_addon creature_template creature_template_addon
@@ -120,6 +138,11 @@ zones_file=${ZONES_FILE:-$(mktemp)}
     bash "$here/list_quest_zones.sh" "$SOURCE_DB" > "$zones_file"
 CONTAINER="$CONTAINER" DB_USER="$DB_USER" DB_PASSWORD="$DB_PASSWORD" DBC_DIR="$DBC_DIR" SOURCE_DB="$SOURCE_DB" \
     ZONES_FILE="$zones_file" bash "$here/import_clean_zones.sh" "$TARGET_DB"
+
+echo "== 4b. restoring the fork's script bindings and phasing"
+python3 "$here/restore_fork_rows.py" --container "$CONTAINER" --user "$DB_USER" --password "$DB_PASSWORD" \
+    --target "$TARGET_DB"
+mysql_run "$TARGET_DB" -e "DROP TABLE IF EXISTS _fork_scripts, _fork_phase_area, _fork_phase_conditions, _fork_spell_area, _fork_smart_scripts, _fork_creature_text"
 
 if [[ ${SKIP_EXPORT:-0} == 1 ]]; then
     echo "== done: $TARGET_DB built (SKIP_EXPORT=1, data/sql untouched)"
