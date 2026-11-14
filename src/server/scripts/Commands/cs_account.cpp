@@ -835,8 +835,6 @@ public:
 
         handler->PSendSysMessage(LANG_ACCOUNT_INFO_CHARS, uint32(charResult->GetRowCount()));
 
-        LocaleConstant locale = handler->GetSessionDbcLocale();
-
         do
         {
             Field* charFields         = charResult->Fetch();
@@ -853,8 +851,8 @@ public:
             // Own marker rather than LANG_OFFLINE, whose leading space is missing in some locales
             handler->PSendSysMessage(LANG_ACCOUNT_INFO_CHAR_ENTRY, handler->playerLink(name),
                 online ? "" : handler->GetAcoreString(LANG_ACCOUNT_INFO_CHAR_OFFLINE), guid, uint32(level),
-                race ? race->name[locale] : handler->GetAcoreString(LANG_UNKNOWN),
-                cls ? cls->name[locale] : handler->GetAcoreString(LANG_UNKNOWN));
+                race ? race->Name_lang : handler->GetAcoreString(LANG_UNKNOWN),
+                cls ? cls->Name_lang : handler->GetAcoreString(LANG_UNKNOWN));
         } while (charResult->NextRow());
 
         return true;

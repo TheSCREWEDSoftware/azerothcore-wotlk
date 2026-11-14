@@ -182,9 +182,9 @@ WestguardZeppelinState GetWestguardZeppelinState(Player* player, Map* map)
     uint32 dockDepartTime = 0;
     for (KeyFrame const& frame : zeppelin->GetKeyFrames())
     {
-        if (frame.Node->arrivalEventID == EVENT_WK_ARRIVAL)
+        if (frame.Node->ArrivalEventID == EVENT_WK_ARRIVAL)
             dockArriveTime = frame.ArriveTime;
-        else if (frame.Node->departureEventID == EVENT_WK_DEPARTURE)
+        else if (frame.Node->DepartureEventID == EVENT_WK_DEPARTURE)
             dockDepartTime = frame.DepartureTime;
     }
 

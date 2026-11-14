@@ -928,7 +928,7 @@ public:
                 {
                     wpCreature->SetDisplayId(target->GetDisplayId());
                     wpCreature->SetObjectScale(0.5f);
-                    wpCreature->SetLevel(point > STRONG_MAX_LEVEL ? STRONG_MAX_LEVEL : point);
+                    wpCreature->SetLevel(point > uint32(STRONG_MAX_LEVEL) ? uint32(STRONG_MAX_LEVEL) : point);
                 }
             } while (result->NextRow());
 

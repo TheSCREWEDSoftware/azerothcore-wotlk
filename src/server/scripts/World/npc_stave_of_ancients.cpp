@@ -195,7 +195,7 @@ void NPCStaveQuestAI::StoreAttackerGuidValue(Unit* attacker)
         return;
     }
 
-    uint64 guidValue = attacker->GetGUID().GetRawValue();
+    ObjectGuid guidValue = attacker->GetGUID();
     bool isGUIDPresent = std::find(attackerGuids.begin(), attackerGuids.end(), guidValue) != attackerGuids.end();
 
     // don't store snaketrap's snakes and trap triggers

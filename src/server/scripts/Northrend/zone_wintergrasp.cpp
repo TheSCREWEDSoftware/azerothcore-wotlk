@@ -1130,7 +1130,7 @@ public:
                 return false;
 
             if (Vehicle* vehicle = source->GetVehicle())
-                if (vehicle->GetVehicleInfo()->m_ID == 244) // Wintergrasp Tower Cannon
+                if (vehicle->GetVehicleInfo()->ID == 244) // Wintergrasp Tower Cannon
                     return true;
         }
 

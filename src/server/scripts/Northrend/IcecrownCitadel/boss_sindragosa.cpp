@@ -1792,7 +1792,7 @@ class spell_sindragosa_frost_breath : public SpellScript
             return;
 
         // Check difficulty and quest status
-        if (!(target->GetRaidDifficulty() & RAID_DIFFICULTY_MASK_25MAN) || target->GetQuestStatus(QUEST_FROST_INFUSION) != QUEST_STATUS_INCOMPLETE)
+        if (!(target->GetRaidDifficulty() == DIFFICULTY_25_N || target->GetRaidDifficulty() == DIFFICULTY_25_HC) || target->GetQuestStatus(QUEST_FROST_INFUSION) != QUEST_STATUS_INCOMPLETE)
             return;
 
         // Check if player has Shadow's Edge equipped and not ready for infusion

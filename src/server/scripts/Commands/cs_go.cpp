@@ -99,7 +99,7 @@ public:
         uint32 transportEntry = 0;
         for (auto const& [entry, goTemplate] : *sObjectMgr->GetGameObjectTemplates())
         {
-            if (goTemplate.type == GAMEOBJECT_TYPE_MAP_OBJ_TRANSPORT && goTemplate.moTransport.mapID == transportMapId)
+            if (goTemplate.type == GAMEOBJECT_TYPE_MAP_OBJ_TRANSPORT && uint32(goTemplate.moTransport.mapID) == transportMapId)
             {
                 transportEntry = entry;
                 break;
@@ -356,7 +356,7 @@ public:
             handler->SendErrorMessage(LANG_COMMAND_GOTAXINODENOTFOUND, uint32(nodeId));
             return false;
         }
-        return DoTeleport(handler, { node->x, node->y, node->z }, node->map_id);
+        return DoTeleport(handler, { node->Pos.X, node->Pos.Y, node->Pos.Z }, node->MapID);
     }
 
     static bool HandleGoTriggerCommand(ChatHandler* handler, Variant<Hyperlink<areatrigger>, uint32> areaTriggerId)
@@ -386,22 +386,22 @@ public:
         }
 
         // update to parent zone if exist (client map show only zones without parents)
-        AreaTableEntry const* zoneEntry = areaEntry->zone ? sAreaTableStore.LookupEntry(areaEntry->zone) : areaEntry;
+        AreaTableEntry const* zoneEntry = areaEntry->ParentAreaID ? sAreaTableStore.LookupEntry(areaEntry->ParentAreaID) : areaEntry;
                 ASSERT(zoneEntry);
 
-        Map const* map = sMapMgr->CreateBaseMap(zoneEntry->mapid);
+        Map const* map = sMapMgr->CreateBaseMap(zoneEntry->MapID);
 
         if (map->Instanceable())
         {
-            handler->SendErrorMessage(LANG_INVALID_ZONE_MAP, areaEntry->ID, areaEntry->area_name[handler->GetSessionDbcLocale()], map->GetId(), map->GetMapName());
+            handler->SendErrorMessage(LANG_INVALID_ZONE_MAP, areaEntry->ID, areaEntry->AreaName_lang, map->GetId(), map->GetMapName());
             return false;
         }
 
         Zone2MapCoordinates(x, y, zoneEntry->ID);
 
-        if (!MapMgr::IsValidMapCoord(zoneEntry->mapid, x, y))
+        if (!MapMgr::IsValidMapCoord(zoneEntry->MapID, x, y))
         {
-            handler->SendErrorMessage(LANG_INVALID_TARGET_COORD, x, y, zoneEntry->mapid);
+            handler->SendErrorMessage(LANG_INVALID_TARGET_COORD, x, y, zoneEntry->MapID);
             return false;
         }
 
@@ -417,7 +417,7 @@ public:
 
         float z = std::max(map->GetHeight(x, y, MAX_HEIGHT), map->GetWaterLevel(x, y));
 
-        player->TeleportTo(zoneEntry->mapid, x, y, z, player->GetOrientation());
+        player->TeleportTo(zoneEntry->MapID, x, y, z, player->GetOrientation());
         return true;
     }
 

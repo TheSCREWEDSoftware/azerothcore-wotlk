@@ -74,7 +74,7 @@ public:
         GameObject* object = handler->GetObjectFromPlayerMapByDbGuid(guidLow);
         if (!object)
         {
-            handler->SendErrorMessage(LANG_COMMAND_OBJNOTFOUND, uint32(guidLow));
+            handler->SendErrorMessage(LANG_COMMAND_OBJNOTFOUND, ObjectGuid::LowType(guidLow));
             return false;
         }
 
@@ -160,34 +160,34 @@ public:
 
         if (sObjectMgr->GetGameObjectData(spawnId))
         {
-            handler->SendErrorMessage("Gameobject spawn {} is already loaded.", uint32(spawnId));
+            handler->SendErrorMessage("Gameobject spawn {} is already loaded.", ObjectGuid::LowType(spawnId));
             return false;
         }
 
         GameObjectData const* data = sObjectMgr->LoadGameObjectDataFromDB(spawnId);
         if (!data)
         {
-            handler->SendErrorMessage("Gameobject spawn {} not found in the database.", uint32(spawnId));
+            handler->SendErrorMessage("Gameobject spawn {} not found in the database.", ObjectGuid::LowType(spawnId));
             return false;
         }
 
-        if (sPoolMgr->IsPartOfAPool<GameObject>(spawnId))
+        if (sPoolMgr->IsPartOfAPool<GameObject>(uint32(ObjectGuid::LowType(spawnId))))
         {
-            handler->SendErrorMessage("Gameobject spawn {} is part of a pool and cannot be manually loaded.", uint32(spawnId));
+            handler->SendErrorMessage("Gameobject spawn {} is part of a pool and cannot be manually loaded.", ObjectGuid::LowType(spawnId));
             return false;
         }
 
-        QueryResult eventResult = WorldDatabase.Query("SELECT guid FROM game_event_gameobject WHERE guid = {}", uint32(spawnId));
+        QueryResult eventResult = WorldDatabase.Query("SELECT guid FROM game_event_gameobject WHERE guid = {}", ObjectGuid::LowType(spawnId));
         if (eventResult)
         {
-            handler->SendErrorMessage("Gameobject spawn {} is managed by the game event system and cannot be manually loaded.", uint32(spawnId));
+            handler->SendErrorMessage("Gameobject spawn {} is managed by the game event system and cannot be manually loaded.", ObjectGuid::LowType(spawnId));
             return false;
         }
 
         Map* map = sMapMgr->FindBaseNonInstanceMap(data->mapid);
         if (!map)
         {
-            handler->SendErrorMessage("Gameobject spawn {} is on a non-continent map (ID: {}). Only continent maps are supported.", uint32(spawnId), data->mapid);
+            handler->SendErrorMessage("Gameobject spawn {} is on a non-continent map (ID: {}). Only continent maps are supported.", ObjectGuid::LowType(spawnId), data->mapid);
             return false;
         }
 
@@ -202,12 +202,12 @@ public:
         if (!object->LoadGameObjectFromDB(spawnId, map, true))
         {
             delete object;
-            handler->SendErrorMessage("Failed to load gameobject spawn {}.", uint32(spawnId));
+            handler->SendErrorMessage("Failed to load gameobject spawn {}.", ObjectGuid::LowType(spawnId));
             return false;
         }
 
         sObjectMgr->AddGameobjectToGrid(spawnId, data);
-        handler->PSendSysMessage("Gameobject spawn {} loaded successfully.", uint32(spawnId));
+        handler->PSendSysMessage("Gameobject spawn {} loaded successfully.", ObjectGuid::LowType(spawnId));
         return true;
     }
 
@@ -312,7 +312,7 @@ public:
             o =       fields[5].Get<float>();
             mapId =   fields[6].Get<uint16>();
             phase =   fields[7].Get<uint32>();
-            poolId =  sPoolMgr->IsPartOfAPool<GameObject>(guidLow);
+            poolId =  sPoolMgr->IsPartOfAPool<GameObject>(uint32(ObjectGuid::LowType(guidLow)));
             if (!poolId || handler->GetSession()->GetPlayer()->GetMap()->GetPoolData().IsSpawnedObject<GameObject>(guidLow))
                 found = true;
         } while (result->NextRow() && !found);
@@ -355,7 +355,7 @@ public:
         GameObject* object = handler->GetObjectFromPlayerMapByDbGuid(spawnId);
         if (!object)
         {
-            handler->SendErrorMessage(LANG_COMMAND_OBJNOTFOUND, uint32(spawnId));
+            handler->SendErrorMessage(LANG_COMMAND_OBJNOTFOUND, ObjectGuid::LowType(spawnId));
             return false;
         }
 
@@ -390,7 +390,7 @@ public:
         GameObject* object = handler->GetObjectFromPlayerMapByDbGuid(guidLow);
         if (!object)
         {
-            handler->SendErrorMessage(LANG_COMMAND_OBJNOTFOUND, uint32(guidLow));
+            handler->SendErrorMessage(LANG_COMMAND_OBJNOTFOUND, ObjectGuid::LowType(guidLow));
             return false;
         }
 
@@ -428,7 +428,7 @@ public:
         GameObject* object = handler->GetObjectFromPlayerMapByDbGuid(guidLow);
         if (!object)
         {
-            handler->SendErrorMessage(LANG_COMMAND_OBJNOTFOUND, uint32(guidLow));
+            handler->SendErrorMessage(LANG_COMMAND_OBJNOTFOUND, ObjectGuid::LowType(guidLow));
             return false;
         }
 
@@ -483,7 +483,7 @@ public:
         GameObject* object = handler->GetObjectFromPlayerMapByDbGuid(guidLow);
         if (!object)
         {
-            handler->SendErrorMessage(LANG_COMMAND_OBJNOTFOUND, uint32(guidLow));
+            handler->SendErrorMessage(LANG_COMMAND_OBJNOTFOUND, ObjectGuid::LowType(guidLow));
             return false;
         }
 
@@ -652,7 +652,7 @@ public:
         GameObject* object = handler->GetObjectFromPlayerMapByDbGuid(guidLow);
         if (!object)
         {
-            handler->SendErrorMessage(LANG_COMMAND_OBJNOTFOUND, uint32(guidLow));
+            handler->SendErrorMessage(LANG_COMMAND_OBJNOTFOUND, ObjectGuid::LowType(guidLow));
             return false;
         }
 
@@ -683,7 +683,7 @@ public:
         GameObject* object = handler->GetObjectFromPlayerMapByDbGuid(guidLow);
         if (!object)
         {
-            handler->SendErrorMessage(LANG_COMMAND_OBJNOTFOUND, uint32(guidLow));
+            handler->SendErrorMessage(LANG_COMMAND_OBJNOTFOUND, ObjectGuid::LowType(guidLow));
             return false;
         }
 

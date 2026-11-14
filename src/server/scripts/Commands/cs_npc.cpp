@@ -279,34 +279,34 @@ public:
 
         if (sObjectMgr->GetCreatureData(spawnId))
         {
-            handler->SendErrorMessage("Creature spawn {} is already loaded.", uint32(spawnId));
+            handler->SendErrorMessage("Creature spawn {} is already loaded.", ObjectGuid::LowType(spawnId));
             return false;
         }
 
         CreatureData const* data = sObjectMgr->LoadCreatureDataFromDB(spawnId);
         if (!data)
         {
-            handler->SendErrorMessage("Creature spawn {} not found in the database.", uint32(spawnId));
+            handler->SendErrorMessage("Creature spawn {} not found in the database.", ObjectGuid::LowType(spawnId));
             return false;
         }
 
-        if (sPoolMgr->IsPartOfAPool<Creature>(spawnId))
+        if (sPoolMgr->IsPartOfAPool<Creature>(uint32(ObjectGuid::LowType(spawnId))))
         {
-            handler->SendErrorMessage("Creature spawn {} is part of a pool and cannot be manually loaded.", uint32(spawnId));
+            handler->SendErrorMessage("Creature spawn {} is part of a pool and cannot be manually loaded.", ObjectGuid::LowType(spawnId));
             return false;
         }
 
-        QueryResult eventResult = WorldDatabase.Query("SELECT guid FROM game_event_creature WHERE guid = {}", uint32(spawnId));
+        QueryResult eventResult = WorldDatabase.Query("SELECT guid FROM game_event_creature WHERE guid = {}", ObjectGuid::LowType(spawnId));
         if (eventResult)
         {
-            handler->SendErrorMessage("Creature spawn {} is managed by the game event system and cannot be manually loaded.", uint32(spawnId));
+            handler->SendErrorMessage("Creature spawn {} is managed by the game event system and cannot be manually loaded.", ObjectGuid::LowType(spawnId));
             return false;
         }
 
         Map* map = sMapMgr->FindBaseNonInstanceMap(data->mapid);
         if (!map)
         {
-            handler->SendErrorMessage("Creature spawn {} is on a non-continent map (ID: {}). Only continent maps are supported.", uint32(spawnId), data->mapid);
+            handler->SendErrorMessage("Creature spawn {} is on a non-continent map (ID: {}). Only continent maps are supported.", ObjectGuid::LowType(spawnId), data->mapid);
             return false;
         }
 
@@ -314,12 +314,12 @@ public:
         if (!creature->LoadCreatureFromDB(spawnId, map, true, true))
         {
             delete creature;
-            handler->SendErrorMessage("Failed to load creature spawn {}.", uint32(spawnId));
+            handler->SendErrorMessage("Failed to load creature spawn {}.", ObjectGuid::LowType(spawnId));
             return false;
         }
 
         sObjectMgr->AddCreatureToGrid(spawnId, data);
-        handler->PSendSysMessage("Creature spawn {} loaded successfully.", uint32(spawnId));
+        handler->PSendSysMessage("Creature spawn {} loaded successfully.", ObjectGuid::LowType(spawnId));
         return true;
     }
 
@@ -364,14 +364,14 @@ public:
         CreatureData const* data = sObjectMgr->GetCreatureData(lowGuid);
         if (!data)
         {
-            handler->SendErrorMessage(LANG_COMMAND_CREATGUIDNOTFOUND, uint32(lowGuid));
+            handler->SendErrorMessage(LANG_COMMAND_CREATGUIDNOTFOUND, ObjectGuid::LowType(lowGuid));
             return false;
         }
 
         // Update movement type
         WorldDatabasePreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_UPD_CREATURE_MOVEMENT_TYPE);
         stmt->SetData(0, uint8(WAYPOINT_MOTION_TYPE));
-        stmt->SetData(1, uint32(lowGuid));
+        stmt->SetData(1, ObjectGuid::LowType(lowGuid));
         WorldDatabase.Execute(stmt);
 
         handler->SendSysMessage(LANG_WAYPOINT_ADDED);

@@ -625,9 +625,9 @@ public:
         }
 
         handler->PSendSysMessage(LANG_MAP_POSITION,
-                                 object->GetMapId(), (mapEntry ? mapEntry->name[handler->GetSessionDbcLocale()] : "<unknown>"),
-                                 zoneId, (zoneEntry ? zoneEntry->area_name[handler->GetSessionDbcLocale()] : "<unknown>"),
-                                 areaId, (areaEntry ? areaEntry->area_name[handler->GetSessionDbcLocale()] : "<unknown>"),
+                                 object->GetMapId(), (mapEntry ? mapEntry->MapName_lang : "<unknown>"),
+                                 zoneId, (zoneEntry ? zoneEntry->AreaName_lang : "<unknown>"),
+                                 areaId, (areaEntry ? areaEntry->AreaName_lang : "<unknown>"),
                                  object->GetPhaseMask(),
                                  object->GetPositionX(), object->GetPositionY(), object->GetPositionZ(), object->GetOrientation(),
                                  cell.GridX(), cell.GridY(), cell.CellX(), cell.CellY(), object->GetInstanceId(),
@@ -1564,7 +1564,7 @@ public:
         uint32 zoneId = player->GetZoneId();
 
         AreaTableEntry const* areaEntry = sAreaTableStore.LookupEntry(zoneId);
-        if (!areaEntry || areaEntry->zone != 0)
+        if (!areaEntry || areaEntry->ParentAreaID != 0)
         {
             handler->SendErrorMessage(LANG_COMMAND_GRAVEYARDWRONGZONE, graveyardId, zoneId);
             return false;
@@ -1675,14 +1675,14 @@ public:
             return false;
         }
 
-        int32 offset = area->exploreFlag / 32;
+        int32 offset = area->AreaBit / 32;
         if (offset >= PLAYER_EXPLORED_ZONES_SIZE)
         {
             handler->SendErrorMessage(LANG_BAD_VALUE);
             return false;
         }
 
-        uint32 val = uint32((1 << (area->exploreFlag % 32)));
+        uint32 val = uint32((1 << (area->AreaBit % 32)));
         uint32 currFields = playerTarget->GetUInt32Value(PLAYER_EXPLORED_ZONES_1 + offset);
         playerTarget->SetUInt32Value(PLAYER_EXPLORED_ZONES_1 + offset, uint32((currFields | val)));
 
@@ -1706,14 +1706,14 @@ public:
             return false;
         }
 
-        int32 offset = area->exploreFlag / 32;
+        int32 offset = area->AreaBit / 32;
         if (offset >= PLAYER_EXPLORED_ZONES_SIZE)
         {
             handler->SendErrorMessage(LANG_BAD_VALUE);
             return false;
         }
 
-        uint32 val = uint32((1 << (area->exploreFlag % 32)));
+        uint32 val = uint32((1 << (area->AreaBit % 32)));
         uint32 currFields = playerTarget->GetUInt32Value(PLAYER_EXPLORED_ZONES_1 + offset);
         playerTarget->SetUInt32Value(PLAYER_EXPLORED_ZONES_1 + offset, uint32((currFields ^ val)));
 
@@ -2072,7 +2072,7 @@ public:
         // add the skill to the player's book with step 1 (which is the first rank, in most cases something
         // like 'Apprentice <skill>'.
         target->SetSkill(skillID, targetHasSkill ? target->GetSkillStep(skillID) : 1, level, max);
-        handler->PSendSysMessage(LANG_SET_SKILL, skillID, skillLine->name[handler->GetSessionDbcLocale()], handler->GetNameLink(target), level, max);
+        handler->PSendSysMessage(LANG_SET_SKILL, skillID, skillLine->DisplayName_lang, handler->GetNameLink(target), level, max);
         return true;
     }
 
@@ -2123,7 +2123,6 @@ public:
         uint8 raceid, classid           = 0; //RACE_NONE, CLASS_NONE
         std::string raceStr, classStr   = handler->GetAcoreString(LANG_UNKNOWN);
         uint8 gender                    = 0;
-        int8 locale                     = handler->GetSessionDbcLocale();
         uint32 totalPlayerTime          = 0;
         uint8 level                     = 0;
         std::string alive               = handler->GetAcoreString(LANG_ERROR);
@@ -2467,13 +2466,13 @@ public:
 
         if (area)
         {
-            zoneName = area->area_name[locale];
+            zoneName = area->AreaName_lang;
 
-            AreaTableEntry const* zone = sAreaTableStore.LookupEntry(area->zone);
+            AreaTableEntry const* zone = sAreaTableStore.LookupEntry(area->ParentAreaID);
             if (zone)
             {
                 areaName = zoneName;
-                zoneName = zone->area_name[locale];
+                zoneName = zone->AreaName_lang;
             }
         }
 
@@ -2481,9 +2480,9 @@ public:
             zoneName = handler->GetAcoreString(LANG_UNKNOWN);
 
         if (!areaName.empty())
-            handler->PSendSysMessage(LANG_PINFO_CHR_MAP_WITH_AREA, map->name[locale], zoneName, areaName);
+            handler->PSendSysMessage(LANG_PINFO_CHR_MAP_WITH_AREA, map->MapName_lang, zoneName, areaName);
         else
-            handler->PSendSysMessage(LANG_PINFO_CHR_MAP, map->name[locale], zoneName);
+            handler->PSendSysMessage(LANG_PINFO_CHR_MAP, map->MapName_lang, zoneName);
 
         // Output XVII. - XVIX. if they are not empty
         if (!guildName.empty())

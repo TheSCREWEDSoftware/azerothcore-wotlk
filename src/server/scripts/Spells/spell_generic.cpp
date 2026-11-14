@@ -2105,9 +2105,8 @@ class spell_pvp_trinket_wotf_shared_cd : public SpellScript
             }
             else
             {
-                WorldPackets::Spells::SendKnownSpells packet;
-                packet.InitialLogin = false;
-                WorldPackets::Spells::SpellHistoryEntry& entry = packet.SpellHistoryEntries.emplace_back();
+                WorldPackets::Spells::SendSpellHistory packet;
+                WorldPackets::Spells::SpellHistoryEntry& entry = packet.Entries.emplace_back();
                 entry.SpellID = 42292; // PvP Trinket spell
                 entry.ItemID = 0;
                 entry.Category = GetSpellInfo()->GetCategory();
@@ -3203,6 +3202,8 @@ class spell_gen_mounted_charge : public SpellScript
                     }
                     break;
                 }
+            default:
+                break;
         }
     }
 
@@ -4198,7 +4199,7 @@ public:
             AreaTableEntry const* area = sAreaTableStore.LookupEntry(target->GetAreaId());
             // Xinef: add battlefield check
             Battlefield* Bf = sBattlefieldMgr->GetBattlefieldToZoneId(target->GetZoneId());
-            if ((area && canFly && (area->flags & AREA_FLAG_NO_FLY_ZONE)) || (Bf && !Bf->CanFlyIn()))
+            if ((area && canFly && (area->Flags[0] & AREA_FLAG_NO_FLY_ZONE)) || (Bf && !Bf->CanFlyIn()))
                 canFly = false;
 
             uint32 mount = 0;

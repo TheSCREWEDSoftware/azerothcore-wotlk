@@ -307,8 +307,8 @@ private:
         if (encounters)
         {
             for (auto const* encounter : *encounters)
-                encounterNames[encounter->dbcEntry->encounterIndex]
-                    = encounter->dbcEntry->encounterName[0];
+                encounterNames[encounter->dbcEntry->OrderIndex]
+                    = encounter->dbcEntry->Name_lang;
         }
 
         return encounterNames;

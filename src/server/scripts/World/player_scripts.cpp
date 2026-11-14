@@ -56,8 +56,8 @@ public:
 
             // Send packet with money
             WorldPackets::Quest::QuestGiverQuestComplete questGiverQuestComplete;
-            questGiverQuestComplete.QuestId = quest->GetQuestId();
-            questGiverQuestComplete.RewardMoney = moneyRew;
+            questGiverQuestComplete.QuestID = int32(quest->GetQuestId());
+            questGiverQuestComplete.MoneyReward = int32(moneyRew);
             player->SendDirectMessage(questGiverQuestComplete.Write());
         }
     }

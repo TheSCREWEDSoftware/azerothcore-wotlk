@@ -27,14 +27,6 @@
 #include "Player.h"
 #include "RBAC.h"
 
-/// Ban function modes
-enum BanMode
-{
-    BAN_ACCOUNT,
-    BAN_CHARACTER,
-    BAN_IP
-};
-
 #if AC_COMPILER == AC_COMPILER_GNU
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #endif

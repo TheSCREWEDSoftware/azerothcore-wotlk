@@ -151,7 +151,7 @@ struct boss_twin_valkyrAI : public ScriptedAI
                     uint32 essenceId1 = 0, empoweredId1 = 0, touchId1 = 0, essenceId2 = 0, empoweredId2 = 0, touchId2 = 0;
                     switch (me->GetMap()->GetDifficulty())
                     {
-                        case 0:
+                        case DIFFICULTY_10_N:
                             essenceId1 = 65684;
                             empoweredId1 = 65724;
                             touchId1 = 65950;
@@ -159,7 +159,7 @@ struct boss_twin_valkyrAI : public ScriptedAI
                             empoweredId2 = 65748;
                             touchId2 = 66001;
                             break;
-                        case 1:
+                        case DIFFICULTY_25_N:
                             essenceId1 = 67176;
                             empoweredId1 = 67213;
                             touchId1 = 67296;
@@ -167,7 +167,7 @@ struct boss_twin_valkyrAI : public ScriptedAI
                             empoweredId2 = 67216;
                             touchId2 = 67281;
                             break;
-                        case 2:
+                        case DIFFICULTY_10_HC:
                             essenceId1 = 67177;
                             empoweredId1 = 67214;
                             touchId1 = 67297;
@@ -175,7 +175,7 @@ struct boss_twin_valkyrAI : public ScriptedAI
                             empoweredId2 = 67217;
                             touchId2 = 67282;
                             break;
-                        case 3:
+                        case DIFFICULTY_25_HC:
                             essenceId1 = 67178;
                             empoweredId1 = 67215;
                             touchId1 = 67298;
@@ -352,34 +352,38 @@ struct boss_twin_valkyrAI : public ScriptedAI
                         case NPC_LIGHTBANE:
                             switch (GetDifficulty())
                             {
-                                case 0:
+                                case DIFFICULTY_10_N:
                                     essenceId = 65684;
                                     break;
-                                case 1:
+                                case DIFFICULTY_25_N:
                                     essenceId = 67176;
                                     break;
-                                case 2:
+                                case DIFFICULTY_10_HC:
                                     essenceId = 67177;
                                     break;
-                                case 3:
+                                case DIFFICULTY_25_HC:
                                     essenceId = 67178;
+                                    break;
+                                default:
                                     break;
                             }
                             break;
                         case NPC_DARKBANE:
                             switch (GetDifficulty())
                             {
-                                case 0:
+                                case DIFFICULTY_10_N:
                                     essenceId = 65686;
                                     break;
-                                case 1:
+                                case DIFFICULTY_25_N:
                                     essenceId = 67222;
                                     break;
-                                case 2:
+                                case DIFFICULTY_10_HC:
                                     essenceId = 67223;
                                     break;
-                                case 3:
+                                case DIFFICULTY_25_HC:
                                     essenceId = 67224;
+                                    break;
+                                default:
                                     break;
                             }
                             break;
@@ -595,33 +599,35 @@ public:
                     //uint32 touchId2 = 0;
                     switch (creature->GetMap()->GetDifficulty())
                     {
-                        case 0:
+                        case DIFFICULTY_10_N:
                             essenceId = 65684;
                             //empoweredId = 65724;
                             touchId1 = 65950;
                             //touchId2 = 66001;
                             effect2Id = 65827;
                             break;
-                        case 1:
+                        case DIFFICULTY_25_N:
                             essenceId = 67176;
                             //empoweredId = 67213;
                             touchId1 = 67296;
                             //touchId2 = 67281;
                             effect2Id = 67179;
                             break;
-                        case 2:
+                        case DIFFICULTY_10_HC:
                             essenceId = 67177;
                             //empoweredId = 67214;
                             touchId1 = 67297;
                             //touchId2 = 67282;
                             effect2Id = 67180;
                             break;
-                        case 3:
+                        case DIFFICULTY_25_HC:
                             essenceId = 67178;
                             //empoweredId = 67215;
                             touchId1 = 67298;
                             //touchId2 = 67283;
                             effect2Id = 67181;
+                            break;
+                        default:
                             break;
                     }
                     player->RemoveAura(essenceId);
@@ -641,33 +647,35 @@ public:
                     uint32 touchId2 = 0;
                     switch (creature->GetMap()->GetDifficulty())
                     {
-                        case 0:
+                        case DIFFICULTY_10_N:
                             essenceId = 65686;
                             //empoweredId = 65748;
                             //touchId1 = 65950;
                             touchId2 = 66001;
                             effect2Id = 65811;
                             break;
-                        case 1:
+                        case DIFFICULTY_25_N:
                             essenceId = 67222;
                             //empoweredId = 67216;
                             //touchId1 = 67296;
                             touchId2 = 67281;
                             effect2Id = 67511;
                             break;
-                        case 2:
+                        case DIFFICULTY_10_HC:
                             essenceId = 67223;
                             //empoweredId = 67217;
                             //touchId1 = 67297;
                             touchId2 = 67282;
                             effect2Id = 67512;
                             break;
-                        case 3:
+                        case DIFFICULTY_25_HC:
                             essenceId = 67224;
                             //empoweredId = 67218;
                             //touchId1 = 67298;
                             touchId2 = 67283;
                             effect2Id = 67513;
+                            break;
+                        default:
                             break;
                     }
                     player->RemoveAura(essenceId);

@@ -166,7 +166,7 @@ struct instance_eye_of_eternity : public InstanceScript
                 }
                 break;
             case IN_PROGRESS:
-                _pokeAchievementValid = (instance->GetPlayersCountExceptGMs() < (instance->GetSpawnMode() == 0 ? (uint32)9 : (uint32)21));
+                _pokeAchievementValid = (instance->GetPlayersCountExceptGMs() < (!instance->Is25ManRaid() ? (uint32)9 : (uint32)21));
                 break;
             case DONE:
                 _pokeAchievementValid = false;
@@ -209,7 +209,7 @@ struct instance_eye_of_eternity : public InstanceScript
                 return _pokeAchievementValid;
             case ACHIEV_CRITERIA_DENYIN_THE_SCION_10:
             case ACHIEV_CRITERIA_DENYIN_THE_SCION_25:
-                return source && source->GetVehicle() && source->GetVehicle()->GetVehicleInfo()->m_ID == 224;
+                return source && source->GetVehicle() && source->GetVehicle()->GetVehicleInfo()->ID == 224;
         }
         return false;
     }

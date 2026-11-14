@@ -99,7 +99,7 @@ public:
         for (auto areaEntry : sAreaTableStore)
         {
             int locale = handler->GetSessionDbcLocale();
-            std::string name = areaEntry->area_name[locale];
+            std::string name = areaEntry->AreaName_lang;
 
             if (name.empty())
             {
@@ -116,7 +116,7 @@ public:
                         continue;
                     }
 
-                    name = areaEntry->area_name[locale];
+                    name = areaEntry->AreaName_lang;
                     if (name.empty())
                     {
                         continue;
@@ -344,7 +344,7 @@ public:
             FactionState const* factionState = target ? target->GetReputationMgr().GetState(factionEntry) : nullptr;
 
             int locale = handler->GetSessionDbcLocale();
-            std::string name = factionEntry->name[locale];
+            std::string name = factionEntry->Name_lang;
             if (name.empty())
             {
                 continue;
@@ -361,7 +361,7 @@ public:
                         continue;
                     }
 
-                    name = factionEntry->name[locale];
+                    name = factionEntry->Name_lang;
                     if (name.empty())
                     {
                         continue;
@@ -585,7 +585,7 @@ public:
             if (set)
             {
                 int locale = handler->GetSessionDbcLocale();
-                std::string name = set->name[locale];
+                std::string name = set->Name_lang;
                 if (name.empty())
                 {
                     continue;
@@ -601,7 +601,7 @@ public:
                             continue;
                         }
 
-                        name = set->name[locale];
+                        name = set->Name_lang;
                         if (name.empty())
                         {
                             continue;
@@ -917,7 +917,7 @@ public:
         for (auto skillInfo : sSkillLineStore)
         {
             int locale = handler->GetSessionDbcLocale();
-            std::string name = skillInfo->name[locale];
+            std::string name = skillInfo->DisplayName_lang;
 
             if (name.empty())
             {
@@ -934,7 +934,7 @@ public:
                         continue;
                     }
 
-                    name = skillInfo->name[locale];
+                    name = skillInfo->DisplayName_lang;
                     if (name.empty())
                     {
                         continue;
@@ -958,13 +958,13 @@ public:
                 std::string valStr;
                 std::string knownStr;
 
-                if (target && target->HasSkill(skillInfo->id))
+                if (target && target->HasSkill(skillInfo->ID))
                 {
                     knownStr = handler->GetAcoreString(LANG_KNOWN);
-                    uint32 curValue = target->GetPureSkillValue(skillInfo->id);
-                    uint32 maxValue = target->GetPureMaxSkillValue(skillInfo->id);
-                    uint32 permValue = target->GetSkillPermBonusValue(skillInfo->id);
-                    uint32 tempValue = target->GetSkillTempBonusValue(skillInfo->id);
+                    uint32 curValue = target->GetPureSkillValue(skillInfo->ID);
+                    uint32 maxValue = target->GetPureMaxSkillValue(skillInfo->ID);
+                    uint32 permValue = target->GetSkillPermBonusValue(skillInfo->ID);
+                    uint32 tempValue = target->GetSkillTempBonusValue(skillInfo->ID);
 
                     valStr = Acore::StringFormat(handler->GetAcoreString(LANG_SKILL_VALUES), curValue, maxValue, permValue, tempValue);
                 }
@@ -972,11 +972,11 @@ public:
                 // send skill in "id - [namedlink locale]" format
                 if (handler->GetSession())
                 {
-                    handler->PSendSysMessage(LANG_SKILL_LIST_CHAT, skillInfo->id, skillInfo->id, name, localeNames[locale], knownStr, valStr);
+                    handler->PSendSysMessage(LANG_SKILL_LIST_CHAT, skillInfo->ID, skillInfo->ID, name, localeNames[locale], knownStr, valStr);
                 }
                 else
                 {
-                    handler->PSendSysMessage(LANG_SKILL_LIST_CONSOLE, skillInfo->id, name, localeNames[locale], knownStr, valStr);
+                    handler->PSendSysMessage(LANG_SKILL_LIST_CONSOLE, skillInfo->ID, name, localeNames[locale], knownStr, valStr);
                 }
 
                 if (!found)
@@ -1284,7 +1284,7 @@ public:
         for (auto nodeEntry : sTaxiNodesStore)
         {
             int locale = handler->GetSessionDbcLocale();
-            std::string name = nodeEntry->name[locale];
+            std::string name = nodeEntry->Name->Str[locale];
 
             if (name.empty())
             {
@@ -1302,7 +1302,7 @@ public:
                         continue;
                     }
 
-                    name = nodeEntry->name[locale];
+                    name = nodeEntry->Name->Str[locale];
                     if (name.empty())
                     {
                         continue;
@@ -1327,12 +1327,12 @@ public:
                 if (handler->GetSession())
                 {
                     handler->PSendSysMessage(LANG_TAXINODE_ENTRY_LIST_CHAT, nodeEntry->ID, nodeEntry->ID, name, localeNames[locale],
-                                             nodeEntry->map_id, nodeEntry->x, nodeEntry->y, nodeEntry->z);
+                                             nodeEntry->MapID, nodeEntry->Pos.X, nodeEntry->Pos.Y, nodeEntry->Pos.Z);
                 }
                 else
                 {
                     handler->PSendSysMessage(LANG_TAXINODE_ENTRY_LIST_CONSOLE, nodeEntry->ID, name, localeNames[locale],
-                                             nodeEntry->map_id, nodeEntry->x, nodeEntry->y, nodeEntry->z);
+                                             nodeEntry->MapID, nodeEntry->Pos.X, nodeEntry->Pos.Y, nodeEntry->Pos.Z);
                 }
 
                 if (!found)
@@ -1442,7 +1442,7 @@ public:
         for (auto titleInfo : sCharTitlesStore)
         {
             int locale = handler->GetSessionDbcLocale();
-            std::string name = titleInfo->nameMale[locale];
+            std::string name = titleInfo->NameMale_lang;
             if (name.empty())
             {
                 continue;
@@ -1458,7 +1458,7 @@ public:
                         continue;
                     }
 
-                    name = titleInfo->nameMale[locale];
+                    name = titleInfo->NameMale_lang;
                     if (name.empty())
                     {
                         continue;
@@ -1525,7 +1525,7 @@ public:
         // search in Map.dbc
         for (auto mapInfo : sMapStore)
         {
-            std::string name = mapInfo->name[locale];
+            std::string name = mapInfo->MapName_lang;
 
             if (name.empty())
             {
@@ -1541,14 +1541,14 @@ public:
                 }
 
                 std::ostringstream ss;
-                ss << mapInfo->MapID << " - [" << name << ']';
+                ss << mapInfo->ID << " - [" << name << ']';
 
                 if (mapInfo->IsContinent())
                 {
                     ss << handler->GetAcoreString(LANG_CONTINENT);
                 }
 
-                switch (mapInfo->map_type)
+                switch (mapInfo->InstanceType)
                 {
                     case MAP_INSTANCE:
                         ss << handler->GetAcoreString(LANG_INSTANCE);

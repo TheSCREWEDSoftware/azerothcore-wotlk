@@ -191,7 +191,7 @@ struct NPCStaveQuestAI : public ScriptedAI
             }
         }
     };
-    std::vector<uint64> attackerGuids;
+    std::vector<ObjectGuid> attackerGuids;
 
     uint32 GetFormEntry(std::string /*type*/);
     bool InNormalForm();

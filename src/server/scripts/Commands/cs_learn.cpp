@@ -168,11 +168,11 @@ public:
             if (talentInfo->ClassID != player->getClass())
                 continue;
 
-            SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(talentInfo->SpellId);
+            SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(talentInfo->SpellID);
             if (!spellInfo || !SpellMgr::IsSpellValid(spellInfo))
                 continue;
 
-            player->LearnTalent(talentInfo->TalentID, true);
+            player->LearnTalent(talentInfo->ID, true);
         }
 
         player->SetFreeTalentPoints(0);
@@ -228,13 +228,13 @@ public:
             if (!skillInfo)
                 continue;
 
-            if ((skillInfo->categoryId == SKILL_CATEGORY_PROFESSION || skillInfo->categoryId == SKILL_CATEGORY_SECONDARY) &&
-                    skillInfo->canLink)                             // only prof. with recipes have
+            if ((skillInfo->CategoryID == SKILL_CATEGORY_PROFESSION || skillInfo->CategoryID == SKILL_CATEGORY_SECONDARY) &&
+                    skillInfo->CanLink)                             // only prof. with recipes have
             {
-                HandleLearnSkillRecipesHelper(target, skillInfo->id);
+                HandleLearnSkillRecipesHelper(target, skillInfo->ID);
 
-                uint16 const maxLevel = target->GetPureMaxSkillValue(skillInfo->id);
-                target->SetSkill(skillInfo->id, target->GetSkillStep(skillInfo->id), maxLevel, maxLevel);
+                uint16 const maxLevel = target->GetPureMaxSkillValue(skillInfo->ID);
+                target->SetSkill(skillInfo->ID, target->GetSkillStep(skillInfo->ID), maxLevel, maxLevel);
             }
         }
 
@@ -268,15 +268,15 @@ public:
             if (!skillInfo)
                 continue;
 
-            if ((skillInfo->categoryId != SKILL_CATEGORY_PROFESSION &&
-                 skillInfo->categoryId != SKILL_CATEGORY_SECONDARY) ||
-                !skillInfo->canLink)                            // only prof with recipes have set
+            if ((skillInfo->CategoryID != SKILL_CATEGORY_PROFESSION &&
+                 skillInfo->CategoryID != SKILL_CATEGORY_SECONDARY) ||
+                !skillInfo->CanLink)                            // only prof with recipes have set
                 continue;
 
             uint8 locale = 0;
             for (; locale < TOTAL_LOCALES; ++locale)
             {
-                name = skillInfo->name[locale];
+                name = skillInfo->DisplayName_lang;
                 if (!name || !*name)
                     continue;
 
@@ -294,10 +294,10 @@ public:
         if (!(name && targetSkillInfo))
             return false;
 
-        HandleLearnSkillRecipesHelper(target, targetSkillInfo->id);
+        HandleLearnSkillRecipesHelper(target, targetSkillInfo->ID);
 
-        uint16 maxLevel = target->GetPureMaxSkillValue(targetSkillInfo->id);
-        target->SetSkill(targetSkillInfo->id, target->GetSkillStep(targetSkillInfo->id), maxLevel, maxLevel);
+        uint16 maxLevel = target->GetPureMaxSkillValue(targetSkillInfo->ID);
+        target->SetSkill(targetSkillInfo->ID, target->GetSkillStep(targetSkillInfo->ID), maxLevel, maxLevel);
         handler->PSendSysMessage(LANG_COMMAND_LEARN_ALL_RECIPES, name);
         return true;
     }
@@ -318,7 +318,7 @@ public:
         for (SkillLineAbilityEntry const* skillLine : GetSkillLineAbilitiesBySkillLine(skillId))
         {
             // not high rank
-            if (skillLine->SupercededBySpell)
+            if (skillLine->SupercedesSpell)
                 continue;
 
             // skip racial skills
@@ -329,11 +329,11 @@ public:
             if (skillLine->ClassMask && (skillLine->ClassMask & classmask) == 0)
                 continue;
 
-            SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(skillLine->Spell);
+            SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(skillLine->SpellID);
             if (!spellInfo || !SpellMgr::IsSpellValid(spellInfo))
                 continue;
 
-            player->learnSpell(skillLine->Spell);
+            player->learnSpell(skillLine->SpellID);
         }
     }
 

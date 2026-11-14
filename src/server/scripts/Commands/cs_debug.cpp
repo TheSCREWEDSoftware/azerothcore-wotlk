@@ -139,9 +139,9 @@ public:
         }
 
         // Dump camera locations
-        if (std::vector<FlyByCamera> const* flyByCameras = GetFlyByCameras(cineSeq->cinematicCamera))
+        if (std::vector<FlyByCamera> const* flyByCameras = GetFlyByCameras(cineSeq->Camera[0]))
         {
-            handler->PSendSysMessage("Waypoints for sequence {}, camera {}", cinematicId, cineSeq->cinematicCamera);
+            handler->PSendSysMessage("Waypoints for sequence {}, camera {}", cinematicId, cineSeq->Camera[0]);
             uint32 count = 1;
             for (FlyByCamera const& cam : *flyByCameras)
             {
@@ -1143,10 +1143,10 @@ public:
 
     static bool HandleDebugSendSetPhaseShiftCommand(ChatHandler* handler, uint32 phaseShift)
     {
-        WorldPackets::Misc::PhaseShiftChange packet;
-        packet.Client = handler->GetPlayer()->GetGUID();
-        packet.PhaseShiftFlags = 0;
-        packet.Phases.push_back(phaseShift);
+        WorldPackets::Misc::PhaseShift packet;
+        packet.ClientGUID = handler->GetPlayer()->GetGUID();
+        packet.PersonalGUID = handler->GetPlayer()->GetGUID();
+        packet.PhaseShifts.insert(phaseShift);
         handler->GetSession()->SendPacket(packet.Write());
         return true;
     }
@@ -1633,7 +1633,7 @@ public:
 
         uint32 zoneId = player->GetZoneId();
         AreaTableEntry const* zoneEntry = sAreaTableStore.LookupEntry(zoneId);
-        handler->PSendSysMessage("Player count in zone {} ({}): {}.", zoneId, (zoneEntry ? zoneEntry->area_name[LOCALE_enUS] : "<unknown>"), player->GetMap()->GetPlayerCountInZone(zoneId));
+        handler->PSendSysMessage("Player count in zone {} ({}): {}.", zoneId, (zoneEntry ? zoneEntry->AreaName_lang : "<unknown>"), player->GetMap()->GetPlayerCountInZone(zoneId));
         return true;
     }
 
@@ -1657,7 +1657,7 @@ public:
         else if (type == "fishing")
         {
             if (AreaTableEntry const* area = sAreaTableStore.LookupEntry(lootId))
-                return area->area_name[LOCALE_enUS];
+                return area->AreaName_lang;
         }
 
         return "";

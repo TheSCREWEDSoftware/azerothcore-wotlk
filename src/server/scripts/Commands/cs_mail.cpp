@@ -260,7 +260,9 @@ public:
 
         QueryResult itemResult = CharacterDatabase.Query(
             "SELECT creatorGuid, giftCreatorGuid, count, duration, charges, flags, enchantments,"
-            " randomPropertyId, durability, playedTime, text, mi.item_guid, itemEntry, ii.owner_guid"
+            " randomPropertyId, durability, playedTime, text, mi.item_guid, itemEntry, ii.owner_guid, mi.mail_id,"
+            " ii.transmogrification, ii.upgradeId, ii.enchantIllusion, ii.battlePetSpeciesId, ii.battlePetBreedData,"
+            " ii.battlePetLevel, ii.battlePetDisplayId, ii.bonusListIDs"
             " FROM mail_items mi LEFT JOIN item_instance ii ON mi.item_guid = ii.guid"
             " WHERE mi.mail_id = {}", mailId);
 
@@ -309,7 +311,7 @@ public:
                     ? ObjectGuid::Create<HighGuid::Player>(itemFields[13].Get<uint32>())
                     : ObjectGuid::Empty;
 
-                if (!item->LoadFromDB(itemGuid, ownerGuid, itemFields, itemEntry))
+                if (!item->LoadFromDB(itemGuid, ownerGuid, itemFields, itemEntry, 15))
                 {
                     LOG_ERROR("misc", "cs_mail: Item (GUID: {}) in mail #{} failed to load. Cleaning up.", itemGuid, mailId);
 

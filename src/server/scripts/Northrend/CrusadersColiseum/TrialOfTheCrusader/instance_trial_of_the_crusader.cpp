@@ -1252,7 +1252,7 @@ private:
         }
         else
         {
-            if (!kit || kit->GetVehicleInfo()->m_ID != VEHICLE_SNOBOLD_CARRIER)
+            if (!kit || kit->GetVehicleInfo()->ID != VEHICLE_SNOBOLD_CARRIER)
                 return;
 
             player->RemoveVehicleKit();
