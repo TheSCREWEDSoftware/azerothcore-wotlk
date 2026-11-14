@@ -540,6 +540,7 @@ namespace WorldPackets
         class QueryCorpseLocationFromClient;
         class QueryCorpseTransport;
         class QueryTime;
+        class QueryRealmName;
         class QueryPetName;
         class QuestPOIQuery;
         class QueryQuestCompletionNPCs;
@@ -1333,6 +1334,7 @@ public:                                                 // opcodes handlers
     void HandleGameobjectReportUse(WorldPackets::GameObject::GameObjReportUse& packet);
     void HandleNameQueryOpcode(WorldPackets::Query::QueryPlayerName& packet);
     void HandleQueryTimeOpcode(WorldPackets::Query::QueryTime& queryTime);
+    void HandleQueryRealmName(WorldPackets::Query::QueryRealmName& queryRealmName);
     void HandleCreatureQuery(WorldPackets::Query::QueryCreature& packet);
     void HandleDBQueryBulk(WorldPackets::Query::DBQueryBulk& packet);
     void HandleGameObjectQueryOpcode(WorldPackets::Query::QueryGameObject& packet);

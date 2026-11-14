@@ -489,3 +489,30 @@ WorldPacket const* WorldPackets::Query::QueryItemTextResponse::Write()
 
     return &_worldPacket;
 }
+
+void WorldPackets::Query::QueryRealmName::Read()
+{
+    _worldPacket >> VirtualRealmAddress;
+}
+
+ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::Query::VirtualRealmNameInfo const& nameInfo)
+{
+    data.WriteBit(nameInfo.IsLocal);
+    data.WriteBit(nameInfo.IsHiddenFromPlayers);
+    data.WriteBits(nameInfo.RealmNameActual.length(), 8);
+    data.WriteBits(nameInfo.RealmNameNormalized.length(), 8);
+    data.FlushBits();
+    data.WriteString(nameInfo.RealmNameActual);
+    data.WriteString(nameInfo.RealmNameNormalized);
+    return data;
+}
+
+WorldPacket const* WorldPackets::Query::RealmQueryResponse::Write()
+{
+    _worldPacket << uint32(VirtualRealmAddress);
+    _worldPacket << uint8(LookupState);
+    if (!LookupState)
+        _worldPacket << NameInfo;
+
+    return &_worldPacket;
+}

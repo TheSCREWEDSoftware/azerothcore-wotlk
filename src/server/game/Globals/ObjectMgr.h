@@ -643,26 +643,34 @@ typedef std::pair<GossipMenuItemsContainer::iterator, GossipMenuItemsContainer::
 
 struct QuestPOIPoint
 {
-    int32 x{0};
-    int32 y{0};
+    int32 X{0};
+    int32 Y{0};
 
     QuestPOIPoint()  = default;
-    QuestPOIPoint(int32 _x, int32 _y) : x(_x), y(_y) {}
+    QuestPOIPoint(int32 _X, int32 _Y) : X(_X), Y(_Y) { }
 };
 
+// 6.x: TrinityCore quest_poi layout
 struct QuestPOI
 {
-    uint32 Id{0};
+    int32 BlobIndex{0};
     int32 ObjectiveIndex{0};
-    uint32 MapId{0};
-    uint32 AreaId{0};
-    uint32 FloorId{0};
-    uint32 Unk3{0};
-    uint32 Unk4{0};
+    int32 QuestObjectiveID{0};
+    int32 QuestObjectID{0};
+    int32 MapID{0};
+    int32 WorldMapAreaID{0};
+    int32 Floor{0};
+    int32 Priority{0};
+    int32 Flags{0};
+    int32 WorldEffectID{0};
+    int32 PlayerConditionID{0};
+    int32 UnkWoD1{0};
     std::vector<QuestPOIPoint> points;
 
     QuestPOI()  = default;
-    QuestPOI(uint32 id, int32 objIndex, uint32 mapId, uint32 areaId, uint32 floorId, uint32 unk3, uint32 unk4) : Id(id), ObjectiveIndex(objIndex), MapId(mapId), AreaId(areaId), FloorId(floorId), Unk3(unk3), Unk4(unk4) {}
+    QuestPOI(int32 _BlobIndex, int32 _ObjectiveIndex, int32 _QuestObjectiveID, int32 _QuestObjectID, int32 _MapID, int32 _WorldMapAreaID, int32 _Floor, int32 _Priority, int32 _Flags, int32 _WorldEffectID, int32 _PlayerConditionID, int32 _UnkWoD1) :
+        BlobIndex(_BlobIndex), ObjectiveIndex(_ObjectiveIndex), QuestObjectiveID(_QuestObjectiveID), QuestObjectID(_QuestObjectID), MapID(_MapID), WorldMapAreaID(_WorldMapAreaID),
+        Floor(_Floor), Priority(_Priority), Flags(_Flags), WorldEffectID(_WorldEffectID), PlayerConditionID(_PlayerConditionID), UnkWoD1(_UnkWoD1) { }
 };
 
 typedef std::vector<QuestPOI> QuestPOIVector;

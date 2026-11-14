@@ -446,8 +446,41 @@ namespace WorldPackets
             bool Valid = false;
             ItemTextCache Item;
         };
+
+        // 6.x 19342: TC 6.x leaves these unhandled, layout from WowPacketParser V6_0_2 (SessionHandler)
+        class QueryRealmName final : public ClientPacket
+        {
+        public:
+            QueryRealmName(WorldPacket&& packet) : ClientPacket(CMSG_QUERY_REALM_NAME, std::move(packet)) { }
+
+            void Read() override;
+
+            uint32 VirtualRealmAddress = 0;
+        };
+
+        struct VirtualRealmNameInfo
+        {
+            bool IsLocal = false;
+            bool IsHiddenFromPlayers = false;
+            std::string RealmNameActual;
+            std::string RealmNameNormalized;
+        };
+
+        class RealmQueryResponse final : public ServerPacket
+        {
+        public:
+            RealmQueryResponse() : ServerPacket(SMSG_REALM_QUERY_RESPONSE, 4 + 1 + 2 + 64) { }
+
+            WorldPacket const* Write() override;
+
+            uint32 VirtualRealmAddress = 0;
+            uint8 LookupState = 0;                          // 0 = found, the name info follows
+            VirtualRealmNameInfo NameInfo;
+        };
     }
 }
+
+ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::Query::VirtualRealmNameInfo const& nameInfo);
 
 ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::Query::PlayerGuidLookupHint const& lookupHint);
 ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::Query::PlayerGuidLookupData const& lookupData);
