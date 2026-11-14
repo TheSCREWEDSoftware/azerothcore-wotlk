@@ -522,6 +522,12 @@ void LoadDBCStores(std::string const& dataPath)
     for (MapDifficultyEntry const* entry : sMapDifficultyStore)
         sMapDifficultyMap[MAKE_PAIR32(entry->MapId, entry->Difficulty)] = MapDifficulty(entry->resetTime, entry->maxPlayers, entry->areaTriggerText[0] != '\0');
 
+    // map 0 (Eastern Kingdoms) has no MapDifficulty.dbc row since 4.x; give it the normal difficulty of map 1,
+    // as TrinityCore does, or every spawn on it fails the spawn mask check and difficulty lookups return null
+    if (!sMapDifficultyMap.count(MAKE_PAIR32(0, REGULAR_DIFFICULTY)))
+        if (MapDifficulty const* kalimdor = GetMapDifficultyData(1, REGULAR_DIFFICULTY))
+            sMapDifficultyMap[MAKE_PAIR32(0, REGULAR_DIFFICULTY)] = *kalimdor;
+
     for (PvPDifficultyEntry const* entry : sPvPDifficultyStore)
         if (entry->bracketId > MAX_BATTLEGROUND_BRACKETS)
             ASSERT(false && "Need update MAX_BATTLEGROUND_BRACKETS by DBC data");
