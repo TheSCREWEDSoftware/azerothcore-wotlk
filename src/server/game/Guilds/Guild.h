@@ -819,17 +819,16 @@ public:
     void SetInfo(std::string_view info);
 
     // Cata guild leveling
-    uint8 GetLevel() const { return _level; }
+    // 6.x (WoD) removed guild levels: every guild counts as max level
+    uint8 GetLevel() const;
     uint64 GetExperience() const { return _experience; }
     uint64 GetTodayExperience() const { return _todayExperience; }
     void GiveXP(uint32 xp, Player* source, bool rewardedByChallenge = false);
-    void SendGuildXP(WorldSession* session);
     void CompleteChallenge(uint8 challengeType, Player* source);
     void HandleGuildRequestChallengeUpdate(WorldSession* session) const;
 
     // Cata guild reputation
     void GiveReputation(uint32 rep, Player* source);
-    void SendGuildReputationWeeklyCap(WorldSession* session, uint32 reputation) const;
 
     // Cata guild news
     static bool IsNewsworthyItem(ItemTemplate const* proto);
@@ -883,7 +882,6 @@ public:
     void OnPlayerStatusChange(Player* player, uint32 flag, bool state);
 
     // Send info to client
-    void SendInfo(WorldSession* session) const;
     void SendEventLog(WorldSession* session) const;
     void SendBankLog(WorldSession* session, uint8 tabId) const;
     void SendBankTabsInfo(WorldSession* session, bool showTabs = false);
@@ -1053,5 +1051,6 @@ private:
     void _BroadcastEvent(GuildEvents guildEvent, ObjectGuid guid = ObjectGuid::Empty, Optional<std::string_view> param1 = {}, Optional<std::string_view> param2 = {}, Optional<std::string_view> param3 = {}) const;
     void _SendRemovePlayerFromGuild(ObjectGuid removedGuid, std::string_view removedName, Player const* remover) const;
     void _SendSetNewGuildMaster(ObjectGuid oldGuid, std::string_view oldName, ObjectGuid newGuid, std::string_view newName, bool replace) const;
+    void _SendRankChange(ObjectGuid officer, ObjectGuid other, uint32 rankId, bool promote) const;
 };
 #endif

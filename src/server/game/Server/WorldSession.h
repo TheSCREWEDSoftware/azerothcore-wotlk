@@ -320,6 +320,10 @@ namespace WorldPackets
         class GuildChallengeUpdateRequest;
         class SaveGuildEmblem;
         class GuildSetAchievementTracking;
+        class GuildQueryRecipes;
+        class GuildQueryMembersForRecipe;
+        class GuildQueryMemberRecipes;
+        class GuildReplaceGuildMaster;
     }
 
     namespace GuildFinder
@@ -1421,6 +1425,10 @@ public:                                                 // opcodes handlers
     void HandleGuildRequestPartyState(WorldPackets::Guild::RequestGuildPartyState& packet);
     void HandleGuildChallengeUpdateRequest(WorldPackets::Guild::GuildChallengeUpdateRequest& packet);
     void HandleDeclineGuildInvites(WorldPackets::Guild::DeclineGuildInvites& packet);
+    void HandleGuildQueryRecipes(WorldPackets::Guild::GuildQueryRecipes& packet);
+    void HandleGuildQueryMembersForRecipe(WorldPackets::Guild::GuildQueryMembersForRecipe& packet);
+    void HandleGuildQueryMemberRecipes(WorldPackets::Guild::GuildQueryMemberRecipes& packet);
+    void HandleGuildReplaceGuildMaster(WorldPackets::Guild::GuildReplaceGuildMaster& packet);
     void HandleGuildFinderAddRecruit(WorldPackets::GuildFinder::LFGuildAddRecruit& lfGuildAddRecruit);
     void HandleGuildFinderBrowse(WorldPackets::GuildFinder::LFGuildBrowse& lfGuildBrowse);
     void HandleGuildFinderDeclineRecruit(WorldPackets::GuildFinder::LFGuildDeclineRecruit& lfGuildDeclineRecruit);

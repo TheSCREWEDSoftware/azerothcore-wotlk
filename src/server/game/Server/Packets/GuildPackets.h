@@ -810,6 +810,9 @@ namespace WorldPackets
 
             WorldPacket const* Write() override;
 
+            // rewrites the remaining withdrawals of an already written packet, for each receiver
+            void SetWithdrawalsRemaining(int32 withdrawalsRemaining);
+
             std::vector<GuildBankItemInfo> ItemInfo;
             std::vector<GuildBankTabInfo> TabInfo;
             int32 WithdrawalsRemaining = 0;
@@ -1004,6 +1007,119 @@ namespace WorldPackets
             WorldPacket const* Write() override;
 
             int32 Error = 0;
+        };
+
+        // CMSG_GUILD_QUERY_RECIPES and the recipe packets: unhandled by TC 6.x, layout from WowPacketParser V6_0_2
+        class GuildQueryRecipes final : public ClientPacket
+        {
+        public:
+            GuildQueryRecipes(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_QUERY_RECIPES, std::move(packet)) { }
+
+            void Read() override;
+
+            ObjectGuid GuildGUID;
+        };
+
+        struct GuildRecipesData
+        {
+            int32 SkillLineID = 0;
+            std::array<uint8, GUILD_RECIPES_COUNT> SkillLineBitArray = { };
+        };
+
+        class GuildKnownRecipes final : public ServerPacket
+        {
+        public:
+            GuildKnownRecipes() : ServerPacket(SMSG_GUILD_KNOWN_RECIPES, 4) { }
+
+            WorldPacket const* Write() override;
+
+            std::vector<GuildRecipesData> Recipes;
+        };
+
+        class GuildQueryMembersForRecipe final : public ClientPacket
+        {
+        public:
+            GuildQueryMembersForRecipe(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_QUERY_MEMBERS_FOR_RECIPE, std::move(packet)) { }
+
+            void Read() override;
+
+            ObjectGuid GuildGUID;
+            uint32 SkillLineID = 0;
+            uint32 SpellID = 0;
+            uint32 UniqueBit = 0;
+        };
+
+        class GuildMembersWithRecipe final : public ServerPacket
+        {
+        public:
+            GuildMembersWithRecipe() : ServerPacket(SMSG_GUILD_MEMBERS_WITH_RECIPE, 12) { }
+
+            WorldPacket const* Write() override;
+
+            uint32 SkillLineID = 0;
+            uint32 SpellID = 0;
+            std::vector<ObjectGuid> Members;
+        };
+
+        class GuildQueryMemberRecipes final : public ClientPacket
+        {
+        public:
+            GuildQueryMemberRecipes(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_QUERY_MEMBER_RECIPES, std::move(packet)) { }
+
+            void Read() override;
+
+            ObjectGuid GuildMember;
+            ObjectGuid GuildGUID;
+            uint32 SkillLineID = 0;
+        };
+
+        class GuildMemberRecipes final : public ServerPacket
+        {
+        public:
+            GuildMemberRecipes() : ServerPacket(SMSG_GUILD_MEMBER_RECIPES, 16 + 12 + GUILD_RECIPES_COUNT) { }
+
+            WorldPacket const* Write() override;
+
+            ObjectGuid Member;
+            int32 SkillLineID = 0;
+            int32 SkillRank = 0;
+            int32 SkillStep = 0;
+            std::array<uint8, GUILD_RECIPES_COUNT> SkillLineBitArray = { };
+        };
+
+        // unhandled by TC 6.x, layout from WowPacketParser V6_0_2 (empty)
+        class GuildReplaceGuildMaster final : public ClientPacket
+        {
+        public:
+            GuildReplaceGuildMaster(WorldPacket&& packet) : ClientPacket(CMSG_GUILD_REPLACE_GUILD_MASTER, std::move(packet)) { }
+
+            void Read() override { }
+        };
+
+        // unhandled by TC 6.x, layout from WowPacketParser V6_0_2
+        class GuildNameChanged final : public ServerPacket
+        {
+        public:
+            GuildNameChanged() : ServerPacket(SMSG_GUILD_NAME_CHANGED, 16 + 1) { }
+
+            WorldPacket const* Write() override;
+
+            ObjectGuid GuildGUID;
+            std::string GuildName;
+        };
+
+        // unhandled by TC 6.x, layout from WowPacketParser V6_0_2
+        class GuildChallengeCompleted final : public ServerPacket
+        {
+        public:
+            GuildChallengeCompleted() : ServerPacket(SMSG_GUILD_CHALLENGE_COMPLETED, 16) { }
+
+            WorldPacket const* Write() override;
+
+            int32 ChallengeType = 0;
+            int32 CurrentCount = 0;
+            int32 MaxCount = 0;
+            int32 GoldAwarded = 0;
         };
 
         class GuildSetAchievementTracking final : public ClientPacket

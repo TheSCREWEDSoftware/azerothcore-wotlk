@@ -829,3 +829,83 @@ void WorldPackets::Guild::GuildSetAchievementTracking::Read()
         AchievementIDs.insert(value);
     }
 }
+
+void WorldPackets::Guild::GuildBankQueryResults::SetWithdrawalsRemaining(int32 withdrawalsRemaining)
+{
+    WithdrawalsRemaining = withdrawalsRemaining;
+    _worldPacket.put<int32>(sizeof(uint64) + sizeof(int32), withdrawalsRemaining);
+}
+
+void WorldPackets::Guild::GuildQueryRecipes::Read()
+{
+    _worldPacket >> GuildGUID;
+}
+
+WorldPacket const* WorldPackets::Guild::GuildKnownRecipes::Write()
+{
+    _worldPacket << uint32(Recipes.size());
+    for (GuildRecipesData const& recipesData : Recipes)
+    {
+        _worldPacket << int32(recipesData.SkillLineID);
+        _worldPacket.append(recipesData.SkillLineBitArray.data(), recipesData.SkillLineBitArray.size());
+    }
+
+    return &_worldPacket;
+}
+
+void WorldPackets::Guild::GuildQueryMembersForRecipe::Read()
+{
+    _worldPacket >> GuildGUID;
+    _worldPacket >> SkillLineID;
+    _worldPacket >> SpellID;
+    _worldPacket >> UniqueBit;
+}
+
+WorldPacket const* WorldPackets::Guild::GuildMembersWithRecipe::Write()
+{
+    _worldPacket << uint32(SkillLineID);
+    _worldPacket << uint32(SpellID);
+    _worldPacket << uint32(Members.size());
+    for (ObjectGuid const& member : Members)
+        _worldPacket << member;
+
+    return &_worldPacket;
+}
+
+void WorldPackets::Guild::GuildQueryMemberRecipes::Read()
+{
+    _worldPacket >> GuildMember;
+    _worldPacket >> GuildGUID;
+    _worldPacket >> SkillLineID;
+}
+
+WorldPacket const* WorldPackets::Guild::GuildMemberRecipes::Write()
+{
+    _worldPacket << Member;
+    _worldPacket << int32(SkillLineID);
+    _worldPacket << int32(SkillRank);
+    _worldPacket << int32(SkillStep);
+    _worldPacket.append(SkillLineBitArray.data(), SkillLineBitArray.size());
+
+    return &_worldPacket;
+}
+
+WorldPacket const* WorldPackets::Guild::GuildNameChanged::Write()
+{
+    _worldPacket << GuildGUID;
+    _worldPacket.WriteBits(GuildName.length(), 7);
+    _worldPacket.FlushBits();
+    _worldPacket.WriteString(GuildName);
+
+    return &_worldPacket;
+}
+
+WorldPacket const* WorldPackets::Guild::GuildChallengeCompleted::Write()
+{
+    _worldPacket << int32(ChallengeType);
+    _worldPacket << int32(CurrentCount);
+    _worldPacket << int32(MaxCount);
+    _worldPacket << int32(GoldAwarded);
+
+    return &_worldPacket;
+}

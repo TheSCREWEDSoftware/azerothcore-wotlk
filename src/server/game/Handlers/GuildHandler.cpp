@@ -37,12 +37,7 @@ void WorldSession::HandleGuildQueryOpcode(WorldPackets::Guild::QueryGuildInfo& q
             guild->HandleQuery(this);
 }
 
-void WorldSession::HandleGuildCreateOpcode(WorldPackets::Guild::GuildCreate& packet)
-{
-    LOG_ERROR("network.opcode", "CMSG_GUILD_CREATE: Possible hacking-attempt: {} tried to create a guild [Name: {}] using cheats", GetPlayerInfo(), packet.GuildName);
-}
-
-void WorldSession::HandleGuildInviteOpcode(WorldPackets::Guild::GuildInviteByName& packet)
+void WorldSession::HandleGuildInviteByName(WorldPackets::Guild::GuildInviteByName& packet)
 {
     LOG_DEBUG("guild", "CMSG_GUILD_INVITE [{}]: Invited: {}", GetPlayerInfo(), packet.Name);
     if (normalizePlayerName(packet.Name))
@@ -50,7 +45,7 @@ void WorldSession::HandleGuildInviteOpcode(WorldPackets::Guild::GuildInviteByNam
             guild->HandleInviteMember(this, packet.Name);
 }
 
-void WorldSession::HandleGuildRemoveOpcode(WorldPackets::Guild::GuildOfficerRemoveMember& packet)
+void WorldSession::HandleGuildOfficerRemoveMember(WorldPackets::Guild::GuildOfficerRemoveMember& packet)
 {
     LOG_DEBUG("guild", "CMSG_GUILD_REMOVE [{}]: Target: {}", GetPlayerInfo(), packet.Removee.ToString());
 
@@ -59,7 +54,7 @@ void WorldSession::HandleGuildRemoveOpcode(WorldPackets::Guild::GuildOfficerRemo
             guild->HandleRemoveMember(this, member->GetName());
 }
 
-void WorldSession::HandleGuildAcceptOpcode(WorldPackets::Guild::AcceptGuildInvite& /*invite*/)
+void WorldSession::HandleGuildAcceptInvite(WorldPackets::Guild::AcceptGuildInvite& /*invite*/)
 {
     LOG_DEBUG("guild", "CMSG_GUILD_ACCEPT [{}]", GetPlayer()->GetName());
 
@@ -76,7 +71,7 @@ void WorldSession::HandleGuildAcceptOpcode(WorldPackets::Guild::AcceptGuildInvit
             guild->HandleAcceptMember(this);
 }
 
-void WorldSession::HandleGuildDeclineOpcode(WorldPackets::Guild::GuildDeclineInvitation& /*decline*/)
+void WorldSession::HandleGuildDeclineInvitation(WorldPackets::Guild::GuildDeclineInvitation& /*decline*/)
 {
     LOG_DEBUG("guild", "CMSG_GUILD_DECLINE [{}]", GetPlayerInfo());
 
@@ -89,15 +84,7 @@ void WorldSession::HandleGuildDeclineOpcode(WorldPackets::Guild::GuildDeclineInv
     GetPlayer()->SetInGuild(0);
 }
 
-void WorldSession::HandleGuildInfoOpcode(WorldPackets::Guild::GuildGetInfo& /*packet*/)
-{
-    LOG_DEBUG("guild", "CMSG_GUILD_INFO [{}]", GetPlayerInfo());
-
-    if (Guild* guild = GetPlayer()->GetGuild())
-        guild->SendInfo(this);
-}
-
-void WorldSession::HandleGuildRosterOpcode(WorldPackets::Guild::GuildGetRoster& /*packet*/)
+void WorldSession::HandleGuildGetRoster(WorldPackets::Guild::GuildGetRoster& /*packet*/)
 {
     LOG_DEBUG("guild", "CMSG_GUILD_GET_ROSTER [{}]", GetPlayerInfo());
 
@@ -107,7 +94,7 @@ void WorldSession::HandleGuildRosterOpcode(WorldPackets::Guild::GuildGetRoster& 
         Guild::SendCommandResult(this, GUILD_COMMAND_ROSTER, ERR_GUILD_PLAYER_NOT_IN_GUILD);
 }
 
-void WorldSession::HandleGuildPromoteOpcode(WorldPackets::Guild::GuildPromoteMember& promote)
+void WorldSession::HandleGuildPromoteMember(WorldPackets::Guild::GuildPromoteMember& promote)
 {
     LOG_DEBUG("guild", "CMSG_GUILD_PROMOTE [{}]: Target: {}", GetPlayerInfo(), promote.Promotee.ToString());
 
@@ -116,7 +103,7 @@ void WorldSession::HandleGuildPromoteOpcode(WorldPackets::Guild::GuildPromoteMem
             guild->HandleUpdateMemberRank(this, member->GetName(), false);
 }
 
-void WorldSession::HandleGuildDemoteOpcode(WorldPackets::Guild::GuildDemoteMember& demote)
+void WorldSession::HandleGuildDemoteMember(WorldPackets::Guild::GuildDemoteMember& demote)
 {
     LOG_DEBUG("guild", "CMSG_GUILD_DEMOTE [{}]: Target: {}", GetPlayerInfo(), demote.Demotee.ToString());
 
@@ -125,7 +112,7 @@ void WorldSession::HandleGuildDemoteOpcode(WorldPackets::Guild::GuildDemoteMembe
             guild->HandleUpdateMemberRank(this, member->GetName(), true);
 }
 
-void WorldSession::HandleGuildLeaveOpcode(WorldPackets::Guild::GuildLeave& /*leave*/)
+void WorldSession::HandleGuildLeave(WorldPackets::Guild::GuildLeave& /*leave*/)
 {
     LOG_DEBUG("guild", "CMSG_GUILD_LEAVE [{}]", GetPlayerInfo());
 
@@ -133,7 +120,7 @@ void WorldSession::HandleGuildLeaveOpcode(WorldPackets::Guild::GuildLeave& /*lea
         guild->HandleLeaveMember(this);
 }
 
-void WorldSession::HandleGuildDisbandOpcode(WorldPackets::Guild::GuildDelete& /*packet*/)
+void WorldSession::HandleGuildDelete(WorldPackets::Guild::GuildDelete& /*packet*/)
 {
     LOG_DEBUG("guild", "CMSG_GUILD_DISBAND [{}]", GetPlayerInfo());
 
@@ -141,24 +128,16 @@ void WorldSession::HandleGuildDisbandOpcode(WorldPackets::Guild::GuildDelete& /*
         guild->HandleDisband(this);
 }
 
-void WorldSession::HandleGuildLeaderOpcode(WorldPackets::Guild::GuildSetGuildMaster& packet)
+void WorldSession::HandleGuildSetGuildMaster(WorldPackets::Guild::GuildSetGuildMaster& packet)
 {
-    LOG_DEBUG("guild", "CMSG_GUILD_SET_GUILD_MASTER [{}]: Target: {}, Dethrone: {}", GetPlayerInfo(),
-        packet.NewMasterName, packet.IsDethrone);
-
-    if (packet.IsDethrone)
-    {
-        if (Guild* guild = GetPlayer()->GetGuild())
-            guild->HandleReplaceGuildMaster(this);
-        return;
-    }
+    LOG_DEBUG("guild", "CMSG_GUILD_SET_GUILD_MASTER [{}]: Target: {}", GetPlayerInfo(), packet.NewMasterName);
 
     if (normalizePlayerName(packet.NewMasterName))
         if (Guild* guild = GetPlayer()->GetGuild())
             guild->HandleSetLeader(this, packet.NewMasterName);
 }
 
-void WorldSession::HandleGuildMOTDOpcode(WorldPackets::Guild::GuildUpdateMotdText& packet)
+void WorldSession::HandleGuildUpdateMotdText(WorldPackets::Guild::GuildUpdateMotdText& packet)
 {
     LOG_DEBUG("guild", "CMSG_GUILD_MOTD [{}]: MOTD: {}", GetPlayerInfo(), packet.MotdText);
 
@@ -167,7 +146,7 @@ void WorldSession::HandleGuildMOTDOpcode(WorldPackets::Guild::GuildUpdateMotdTex
 }
 
 // 4.3.4 sends public and officer notes through the same opcode
-void WorldSession::HandleGuildSetPublicNoteOpcode(WorldPackets::Guild::GuildSetMemberNote& packet)
+void WorldSession::HandleGuildSetMemberNote(WorldPackets::Guild::GuildSetMemberNote& packet)
 {
     LOG_DEBUG("guild", "CMSG_GUILD_SET_NOTE [{}]: Target: {}, Note: {}, Public: {}", GetPlayerInfo(),
         packet.NoteeGUID.ToString(), packet.Note, packet.IsPublic);
@@ -177,7 +156,7 @@ void WorldSession::HandleGuildSetPublicNoteOpcode(WorldPackets::Guild::GuildSetM
             guild->HandleSetMemberNote(this, member->GetName(), packet.Note, packet.IsPublic);
 }
 
-void WorldSession::HandleGuildRankOpcode(WorldPackets::Guild::GuildSetRankPermissions& packet)
+void WorldSession::HandleGuildSetRankPermissions(WorldPackets::Guild::GuildSetRankPermissions& packet)
 {
     Guild* guild = GetPlayer()->GetGuild();
     if (!guild)
@@ -199,7 +178,7 @@ void WorldSession::HandleGuildRankOpcode(WorldPackets::Guild::GuildSetRankPermis
     }
 
     LOG_DEBUG("guild", "CMSG_GUILD_SET_RANK_PERMISSIONS [{}]: Rank: {} ({})", GetPlayerInfo(), packet.RankName,
-        packet.RankID);
+        packet.RankOrder);
 
     // Same as the issue above but this time with rights.
     if (packet.Flags <= 0)
@@ -207,44 +186,28 @@ void WorldSession::HandleGuildRankOpcode(WorldPackets::Guild::GuildSetRankPermis
         packet.Flags = GUILD_BANK_RIGHT_FULL;
     }
 
-    guild->HandleSetRankInfo(this, packet.RankID, packet.RankName, packet.Flags, packet.WithdrawGoldLimit, rightsAndSlots);
+    guild->HandleSetRankInfo(this, uint8(packet.RankOrder), packet.RankName, packet.Flags, packet.WithdrawGoldLimit, rightsAndSlots);
 }
 
-void WorldSession::HandleGuildQueryRanksOpcode(WorldPackets::Guild::GuildQueryRanks& packet)
+void WorldSession::HandleGuildGetRanks(WorldPackets::Guild::GuildGetRanks& packet)
 {
-    LOG_DEBUG("guild", "CMSG_GUILD_QUERY_RANKS [{}]: Guild: {}", GetPlayerInfo(), packet.GuildGuid.ToString());
+    LOG_DEBUG("guild", "CMSG_GUILD_QUERY_RANKS [{}]: Guild: {}", GetPlayerInfo(), packet.GuildGUID.ToString());
 
-    if (Guild* guild = sGuildMgr->GetGuildById(packet.GuildGuid.GetCounter()))
+    if (Guild* guild = sGuildMgr->GetGuildById(packet.GuildGUID.GetCounter()))
         if (guild->IsMember(GetPlayer()->GetGUID()))
             guild->SendGuildRankInfo(this);
 }
 
-void WorldSession::HandleGuildAssignRankOpcode(WorldPackets::Guild::GuildAssignMemberRank& packet)
+void WorldSession::HandleGuildAssignRank(WorldPackets::Guild::GuildAssignMemberRank& packet)
 {
     LOG_DEBUG("guild", "CMSG_GUILD_ASSIGN_MEMBER_RANK [{}]: Target: {} Rank: {}, Issuer: {}", GetPlayerInfo(),
-        packet.Member.ToString(), packet.RankOrder, packet.Setter.ToString());
+        packet.Member.ToString(), packet.RankOrder, GetPlayer()->GetGUID().ToString());
 
     if (Guild* guild = GetPlayer()->GetGuild())
         guild->HandleSetMemberRank(this, packet.Member, packet.RankOrder);
 }
 
-void WorldSession::HandleGuildSwitchRankOpcode(WorldPackets::Guild::GuildSwitchRank& packet)
-{
-    LOG_DEBUG("guild", "CMSG_GUILD_SWITCH_RANK [{}]: Rank: {}, Up: {}", GetPlayerInfo(), packet.RankOrder, packet.Up);
-
-    // Reordering ranks is not supported (TrinityCore 4.3.4 does not handle it either)
-    Guild* guild = GetPlayer()->GetGuild();
-    if (!guild)
-    {
-        Guild::SendCommandResult(this, GUILD_COMMAND_CREATE, ERR_GUILD_PLAYER_NOT_IN_GUILD);
-        return;
-    }
-
-    if (GetPlayer()->GetGUID() != guild->GetLeaderGUID())
-        Guild::SendCommandResult(this, GUILD_COMMAND_INVITE, ERR_GUILD_PERMISSIONS);
-}
-
-void WorldSession::HandleGuildAddRankOpcode(WorldPackets::Guild::GuildAddRank& packet)
+void WorldSession::HandleGuildAddRank(WorldPackets::Guild::GuildAddRank& packet)
 {
     LOG_DEBUG("guild", "CMSG_GUILD_ADD_RANK [{}]: Rank: {}", GetPlayerInfo(), packet.Name);
 
@@ -252,7 +215,7 @@ void WorldSession::HandleGuildAddRankOpcode(WorldPackets::Guild::GuildAddRank& p
         guild->HandleAddNewRank(this, packet.Name);
 }
 
-void WorldSession::HandleGuildDelRankOpcode(WorldPackets::Guild::GuildDeleteRank& packet)
+void WorldSession::HandleGuildDeleteRank(WorldPackets::Guild::GuildDeleteRank& packet)
 {
     LOG_DEBUG("guild", "CMSG_GUILD_DEL_RANK [{}]: Rank: {}", GetPlayerInfo(), packet.RankOrder);
 
@@ -260,7 +223,7 @@ void WorldSession::HandleGuildDelRankOpcode(WorldPackets::Guild::GuildDeleteRank
         guild->HandleRemoveRank(this, uint8(packet.RankOrder));
 }
 
-void WorldSession::HandleGuildChangeInfoTextOpcode(WorldPackets::Guild::GuildUpdateInfoText& packet)
+void WorldSession::HandleGuildUpdateInfoText(WorldPackets::Guild::GuildUpdateInfoText& packet)
 {
     LOG_DEBUG("guild", "CMSG_GUILD_INFO_TEXT [{}]: {}", GetPlayerInfo(), packet.InfoText);
 
@@ -268,7 +231,7 @@ void WorldSession::HandleGuildChangeInfoTextOpcode(WorldPackets::Guild::GuildUpd
         guild->HandleSetInfo(this, packet.InfoText);
 }
 
-void WorldSession::HandleSaveGuildEmblemOpcode(WorldPackets::Guild::SaveGuildEmblem& packet)
+void WorldSession::HandleSaveGuildEmblem(WorldPackets::Guild::SaveGuildEmblem& packet)
 {
     EmblemInfo emblemInfo;
     emblemInfo.ReadPacket(packet);
@@ -295,7 +258,7 @@ void WorldSession::HandleSaveGuildEmblemOpcode(WorldPackets::Guild::SaveGuildEmb
         Guild::SendSaveEmblemResult(this, ERR_GUILDEMBLEM_INVALIDVENDOR); // "That's not an emblem vendor!"
 }
 
-void WorldSession::HandleGuildEventLogQueryOpcode(WorldPackets::Guild::GuildEventLogQuery& /*packet*/)
+void WorldSession::HandleGuildEventLogQuery(WorldPackets::Guild::GuildEventLogQuery& /*packet*/)
 {
     LOG_DEBUG("guild", "CMSG_GUILD_EVENT_LOG_QUERY [{}]", GetPlayerInfo());
 
@@ -311,14 +274,14 @@ void WorldSession::HandleGuildBankMoneyWithdrawn(WorldPackets::Guild::GuildBankR
         guild->SendMoneyInfo(this);
 }
 
-void WorldSession::HandleGuildPermissions(WorldPackets::Guild::GuildPermissionsQuery& /* packet */)
+void WorldSession::HandleGuildPermissionsQuery(WorldPackets::Guild::GuildPermissionsQuery& /* packet */)
 {
     if (Guild* guild = GetPlayer()->GetGuild())
         guild->SendPermissions(this);
 }
 
 // Called when clicking on Guild bank gameobject
-void WorldSession::HandleGuildBankerActivate(WorldPackets::Guild::GuildBankActivate& packet)
+void WorldSession::HandleGuildBankActivate(WorldPackets::Guild::GuildBankActivate& packet)
 {
     LOG_DEBUG("guild", "CMSG_GUILD_BANKER_ACTIVATE [{}]: Go: [{}] AllSlots: {}"
     , GetPlayerInfo(), packet.Banker.ToString(), packet.FullUpdate);
@@ -418,7 +381,8 @@ void WorldSession::HandleGuildBankBuyTab(WorldPackets::Guild::GuildBankBuyTab& p
 {
     LOG_DEBUG("guild", "CMSG_GUILD_BANK_BUY_TAB [{}]: [{}[, TabId: {}", GetPlayerInfo(), packet.Banker .ToString(), packet.BankTab);
 
-    if (GetPlayer()->GetGameObjectIfCanInteractWith(packet.Banker, GAMEOBJECT_TYPE_GUILD_BANK))
+    // 6.x buys tabs from the guild window too, without a banker (TC 6.x)
+    if (!packet.Banker || GetPlayer()->GetGameObjectIfCanInteractWith(packet.Banker, GAMEOBJECT_TYPE_GUILD_BANK))
         if (Guild* guild = GetPlayer()->GetGuild())
             guild->HandleBuyBankTab(this, packet.BankTab);
 }
@@ -446,7 +410,7 @@ void WorldSession::HandleGuildBankLogQuery(WorldPackets::Guild::GuildBankLogQuer
         guild->SendBankLog(this, uint8(packet.Tab));
 }
 
-void WorldSession::HandleQueryGuildBankTabText(WorldPackets::Guild::GuildBankTextQuery& packet)
+void WorldSession::HandleGuildBankTextQuery(WorldPackets::Guild::GuildBankTextQuery& packet)
 {
     LOG_DEBUG("guild", "MSG_QUERY_GUILD_BANK_TEXT [{}]: TabId: {}", GetPlayerInfo(), packet.Tab);
 
@@ -454,7 +418,7 @@ void WorldSession::HandleQueryGuildBankTabText(WorldPackets::Guild::GuildBankTex
         guild->SendBankTabText(this, packet.Tab);
 }
 
-void WorldSession::HandleSetGuildBankTabText(WorldPackets::Guild::GuildBankSetTabText& packet)
+void WorldSession::HandleGuildBankSetTabText(WorldPackets::Guild::GuildBankSetTabText& packet)
 {
     LOG_DEBUG("guild", "CMSG_SET_GUILD_BANK_TEXT [{}]: TabId: {}, Text: {}", GetPlayerInfo(), packet.Tab, packet.TabText);
 
@@ -462,29 +426,7 @@ void WorldSession::HandleSetGuildBankTabText(WorldPackets::Guild::GuildBankSetTa
         guild->SetBankTabText(packet.Tab, packet.TabText);
 }
 
-void WorldSession::HandleGuildXPQueryOpcode(WorldPackets::Guild::GuildXPQuery& packet)
-{
-    LOG_DEBUG("guild", "CMSG_GUILD_XP_QUERY [{}]: Guild: {}", GetPlayerInfo(), packet.GuildGuid.ToString());
-
-    if (Guild* guild = sGuildMgr->GetGuildById(packet.GuildGuid.GetCounter()))
-        if (guild->IsMember(GetPlayer()->GetGUID()))
-            guild->SendGuildXP(this);
-}
-
-void WorldSession::HandleGuildRequestMaxDailyXP(WorldPackets::Guild::GuildRequestMaxDailyXP& packet)
-{
-    if (Guild* guild = sGuildMgr->GetGuildById(packet.GuildGuid.GetCounter()))
-    {
-        if (guild->IsMember(GetPlayer()->GetGUID()))
-        {
-            WorldPackets::Guild::GuildMaxDailyXP maxDailyXP;
-            maxDailyXP.Xp = sWorld->getIntConfig(CONFIG_GUILD_DAILY_XP_CAP);
-            SendPacket(maxDailyXP.Write());
-        }
-    }
-}
-
-void WorldSession::HandleGuildRequestChallengeUpdate(WorldPackets::Guild::GuildChallengeUpdateRequest& /*packet*/)
+void WorldSession::HandleGuildChallengeUpdateRequest(WorldPackets::Guild::GuildChallengeUpdateRequest& /*packet*/)
 {
     if (Guild* guild = GetPlayer()->GetGuild())
         guild->HandleGuildRequestChallengeUpdate(this);
@@ -493,7 +435,7 @@ void WorldSession::HandleGuildRequestChallengeUpdate(WorldPackets::Guild::GuildC
 // Cata guild rewards. Ported from TrinityCore's WorldSession::HandleRequestGuildRewardsList -
 // sends the full reward catalog; the client itself decides which rewards the viewer currently
 // qualifies for (reputation standing, gold on hand, achievement).
-void WorldSession::HandleRequestGuildRewardsListOpcode(WorldPackets::Guild::RequestGuildRewardsList& /*packet*/)
+void WorldSession::HandleRequestGuildRewardsList(WorldPackets::Guild::RequestGuildRewardsList& /*packet*/)
 {
     if (!sGuildMgr->GetGuildById(GetPlayer()->GetGuildId()))
         return;
@@ -510,7 +452,8 @@ void WorldSession::HandleRequestGuildRewardsListOpcode(WorldPackets::Guild::Requ
         rewardItem.ItemID = reward.Entry;
         rewardItem.RaceMask = uint32(reward.Racemask);
         rewardItem.MinGuildRep = int32(reward.Standing);
-        rewardItem.AchievementRequired = reward.AchievementId;
+        if (reward.AchievementId)
+            rewardItem.AchievementsRequired.push_back(reward.AchievementId);
         rewardItem.Cost = reward.Price;
         rewardList.RewardItems.push_back(rewardItem);
     }
@@ -521,37 +464,39 @@ void WorldSession::HandleRequestGuildRewardsListOpcode(WorldPackets::Guild::Requ
 // Cata guild profession/recipe tracking (see .agents/docs/porting-from-trinitycore.md). Ported
 // from TrinityCore's WorldSession::HandleGuildQueryRecipesOpcode - sends the guild's live,
 // aggregated known-recipes bitset back to the requester.
-void WorldSession::HandleGuildQueryRecipesOpcode(WorldPackets::Guild::GuildQueryRecipes& /*packet*/)
+void WorldSession::HandleGuildQueryRecipes(WorldPackets::Guild::GuildQueryRecipes& packet)
 {
-    if (Guild* guild = GetPlayer()->GetGuild())
-        guild->SendKnownRecipes(GetPlayer());
+    if (Guild* guild = sGuildMgr->GetGuildById(packet.GuildGUID.GetCounter()))
+        if (guild->IsMember(GetPlayer()->GetGUID()))
+            guild->SendKnownRecipes(GetPlayer());
 }
 
-void WorldSession::HandleGuildQueryNewsOpcode(WorldPackets::Guild::GuildQueryNews& /*packet*/)
+void WorldSession::HandleGuildQueryNews(WorldPackets::Guild::GuildQueryNews& packet)
 {
     if (Guild* guild = GetPlayer()->GetGuild())
-        guild->SendNewsUpdate(this);
+        if (guild->GetGUID() == packet.GuildGUID)
+            guild->SendNewsUpdate(this);
 }
 
-void WorldSession::HandleGuildNewsUpdateStickyOpcode(WorldPackets::Guild::GuildNewsUpdateSticky& packet)
+void WorldSession::HandleGuildNewsUpdateSticky(WorldPackets::Guild::GuildNewsUpdateSticky& packet)
 {
     if (Guild* guild = GetPlayer()->GetGuild())
         guild->HandleNewsSetSticky(this, uint32(packet.NewsID), packet.Sticky);
 }
 
-void WorldSession::HandleGuildRequestPartyState(WorldPackets::Guild::GuildRequestPartyState& packet)
+void WorldSession::HandleGuildRequestPartyState(WorldPackets::Guild::RequestGuildPartyState& packet)
 {
     if (Guild* guild = sGuildMgr->GetGuildById(packet.GuildGUID.GetCounter()))
         guild->HandleGuildPartyRequest(this);
 }
 
-void WorldSession::HandleGuildReplaceGuildMaster(WorldPackets::Guild::ReplaceGuildMaster& /*packet*/)
+void WorldSession::HandleGuildReplaceGuildMaster(WorldPackets::Guild::GuildReplaceGuildMaster& /*packet*/)
 {
     if (Guild* guild = GetPlayer()->GetGuild())
         guild->HandleReplaceGuildMaster(this);
 }
 
-void WorldSession::HandleAutoDeclineGuildInvites(WorldPackets::Guild::AutoDeclineGuildInvites& packet)
+void WorldSession::HandleDeclineGuildInvites(WorldPackets::Guild::DeclineGuildInvites& packet)
 {
     GetPlayer()->ApplyModFlag(PLAYER_FLAGS, PLAYER_FLAGS_AUTO_DECLINE_GUILD, packet.Allow);
 }
@@ -563,56 +508,21 @@ void WorldSession::HandleGuildQueryMembersForRecipe(WorldPackets::Guild::GuildQu
             guild->SendMembersForRecipe(GetPlayer(), packet.SkillLineID, packet.SpellID, packet.UniqueBit);
 }
 
-void WorldSession::HandleGuildQueryMemberRecipe(WorldPackets::Guild::GuildQueryMemberRecipes& packet)
+void WorldSession::HandleGuildQueryMemberRecipes(WorldPackets::Guild::GuildQueryMemberRecipes& packet)
 {
     if (Guild* guild = sGuildMgr->GetGuildById(packet.GuildGUID.GetCounter()))
         if (guild->IsMember(GetPlayer()->GetGUID()) && guild->IsMember(packet.GuildMember))
             guild->SendRecipesOfMember(GetPlayer(), packet.SkillLineID, packet.GuildMember);
 }
 
-void WorldSession::HandleGuildRenameRequest(WorldPacket& recvData)
+void WorldSession::HandleGuildSetAchievementTracking(WorldPackets::Guild::GuildSetAchievementTracking& packet)
 {
-    uint32 length = recvData.ReadBits(8);
-    std::string newName = recvData.ReadString(length);
-
-    // TrinityCore lets any member rename the guild; keep it to the guild master
-    Guild* guild = GetPlayer()->GetGuild();
-    bool renamed = guild && guild->GetLeaderGUID() == GetPlayer()->GetGUID()
-        && !sGuildMgr->GetGuildByName(newName) && !sObjectMgr->IsReservedName(newName)
-        && guild->SetName(newName);
-
-    WorldPacket data(SMSG_GUILD_CHANGE_NAME_RESULT, 1);
-    data.WriteBit(renamed);
-    data.FlushBits();
-    SendPacket(&data);
-}
-
-void WorldSession::HandleGuildAchievementProgressQuery(WorldPacket& recvData)
-{
-    uint32 achievementId;
-    recvData >> achievementId;
-
-    if (Guild* guild = GetPlayer()->GetGuild())
-        guild->GetAchievementMgr().SendCriteriaData(GetPlayer(), achievementId);
-}
-
-void WorldSession::HandleGuildSetAchievementTracking(WorldPacket& recvData)
-{
-    uint32 count = recvData.ReadBits(24);
-    std::set<uint32> achievementIds;
-    for (uint32 i = 0; i < count; ++i)
-    {
-        uint32 achievementId;
-        recvData >> achievementId;
-        achievementIds.insert(achievementId);
-    }
-
     // the tracked achievements are not kept, the client gets their current progress
     Guild* guild = GetPlayer()->GetGuild();
     if (!guild)
         return;
 
-    for (uint32 achievementId : achievementIds)
+    for (uint32 achievementId : packet.AchievementIDs)
         if (sAchievementMgr->GetAchievement(achievementId))
             guild->GetAchievementMgr().SendCriteriaData(GetPlayer(), achievementId);
 }
