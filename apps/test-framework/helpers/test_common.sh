@@ -85,12 +85,12 @@ create_acore_binaries() {
 
 # Create AzerothCore specific test configs
 create_acore_configs() {
-    create_test_config "authserver.conf" 'Database.Info = "127.0.0.1;3306;acore;acore;acore_auth"
-LoginDatabaseInfo = "127.0.0.1;3306;acore;acore;acore_auth"'
+    create_test_config "authserver.conf" 'Database.Info = "127.0.0.1;3306;acore_6x;acore_6x;acore_6x_auth"
+LoginDatabaseInfo = "127.0.0.1;3306;acore_6x;acore_6x;acore_6x_auth"'
     
-    create_test_config "worldserver.conf" 'Database.Info = "127.0.0.1;3306;acore;acore;acore_world"
-LoginDatabaseInfo = "127.0.0.1;3306;acore;acore;acore_auth"
-CharacterDatabaseInfo = "127.0.0.1;3306;acore;acore;acore_characters"'
+    create_test_config "worldserver.conf" 'Database.Info = "127.0.0.1;3306;acore_6x;acore_6x;acore_6x_world"
+LoginDatabaseInfo = "127.0.0.1;3306;acore_6x;acore_6x;acore_6x_auth"
+CharacterDatabaseInfo = "127.0.0.1;3306;acore_6x;acore_6x;acore_6x_characters"'
     
     create_test_config "config.sh" "export BUILDPATH=\"$TEST_DIR/build\"
 export SRCPATH=\"$AC_TEST_ROOT\"

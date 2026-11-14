@@ -125,15 +125,15 @@ BindIP = "0.0.0.0"
 #                     (Use named pipes on Windows "enable-named-pipe" to [mysqld] section my.ini)
 #                     ".;/path/to/unix_socket;username;password;database"
 #                     (Use Unix sockets on Unix/Linux)
-#        Default:     "127.0.0.1;3306;acore;acore;acore_auth"       - (LoginDatabaseInfo)
-#                     "127.0.0.1;3306;acore;acore;acore_world"      - (WorldDatabaseInfo)
-#                     "127.0.0.1;3306;acore;acore;acore_characters" - (CharacterDatabaseInfo)
-#                     "127.0.0.1;3306;acore;acore;acore_hotfixes"   - (HotfixDatabaseInfo)
+#        Default:     "127.0.0.1;3306;acore_6x;acore_6x;acore_6x_auth"       - (LoginDatabaseInfo)
+#                     "127.0.0.1;3306;acore_6x;acore_6x;acore_6x_world"      - (WorldDatabaseInfo)
+#                     "127.0.0.1;3306;acore_6x;acore_6x;acore_6x_characters" - (CharacterDatabaseInfo)
+#                     "127.0.0.1;3306;acore_6x;acore_6x;acore_6x_hotfixes"   - (HotfixDatabaseInfo)
 
-LoginDatabaseInfo     = "127.0.0.1;3306;acore;acore;acore_auth"
-WorldDatabaseInfo     = "127.0.0.1;3306;acore;acore;acore_world"
-CharacterDatabaseInfo = "127.0.0.1;3306;acore;acore;acore_characters"
-HotfixDatabaseInfo    = "127.0.0.1;3306;acore;acore;acore_hotfixes"
+LoginDatabaseInfo     = "127.0.0.1;3306;acore_6x;acore_6x;acore_6x_auth"
+WorldDatabaseInfo     = "127.0.0.1;3306;acore_6x;acore_6x;acore_6x_world"
+CharacterDatabaseInfo = "127.0.0.1;3306;acore_6x;acore_6x;acore_6x_characters"
+HotfixDatabaseInfo    = "127.0.0.1;3306;acore_6x;acore_6x;acore_6x_hotfixes"
 
 #
 #    LoginDatabase.WorkerThreads
