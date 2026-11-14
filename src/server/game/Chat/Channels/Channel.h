@@ -200,7 +200,7 @@ public:
     void SetMode(Player const* player, std::string const& p2n, bool mod, bool set);
     void SetOwner(ObjectGuid guid, bool exclaim = true);
     void SetOwner(Player const* player, std::string const& name);
-    void SendWhoOwner(ObjectGuid guid);
+    void SendWhoOwner(Player const* player);
     void SetModerator(Player const* player, std::string const& newname) { SetMode(player, newname, true, true); }
     void UnsetModerator(Player const* player, std::string const& newname) { SetMode(player, newname, true, false); }
     void SetMute(Player const* player, std::string const& newname) { SetMode(player, newname, false, true); }
@@ -209,13 +209,18 @@ public:
     void Announce(Player const* player);
     void Say(ObjectGuid guid, std::string const& what, uint32 lang);
     void Invite(Player const* player, std::string const& newp);
-    void Voice(ObjectGuid guid1, ObjectGuid guid2);
-    void DeVoice(ObjectGuid guid1, ObjectGuid guid2);
+    void DeclineInvite(Player const* player);
+    void Voice(Player const* player);
+    void DeVoice(Player const* player);
+    void SilenceAll(Player const* player, std::string const& name);
+    void SilenceVoice(Player const* player, std::string const& name);
+    void UnsilenceAll(Player const* player, std::string const& name);
+    void UnsilenceVoice(Player const* player, std::string const& name);
     void JoinNotify(Player* p);
     void LeaveNotify(Player* p);
     void FlagsNotify(Player* p);
     static void CleanOldChannelsInDB();
-    void ToggleModeration(Player* p);
+    void ToggleModeration(Player const* player);
 
     // pussywizard:
     void AddWatching(Player* p);
@@ -223,7 +228,8 @@ public:
 
 private:
     // initial packet data (notify type and channel name)
-    void MakeNotifyPacket(WorldPacket* data, uint8 notify_type);
+    void MakeNotifyPacket(WorldPacket* data, uint8 notifyType, ObjectGuid senderGuid = ObjectGuid::Empty, ObjectGuid targetGuid = ObjectGuid::Empty,
+        std::string const& sender = "", uint8 oldFlags = 0, uint8 newFlags = 0);
     // type specific packet data
     void MakeJoined(WorldPacket* data, ObjectGuid guid);                        //+ 0x00
     void MakeLeft(WorldPacket* data, ObjectGuid guid);                          //+ 0x01
@@ -265,7 +271,7 @@ private:
     void SendToAll(WorldPacket* data, ObjectGuid guid = ObjectGuid::Empty);
     void SendToAllButOne(WorldPacket* data, ObjectGuid who);
     void SendToOne(WorldPacket* data, ObjectGuid who);
-    void SendToAllWatching(WorldPacket* data);
+    void SendToAllWatching(WorldPacket const* data);
 
     bool ShouldAnnouncePlayer(Player const* player) const;
 

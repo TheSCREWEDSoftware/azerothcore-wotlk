@@ -161,7 +161,6 @@ void OpcodeTable::Initialize()
     ValidateAndSetServerOpcode(opcode, #opcode, status, con)
 
     // Client and server opcodes of 6.2.4 build 21742, from TrinityCore 6.x (src/server/game/Server/Protocol/Opcodes.cpp)
-    DEFINE_HANDLER(opcode,                                                  status, processing, handler);
     DEFINE_HANDLER(CMSG_ACCEPT_GUILD_INVITE,                                STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleGuildAcceptInvite);
     DEFINE_HANDLER(CMSG_ACCEPT_LEVEL_GRANT,                                 STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleAcceptGrantLevel);
     DEFINE_HANDLER(CMSG_ACCEPT_TRADE,                                       STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleAcceptTradeOpcode);
@@ -292,7 +291,7 @@ void OpcodeTable::Initialize()
     DEFINE_HANDLER(CMSG_CHAT_CHANNEL_INVITE,                                STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleChannelPlayerCommand<&Channel::Invite>);
     DEFINE_HANDLER(CMSG_CHAT_CHANNEL_KICK,                                  STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleChannelPlayerCommand<&Channel::Kick>);
     DEFINE_HANDLER(CMSG_CHAT_CHANNEL_LIST,                                  STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleChannelCommand<&Channel::List>);
-    DEFINE_HANDLER(CMSG_CHAT_CHANNEL_MODERATE,                              STATUS_UNHANDLED, PROCESS_INPLACE, &WorldSession::Handle_NULL);
+    DEFINE_HANDLER(CMSG_CHAT_CHANNEL_MODERATE,                              STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleChannelCommand<&Channel::ToggleModeration>);
     DEFINE_HANDLER(CMSG_CHAT_CHANNEL_MODERATOR,                             STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleChannelPlayerCommand<&Channel::SetModerator>);
     DEFINE_HANDLER(CMSG_CHAT_CHANNEL_MUTE,                                  STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleChannelPlayerCommand<&Channel::SetMute>);
     DEFINE_HANDLER(CMSG_CHAT_CHANNEL_OWNER,                                 STATUS_LOGGEDIN, PROCESS_THREADUNSAFE, &WorldSession::HandleChannelCommand<&Channel::SendWhoOwner>);

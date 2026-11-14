@@ -62,7 +62,7 @@ void WorldSession::HandleSuspendTokenResponse(WorldPacket& recvPacket)
     GetPlayer()->SendSavedInstances();
 }
 
-void WorldSession::HandleMoveWorldportAckOpcode(WorldPacket& /*recvData*/)
+void WorldSession::HandleMoveWorldportAckOpcode(WorldPackets::Movement::WorldPortResponse& /*packet*/)
 {
     LOG_DEBUG("network", "WORLD: got MSG_MOVE_WORLDPORT_ACK.");
     HandleMoveWorldportAck();

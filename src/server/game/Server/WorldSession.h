@@ -50,6 +50,7 @@ class Item;
 class LoadPetFromDBQueryHolder;
 class Object;
 class Pet;
+class Channel;
 class Player;
 class Quest;
 class SpellCastTargets;
@@ -1347,7 +1348,6 @@ public:                                                 // opcodes handlers
     void HandleDBQueryBulk(WorldPackets::Query::DBQueryBulk& packet);
     void HandleGameObjectQueryOpcode(WorldPackets::Query::QueryGameObject& packet);
     void HandleMoveWorldportAckOpcode(WorldPackets::Movement::WorldPortResponse& packet);
-    void HandleMoveWorldportAckOpcode();                // for server-side calls
     void HandleSuspendTokenResponse(WorldPackets::Movement::SuspendTokenResponse& suspendTokenResponse);
     void HandleMovementOpcodes(WorldPackets::Movement::ClientPlayerMovement& packet);
     void HandleSetActiveMoverOpcode(WorldPackets::Movement::SetActiveMover& packet);
@@ -1563,7 +1563,9 @@ public:                                                 // opcodes handlers
     void HandleSummonResponseOpcode(WorldPackets::Movement::SummonResponse& packet);
     void HandleJoinChannel(WorldPackets::Channel::JoinChannel& packet);
     void HandleLeaveChannel(WorldPackets::Channel::LeaveChannel& packet);
+    template<void(Channel::*CommandFunction)(Player const*)>
     void HandleChannelCommand(WorldPackets::Channel::ChannelPlayerCommand& packet);
+    template<void(Channel::*CommandFunction)(Player const*, std::string const&)>
     void HandleChannelPlayerCommand(WorldPackets::Channel::ChannelPlayerCommand& packet);
     void HandleVoiceSessionEnable(WorldPackets::Voice::VoiceSessionEnable& packet);
     void HandleSetActiveVoiceChannel(WorldPackets::Voice::SetActiveVoiceChannel& packet);
@@ -1772,8 +1774,6 @@ public:                                                 // opcodes handlers
     void SendPlayerAmbiguousNotice(std::string const& name);
     void SendWrongFactionNotice();
     void SendChatRestrictedNotice(ChatRestrictionType restriction);
-
-    void HandleTutorialFlag (WorldPacket& recvData);
 
     //Pet
     void HandlePetActionHelper(Unit* pet, ObjectGuid guid1, uint32 spellid, uint16 flag, ObjectGuid guid2);
