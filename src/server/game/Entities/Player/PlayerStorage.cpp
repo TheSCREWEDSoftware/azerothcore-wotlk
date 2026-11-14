@@ -5175,19 +5175,23 @@ void Player::_LoadEquipmentSets(PreparedQueryResult result)
     do
     {
         Field* fields = result->Fetch();
-        EquipmentSet eqSet;
+        EquipmentSetInfo eqSet;
 
-        eqSet.Guid      = fields[0].Get<uint64>();
-        uint8 index    = fields[1].Get<uint8>();
-        eqSet.Name      = fields[2].Get<std::string>();
-        eqSet.IconName  = fields[3].Get<std::string>();
-        eqSet.IgnoreMask = fields[4].Get<uint32>();
-        eqSet.state     = EQUIPMENT_SET_UNCHANGED;
+        eqSet.Data.Guid       = fields[0].Get<uint64>();
+        eqSet.Data.SetID      = fields[1].Get<uint8>();
+        eqSet.Data.SetName    = fields[2].Get<std::string>();
+        eqSet.Data.SetIcon    = fields[3].Get<std::string>();
+        eqSet.Data.IgnoreMask = fields[4].Get<uint32>();
+        eqSet.State           = EQUIPMENT_SET_UNCHANGED;
 
         for (uint32 i = 0; i < EQUIPMENT_SLOT_END; ++i)
-            eqSet.Items[i] = ObjectGuid::Create<HighGuid::Item>(fields[5 + i].Get<uint32>());
+            if (ObjectGuid::LowType guid = fields[5 + i].Get<uint32>())
+                eqSet.Data.Pieces[i] = ObjectGuid::Create<HighGuid::Item>(guid);
 
-        m_EquipmentSets[index] = eqSet;
+        if (eqSet.Data.SetID >= MAX_EQUIPMENT_SET_INDEX)    // client limit
+            continue;
+
+        m_EquipmentSets[eqSet.Data.SetID] = eqSet;
 
         ++count;
 

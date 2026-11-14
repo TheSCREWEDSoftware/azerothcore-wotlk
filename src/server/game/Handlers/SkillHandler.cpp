@@ -15,89 +15,66 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "Creature.h"
+#include "DBCStores.h"
 #include "Log.h"
+#include "LootPackets.h"
 #include "Opcodes.h"
 #include "Player.h"
 #include "SpellMgr.h"
-#include "WorldPacket.h"
+#include "SpellPackets.h"
+#include "TalentPackets.h"
 #include "WorldSession.h"
 
-void WorldSession::HandleLearnTalentOpcode(WorldPacket& recvData)
+void WorldSession::HandleLearnTalentsOpcode(WorldPackets::Talent::LearnTalents& packet)
 {
-    // 5.4.8 18414, from Project SkyFire: a list of Talent.dbc ids
-    uint32 talentCount = recvData.ReadBits(23);
-
     // one talent per tier
-    if (talentCount > MAX_TALENT_TIERS)
-    {
-        recvData.rfinish();
+    if (packet.Talents.size() > MAX_TALENT_TIERS)
         return;
-    }
 
-    bool learned = false;
-    for (uint32 i = 0; i < talentCount; ++i)
-    {
-        uint16 talentId;
-        recvData >> talentId;
+    bool anythingLearned = false;
+    for (uint32 talentId : packet.Talents)
         if (_player->LearnTalent(talentId))
-            learned = true;
-    }
+            anythingLearned = true;
 
-    if (learned)
+    if (anythingLearned)
         _player->SendTalentsInfoData(false);
 }
 
-void WorldSession::HandleSetSpecializationOpcode(WorldPacket& recvData)
+void WorldSession::HandleSetSpecializationOpcode(WorldPackets::Talent::SetSpecialization& packet)
 {
-    // 5.4.8 18414, from Project SkyFire (CMSG_SET_PRIMARY_TALENT_TREE): the tab page of the specialization
-    uint32 specializationTab;
-    recvData >> specializationTab;
-
-    if (specializationTab >= MAX_TALENT_TABS)
+    // SpecGroupIndex is the tab page of the specialization (ChrSpecialization OrderIndex)
+    if (packet.SpecGroupIndex >= MAX_SPECIALIZATIONS)
+    {
+        LOG_DEBUG("network", "WORLD: HandleSetSpecializationOpcode - specialization index {} out of range", packet.SpecGroupIndex);
         return;
+    }
 
-    if (!_player->LearnPrimaryTalentSpecialization(uint8(specializationTab)))
+    if (!_player->LearnPrimaryTalentSpecialization(uint8(packet.SpecGroupIndex)))
         return;
 
     _player->SendTalentsInfoData(false);
 }
 
-void WorldSession::HandleSetLootSpecializationOpcode(WorldPacket& recvData)
+void WorldSession::HandleSetLootSpecialization(WorldPackets::Loot::SetLootSpecialization& packet)
 {
-    // 5.4.8 18414, from Project SkyFire: 0 follows the current specialization
-    uint32 lootSpecialization;
-    recvData >> lootSpecialization;
-
-    if (lootSpecialization)
+    // 0 follows the current specialization
+    if (packet.SpecID)
     {
-        ChrSpecializationEntry const* specialization = sChrSpecializationStore.LookupEntry(lootSpecialization);
+        ChrSpecializationEntry const* specialization = sChrSpecializationStore.LookupEntry(packet.SpecID);
         if (!specialization || specialization->ClassID != _player->getClass())
             return;
     }
 
-    _player->SetUInt32Value(PLAYER_FIELD_LOOT_SPEC_ID, lootSpecialization);
+    _player->SetUInt32Value(PLAYER_FIELD_LOOT_SPEC_ID, packet.SpecID);
 }
 
-void WorldSession::HandleLearnPreviewTalents(WorldPacket& recvPacket)
+void WorldSession::HandleConfirmRespecWipeOpcode(WorldPackets::Talent::ConfirmRespecWipe& confirmRespecWipe)
 {
-    // 4.3.4 talent preview; the 5.4.8 client sends CMSG_LEARN_TALENT instead
-    LOG_DEBUG("network", "CMSG_LEARN_PREVIEW_TALENTS");
-    recvPacket.rfinish();
-}
-
-void WorldSession::HandleTalentWipeConfirmOpcode(WorldPacket& recvData)
-{
-    LOG_DEBUG("network", "CMSG_CONFIRM_RESPEC_WIPE");
-    // 5.4.8 18414, from Project SkyFire: 0 = talents, 1 = specialization
-    uint8 respecType;
-    recvData >> respecType;
-    ObjectGuid guid;
-    recvData.ReadGuidMask(guid, { 7, 2, 6, 1, 4, 0, 3, 5 });
-    recvData.ReadGuidBytes(guid, { 2, 4, 1, 3, 0, 5, 7, 6 });
-    Creature* unit = GetPlayer()->GetNPCIfCanInteractWith(guid, UNIT_NPC_FLAG_TRAINER);
+    Creature* unit = GetPlayer()->GetNPCIfCanInteractWith(confirmRespecWipe.RespecMaster, UNIT_NPC_FLAG_TRAINER);
     if (!unit)
     {
-        LOG_DEBUG("network", "WORLD: HandleTalentWipeConfirmOpcode - Unit ({}) not found or you can't interact with him.", guid.ToString());
+        LOG_DEBUG("network", "WORLD: HandleConfirmRespecWipeOpcode - Unit ({}) not found or you can't interact with him.", confirmRespecWipe.RespecMaster.ToString());
         return;
     }
 
@@ -109,7 +86,7 @@ void WorldSession::HandleTalentWipeConfirmOpcode(WorldPacket& recvData)
         GetPlayer()->RemoveAurasByType(SPELL_AURA_FEIGN_DEATH);
 
     // 1: forget the specialization (the talents stay)
-    if (respecType != 0)
+    if (confirmRespecWipe.RespecType != 0)
     {
         if (!_player->GetSpecializationId(_player->GetActiveSpec()))
             return;
@@ -121,10 +98,9 @@ void WorldSession::HandleTalentWipeConfirmOpcode(WorldPacket& recvData)
         return;
     }
 
-    if (!(_player->resetTalents()))
+    if (!_player->resetTalents())
     {
-        WorldPacket data = Player::BuildRespecWipeConfirm(ObjectGuid::Empty, 0); // you have no talents
-        SendPacket(&data);
+        _player->SendRespecWipeConfirm(ObjectGuid::Empty, 0); // you have no talents
         return;
     }
 
@@ -132,13 +108,11 @@ void WorldSession::HandleTalentWipeConfirmOpcode(WorldPacket& recvData)
     unit->CastSpell(_player, 14867, true);                  //spell: "Untalent Visual Effect"
 }
 
-void WorldSession::HandleUnlearnSkillOpcode(WorldPacket& recvData)
+void WorldSession::HandleUnlearnSkillOpcode(WorldPackets::Spells::UnlearnSkill& packet)
 {
-    uint32 skillId;
-    recvData >> skillId;
-
-    if (!IsPrimaryProfessionSkill(skillId))
+    SkillRaceClassInfoEntry const* rcEntry = GetSkillRaceClassInfo(packet.SkillLine, _player->getRace(), _player->getClass());
+    if (!rcEntry || !(rcEntry->Flags & SKILL_FLAG_UNLEARNABLE))
         return;
 
-    GetPlayer()->SetSkill(skillId, 0, 0, 0);
+    _player->SetSkill(packet.SkillLine, 0, 0, 0);
 }

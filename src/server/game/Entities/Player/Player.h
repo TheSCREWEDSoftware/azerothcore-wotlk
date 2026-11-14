@@ -72,6 +72,14 @@ class SpellCastTargets;
 class UpdateMask;
 
 typedef std::deque<Mail*> PlayerMails;
+namespace WorldPackets
+{
+    namespace Item
+    {
+        struct ItemPurchaseContents;
+    }
+}
+
 typedef void(*bgZoneRef)(Battleground*, WorldPackets::WorldState::InitWorldStates&);
 
 #define PLAYER_MAX_SKILLS           127
@@ -736,21 +744,26 @@ enum EquipmentSetUpdateState
     EQUIPMENT_SET_DELETED   = 3
 };
 
-struct EquipmentSet
+struct EquipmentSetInfo
 {
-    EquipmentSet() = default;
+    /// Data sent in EquipmentSet related packets
+    struct EquipmentSetData
+    {
+        uint64 Guid       = 0; ///< Set Identifier
+        uint32 SetID      = 0; ///< Index
+        uint32 IgnoreMask = 0; ///< Mask of EquipmentSlot
+        std::string SetName;
+        std::string SetIcon;
+        ObjectGuid Pieces[EQUIPMENT_SLOT_END];
+    } Data;
 
-    uint64 Guid;
-    std::string Name;
-    std::string IconName;
-    uint32 IgnoreMask{0};
-    ObjectGuid Items[EQUIPMENT_SLOT_END];
-    EquipmentSetUpdateState state{EQUIPMENT_SET_NEW};
+    /// Server-side data
+    EquipmentSetUpdateState State = EQUIPMENT_SET_NEW;
 };
 
 #define MAX_EQUIPMENT_SET_INDEX 10                          // client limit
 
-typedef std::map<uint32, EquipmentSet> EquipmentSets;
+typedef std::map<uint32, EquipmentSetInfo> EquipmentSetContainer;
 
 struct ItemPosCount
 {
@@ -1104,6 +1117,12 @@ struct PendingSpellCastRequest
 };
 
 // SMSG_PET_SPELLS contents (the action bar sent for pets, vehicles, charms and possessed units)
+enum PlayerLogXPReason : uint8
+{
+    LOG_XP_REASON_KILL    = 0,
+    LOG_XP_REASON_NO_KILL = 1
+};
+
 struct PetSpellsMessageData
 {
     ObjectGuid Guid;
@@ -1669,7 +1688,7 @@ public:
 
     void SetBindPoint(ObjectGuid guid);
     void SendTalentWipeConfirm(ObjectGuid guid);
-    static WorldPacket BuildRespecWipeConfirm(ObjectGuid guid, uint32 cost);
+    void SendRespecWipeConfirm(ObjectGuid const& guid, uint32 cost, uint8 respecType = 0);
     void ResetPetTalents();
     void RegenerateAll();
     void Regenerate(Powers power);
@@ -2419,7 +2438,8 @@ public:
     void CastItemCombatSpell(Unit* target, WeaponAttackType attType, uint32 procVictim, uint32 procEx, Item* item, ItemTemplate const* proto);
 
     void SendEquipmentSetList();
-    void SetEquipmentSet(uint32 index, EquipmentSet eqset);
+    void SetEquipmentSet(EquipmentSetInfo::EquipmentSetData&& newEqSet);
+    EquipmentSetContainer const& GetEquipmentSets() const { return m_EquipmentSets; }
     void DeleteEquipmentSet(uint64 setGuid);
 
     void SendInitWorldStates(uint32 zoneId, uint32 areaId);
@@ -3172,7 +3192,7 @@ private:
 
     DeclinedName* m_declinedname;
     Runes* m_runes;
-    EquipmentSets m_EquipmentSets;
+    EquipmentSetContainer m_EquipmentSets;
 
     bool CanAlwaysSee(WorldObject const* obj) const override;
 
@@ -3196,7 +3216,7 @@ private:
     RefundableItemsSet m_refundableItems;
     void SendRefundInfo(Item* item);
     void SendItemRefundResult(Item* item, ItemExtendedCostEntry const* iece, uint8 error) const;
-    void WriteRefundCurrencies(WorldPacket& data, ItemExtendedCostEntry const* iece) const;
+    static void FillRefundContents(WorldPackets::Item::ItemPurchaseContents& contents, Item* item, ItemExtendedCostEntry const* iece);
     void RefundItem(Item* item);
 
     // know currencies are not removed at any point (0 displayed)

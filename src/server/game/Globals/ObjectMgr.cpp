@@ -3886,6 +3886,9 @@ void ObjectMgr::LoadItemTemplates()
             spell.SpellCooldown = effect->Cooldown;
             spell.SpellCategory = effect->Category;
             spell.SpellCategoryCooldown = effect->CategoryCooldown;
+
+            if (spell.SpellId && spell.SpellCategory && spell.SpellCategoryCooldown)
+                sSpellsByCategoryStore[spell.SpellCategory].emplace(true, uint32(spell.SpellId));
         }
     }
 

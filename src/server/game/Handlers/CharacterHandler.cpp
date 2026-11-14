@@ -25,6 +25,7 @@
 #include "CharacterCache.h"
 #include "AuthenticationPackets.h"
 #include "CharacterPackets.h"
+#include "EquipmentSetPackets.h"
 #include "Chat.h"
 #include "Common.h"
 #include "DatabaseEnv.h"
@@ -2000,139 +2001,68 @@ void WorldSession::HandleCharCustomizeCallback(std::shared_ptr<CharacterCustomiz
         GetAccountId(), GetRemoteAddress(), oldName, customizeInfo->Guid.ToString(), customizeInfo->Name);
 }
 
-void WorldSession::HandleEquipmentSetSave(WorldPacket& recvData)
+void WorldSession::HandleEquipmentSetSave(WorldPackets::EquipmentSet::SaveEquipmentSet& saveEquipmentSet)
 {
-    LOG_DEBUG("network", "CMSG_EQUIPMENT_SET_SAVE");
+    if (saveEquipmentSet.Set.SetID >= MAX_EQUIPMENT_SET_INDEX) // client set slots amount
+        return;
 
-    // 5.4.8 18414, from Project SkyFire
-    uint32 index;
-    recvData >> index;
-    if (index >= MAX_EQUIPMENT_SET_INDEX)                    // client set slots amount
+    if (saveEquipmentSet.Set.SetName.length() > 16) // Client limitation
     {
-        recvData.rfinish();
+        LOG_ERROR("entities.player.cheat", "Character GUID {} tried to create equipment set {} with too long a name!", _player->GetGUID().ToString(), saveEquipmentSet.Set.Guid);
         return;
     }
 
-    std::array<ObjectGuid, EQUIPMENT_SLOT_END> itemGuids;
-    for (ObjectGuid& itemGuid : itemGuids)
-        recvData.ReadGuidMask(itemGuid, { 5, 0, 1, 4, 6, 3, 7, 2 });
-
-    ObjectGuid setObjectGuid;
-    recvData.ReadGuidMask(setObjectGuid, { 7, 1, 5, 2, 3, 0 });
-    uint32 nameLength = recvData.ReadBits(8);
-    recvData.ReadGuidMask(setObjectGuid, { 6 });
-    uint32 iconNameLength = recvData.ReadBits(8);
-    recvData.ReadGuidMask(setObjectGuid, { 4 });
-    if (recvData.ReadBit())
-        ++iconNameLength;
-    recvData.ReadGuidBytes(setObjectGuid, { 4, 0 });
-    for (ObjectGuid& itemGuid : itemGuids)
-        recvData.ReadGuidBytes(itemGuid, { 1, 0, 7, 3, 6, 2, 4, 5 });
-    std::string iconName = recvData.ReadString(iconNameLength);
-    recvData.ReadGuidBytes(setObjectGuid, { 7, 2 });
-    std::string name = recvData.ReadString(nameLength);
-    recvData.ReadGuidBytes(setObjectGuid, { 6, 1, 5, 3 });
-    uint64 setGuid = setObjectGuid.GetRawValue();
-
-    if (name.length() > 16) // Client limitation
+    if (saveEquipmentSet.Set.SetIcon.length() > 100) // DB limitation
     {
-        LOG_ERROR("entities.player.cheat", "Character GUID {} tried to create equipment set {} with too long a name!", _player->GetGUID().ToString(), setGuid);
+        LOG_ERROR("entities.player.cheat", "Character GUID {} tried to create equipment set {} with too long an icon name!", _player->GetGUID().ToString(), saveEquipmentSet.Set.Guid);
         return;
     }
 
-    if (iconName.length() > 100) // DB limitation
+    for (uint8 i = 0; i < EQUIPMENT_SLOT_END; ++i)
     {
-        LOG_ERROR("entities.player.cheat", "Character GUID {} tried to create equipment set {} with too long an icon name!", _player->GetGUID().ToString(), setGuid);
-        return;
+        if (!(saveEquipmentSet.Set.IgnoreMask & (1 << i)))
+        {
+            ObjectGuid const& itemGuid = saveEquipmentSet.Set.Pieces[i];
+
+            Item* item = _player->GetItemByPos(INVENTORY_SLOT_BAG_0, i);
+
+            /// cheating check 1 (item equipped but sent empty guid)
+            if (!item && !itemGuid.IsEmpty())
+                return;
+
+            /// cheating check 2 (sent guid does not match equipped item)
+            if (item && item->GetGUID() != itemGuid)
+                return;
+        }
+        else
+            saveEquipmentSet.Set.Pieces[i].Clear();
     }
 
-    EquipmentSet eqSet;
+    saveEquipmentSet.Set.IgnoreMask &= 0x7FFFF; /// clear invalid bits (i > EQUIPMENT_SLOT_END)
 
-    eqSet.Guid      = setGuid;
-    eqSet.Name      = name;
-    eqSet.IconName  = iconName;
-    eqSet.state     = EQUIPMENT_SET_NEW;
-
-    for (uint32 i = 0; i < EQUIPMENT_SLOT_END; ++i)
-    {
-        ObjectGuid itemGuid = itemGuids[i];
-
-        // xinef: if client sends 0, it means empty slot
-        if (!itemGuid)
-        {
-            eqSet.Items[i].Clear();
-            continue;
-        }
-
-        // equipment manager sends "1" (as raw GUID) for slots set to "ignore" (don't touch slot at equip set)
-        if (itemGuid.GetRawValue() == 1)
-        {
-            // ignored slots saved as bit mask because we have no free special values for Items[i]
-            eqSet.IgnoreMask |= 1 << i;
-            continue;
-        }
-
-        // xinef: some cheating checks
-        Item* item = _player->GetItemByPos(INVENTORY_SLOT_BAG_0, i);
-        if (!item || item->GetGUID() != itemGuid)
-        {
-            eqSet.Items[i].Clear();
-            continue;
-        }
-
-        eqSet.Items[i] = itemGuid;
-    }
-
-    _player->SetEquipmentSet(index, eqSet);
+    _player->SetEquipmentSet(std::move(saveEquipmentSet.Set));
 }
 
-void WorldSession::HandleEquipmentSetDelete(WorldPacket& recvData)
+void WorldSession::HandleDeleteEquipmentSet(WorldPackets::EquipmentSet::DeleteEquipmentSet& deleteEquipmentSet)
 {
-    LOG_DEBUG("network", "CMSG_EQUIPMENT_SET_DELETE");
-
-    // 5.4.8 18414, from Project SkyFire
-    ObjectGuid setGuid;
-    recvData.ReadGuidMask(setGuid, { 4, 2, 6, 0, 5, 1, 7, 3 });
-    recvData.ReadGuidBytes(setGuid, { 2, 0, 1, 6, 3, 4, 5, 7 });
-
-    _player->DeleteEquipmentSet(setGuid.GetRawValue());
+    _player->DeleteEquipmentSet(deleteEquipmentSet.ID);
 }
 
-void WorldSession::HandleEquipmentSetUse(WorldPacket& recvData)
+void WorldSession::HandleUseEquipmentSet(WorldPackets::EquipmentSet::UseEquipmentSet& useEquipmentSet)
 {
-    LOG_DEBUG("network", "CMSG_EQUIPMENT_SET_USE");
-
-    // 5.4.8 18414, from Project SkyFire
-    std::array<uint8, EQUIPMENT_SLOT_END> srcSlots;
-    std::array<uint8, EQUIPMENT_SLOT_END> srcBags;
-    for (uint32 i = 0; i < EQUIPMENT_SLOT_END; ++i)
-        recvData >> srcSlots[i] >> srcBags[i];
-
-    std::array<ObjectGuid, EQUIPMENT_SLOT_END> itemGuids;
-    for (ObjectGuid& itemGuid : itemGuids)
-        recvData.ReadGuidMask(itemGuid, { 3, 1, 7, 4, 5, 6, 0, 2 });
-
-    uint32 inventoryItemCount = recvData.ReadBits(2);
-    for (uint32 i = 0; i < inventoryItemCount; ++i)
-    {
-        recvData.ReadBit();                                 // has container slot
-        recvData.ReadBit();                                 // has slot
-    }
-
-    for (ObjectGuid& itemGuid : itemGuids)
-        recvData.ReadGuidBytes(itemGuid, { 4, 7, 0, 3, 2, 5, 1, 6 });
-    recvData.rfinish();                                     // container slot and slot, not used
+    ObjectGuid ignoredItemGuid;
+    ignoredItemGuid.SetRawValue(0, 1);
 
     std::vector<std::unique_ptr<SavedItem>> savedItems;
     uint8 errorId = 0;
     for (uint32 i = 0; i < EQUIPMENT_SLOT_END; ++i)
     {
-        ObjectGuid itemGuid = itemGuids[i];
+        ObjectGuid const& itemGuid = useEquipmentSet.Items[i].Item;
 
-        LOG_DEBUG("entities.player.items", "Item {}: srcbag {}, srcslot {}", itemGuid.ToString(), srcBags[i], srcSlots[i]);
+        LOG_DEBUG("entities.player.items", "Item {}: srcbag {}, srcslot {}", itemGuid.ToString(), useEquipmentSet.Items[i].ContainerSlot, useEquipmentSet.Items[i].Slot);
 
         // check if item slot is set to "ignored" (raw value == 1), must not be unequipped then
-        if (itemGuid.GetRawValue() == 1)
+        if (itemGuid == ignoredItemGuid)
             continue;
 
         // Only equip weapons in combat
@@ -2203,9 +2133,9 @@ void WorldSession::HandleEquipmentSetUse(WorldPacket& recvData)
         }
     }
 
-    WorldPacket data(SMSG_EQUIPMENT_SET_USE_RESULT, 1);
-    data << uint8(errorId);                                       // 4 - equipment swap failed - inventory is full
-    SendPacket(&data);
+    WorldPackets::EquipmentSet::UseEquipmentSetResult result;
+    result.Reason = errorId;                                // 4 - equipment swap failed - inventory is full
+    SendPacket(result.Write());
 }
 
 void WorldSession::HandleCharFactionOrRaceChange(WorldPacket& recvData)

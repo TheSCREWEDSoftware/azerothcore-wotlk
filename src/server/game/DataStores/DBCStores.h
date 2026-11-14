@@ -22,6 +22,7 @@
 #include "DBCStructure.h"
 #include "DB2Structure.h"
 #include "SharedDefines.h"
+#include <set>
 
 // CharSections
 CharSectionsEntry const* GetCharSectionEntry(uint8 race, CharSectionType genType, uint8 gender, uint8 type, uint8 color);
@@ -75,6 +76,8 @@ SkillRaceClassInfoEntry const* GetSkillRaceClassInfo(uint32 skill, uint8 race, u
 
 // SpellEffectScaling
 typedef std::unordered_map<uint32, uint32> SpellEffectScallingByEffectId;
+typedef std::set<std::pair<bool /*fromItem*/, uint32 /*spellId*/>> SpellCategorySet;
+typedef std::unordered_map<uint32, SpellCategorySet> SpellCategoryStore;
 
 // Talent
 typedef std::vector<TalentEntry const*> TalentsByPosition[MAX_CLASSES][MAX_TALENT_TIERS][MAX_TALENT_COLUMNS];
@@ -184,6 +187,7 @@ extern DBCStorage<SkillLineEntry>                   sSkillLineStore;
 extern DBCStorage<SkillRaceClassInfoEntry>          sSkillRaceClassInfoStore;
 extern DBCStorage<SpellAuraOptionsEntry>            sSpellAuraOptionsStore;
 extern DBCStorage<SpellCategoriesEntry>             sSpellCategoriesStore;
+extern SpellCategoryStore                            sSpellsByCategoryStore;
 extern DBCStorage<SpellCategoryEntry>               sSpellCategoryStore;
 extern DBCStorage<SpellCooldownsEntry>              sSpellCooldownsStore;
 extern DBCStorage<SpellEffectEntry>                 sSpellEffectStore;

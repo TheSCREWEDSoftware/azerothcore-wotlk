@@ -61,7 +61,13 @@
 #include "Log.h"
 #include "LootItemStorage.h"
 #include "MapMgr.h"
+#include "EquipmentSetPackets.h"
+#include "ItemPackets.h"
 #include "MiscPackets.h"
+#include "CharacterPackets.h"
+#include "PetPackets.h"
+#include "QuestPackets.h"
+#include "DuelPackets.h"
 #include "MovementPackets.h"
 #include "ObjectAccessor.h"
 #include "ObjectMgr.h"
@@ -81,6 +87,7 @@
 #include "SpellAuraEffects.h"
 #include "SpellAuras.h"
 #include "SpellMgr.h"
+#include "TalentPackets.h"
 #include "SpellPackets.h"
 #include "StringConvert.h"
 #include "TicketMgr.h"
@@ -1372,9 +1379,14 @@ void Player::SendTeleportAckPacket()
     Position pos = GetPosition();
     if (TransportBase* transport = GetDirectTransport())
         transport->CalculatePassengerOffset(pos.m_positionX, pos.m_positionY, pos.m_positionZ, &pos.m_orientation);
-    WorldPacket data(SMSG_MOVE_TELEPORT, 30);
-    WorldPackets::Movement::WriteTeleport(data, GetGUID(), GetSession()->GetOrderCounter(), pos, GetTransGUID());
-    SendDirectMessage(&data);
+    WorldPackets::Movement::MoveTeleport moveTeleport;
+    moveTeleport.MoverGUID = GetGUID();
+    moveTeleport.Pos.Relocate(pos);
+    if (GetTransGUID())
+        moveTeleport.TransportGUID = GetTransGUID();
+    moveTeleport.Facing = pos.GetOrientation();
+    moveTeleport.SequenceIndex = GetSession()->GetOrderCounter();
+    SendDirectMessage(moveTeleport.Write());
     GetSession()->IncrementOrderCounter();
 }
 
@@ -2378,24 +2390,14 @@ void Player::RemoveFromGroup(Group* group, ObjectGuid guid, RemoveMethod method 
 
 void Player::SendLogXPGain(uint32 GivenXP, Unit* victim, uint32 BonusXP, bool recruitAFriend, float group_rate)
 {
-    // 5.4.8 18414, from Project SkyFire
-    ObjectGuid victimGuid = victim ? victim->GetGUID() : ObjectGuid::Empty;
-    WorldPacket data(SMSG_LOG_XPGAIN, 2 + 8 + 1 + 4 + 4 + 4);
-    data.WriteBit(!victim);                                 // no original (unbonused) experience
-    data.WriteGuidMask(victimGuid, { 1, 2, 7, 4, 3 });
-    data.WriteBit(false);                                   // no group bonus
-    data.WriteGuidMask(victimGuid, { 0, 5, 6 });
-    data.WriteBit(false);                                   // unknown
-    data.FlushBits();
-    data.WriteGuidBytes(victimGuid, { 4, 2 });
-    data << uint8(recruitAFriend ? 1 : 0);                  // does the GivenXP include a RaF bonus?
-    data << float(victim ? group_rate : 1.0f);              // 1 - none 0 - 100% group bonus output
-    data.WriteGuidBytes(victimGuid, { 7, 1, 3, 6 });
-    data << uint32(GivenXP + BonusXP);                      // given experience
-    if (victim)
-        data << uint32(GivenXP);                            // experience without bonus
-    data.WriteGuidBytes(victimGuid, { 0, 5 });
-    SendDirectMessage(&data);
+    WorldPackets::Character::LogXPGain packet;
+    packet.Victim = victim ? victim->GetGUID() : ObjectGuid::Empty;
+    packet.Original = int32(GivenXP + BonusXP);
+    packet.Reason = victim ? LOG_XP_REASON_KILL : LOG_XP_REASON_NO_KILL;
+    packet.Amount = int32(GivenXP);
+    packet.GroupBonus = victim ? group_rate : 1.0f;
+    packet.ReferAFriend = recruitAFriend;
+    SendDirectMessage(packet.Write());
 }
 
 void Player::GiveXP(uint32 xp, Unit* victim, float group_rate, bool isLFGReward)
@@ -2497,8 +2499,6 @@ void Player::GiveLevel(uint8 level)
     packet.HealthDelta = int32(classInfo.basehealth) - int32(GetCreateHealth());
 
     packet.PowerDelta[0] = int32(classInfo.basemana) - int32(GetCreateMana());
-    // 5.4.8: a talent tier opens every 15 levels
-    packet.NewTalentTier = level % 15 == 0 && level / 15 <= MAX_TALENT_TIERS;
 
     for (uint8 i = STAT_STRENGTH; i < MAX_STATS; ++i)
         packet.StatDelta[i] = int32(info.stats[i]) - int32(GetCreateStat(Stats(i)));
@@ -2765,7 +2765,6 @@ void Player::InitStatsForLevel(bool reapplyMods)
 
     }
     // restore if need some important flags
-    SetUInt32Value(PLAYER_FIELD_OVERRIDE_SPELLS_ID, 0);
 
     if (reapplyMods)                                        // reapply stats values only on .reset stats (level) command
         _ApplyAllStatBonuses();
@@ -2819,14 +2818,15 @@ void Player::SendKnownSpells(bool firstLogin)
 
     uint32 const currentTime = GameTime::GetGameTimeMS().count();
     uint32 const infinityTime = currentTime + infinityCooldownDelayCheck;
-    packet.SpellHistoryEntries.reserve(m_spellCooldowns.size());
+    WorldPackets::Spells::SendSpellHistory history;
+    history.Entries.reserve(m_spellCooldowns.size());
     for (auto const& [spellID, cooldown] : m_spellCooldowns)
     {
         SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(spellID);
         if (!cooldown.needSendToClient || !spellInfo)
             continue;
 
-        WorldPackets::Spells::SpellHistoryEntry& entry = packet.SpellHistoryEntries.emplace_back();
+        WorldPackets::Spells::SpellHistoryEntry& entry = history.Entries.emplace_back();
         entry.SpellID = spellID;
         entry.ItemID = cooldown.itemid;
         entry.Category = cooldown.category;
@@ -2845,8 +2845,6 @@ void Player::SendKnownSpells(bool firstLogin)
 
     SendDirectMessage(packet.Write());
 
-    WorldPackets::Spells::SendSpellHistory history;
-    history.Entries = std::move(packet.SpellHistoryEntries);
     SendDirectMessage(history.Write());
 }
 
@@ -5778,7 +5776,7 @@ void Player::SendActionButtons(uint32 state) const
     {
         for (auto const& [button, action] : m_actionButtons)
         {
-            if (button < packet.ActionButtons.size() && action.uState != ACTIONBUTTON_DELETED)
+            if (button < std::size(packet.ActionButtons) && action.uState != ACTIONBUTTON_DELETED)
                 packet.ActionButtons[button] = action.packedData;
         }
     }
@@ -6703,8 +6701,7 @@ void Player::CheckDuelDistance(time_t currTime)
         {
             duel->OutOfBoundsTime = currTime + 10;
 
-            WorldPacket data(SMSG_DUEL_OUTOFBOUNDS, 0);
-            SendDirectMessage(&data);
+            SendDirectMessage(WorldPackets::Duel::DuelOutOfBounds().Write());
         }
     }
     else
@@ -6713,8 +6710,7 @@ void Player::CheckDuelDistance(time_t currTime)
         {
             duel->OutOfBoundsTime = 0;
 
-            WorldPacket data(SMSG_DUEL_INBOUNDS, 0);
-            SendDirectMessage(&data);
+            SendDirectMessage(WorldPackets::Duel::DuelInBounds().Write());
         }
         else if (currTime >= duel->OutOfBoundsTime)
             DuelComplete(DUEL_FLED);
@@ -7978,13 +7974,9 @@ void Player::SendQuestGiverStatusMultiple()
     if (GetObjectVisibilityContainer().GetVisibleWorldObjectsMap()->empty())
         return;
 
-    uint32 count = 0;
-    ByteBuffer byteData;
-    WorldPacket data(SMSG_QUESTGIVER_STATUS_MULTIPLE, 3);
-    std::size_t const countPos = data.bitwpos();
-    data.WriteBits(0, 21);
+    WorldPackets::Quest::QuestGiverStatusMultiple response;
 
-    DoForAllVisibleWorldObjects([this, &data, &byteData, &count](WorldObject* worldObject)
+    DoForAllVisibleWorldObjects([this, &response](WorldObject* worldObject)
     {
         if (Creature* questgiver = worldObject->ToCreature())
         {
@@ -8000,25 +7992,10 @@ void Player::SendQuestGiverStatusMultiple()
         else
             return;
 
-        uint32 const questStatus = GetQuestDialogStatus(worldObject);
-        ObjectGuid const guid = worldObject->GetGUID();
-
-        for (uint8 index : { 4, 0, 3, 6, 5, 7, 1, 2 })
-            data.WriteBit(guid[index]);
-
-        for (uint8 index : { 6, 2, 7, 5, 4 })
-            byteData.WriteByteSeq(guid[index]);
-        byteData << uint32(questStatus);
-        for (uint8 index : { 1, 3, 0 })
-            byteData.WriteByteSeq(guid[index]);
-
-        ++count;
+        response.QuestGiver.emplace_back(worldObject->GetGUID(), GetQuestDialogStatus(worldObject));
     });
 
-    data.FlushBits();
-    data.PutBits(countPos, count, 21);
-    data.append(byteData);
-    SendDirectMessage(&data);
+    SendDirectMessage(response.Write());
 }
 
 /*  If in a battleground a player dies, and an enemy removes the insignia, the player's bones is lootable
@@ -8555,8 +8532,8 @@ void Player::SendInitWorldStates(uint32 zoneId, uint32 areaId)
 
     WorldPackets::WorldState::InitWorldStates packet;
     packet.MapID = mapId;
-    packet.ZoneID = zoneId;
-    packet.AreaID = areaId;
+    packet.AreaID = zoneId;
+    packet.SubareaID = areaId;
 
     packet.Worldstates.reserve(8);
     packet.Worldstates.emplace_back(WORLD_STATE_SCOURGE_INVASION_WINTERSPRING, 0);
@@ -9282,32 +9259,22 @@ void Player::CompleteReadyCheck(Group* group)
 
 void Player::SetBindPoint(ObjectGuid guid)
 {
-    // 5.4.8 18414, from Project SkyFire
-    WorldPacket data(SMSG_BINDER_CONFIRM, 9);
-    data.WriteGuidMask(guid, { 4, 6, 2, 1, 5, 3, 0, 7 });
-    data.FlushBits();
-    data.WriteGuidBytes(guid, { 6, 2, 5, 0, 4, 7, 1, 3 });
-    SendDirectMessage(&data);
+    SendDirectMessage(WorldPackets::Misc::BinderConfirm(guid).Write());
 }
 
 void Player::SendTalentWipeConfirm(ObjectGuid guid)
 {
     uint32 cost = sWorld->getBoolConfig(CONFIG_NO_RESET_TALENT_COST) ? 0 : resetTalentsCost();
-    WorldPacket data = BuildRespecWipeConfirm(guid, cost);
-    SendDirectMessage(&data);
+    SendRespecWipeConfirm(guid, cost);
 }
 
-// 5.4.8 18414, from Project SkyFire
-WorldPacket Player::BuildRespecWipeConfirm(ObjectGuid guid, uint32 cost)
+void Player::SendRespecWipeConfirm(ObjectGuid const& guid, uint32 cost, uint8 respecType /*= 0*/)
 {
-    WorldPacket data(SMSG_RESPEC_WIPE_CONFIRM, 1 + 8 + 1 + 4);
-    data.WriteGuidMask(guid, { 5, 7, 3, 2, 1, 0, 4, 6 });
-    data.FlushBits();
-    data.WriteGuidBytes(guid, { 1, 0 });
-    data << uint8(0);                                       // 0 = talents, 1 = specialization
-    data.WriteGuidBytes(guid, { 7, 3, 2, 5, 6, 4 });
-    data << uint32(cost);
-    return data;
+    WorldPackets::Talent::RespecWipeConfirm respecWipeConfirm;
+    respecWipeConfirm.RespecMaster = guid;
+    respecWipeConfirm.Cost = cost;
+    respecWipeConfirm.RespecType = int8(respecType);    // 0 = talents, 1 = specialization
+    SendDirectMessage(respecWipeConfirm.Write());
 }
 
 void Player::ResetPetTalents()
@@ -9960,40 +9927,31 @@ bool Player::CanControlPet(uint32 spellId /*= 0*/) const
 // 5.4.8 18414, from Project SkyFire
 void Player::BuildPetSpellsMessage(WorldPacket& data, PetSpellsMessageData const& message)
 {
-    ObjectGuid const& guid = message.Guid;
-    data.Initialize(SMSG_PET_SPELLS, 3 + 8 + 2 + 2 + 4 + 4 + 4 * MAX_UNIT_ACTION_BAR_INDEX + 4 * message.Spells.size() + 14 * message.Cooldowns.size());
-    data.WriteGuidMask(guid, { 7, 4 });
-    data.WriteBits(0, 21);                                  // spell history count
-    data.WriteBits(message.Spells.size(), 22);
-    data.WriteGuidMask(guid, { 2 });
-    data.WriteBits(message.Cooldowns.size(), 20);
-    data.WriteGuidMask(guid, { 5, 3, 6, 0, 1 });
-    data.FlushBits();
+    WorldPackets::Pet::PetSpells petSpells;
+    petSpells.PetGUID = message.Guid;
+    petSpells._CreatureFamily = message.Family;
+    petSpells.Specialization = message.Specialization;
+    petSpells.TimeLimit = message.Duration;
+    petSpells.ReactState = message.ReactState;
+    petSpells.CommandState = message.CommandState;
+    petSpells.Flag = message.Flags;
 
-    for (uint32 action : message.ActionBar)
-        data << uint32(action);
+    for (std::size_t i = 0; i < petSpells.ActionButtons.size() && i < message.ActionBar.size(); ++i)
+        petSpells.ActionButtons[i] = int32(message.ActionBar[i]);
 
+    petSpells.Actions = message.Spells;
+
+    petSpells.Cooldowns.reserve(message.Cooldowns.size());
     for (PetSpellsMessageData::Cooldown const& cooldown : message.Cooldowns)
     {
-        data << uint32(cooldown.CategoryCooldown);
-        data << uint32(cooldown.SpellId);
-        data << uint16(cooldown.Category);
-        data << uint32(cooldown.Cooldown);
+        WorldPackets::Pet::PetSpellCooldown& petSpellCooldown = petSpells.Cooldowns.emplace_back();
+        petSpellCooldown.SpellID = int32(cooldown.SpellId);
+        petSpellCooldown.Duration = int32(cooldown.Cooldown);
+        petSpellCooldown.CategoryDuration = int32(cooldown.CategoryCooldown);
+        petSpellCooldown.Category = cooldown.Category;
     }
 
-    data.WriteGuidBytes(guid, { 2 });
-    for (uint32 spell : message.Spells)
-        data << uint32(spell);
-
-    data.WriteGuidBytes(guid, { 7, 0, 3 });
-    data << uint16(message.Family);
-    data << uint16(message.Specialization);
-    data.WriteGuidBytes(guid, { 1, 4, 6 });
-    data << uint32(message.Duration);
-    data.WriteGuidBytes(guid, { 5 });
-    data << uint8(message.ReactState);
-    data << uint8(message.CommandState);
-    data << uint16(message.Flags);
+    data = *petSpells.Write();
 }
 
 void Player::PetSpellInitialize()
@@ -10594,7 +10552,7 @@ void Player::ResetCurrencyWeekCap()
 
 void Player::UpdateConquestCurrencyCap(uint32 currencyId)
 {
-    for (uint32 id : { currencyId, CURRENCY_TYPE_CONQUEST_POINTS })
+    for (uint32 id : { currencyId, uint32(CURRENCY_TYPE_CONQUEST_POINTS) })
     {
         CurrencyTypesEntry const* entry = sCurrencyTypesStore.LookupEntry(id);
         if (!entry)
@@ -10704,11 +10662,9 @@ void Player::ModifyCurrency(uint32 currencyId, int32 amount, bool suppressChatLo
 void Player::SendBindPointUpdate() const
 {
     WorldPackets::Misc::BindPointUpdate packet;
-    packet.X = m_homebindX;
-    packet.Y = m_homebindY;
-    packet.Z = m_homebindZ;
-    packet.MapID = m_homebindMapId;
-    packet.AreaID = m_homebindAreaId;
+    packet.BindPosition = G3D::Vector3(m_homebindX, m_homebindY, m_homebindZ);
+    packet.BindMapID = m_homebindMapId;
+    packet.BindAreaID = m_homebindAreaId;
     SendDirectMessage(packet.Write());
 }
 
@@ -11272,14 +11228,14 @@ inline bool Player::_StoreOrEquipNewItem(uint32 vendorslot, uint32 item, uint32 
     if (crItem->ExtendedCost)                            // case for new honor system
     {
         ItemExtendedCostEntry const* iece = sItemExtendedCostStore.LookupEntry(crItem->ExtendedCost);
-        for (uint8 i = 0; i < MAX_ITEM_EXTENDED_COST_REQUIREMENTS; ++i)
+        for (uint8 i = 0; i < MAX_ITEM_EXT_COST_ITEMS; ++i)
         {
             if (iece->RequiredItem[i])
                 DestroyItemCount(iece->RequiredItem[i], (iece->RequiredItemCount[i] * stacks), true);
         }
 
         // Season-earned requirements are only checked, not spent
-        for (uint8 i = 0; i < MAX_ITEM_EXTENDED_COST_CURRENCIES; ++i)
+        for (uint8 i = 0; i < MAX_ITEM_EXT_COST_CURRENCIES; ++i)
             if (iece->RequiredCurrency[i] && !(iece->RequirementFlags & (ITEM_EXT_COST_CURRENCY_REQ_IS_SEASON_EARNED_1 << i)))
                 ModifyCurrency(iece->RequiredCurrency[i], -int32(iece->RequiredCurrencyCount[i] * stacks), true, true);
     }
@@ -11455,7 +11411,7 @@ bool Player::BuyItemFromVendorSlot(ObjectGuid vendorguid, uint32 vendorslot, uin
         // large stack count wraps the total and a wrapped total is a requirement that costs nothing
         // 6.x: honor and conquest are currencies, checked with the other currency requirements below
         // item base price
-        for (uint8 i = 0; i < MAX_ITEM_EXTENDED_COST_REQUIREMENTS; ++i)
+        for (uint8 i = 0; i < MAX_ITEM_EXT_COST_ITEMS; ++i)
         {
             if (!iece->RequiredItem[i])
                 continue;
@@ -11469,7 +11425,7 @@ bool Player::BuyItemFromVendorSlot(ObjectGuid vendorguid, uint32 vendorslot, uin
         }
 
         // currency price; a season-earned requirement checks the tracked (season) total instead of spending
-        for (uint8 i = 0; i < MAX_ITEM_EXTENDED_COST_CURRENCIES; ++i)
+        for (uint8 i = 0; i < MAX_ITEM_EXT_COST_CURRENCIES; ++i)
         {
             if (!iece->RequiredCurrency[i])
                 continue;
@@ -12338,7 +12294,7 @@ void Player::SendInitialPacketsAfterAddToMap()
     // PhasingHandler::OnMapChange, fired here since that hook does not exist in
     // this fork. UpdatePhasesForArea sends it itself when the login area grants a
     // non-default phase; otherwise send the still-required default/Unphased packet here.
-    WorldPackets::Misc::LoadCufProfiles cufProfiles;
+    WorldPackets::Misc::LoadCUFProfiles cufProfiles;
     for (uint8 i = 0; i < MAX_CUF_PROFILES; ++i)
         if (CUFProfile const* profile = GetCUFProfile(i))
             cufProfiles.CUFProfiles.push_back(profile);
@@ -12396,9 +12352,10 @@ void Player::SendInitialPacketsAfterAddToMap()
     // 5.4.8 has no SMSG_MULTIPLE_MOVES, the movement flags are sent one by one
     if (HasAuraType(SPELL_AURA_FEATHER_FALL))
     {
-        WorldPacket data(SMSG_MOVE_FEATHER_FALL, 16);
-        WorldPackets::Movement::WriteMovementFlagChange(data, GetGUID(), GetSession()->GetOrderCounter());
-        SendDirectMessage(&data);
+        WorldPackets::Movement::MoveSetFlag packet(SMSG_MOVE_FEATHER_FALL);
+        packet.MoverGUID = GetGUID();
+        packet.SequenceIndex = GetSession()->GetOrderCounter();
+        SendDirectMessage(packet.Write());
         GetSession()->IncrementOrderCounter();
     }
 
@@ -12407,9 +12364,10 @@ void Player::SendInitialPacketsAfterAddToMap()
 
     if (HasAuraType(SPELL_AURA_HOVER))
     {
-        WorldPacket data(SMSG_MOVE_SET_HOVER, 16);
-        WorldPackets::Movement::WriteMovementFlagChange(data, GetGUID(), GetSession()->GetOrderCounter());
-        SendDirectMessage(&data);
+        WorldPackets::Movement::MoveSetFlag packet(SMSG_MOVE_SET_HOVER);
+        packet.MoverGUID = GetGUID();
+        packet.SequenceIndex = GetSession()->GetOrderCounter();
+        SendDirectMessage(packet.Write());
         GetSession()->IncrementOrderCounter();
     }
 
@@ -12811,7 +12769,7 @@ void Player::learnSkillRewardedSpells(uint32 skill_id, uint32 skill_value)
                 auto bounds = sSpellMgr->GetSkillLineAbilityMapBounds(pAbility->SupercedesSpell);
                 for (auto itr = bounds.first; itr != bounds.second; ++itr)
                 {
-                    SpellInfo const* nextSpell = sSpellMgr->GetSpellInfo(itr->second->Spell);
+                    SpellInfo const* nextSpell = sSpellMgr->GetSpellInfo(itr->second->SpellID);
                     if (itr->second->AcquireMethod == SKILL_LINE_ABILITY_LEARNED_ON_SKILL_LEARN
                         && skill_value >= itr->second->MinSkillLineRank && nextSpell
                         && std::max(nextSpell->SpellLevel, nextSpell->BaseLevel) <= GetLevel())
@@ -13720,7 +13678,9 @@ void Player::SetClientControl(Unit* target, bool allowMove, bool packetOnly /*= 
     if (allowMove)
     {
         SetMover(target);
-        SendDirectMessage(WorldPackets::Movement::MoveSetActiveMover(target->GetGUID()).Write());
+        WorldPackets::Movement::MoveSetActiveMover moveSetActiveMover;
+        moveSetActiveMover.MoverGUID = target->GetGUID();
+        SendDirectMessage(moveSetActiveMover.Write());
     }
 
     // Xinef: disable moving if target has disable move flag
@@ -15219,144 +15179,96 @@ void Player::SendSummonRequest(ObjectGuid summonerGuid, uint32 zoneId, uint32 ti
 
 void Player::SendEquipmentSetList()
 {
-    // 5.4.8 18414, from Project SkyFire (SMSG_LOAD_EQUIPMENT_SET)
-    std::vector<std::pair<uint32, EquipmentSet const*>> sets;
-    for (EquipmentSets::const_iterator itr = m_EquipmentSets.begin(); itr != m_EquipmentSets.end(); ++itr)
-        if (itr->second.state != EQUIPMENT_SET_DELETED)
-            sets.emplace_back(itr->first, &itr->second);
+    WorldPackets::EquipmentSet::LoadEquipmentSet data;
 
-    auto itemGuid = [](EquipmentSet const& set, uint32 slot) -> ObjectGuid
+    for (EquipmentSetContainer::value_type const& eqSet : m_EquipmentSets)
     {
-        // ignored slots stored in IgnoreMask, client wants "1" as raw GUID, so no HighGuid::Item
-        if (set.IgnoreMask & (1 << slot))
-            return ObjectGuid(uint64(1));
-        return set.Items[slot];
-    };
+        if (eqSet.second.State == EQUIPMENT_SET_DELETED)
+            continue;
 
-    WorldPacket data(SMSG_LOAD_EQUIPMENT_SET, 3 + sets.size() * (8 + 4 + 64 + EQUIPMENT_SLOT_END * 9));
-    data.WriteBits(sets.size(), 19);
-    for (auto const& [index, set] : sets)
-    {
-        ObjectGuid setGuid = ObjectGuid(set->Guid);
-        data.WriteGuidMask(setGuid, { 4 });
-        for (uint32 i = 0; i < EQUIPMENT_SLOT_END; ++i)
-            data.WriteGuidMask(itemGuid(*set, i), { 3, 5, 7, 2, 6, 0, 4, 1 });
-        data.WriteGuidMask(setGuid, { 5 });
-        data.WriteBits(set->IconName.size(), 9);
-        data.WriteGuidMask(setGuid, { 1, 7 });
-        data.WriteBits(set->Name.size(), 8);
-        data.WriteGuidMask(setGuid, { 3, 2, 6, 0 });
-    }
-    data.FlushBits();
-
-    for (auto const& [index, set] : sets)
-    {
-        ObjectGuid setGuid = ObjectGuid(set->Guid);
-        // SkyFire writes the set guid bytes here; the item guid bytes in the same order are meant
-        for (uint32 i = 0; i < EQUIPMENT_SLOT_END; ++i)
-            data.WriteGuidBytes(itemGuid(*set, i), { 2, 3, 7, 1, 6, 5, 0, 4 });
-
-        data.WriteGuidBytes(setGuid, { 7 });
-        data << uint32(index);
-        data.WriteString(set->Name);
-        data.WriteGuidBytes(setGuid, { 2, 6, 0, 3, 1, 5, 4 });
-        data.WriteString(set->IconName);
+        data.SetData.push_back(&eqSet.second.Data);
     }
 
-    SendDirectMessage(&data);
+    SendDirectMessage(data.Write());
 }
 
-void Player::SetEquipmentSet(uint32 index, EquipmentSet eqset)
+void Player::SetEquipmentSet(EquipmentSetInfo::EquipmentSetData&& newEqSet)
 {
-    if (eqset.Guid != 0)
+    if (newEqSet.Guid != 0)
     {
-        bool found = false;
-
-        for (EquipmentSets::iterator itr = m_EquipmentSets.begin(); itr != m_EquipmentSets.end(); ++itr)
+        // something wrong...
+        EquipmentSetContainer::const_iterator itr = m_EquipmentSets.find(newEqSet.SetID);
+        if (itr == m_EquipmentSets.end() || itr->second.Data.Guid != newEqSet.Guid)
         {
-            if ((itr->second.Guid == eqset.Guid) && (itr->first == index))
-            {
-                found = true;
-                break;
-            }
-        }
-
-        if (!found)                                          // something wrong...
-        {
-            LOG_ERROR("entities.player", "Player {} tried to save equipment set {} (index {}), but that equipment set not found!", GetName(), eqset.Guid, index);
+            LOG_ERROR("entities.player", "Player {} tried to save equipment set {} (index {}), but that equipment set not found!", GetName(), newEqSet.Guid, newEqSet.SetID);
             return;
         }
     }
 
-    EquipmentSet& eqslot = m_EquipmentSets[index];
+    EquipmentSetInfo& eqSlot = m_EquipmentSets[newEqSet.SetID];
 
-    EquipmentSetUpdateState old_state = eqslot.state;
+    EquipmentSetUpdateState oldState = eqSlot.State;
 
-    eqslot = eqset;
+    eqSlot.Data = std::move(newEqSet);
 
-    if (eqset.Guid == 0)
+    if (eqSlot.Data.Guid == 0)
     {
-        eqslot.Guid = sObjectMgr->GenerateEquipmentSetGuid();
+        eqSlot.Data.Guid = sObjectMgr->GenerateEquipmentSetGuid();
 
-        // 5.4.8 18414, from Project SkyFire
-        ObjectGuid setGuid = ObjectGuid(eqslot.Guid);
-        WorldPacket data(SMSG_EQUIPMENT_SET_ID, 1 + 4 + 8);
-        data.WriteGuidMask(setGuid, { 4, 1, 6, 2, 7, 0, 3, 5 });
-        data.FlushBits();
-        data << uint32(index);
-        data.WriteGuidBytes(setGuid, { 1, 3, 7, 4, 5, 0, 2, 6 });
-        SendDirectMessage(&data);
+        WorldPackets::EquipmentSet::EquipmentSetID data;
+        data.GUID = eqSlot.Data.Guid;
+        data.SetID = eqSlot.Data.SetID;
+        SendDirectMessage(data.Write());
     }
 
-    eqslot.state = old_state == EQUIPMENT_SET_NEW ? EQUIPMENT_SET_NEW : EQUIPMENT_SET_CHANGED;
+    eqSlot.State = oldState == EQUIPMENT_SET_NEW ? EQUIPMENT_SET_NEW : EQUIPMENT_SET_CHANGED;
 }
 
 void Player::_SaveEquipmentSets(CharacterDatabaseTransaction trans)
 {
-    for (EquipmentSets::iterator itr = m_EquipmentSets.begin(); itr != m_EquipmentSets.end();)
+    for (EquipmentSetContainer::iterator itr = m_EquipmentSets.begin(); itr != m_EquipmentSets.end();)
     {
-        uint32 index = itr->first;
-        EquipmentSet& eqset = itr->second;
+        EquipmentSetInfo& eqSet = itr->second;
         CharacterDatabasePreparedStatement* stmt = nullptr;
         uint8 j = 0;
-        switch (eqset.state)
+        switch (eqSet.State)
         {
             case EQUIPMENT_SET_UNCHANGED:
                 ++itr;
                 break;                                      // nothing do
             case EQUIPMENT_SET_CHANGED:
                 stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_EQUIP_SET);
-                stmt->SetData(j++, eqset.Name.c_str());
-                stmt->SetData(j++, eqset.IconName.c_str());
-                stmt->SetData(j++, eqset.IgnoreMask);
+                stmt->SetData(j++, eqSet.Data.SetName);
+                stmt->SetData(j++, eqSet.Data.SetIcon);
+                stmt->SetData(j++, eqSet.Data.IgnoreMask);
                 for (uint8 i = 0; i < EQUIPMENT_SLOT_END; ++i)
-                    stmt->SetData(j++, eqset.Items[i].GetCounter());
+                    stmt->SetData(j++, eqSet.Data.Pieces[i].GetCounter());
                 stmt->SetData(j++, GetGUID().GetCounter());
-                stmt->SetData(j++, eqset.Guid);
-                stmt->SetData(j, index);
+                stmt->SetData(j++, eqSet.Data.Guid);
+                stmt->SetData(j, eqSet.Data.SetID);
                 trans->Append(stmt);
-                eqset.state = EQUIPMENT_SET_UNCHANGED;
+                eqSet.State = EQUIPMENT_SET_UNCHANGED;
                 ++itr;
                 break;
             case EQUIPMENT_SET_NEW:
                 stmt = CharacterDatabase.GetPreparedStatement(CHAR_INS_EQUIP_SET);
                 stmt->SetData(j++, GetGUID().GetCounter());
-                stmt->SetData(j++, eqset.Guid);
-                stmt->SetData(j++, index);
-                stmt->SetData(j++, eqset.Name.c_str());
-                stmt->SetData(j++, eqset.IconName.c_str());
-                stmt->SetData(j++, eqset.IgnoreMask);
+                stmt->SetData(j++, eqSet.Data.Guid);
+                stmt->SetData(j++, eqSet.Data.SetID);
+                stmt->SetData(j++, eqSet.Data.SetName);
+                stmt->SetData(j++, eqSet.Data.SetIcon);
+                stmt->SetData(j++, eqSet.Data.IgnoreMask);
                 for (uint8 i = 0; i < EQUIPMENT_SLOT_END; ++i)
-                    stmt->SetData(j++, eqset.Items[i].GetCounter());
+                    stmt->SetData(j++, eqSet.Data.Pieces[i].GetCounter());
                 trans->Append(stmt);
-                eqset.state = EQUIPMENT_SET_UNCHANGED;
+                eqSet.State = EQUIPMENT_SET_UNCHANGED;
                 ++itr;
                 break;
             case EQUIPMENT_SET_DELETED:
                 stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_EQUIP_SET);
-                stmt->SetData(0, eqset.Guid);
+                stmt->SetData(0, eqSet.Data.Guid);
                 trans->Append(stmt);
-                m_EquipmentSets.erase(itr++);
+                itr = m_EquipmentSets.erase(itr);
                 break;
         }
     }
@@ -15388,14 +15300,14 @@ void Player::_SaveEntryPoint(CharacterDatabaseTransaction trans)
 
 void Player::DeleteEquipmentSet(uint64 setGuid)
 {
-    for (EquipmentSets::iterator itr = m_EquipmentSets.begin(); itr != m_EquipmentSets.end(); ++itr)
+    for (EquipmentSetContainer::iterator itr = m_EquipmentSets.begin(); itr != m_EquipmentSets.end(); ++itr)
     {
-        if (itr->second.Guid == setGuid)
+        if (itr->second.Data.Guid == setGuid)
         {
-            if (itr->second.state == EQUIPMENT_SET_NEW)
+            if (itr->second.State == EQUIPMENT_SET_NEW)
                 m_EquipmentSets.erase(itr);
             else
-                itr->second.state = EQUIPMENT_SET_DELETED;
+                itr->second.State = EQUIPMENT_SET_DELETED;
             break;
         }
     }
@@ -16097,7 +16009,7 @@ void Player::SetSpecializationId(uint8 spec, uint32 specializationId)
 
 bool Player::LearnPrimaryTalentSpecialization(uint8 talentTabIndex)
 {
-    if (talentTabIndex >= MAX_TALENT_TABS || GetSpecializationId(GetActiveSpec()))
+    if (talentTabIndex >= MAX_SPECIALIZATIONS || GetSpecializationId(GetActiveSpec()))
         return false;
 
     uint32 const* specializations = GetClassSpecializations(getClass());
@@ -16141,7 +16053,7 @@ void Player::RemoveSpecializationSpells()
     if (!specializations)
         return;
 
-    for (uint8 i = 0; i < MAX_TALENT_TABS; ++i)
+    for (uint8 i = 0; i < MAX_SPECIALIZATIONS; ++i)
     {
         if (std::vector<uint32> const* specSpells = GetSpecializationSpells(specializations[i]))
             for (uint32 spellId : *specSpells)
@@ -16388,98 +16300,48 @@ void Player::SendRefundInfo(Item* item)
         return;
     }
 
-    uint32 const elapsedSeconds = GetTotalPlayedTime() - item->GetPlayedTime();
-    uint32 const timeLeftMs = elapsedSeconds < 2 * HOUR ? (2 * HOUR - elapsedSeconds) * IN_MILLISECONDS : 0;
-
-    ObjectGuid guid = item->GetGUID();
-    WorldPacket data(SMSG_ITEM_REFUND_INFO_RESPONSE, 1 + 8 + 4 + 5 * 8 + 5 * 8 + 4 + 4);
-    data.WriteBit(guid[3]);
-    data.WriteBit(guid[5]);
-    data.WriteBit(guid[7]);
-    data.WriteBit(guid[6]);
-    data.WriteBit(guid[2]);
-    data.WriteBit(guid[4]);
-    data.WriteBit(guid[0]);
-    data.WriteBit(guid[1]);
-    data.FlushBits();
-
-    data.WriteByteSeq(guid[7]);
-    data << uint32(timeLeftMs);
-    for (uint8 i = 0; i < MAX_ITEM_EXTENDED_COST_REQUIREMENTS; ++i)
-    {
-        data << uint32(iece->RequiredItemCount[i]);
-        data << uint32(iece->RequiredItem[i]);
-    }
-
-    data.WriteByteSeq(guid[6]);
-    data.WriteByteSeq(guid[4]);
-    data.WriteByteSeq(guid[3]);
-    data.WriteByteSeq(guid[2]);
-    WriteRefundCurrencies(data, iece);
-    data.WriteByteSeq(guid[1]);
-    data.WriteByteSeq(guid[5]);
-    data << uint32(0);
-    data.WriteByteSeq(guid[0]);
-    data << uint32(item->GetPaidMoney());
-    SendDirectMessage(&data);
+    WorldPackets::Item::SetItemPurchaseData setItemPurchaseData;
+    setItemPurchaseData.ItemGUID = item->GetGUID();
+    setItemPurchaseData.PurchaseTime = GetTotalPlayedTime() - item->GetPlayedTime();
+    FillRefundContents(setItemPurchaseData.Contents, item, iece);
+    SendDirectMessage(setItemPurchaseData.Write());
 }
 
-void Player::WriteRefundCurrencies(WorldPacket& data, ItemExtendedCostEntry const* iece) const
+void Player::FillRefundContents(WorldPackets::Item::ItemPurchaseContents& contents, Item* item, ItemExtendedCostEntry const* iece)
 {
-    for (uint8 i = 0; i < MAX_ITEM_EXTENDED_COST_CURRENCIES; ++i)
+    contents.Money = item->GetPaidMoney();
+
+    for (uint8 i = 0; i < MAX_ITEM_EXT_COST_ITEMS; ++i)                             // item cost data
+    {
+        contents.Items[i].ItemCount = iece->RequiredItemCount[i];
+        contents.Items[i].ItemID = iece->RequiredItem[i];
+    }
+
+    for (uint8 i = 0; i < MAX_ITEM_EXT_COST_CURRENCIES; ++i)                        // currency cost data
     {
         // Season-earned requirements are not spent, so nothing comes back
         if (iece->RequirementFlags & (ITEM_EXT_COST_CURRENCY_REQ_IS_SEASON_EARNED_1 << i))
-        {
-            data << uint32(0);
-            data << uint32(0);
             continue;
-        }
 
         CurrencyTypesEntry const* currency = sCurrencyTypesStore.LookupEntry(iece->RequiredCurrency[i]);
         uint32 const precision = currency && currency->UsesPrecision() ? CURRENCY_PRECISION : 1;
-        data << uint32(iece->RequiredCurrencyCount[i] / precision);
-        data << uint32(iece->RequiredCurrency[i]);
+        contents.Currencies[i].CurrencyCount = iece->RequiredCurrencyCount[i] / precision;
+        contents.Currencies[i].CurrencyID = iece->RequiredCurrency[i];
     }
 }
 
 void Player::SendItemRefundResult(Item* item, ItemExtendedCostEntry const* iece, uint8 error) const
 {
-    ObjectGuid guid = item->GetGUID();
-    WorldPacket data(SMSG_ITEM_REFUND_RESULT, 2 + 8 + 5 * 8 + 4 + 5 * 8 + 1);
-    data.WriteBit(guid[4]);
-    data.WriteBit(guid[5]);
-    data.WriteBit(guid[1]);
-    data.WriteBit(guid[6]);
-    data.WriteBit(guid[7]);
-    data.WriteBit(guid[0]);
-    data.WriteBit(guid[3]);
-    data.WriteBit(guid[2]);
-    data.WriteBit(!error);
-    data.WriteBit(item->GetPaidMoney() > 0);
-    data.FlushBits();
-
+    WorldPackets::Item::ItemPurchaseRefundResult itemPurchaseRefundResult;
+    itemPurchaseRefundResult.ItemGUID = item->GetGUID();
+    itemPurchaseRefundResult.Result = error;
     if (!error)
     {
-        WriteRefundCurrencies(data, iece);
-        data << uint32(item->GetPaidMoney());
-        for (uint8 i = 0; i < MAX_ITEM_EXTENDED_COST_REQUIREMENTS; ++i)
-        {
-            data << uint32(iece->RequiredItemCount[i]);
-            data << uint32(iece->RequiredItem[i]);
-        }
+        itemPurchaseRefundResult.Contents.emplace();
+        FillRefundContents(*itemPurchaseRefundResult.Contents, item, iece);
     }
 
-    data.WriteByteSeq(guid[0]);
-    data.WriteByteSeq(guid[3]);
-    data.WriteByteSeq(guid[1]);
-    data.WriteByteSeq(guid[6]);
-    data.WriteByteSeq(guid[4]);
-    data.WriteByteSeq(guid[2]);
-    data.WriteByteSeq(guid[7]);
-    data.WriteByteSeq(guid[5]);
-    data << uint8(error);
-    SendDirectMessage(&data);
+    SendDirectMessage(itemPurchaseRefundResult.Write());
 }
 
 bool Player::AddItem(uint32 itemId, uint32 count)
@@ -16546,7 +16408,7 @@ void Player::RefundItem(Item* item)
     }
 
     bool store_error = false;
-    for (uint8 i = 0; i < MAX_ITEM_EXTENDED_COST_REQUIREMENTS; ++i)
+    for (uint8 i = 0; i < MAX_ITEM_EXT_COST_ITEMS; ++i)
     {
         uint32 count = iece->RequiredItemCount[i];
         uint32 itemid = iece->RequiredItem[i];
@@ -16583,7 +16445,7 @@ void Player::RefundItem(Item* item)
     DestroyItem(item->GetBagSlot(), item->GetSlot(), true);
 
     // Grant back extendedcost items
-    for (uint8 i = 0; i < MAX_ITEM_EXTENDED_COST_REQUIREMENTS; ++i)
+    for (uint8 i = 0; i < MAX_ITEM_EXT_COST_ITEMS; ++i)
     {
         uint32 count = iece->RequiredItemCount[i];
         uint32 itemid = iece->RequiredItem[i];
@@ -16602,9 +16464,9 @@ void Player::RefundItem(Item* item)
         ModifyMoney(moneyRefund); // Saved in SaveInventoryAndGoldToDB
 
     // Grant back currencies; season-earned requirements were not spent
-    for (uint8 i = 0; i < MAX_ITEM_EXTENDED_COST_CURRENCIES; ++i)
+    for (uint8 i = 0; i < MAX_ITEM_EXT_COST_CURRENCIES; ++i)
         if (iece->RequiredCurrency[i] && iece->RequiredCurrencyCount[i] && !(iece->RequirementFlags & (ITEM_EXT_COST_CURRENCY_REQ_IS_SEASON_EARNED_1 << i)))
-            ModifyCurrency(iece->reqcurrency[i], int32(iece->reqcurrencycount[i]), true, true);
+            ModifyCurrency(iece->RequiredCurrency[i], int32(iece->RequiredCurrencyCount[i]), true, true);
 
     SaveInventoryAndGoldToDB(trans);
 

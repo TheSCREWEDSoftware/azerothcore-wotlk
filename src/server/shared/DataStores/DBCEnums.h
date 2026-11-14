@@ -847,6 +847,21 @@ enum CurrencyTypes
     CURRENCY_TYPE_APEXIS_CRYSTALS       = 823,
 };
 
+// CurrencyCategory.dbc
+enum CurrencyCategories
+{
+    CURRENCY_CATEGORY_ARCHAEOLOGY       = 82,
+    CURRENCY_CATEGORY_META_CONQUEST     = 89,
+};
+
+// ChrSpecialization.dbc Role
+enum ChrSpecializationRole
+{
+    CHR_SPECIALIZATION_ROLE_TANK        = 0,
+    CHR_SPECIALIZATION_ROLE_HEALER      = 1,
+    CHR_SPECIALIZATION_ROLE_DAMAGE      = 2
+};
+
 // AzerothCore / 5.4.8 enums and defines without a TrinityCore 6.x counterpart
 
 enum AchievementCriteriaCondition

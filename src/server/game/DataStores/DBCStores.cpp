@@ -128,6 +128,7 @@ DBCStorage<SkillRaceClassInfoEntry>         sSkillRaceClassInfoStore(SkillRaceCl
 SkillRaceClassInfoMap                       SkillRaceClassInfoBySkill;
 DBCStorage<SpellAuraOptionsEntry>           sSpellAuraOptionsStore(SpellAuraOptionsfmt);
 DBCStorage<SpellCategoriesEntry>            sSpellCategoriesStore(SpellCategoriesfmt);
+SpellCategoryStore                          sSpellsByCategoryStore;
 DBCStorage<SpellCategoryEntry>              sSpellCategoryStore(SpellCategoryfmt);
 DBCStorage<SpellCooldownsEntry>             sSpellCooldownsStore(SpellCooldownsfmt);
 DBCStorage<SpellEffectEntry>                sSpellEffectStore(SpellEffectfmt);
@@ -966,6 +967,12 @@ void LoadDBCStoresAzerothCore()
     for (TalentEntry const* talent : sTalentStore)
         if (talent->SpellID)
             sTalentSpellPosMap[talent->SpellID] = TalentSpellPos(uint16(talent->ID), 0);
+
+    // spells sharing a cooldown category; item spells are added by ObjectMgr::LoadItemTemplates
+    sSpellsByCategoryStore.clear();
+    for (SpellCategoriesEntry const* categories : sSpellCategoriesStore)
+        if (categories->Category && !categories->DifficultyID)
+            sSpellsByCategoryStore[categories->Category].emplace(false, categories->SpellID);
 
     sSkillLineAbilityIndexBySkillLine.clear();
     for (SkillLineAbilityEntry const* ability : sSkillLineAbilityStore)
