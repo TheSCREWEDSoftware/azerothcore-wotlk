@@ -96,52 +96,45 @@ void ArchaeologyMgr::LoadData()
     oldMSTime = getMSTime();
     count = 0;
 
-    for (uint32 i = 0; i < sQuestPOIPointStore.GetNumRows(); i++)
+    // 6.x: the outline points of the dig sites are in `archaeology_site_point` (QuestPOIPoint.dbc is gone)
+    std::unordered_map<uint32, std::vector<std::pair<int32, int32>>> blobPoints;
+    //                                                           0         1  2
+    if (QueryResult pointResult = WorldDatabase.Query("SELECT QuestPOIBlobID, X, Y FROM archaeology_site_point ORDER BY QuestPOIBlobID, Idx"))
     {
-        QuestPOIPointEntry const* entry = sQuestPOIPointStore.LookupEntry(i);
-        if (!entry)
-            continue;
-
-        for (std::list<std::pair<uint16, uint32> >::iterator itr = sites.begin(); itr != sites.end();)
+        do
         {
-            if (itr->second == entry->QuestPOIBlobID)
-            {
-                uint16 site = itr->first;
-                uint16 poiRel = itr->second;
+            Field* fields = pointResult->Fetch();
+            blobPoints[fields[0].Get<uint32>()].emplace_back(fields[1].Get<int32>(), fields[2].Get<int32>());
+        } while (pointResult->NextRow());
+    }
 
-                if (_polygonMap[site])
-                {
-                    LOG_ERROR("server.loading", "Archaeology: Tried to overwrite polygonData of site {}", site);
-                    break;
-                }
-
-                // Create Site Polygon
-                _polygonMap[site] = new SitePolygonGraph();
-                _polygonMap[site]->add_node(entry->X, entry->Y);
-
-                for (uint32 j = 1; j < 12; j++)
-                {
-                    entry = sQuestPOIPointStore.LookupEntry(++i);
-                    if (poiRel != entry->QuestPOIBlobID)
-                    {
-                        LOG_ERROR("server.loading", "Archaeology: Tried to use POI {} not related to site {}", entry->ID, poiRel);
-                        break;
-                    }
-
-                    // Add new perimeter point
-                    _polygonMap[site]->add_node(entry->X, entry->Y);
-                }
-
-                // Generate ALL inscribed and boundary geometries for the polygon!
-                _polygonMap[site]->finalize_polygon();
-
-                // NEXT!
-                count++;
-                sites.erase(itr++);
-            }
-            else
-                itr++;
+    for (std::list<std::pair<uint16, uint32> >::iterator itr = sites.begin(); itr != sites.end();)
+    {
+        auto points = blobPoints.find(itr->second);
+        if (points == blobPoints.end() || points->second.empty())
+        {
+            ++itr;
+            continue;
         }
+
+        uint16 site = itr->first;
+        if (_polygonMap[site])
+        {
+            LOG_ERROR("server.loading", "Archaeology: Tried to overwrite polygonData of site {}", site);
+            ++itr;
+            continue;
+        }
+
+        // Create Site Polygon
+        _polygonMap[site] = new SitePolygonGraph();
+        for (std::pair<int32, int32> const& point : points->second)
+            _polygonMap[site]->add_node(point.first, point.second);
+
+        // Generate ALL inscribed and boundary geometries for the polygon!
+        _polygonMap[site]->finalize_polygon();
+
+        ++count;
+        sites.erase(itr++);
     }
 
     for (std::list<std::pair<uint16, uint32> >::iterator itr = sites.begin(); itr != sites.end(); itr++)

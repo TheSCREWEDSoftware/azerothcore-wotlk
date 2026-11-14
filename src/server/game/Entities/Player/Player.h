@@ -1924,6 +1924,9 @@ public:
     [[nodiscard]] uint32 GetSpecializationRole() const;     // ChrSpecializationRole of the active specialization
     [[nodiscard]] uint8 GetMostPointsTalentTree() const;
     [[nodiscard]] uint32 GetSpecializationId(uint8 spec) const; // ChrSpecialization.dbc id of a talent group
+    // TC 6.x names
+    [[nodiscard]] uint32 GetSpecId(uint8 talentGroupId) const { return GetSpecializationId(talentGroupId); }
+    [[nodiscard]] uint8 GetActiveTalentGroup() const { return m_activeSpec; }
     void SetSpecializationId(uint8 spec, uint32 specializationId);
     bool LearnPrimaryTalentSpecialization(uint8 talentTabIndex);
     void LearnSpecializationSpells();

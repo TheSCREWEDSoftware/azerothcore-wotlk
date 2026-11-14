@@ -19,6 +19,7 @@
 #define GRID_TERRAIN_DATA_H
 
 #include "Common.h"
+#include "Optional.h"
 #include <fstream>
 #include <G3D/Plane.h>
 #include <memory>

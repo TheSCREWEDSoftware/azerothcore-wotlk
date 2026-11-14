@@ -41,15 +41,16 @@ AC_API_EXPORT EnumText EnumUtils<QuestFailedReason>::ToString(QuestFailedReason 
         case INVALIDREASON_QUEST_ALREADY_ON2: return { "INVALIDREASON_QUEST_ALREADY_ON2", "INVALIDREASON_QUEST_ALREADY_ON2", "You are already on that quest." };
         case INVALIDREASON_QUEST_FAILED_MISSING_ITEMS: return { "INVALIDREASON_QUEST_FAILED_MISSING_ITEMS", "INVALIDREASON_QUEST_FAILED_MISSING_ITEMS", "You don't have the required items with you. Check storage." };
         case INVALIDREASON_QUEST_FAILED_NOT_ENOUGH_MONEY: return { "INVALIDREASON_QUEST_FAILED_NOT_ENOUGH_MONEY", "INVALIDREASON_QUEST_FAILED_NOT_ENOUGH_MONEY", "You don't have enough money for that quest." };
-        case INVALIDREASON_DAILY_QUESTS_REMAINING: return { "INVALIDREASON_DAILY_QUESTS_REMAINING", "INVALIDREASON_DAILY_QUESTS_REMAINING", "You have already completed 25 daily quests today." };
         case INVALIDREASON_QUEST_FAILED_CAIS: return { "INVALIDREASON_QUEST_FAILED_CAIS", "INVALIDREASON_QUEST_FAILED_CAIS", "You cannot complete quests once you have reached tired time." };
         case INVALIDREASON_DAILY_QUEST_COMPLETED_TODAY: return { "INVALIDREASON_DAILY_QUEST_COMPLETED_TODAY", "INVALIDREASON_DAILY_QUEST_COMPLETED_TODAY", "You have completed that daily quest today." };
+        case INVALIDREASON_QUEST_FAILED_SPELL: return { "INVALIDREASON_QUEST_FAILED_SPELL", "INVALIDREASON_QUEST_FAILED_SPELL", "You haven't learned the required spell." };
+        case INVALIDREASON_QUEST_HAS_IN_PROGRESS: return { "INVALIDREASON_QUEST_HAS_IN_PROGRESS", "INVALIDREASON_QUEST_HAS_IN_PROGRESS", "Progress Bar objective not completed" };
         default: throw std::out_of_range("value");
     }
 }
 
 template <>
-AC_API_EXPORT std::size_t EnumUtils<QuestFailedReason>::Count() { return 13; }
+AC_API_EXPORT std::size_t EnumUtils<QuestFailedReason>::Count() { return 14; }
 
 template <>
 AC_API_EXPORT QuestFailedReason EnumUtils<QuestFailedReason>::FromIndex(std::size_t index)
@@ -66,9 +67,10 @@ AC_API_EXPORT QuestFailedReason EnumUtils<QuestFailedReason>::FromIndex(std::siz
         case 7: return INVALIDREASON_QUEST_ALREADY_ON2;
         case 8: return INVALIDREASON_QUEST_FAILED_MISSING_ITEMS;
         case 9: return INVALIDREASON_QUEST_FAILED_NOT_ENOUGH_MONEY;
-        case 10: return INVALIDREASON_DAILY_QUESTS_REMAINING;
-        case 11: return INVALIDREASON_QUEST_FAILED_CAIS;
-        case 12: return INVALIDREASON_DAILY_QUEST_COMPLETED_TODAY;
+        case 10: return INVALIDREASON_QUEST_FAILED_CAIS;
+        case 11: return INVALIDREASON_DAILY_QUEST_COMPLETED_TODAY;
+        case 12: return INVALIDREASON_QUEST_FAILED_SPELL;
+        case 13: return INVALIDREASON_QUEST_HAS_IN_PROGRESS;
         default: throw std::out_of_range("index");
     }
 }
@@ -88,9 +90,10 @@ AC_API_EXPORT std::size_t EnumUtils<QuestFailedReason>::ToIndex(QuestFailedReaso
         case INVALIDREASON_QUEST_ALREADY_ON2: return 7;
         case INVALIDREASON_QUEST_FAILED_MISSING_ITEMS: return 8;
         case INVALIDREASON_QUEST_FAILED_NOT_ENOUGH_MONEY: return 9;
-        case INVALIDREASON_DAILY_QUESTS_REMAINING: return 10;
-        case INVALIDREASON_QUEST_FAILED_CAIS: return 11;
-        case INVALIDREASON_DAILY_QUEST_COMPLETED_TODAY: return 12;
+        case INVALIDREASON_QUEST_FAILED_CAIS: return 10;
+        case INVALIDREASON_DAILY_QUEST_COMPLETED_TODAY: return 11;
+        case INVALIDREASON_QUEST_FAILED_SPELL: return 12;
+        case INVALIDREASON_QUEST_HAS_IN_PROGRESS: return 13;
         default: throw std::out_of_range("value");
     }
 }

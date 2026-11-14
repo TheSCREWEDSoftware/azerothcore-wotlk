@@ -3061,7 +3061,7 @@ uint32 SpellInfo::CalcCastTime(WorldObject* caster, Spell* spell) const
     {
         int32 level = int32(casterUnit->GetLevel());
         castTime = ScalingEntry->CastTimeMax;
-        if (ScalingEntry->CastTimeMaxLevel > level)
+        if (int32(ScalingEntry->CastTimeMaxLevel) > level)
             castTime = ScalingEntry->CastTimeMin + (level - 1) * (ScalingEntry->CastTimeMax - ScalingEntry->CastTimeMin) / (ScalingEntry->CastTimeMaxLevel - 1);
     }
     // not all spells have cast time index and this is all is pasiive abilities
@@ -3087,14 +3087,14 @@ float SpellInfo::GetSpellScalingMultiplier(int32 level, bool isPowerCostRelated 
     float multiplier = 1.0f;
     float scalingMultiplier = 1.0f;
 
-    if (level < ScalingEntry->CastTimeMaxLevel && ScalingEntry->CastTimeMax)
+    if (level < int32(ScalingEntry->CastTimeMaxLevel) && ScalingEntry->CastTimeMax)
     {
         int32 castTime = ScalingEntry->CastTimeMin + ((level - 1) * (ScalingEntry->CastTimeMax - ScalingEntry->CastTimeMin)) / (ScalingEntry->CastTimeMaxLevel - 1);
         multiplier = castTime / float(ScalingEntry->CastTimeMax);
         scalingMultiplier = multiplier;
     }
 
-    if (!isPowerCostRelated && level < ScalingEntry->NerfMaxLevel)
+    if (!isPowerCostRelated && level < int32(ScalingEntry->NerfMaxLevel))
         scalingMultiplier = ((((1.0f - ScalingEntry->NerfFactor) * (level - 1)) / (ScalingEntry->NerfMaxLevel - 1)) + ScalingEntry->NerfFactor) * multiplier;
 
     return scalingMultiplier;

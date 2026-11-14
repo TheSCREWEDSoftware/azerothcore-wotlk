@@ -305,15 +305,16 @@ void Map::ScriptsProcess()
                 case HighGuid::Player:
                     source = HashMapHolder<Player>::Find(step.sourceGUID);
                     break;
-                case HighGuid::Transport:
                 case HighGuid::GameObject:
                     source = GetGameObject(step.sourceGUID);
                     break;
+                case HighGuid::Transport: // 6.x: static and moving transports share the high guid
+                    source = GetGameObject(step.sourceGUID);
+                    if (!source)
+                        source = GetTransport(step.sourceGUID);
+                    break;
                 case HighGuid::Corpse:
                     source = GetCorpse(step.sourceGUID);
-                    break;
-                case HighGuid::Transport:
-                    source = GetTransport(step.sourceGUID);
                     break;
                 default:
                     LOG_ERROR("maps.script", "{} source with unsupported high guid ({}).",
@@ -337,15 +338,16 @@ void Map::ScriptsProcess()
                 case HighGuid::Player:                       // empty GUID case also
                     target = HashMapHolder<Player>::Find(step.targetGUID);
                     break;
-                case HighGuid::Transport:
                 case HighGuid::GameObject:
                     target = GetGameObject(step.targetGUID);
                     break;
                 case HighGuid::Corpse:
                     target = GetCorpse(step.targetGUID);
                     break;
-                case HighGuid::Transport:
-                    target = GetTransport(step.targetGUID);
+                case HighGuid::Transport: // 6.x: static and moving transports share the high guid
+                    target = GetGameObject(step.targetGUID);
+                    if (!target)
+                        target = GetTransport(step.targetGUID);
                     break;
                 default:
                     LOG_ERROR("maps.script", "{} target with unsupported high guid ({}).",

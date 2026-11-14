@@ -3479,7 +3479,7 @@ Corpse* Map::ConvertCorpseToBones(ObjectGuid const& ownerGuid, bool insignia /*=
     {
         // Create bones, don't change Corpse
         bones = new Corpse();
-        bones->Create(corpse->GetGUID().GetCounter());
+        bones->Create(corpse->GetGUID().GetCounter(), this);
 
         for (uint8 i = OBJECT_FIELD_TYPE + 1; i < CORPSE_END; ++i)                    // don't overwrite guid and object type
             bones->SetUInt32Value(i, corpse->GetUInt32Value(i));

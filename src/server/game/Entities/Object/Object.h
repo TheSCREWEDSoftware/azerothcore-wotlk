@@ -596,6 +596,7 @@ public:
     [[nodiscard]] bool IsPhaseVisibleTo(Player const* player) const;
     // Exact 4.3.4 phase membership (CONDITION_PHASEID): a phase-0 spawn has no phase set.
     [[nodiscard]] bool HasPhase(uint32 phaseId) const;
+    [[nodiscard]] bool IsInPhase(uint32 phaseId) const { return HasPhase(phaseId); } // TC 6.x name
     // Summons/pets follow their owner's live phase shift instead of a stale copy.
     [[nodiscard]] virtual WorldObject const* GetPhaseShiftSource() const { return nullptr; }
 
