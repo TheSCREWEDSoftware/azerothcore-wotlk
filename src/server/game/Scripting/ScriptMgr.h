@@ -646,8 +646,8 @@ public: /* SpellSC */
     bool CanPrepare(Spell* spell, SpellCastTargets const* targets, AuraEffect const* triggeredByAura);
     bool CanScalingEverything(Spell* spell);
     bool CanSelectSpecTalent(Spell* spell);
-    void OnScaleAuraUnitAdd(Spell* spell, Unit* target, uint32 effectMask, bool checkIfValid, bool implicit, uint8 auraScaleMask, TargetInfo& targetInfo);
-    void OnRemoveAuraScaleTargets(Spell* spell, TargetInfo& targetInfo, uint8 auraScaleMask, bool& needErase);
+    void OnScaleAuraUnitAdd(Spell* spell, Unit* target, uint32 effectMask, bool checkIfValid, bool implicit, uint32 auraScaleMask, TargetInfo& targetInfo);
+    void OnRemoveAuraScaleTargets(Spell* spell, TargetInfo& targetInfo, uint32 auraScaleMask, bool& needErase);
     void OnBeforeAuraRankForLevel(SpellInfo const* spellInfo, SpellInfo const* latestSpellInfo, uint8 level);
     void OnIsAuraExclusiveBySpecificWith(SpellInfo const* spellInfo, SpellInfo const* otherSpellInfo, bool& isExclusive);
     void OnDummyEffect(WorldObject* caster, uint32 spellID, SpellEffIndex effIndex, GameObject* gameObjTarget);

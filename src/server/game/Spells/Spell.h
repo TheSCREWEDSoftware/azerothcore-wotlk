@@ -747,7 +747,7 @@ public:
     bool m_referencedFromCurrentSpell;                  // mark as references to prevent deleted and access by dead pointers
     bool m_executedCurrently;                           // mark as executed to prevent deleted and access by dead pointers
     bool m_needComboPoints;
-    uint8 m_applyMultiplierMask;
+    uint32 m_applyMultiplierMask;
     float m_damageMultipliers[3];
 
     // Current targets, to be used in SpellEffects (MUST BE USED ONLY IN SPELL EFFECTS)
@@ -787,7 +787,7 @@ public:
     // Spell target subsystem
     // *****************************************
     std::list<TargetInfo> m_UniqueTargetInfo;
-    uint8 m_channelTargetEffectMask;                        // Mask req. alive targets
+    uint32 m_channelTargetEffectMask;                        // Mask req. alive targets
 
     struct GOTargetInfo
     {
@@ -801,7 +801,7 @@ public:
     struct ItemTargetInfo
     {
         Item*  item;
-        uint8 effectMask;
+        uint32 effectMask;
     };
     std::list<ItemTargetInfo> m_UniqueItemInfo;
 
@@ -814,7 +814,7 @@ public:
 
     void DoAllEffectOnTarget(TargetInfo* target);
     SpellMissInfo DoSpellHitOnUnit(Unit* unit, uint32 effectMask, bool scaleAura);
-    void DoTriggersOnSpellHit(Unit* unit, uint8 effMask);
+    void DoTriggersOnSpellHit(Unit* unit, uint32 effMask);
     void DoAllEffectOnTarget(GOTargetInfo* target);
     void DoAllEffectOnTarget(ItemTargetInfo* target);
     bool UpdateChanneledTargetList();
@@ -854,7 +854,7 @@ public:
         int32 chance;
     };
 
-    bool CanExecuteTriggersOnHit(uint8 effMask, SpellInfo const* triggeredByAura = nullptr) const;
+    bool CanExecuteTriggersOnHit(uint32 effMask, SpellInfo const* triggeredByAura = nullptr) const;
     void PrepareTriggersExecutedOnHit();
     typedef std::list<HitTriggerSpell> HitTriggerSpellList;
     HitTriggerSpellList m_hitTriggerSpells;
@@ -879,7 +879,7 @@ public:
     TriggeredByAuraSpellData m_triggeredByAuraSpell;
 
     bool m_skipCheck;
-    uint8 m_auraScaleMask;
+    uint32 m_auraScaleMask;
     std::unique_ptr<PathGenerator> m_preGeneratedPath;
 
     // xinef:

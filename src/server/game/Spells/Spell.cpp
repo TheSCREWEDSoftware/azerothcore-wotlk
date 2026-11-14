@@ -933,7 +933,7 @@ void Spell::SelectSpellTargets()
                 return;
             }
 
-            uint8 mask = (1 << i);
+            uint32 mask = (1u << i);
             for (auto ihit = m_UniqueTargetInfo.begin(); ihit != m_UniqueTargetInfo.end(); ++ihit)
             {
                 if (ihit->effectMask & mask)
@@ -2697,7 +2697,7 @@ void Spell::DoAllEffectOnTarget(TargetInfo* target)
     target->processed = true;                               // Target checked in apply effects procedure
 
     // Get mask of effects for target
-    uint8 mask = target->effectMask;
+    uint32 mask = target->effectMask;
 
     Unit* effectUnit = m_caster->GetGUID() == target->targetGUID ? unitCaster : ObjectAccessor::GetUnit(*m_caster, target->targetGUID);
     if (!effectUnit && !target->targetGUID.IsPlayer()) // only players may be targeted across maps
@@ -2705,12 +2705,12 @@ void Spell::DoAllEffectOnTarget(TargetInfo* target)
 
     if (!effectUnit || m_spellInfo->Id == 45927)
     {
-        uint8 farMask = 0;
+        uint32 farMask = 0;
         // create far target mask
         for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
             if (m_spellInfo->Effects[i].IsFarUnitTargetEffect())
                 if ((1 << i) & mask)
-                    farMask |= (1 << i);
+                    farMask |= (1u << i);
 
         if (!farMask)
             return;
@@ -2723,7 +2723,7 @@ void Spell::DoAllEffectOnTarget(TargetInfo* target)
         // do far effects on the unit
         // can't use default call because of threading, do stuff as fast as possible
         for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
-            if (farMask & (1 << i))
+            if (farMask & (1u << i))
                 HandleEffects(effectUnit, nullptr, nullptr, i, SPELL_EFFECT_HANDLE_HIT_TARGET);
         return;
     }
@@ -3256,10 +3256,10 @@ SpellMissInfo Spell::DoSpellHitOnUnit(Unit* unit, uint32 effectMask, bool scaleA
         }
     }
 
-    uint8 aura_effmask = 0;
+    uint32 aura_effmask = 0;
     for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
         if (effectMask & (1 << i) && m_spellInfo->Effects[i].IsUnitOwnedAuraEffect())
-            aura_effmask |= 1 << i;
+            aura_effmask |= 1u << i;
 
     Unit* originalCaster = GetOriginalCaster();
     if (!originalCaster)
@@ -3425,7 +3425,7 @@ SpellMissInfo Spell::DoSpellHitOnUnit(Unit* unit, uint32 effectMask, bool scaleA
     return SPELL_MISS_NONE;
 }
 
-void Spell::DoTriggersOnSpellHit(Unit* unit, uint8 effMask)
+void Spell::DoTriggersOnSpellHit(Unit* unit, uint32 effMask)
 {
     Unit* unitCaster = m_caster->ToUnit();
     // Apply additional spell effects to target
@@ -3549,11 +3549,11 @@ bool Spell::UpdateChanneledTargetList()
     if (m_channelTargetEffectMask == 0)
         return true;
 
-    uint8 channelTargetEffectMask = m_channelTargetEffectMask;
-    uint8 channelAuraMask = 0;
+    uint32 channelTargetEffectMask = m_channelTargetEffectMask;
+    uint32 channelAuraMask = 0;
     for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
         if (m_spellInfo->Effects[i].Effect == SPELL_EFFECT_APPLY_AURA)
-            channelAuraMask |= 1 << i;
+            channelAuraMask |= 1u << i;
 
     channelAuraMask &= channelTargetEffectMask;
 
@@ -6789,8 +6789,8 @@ SpellCastResult Spell::CheckCast(bool strict, uint32* /*param1*/, uint32* /*para
         }
     }
 
-    uint8 approximateAuraEffectMask = 0;
-    uint8 nonAuraEffectMask = 0;
+    uint32 approximateAuraEffectMask = 0;
+    uint32 nonAuraEffectMask = 0;
     for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
     {
         // for effects of spells that have only one target
@@ -9612,7 +9612,7 @@ bool Spell::CheckScriptEffectImplicitTargets(uint32 effIndex, uint32 effIndexToC
     return true;
 }
 
-bool Spell::CanExecuteTriggersOnHit(uint8 effMask, SpellInfo const* triggeredByAura) const
+bool Spell::CanExecuteTriggersOnHit(uint32 effMask, SpellInfo const* triggeredByAura) const
 {
     // Relentless strikes, proc only from first effect
     if (triggeredByAura && triggeredByAura->SpellIconID == 559)

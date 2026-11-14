@@ -29,6 +29,7 @@
 #include "Spell.h"
 #include "SpellAuraEffects.h"
 #include "SpellMgr.h"
+#include "SpellPackets.h"
 #include "SpellScript.h"
 #include "Unit.h"
 #include "Util.h"
@@ -44,9 +45,9 @@
 // update aura target map every 500 ms instead of every update - reduce amount of grid searcher calls
 static constexpr int32 UPDATE_TARGET_MAP_INTERVAL = 500;
 
-AuraApplication::AuraApplication(Unit* target, Unit* caster, Aura* aura, uint8 effMask):
+AuraApplication::AuraApplication(Unit* target, Unit* caster, Aura* aura, uint32 effMask):
     _target(target), _base(aura), _removeMode(AURA_REMOVE_NONE), _slot(MAX_AURAS),
-    _flags(AFLAG_NONE), _effectsToApply(effMask), _needClientUpdate(false), _disableMask(0)
+    _flags(AFLAG_NONE), _effectsToApply(effMask), _effectMask(0), _needClientUpdate(false), _disableMask(0)
 {
     ASSERT(GetTarget() && GetBase());
 
@@ -121,7 +122,7 @@ void AuraApplication::_Remove()
     }
 }
 
-void AuraApplication::_InitFlags(Unit* caster, uint8 effMask)
+void AuraApplication::_InitFlags(Unit* caster, uint32 effMask)
 {
     // mark as selfcasted if needed
     _flags |= (GetBase()->GetCasterGUID() == GetTarget()->GetGUID()) ? AFLAG_CASTER : AFLAG_NONE;
@@ -163,19 +164,19 @@ void AuraApplication::_HandleEffect(uint8 effIndex, bool apply)
     AuraEffect* aurEff = GetBase()->GetEffect(effIndex);
     ASSERT(aurEff);
     ASSERT(HasEffect(effIndex) == (!apply));
-    ASSERT((1 << effIndex) & _effectsToApply);
+    ASSERT((1u << effIndex) & _effectsToApply);
     LOG_DEBUG("spells.aura", "AuraApplication::_HandleEffect: {}, apply: {}: amount: {}", aurEff->GetAuraType(), apply, aurEff->GetAmount());
 
     if (apply)
     {
-        ASSERT(!(_flags & (1 << effIndex)));
-        _flags |= 1 << effIndex;
+        ASSERT(!(_effectMask & (1u << effIndex)));
+        _effectMask |= 1u << effIndex;
         aurEff->HandleEffect(this, AURA_EFFECT_HANDLE_REAL, true);
     }
     else
     {
-        ASSERT(_flags & (1 << effIndex));
-        _flags &= ~(1 << effIndex);
+        ASSERT(_effectMask & (1u << effIndex));
+        _effectMask &= ~(1u << effIndex);
         aurEff->HandleEffect(this, AURA_EFFECT_HANDLE_REAL, false);
 
         // Remove all triggered by aura spells vs unlimited duration
@@ -201,91 +202,76 @@ uint8 AuraApplication::BuildClientFlags(uint8 flags)
     return clientFlags;
 }
 
-void AuraApplication::BuildUpdatePacket(ByteBuffer& bits, ByteBuffer& data, bool remove) const
+// 6.x 19342: SMSG_AURA_UPDATE (TC 6.x)
+void AuraApplication::BuildUpdatePacket(WorldPackets::Spells::AuraInfo& auraInfo, bool remove) const
 {
-    // 5.4.8 18414, from Project SkyFire
-    bits.WriteBit(!remove);
+    ASSERT((_target->GetVisibleAura(_slot) != nullptr) ^ remove);
 
-    if (!remove)
+    auraInfo.Slot = GetSlot();
+    if (remove)
+        return;
+
+    Aura const* aura = GetBase();
+    uint8 flags = _flags;
+    if (aura->GetType() != DYNOBJ_AURA_TYPE && aura->GetMaxDuration() > 0 && !aura->GetSpellInfo()->HasAttribute(SPELL_ATTR5_DO_NOT_DISPLAY_DURATION))
+        flags |= AFLAG_DURATION;
+
+    // paladin auras are positive for self-cast only
+    if (!IsSelfcasted() && aura->GetSpellInfo()->GetSpellSpecific() == SPELL_SPECIFIC_AURA)
+        flags &= ~AFLAG_POSITIVE;
+
+    WorldPackets::Spells::AuraDataInfo auraData;
+    auraData.SpellID = aura->GetId();
+    auraData.SpellXSpellVisualID = aura->GetSpellInfo()->GetSpellXSpellVisualId(aura->GetCaster());
+    auraData.Flags = BuildClientFlags(flags);
+    auraData.ActiveFlags = GetEffectMask();
+    auraData.CastLevel = aura->GetCasterLevel();
+
+    // send stack amount for aura which could be stacked (never 0 - causes incorrect display) or charges
+    // stack amount has priority over charges (checked on retail with spell 50262)
+    auraData.Applications = aura->GetSpellInfo()->StackAmount ? aura->GetStackAmount() : aura->GetCharges();
+    if (!(flags & AFLAG_CASTER))
+        auraData.CastUnit = aura->GetCasterGUID();
+
+    if (flags & AFLAG_DURATION)
     {
-        ASSERT(_target->GetVisibleAura(_slot));
+        auraData.Duration = aura->GetMaxDuration();
+        auraData.Remaining = aura->GetDuration();
+    }
 
-        Aura const* aura = GetBase();
-        uint32 flags = _flags;
-        if (aura->GetType() != DYNOBJ_AURA_TYPE && aura->GetMaxDuration() > 0 && !aura->GetSpellInfo()->HasAttribute(SPELL_ATTR5_DO_NOT_DISPLAY_DURATION))
-            flags |= AFLAG_DURATION;
-
-        // paladin auras are positive for self-cast only
-        if (!IsSelfcasted() && aura->GetSpellInfo()->GetSpellSpecific() == SPELL_SPECIFIC_AURA)
-            flags &= ~AFLAG_POSITIVE;
-
+    if (flags & AFLAG_ANY_EFFECT_AMOUNT_SENT)
+    {
         // the client indexes the amounts by effect index: highest effect + 1, gaps sent as 0
         uint8 effCount = 0;
-        if (flags & AFLAG_ANY_EFFECT_AMOUNT_SENT)
-            for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
-                if (HasEffect(i))
-                    effCount = i + 1;
+        for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
+            if (HasEffect(i))
+                effCount = i + 1;
 
-        bool hasCaster = !(flags & AFLAG_CASTER);
-        bool hasDuration = flags & AFLAG_DURATION;
-        ObjectGuid casterGuid = aura->GetCasterGUID();
-
-        bits.WriteBits(effCount, 22);
-        bits.WriteBit(hasCaster);
-        if (hasCaster)
-            bits.WriteGuidMask(casterGuid, { 3, 4, 6, 1, 5, 2, 0, 7 });
-        bits.WriteBits(0, 22);
-        bits.WriteBit(hasDuration);
-        bits.WriteBit(hasDuration);                         // max duration
-
-        uint8 clientFlags = BuildClientFlags(flags);
-
-        if (hasCaster)
-            data.WriteGuidBytes(casterGuid, { 3, 2, 1, 6, 4, 0, 5, 7 });
-        data << uint8(clientFlags);
-        data << uint16(aura->GetCasterLevel());
-        data << uint32(aura->GetId());
-        if (hasDuration)
-        {
-            data << uint32(aura->GetMaxDuration());
-            data << uint32(aura->GetDuration());
-        }
-        // send stack amount for aura which could be stacked (never 0 - causes incorrect display) or charges
-        // stack amount has priority over charges (checked on retail with spell 50262)
-        data << uint8(aura->GetSpellInfo()->StackAmount ? aura->GetStackAmount() : aura->GetCharges());
-        data << uint32(GetEffectMask());
+        auraData.Points.resize(effCount, 0.0f);
         for (uint8 i = 0; i < effCount; ++i)
-        {
-            float amount = 0.0f;
             if (HasEffect(i))
                 if (AuraEffect const* effect = aura->GetEffect(i))
-                    amount = float(effect->GetAmount());
-            data << float(amount);
-        }
+                    auraData.Points[i] = float(effect->GetAmount());
     }
-    else
-        ASSERT(!_target->GetVisibleAura(_slot));
 
-    data << uint8(_slot);
+    auraInfo.AuraData = auraData;
 }
 
 WorldPacket AuraApplication::BuildAuraUpdate(ObjectGuid targetGuid, std::vector<std::pair<AuraApplication const*, bool>> const& auras, bool all)
 {
-    // 5.4.8 18414, from Project SkyFire
-    WorldPacket packet(SMSG_AURA_UPDATE, 20 + auras.size() * 30);
-    packet.WriteGuidMask(targetGuid, { 7 });
-    packet.WriteBit(all);
-    packet.WriteBits(auras.size(), 24);
-    packet.WriteGuidMask(targetGuid, { 6, 1, 3, 0, 4, 2, 5 });
+    WorldPackets::Spells::AuraUpdate update;
+    update.UpdateAll = all;
+    update.UnitGUID = targetGuid;
 
-    ByteBuffer data;
     for (auto const& [auraApp, remove] : auras)
-        auraApp->BuildUpdatePacket(packet, data, remove);
+    {
+        WorldPackets::Spells::AuraInfo auraInfo;
+        auraApp->BuildUpdatePacket(auraInfo, remove);
+        update.Auras.push_back(auraInfo);
+    }
 
-    packet.FlushBits();
-    packet.append(data);
-    packet.WriteGuidBytes(targetGuid, { 2, 6, 7, 1, 3, 4, 0, 5 });
-    return packet;
+    update.Write();
+    return update.Move();
 }
 
 void AuraApplication::ClientUpdate(bool remove)
@@ -303,11 +289,11 @@ void AuraApplication::ClientUpdate(bool remove)
     _target->SendMessageToSet(&data, true);
 }
 
-uint8 Aura::BuildEffectMaskForOwner(SpellInfo const* spellProto, uint8 avalibleEffectMask, WorldObject* owner)
+uint32 Aura::BuildEffectMaskForOwner(SpellInfo const* spellProto, uint32 avalibleEffectMask, WorldObject* owner)
 {
     ASSERT_NODEBUGINFO(spellProto);
     ASSERT_NODEBUGINFO(owner);
-    uint8 effMask = 0;
+    uint32 effMask = 0;
     switch (owner->GetTypeId())
     {
         case TYPEID_UNIT:
@@ -331,7 +317,7 @@ uint8 Aura::BuildEffectMaskForOwner(SpellInfo const* spellProto, uint8 avalibleE
     return effMask & avalibleEffectMask;
 }
 
-Aura* Aura::TryRefreshStackOrCreate(SpellInfo const* spellproto, uint8 tryEffMask, WorldObject* owner, Unit* caster, int32* baseAmount /*= nullptr*/, Item* castItem /*= nullptr*/, ObjectGuid casterGUID /*= ObjectGuid::Empty*/, bool* refresh /*= nullptr*/, bool periodicReset /*= false*/)
+Aura* Aura::TryRefreshStackOrCreate(SpellInfo const* spellproto, uint32 tryEffMask, WorldObject* owner, Unit* caster, int32* baseAmount /*= nullptr*/, Item* castItem /*= nullptr*/, ObjectGuid casterGUID /*= ObjectGuid::Empty*/, bool* refresh /*= nullptr*/, bool periodicReset /*= false*/)
 {
     ASSERT_NODEBUGINFO(spellproto);
     ASSERT_NODEBUGINFO(owner);
@@ -339,7 +325,7 @@ Aura* Aura::TryRefreshStackOrCreate(SpellInfo const* spellproto, uint8 tryEffMas
     ASSERT_NODEBUGINFO(tryEffMask <= MAX_EFFECT_MASK);
     if (refresh)
         *refresh = false;
-    uint8 effMask = Aura::BuildEffectMaskForOwner(spellproto, tryEffMask, owner);
+    uint32 effMask = Aura::BuildEffectMaskForOwner(spellproto, tryEffMask, owner);
     if (!effMask)
         return nullptr;
     if (Aura* foundAura = owner->ToUnit()->_TryStackingOrRefreshingExistingAura(spellproto, effMask, caster, baseAmount, castItem, casterGUID, periodicReset))
@@ -357,19 +343,19 @@ Aura* Aura::TryRefreshStackOrCreate(SpellInfo const* spellproto, uint8 tryEffMas
         return Create(spellproto, effMask, owner, caster, baseAmount, castItem, casterGUID);
 }
 
-Aura* Aura::TryCreate(SpellInfo const* spellproto, uint8 tryEffMask, WorldObject* owner, Unit* caster, int32* baseAmount /*= nullptr*/, Item* castItem /*= nullptr*/, ObjectGuid casterGUID /*= ObjectGuid::Empty*/, ObjectGuid itemGUID /*= ObjectGuid::Empty*/)
+Aura* Aura::TryCreate(SpellInfo const* spellproto, uint32 tryEffMask, WorldObject* owner, Unit* caster, int32* baseAmount /*= nullptr*/, Item* castItem /*= nullptr*/, ObjectGuid casterGUID /*= ObjectGuid::Empty*/, ObjectGuid itemGUID /*= ObjectGuid::Empty*/)
 {
     ASSERT_NODEBUGINFO(spellproto);
     ASSERT_NODEBUGINFO(owner);
     ASSERT_NODEBUGINFO(caster || casterGUID);
     ASSERT_NODEBUGINFO(tryEffMask <= MAX_EFFECT_MASK);
-    uint8 effMask = Aura::BuildEffectMaskForOwner(spellproto, tryEffMask, owner);
+    uint32 effMask = Aura::BuildEffectMaskForOwner(spellproto, tryEffMask, owner);
     if (!effMask)
         return nullptr;
     return Create(spellproto, effMask, owner, caster, baseAmount, castItem, casterGUID, itemGUID);
 }
 
-Aura* Aura::Create(SpellInfo const* spellproto, uint8 effMask, WorldObject* owner, Unit* caster, int32* baseAmount, Item* castItem, ObjectGuid casterGUID, ObjectGuid itemGUID /*= ObjectGuid::Empty*/)
+Aura* Aura::Create(SpellInfo const* spellproto, uint32 effMask, WorldObject* owner, Unit* caster, int32* baseAmount, Item* castItem, ObjectGuid casterGUID, ObjectGuid itemGUID /*= ObjectGuid::Empty*/)
 {
     ASSERT_NODEBUGINFO(effMask);
     ASSERT_NODEBUGINFO(spellproto);
@@ -447,12 +433,12 @@ AuraScript* Aura::GetScriptByName(std::string const& scriptName) const
     return nullptr;
 }
 
-void Aura::_InitEffects(uint8 effMask, Unit* caster, int32* baseAmount)
+void Aura::_InitEffects(uint32 effMask, Unit* caster, int32* baseAmount)
 {
     // shouldn't be in constructor - functions in AuraEffect::AuraEffect use polymorphism
     for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
     {
-        if (effMask & (uint8(1) << i))
+        if (effMask & (1u << i))
             m_effects[i] = new AuraEffect(this, i, baseAmount ? baseAmount + i : nullptr, caster);
         else
             m_effects[i] = nullptr;
@@ -662,7 +648,7 @@ void Aura::UpdateTargetMap(Unit* caster, bool apply)
 
     // fill up to date target list
     //       target, effMask
-    std::map<Unit*, uint8> targets;
+    std::map<Unit*, uint32> targets;
 
     FillTargetMap(targets, caster);
 
@@ -671,7 +657,7 @@ void Aura::UpdateTargetMap(Unit* caster, bool apply)
     // mark all auras as ready to remove
     for (ApplicationMap::iterator appIter = m_applications.begin(); appIter != m_applications.end(); ++appIter)
     {
-        std::map<Unit*, uint8>::iterator existing = targets.find(appIter->second->GetTarget());
+        std::map<Unit*, uint32>::iterator existing = targets.find(appIter->second->GetTarget());
         // not found in current area - remove the aura
         if (existing == targets.end())
             targetsToRemove.push_back(appIter->second->GetTarget());
@@ -715,7 +701,7 @@ void Aura::UpdateTargetMap(Unit* caster, bool apply)
     }
 
     // register auras for units
-    for (std::map<Unit*, uint8>::iterator itr = targets.begin(); itr != targets.end();)
+    for (std::map<Unit*, uint32>::iterator itr = targets.begin(); itr != targets.end();)
     {
         // aura mustn't be already applied on target
         if (AuraApplication* aurApp = GetApplicationOfTarget(itr->first->GetGUID()))
@@ -800,7 +786,7 @@ void Aura::UpdateTargetMap(Unit* caster, bool apply)
             // paladin auras of the same spell coexist per caster, but only the strongest one keeps
             // its effects on the target; weaker duplicates are applied without effects so each
             // paladin's Aura Mastery can still detect their own aura on the target.
-            uint8 effMask = itr->second;
+            uint32 effMask = itr->second;
             if (m_spellInfo->GetSpellSpecific() == SPELL_SPECIFIC_AURA)
             {
                 if (AuraApplication* otherApp = GetDominantOtherSameSpellApp(itr->first, GetId(), GetCasterGUID()))
@@ -833,7 +819,7 @@ void Aura::UpdateTargetMap(Unit* caster, bool apply)
         return;
 
     // apply aura effects for units
-    for (std::map<Unit*, uint8>::iterator itr = targets.begin(); itr != targets.end(); ++itr)
+    for (std::map<Unit*, uint32>::iterator itr = targets.begin(); itr != targets.end(); ++itr)
     {
         if (AuraApplication* aurApp = GetApplicationOfTarget(itr->first->GetGUID()))
         {
@@ -1335,7 +1321,7 @@ int32 Aura::CalcDispelChance(Unit* auraTarget, bool offensive) const
     return 100 - resistChance;
 }
 
-void Aura::SetLoadedState(int32 maxduration, int32 duration, int32 charges, uint8 stackamount, uint8 recalculateMask, int32* amount)
+void Aura::SetLoadedState(int32 maxduration, int32 duration, int32 charges, uint8 stackamount, uint32 recalculateMask, int32* amount)
 {
     m_maxDuration = maxduration;
     m_duration = duration;
@@ -1347,7 +1333,7 @@ void Aura::SetLoadedState(int32 maxduration, int32 duration, int32 charges, uint
         if (m_effects[i])
         {
             m_effects[i]->SetAmount(amount[i]);
-            m_effects[i]->SetCanBeRecalculated(recalculateMask & (1 << i));
+            m_effects[i]->SetCanBeRecalculated(recalculateMask & (1u << i));
             m_effects[i]->CalculatePeriodic(caster, false, true);
             m_effects[i]->CalculateSpellMod();
             if (caster)
@@ -2318,7 +2304,7 @@ void Aura::PrepareProcToTrigger(AuraApplication* aurApp, ProcEventInfo& eventInf
     AddProcCooldown(now + procEntry->Cooldown);
 }
 
-uint8 Aura::GetProcEffectMask(AuraApplication* aurApp, ProcEventInfo& eventInfo, TimePoint now) const
+uint32 Aura::GetProcEffectMask(AuraApplication* aurApp, ProcEventInfo& eventInfo, TimePoint now) const
 {
     SpellProcEntry const* procEntry = sSpellMgr->GetSpellProcEntry(GetId());
 
@@ -2390,7 +2376,7 @@ uint8 Aura::GetProcEffectMask(AuraApplication* aurApp, ProcEventInfo& eventInfo,
         return 0;
 
     // At least one effect has to pass checks to proc aura
-    uint8 procEffectMask = aurApp->GetEffectMask();
+    uint32 procEffectMask = aurApp->GetEffectMask();
     for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
     {
         if (AuraEffect* aurEff = GetEffect(i))
@@ -2493,7 +2479,7 @@ float Aura::CalcProcChance(SpellProcEntry const& procEntry, ProcEventInfo& event
     return chance;
 }
 
-void Aura::TriggerProcOnEvent(uint8 procEffectMask, AuraApplication* aurApp, ProcEventInfo& eventInfo)
+void Aura::TriggerProcOnEvent(uint32 procEffectMask, AuraApplication* aurApp, ProcEventInfo& eventInfo)
 {
     bool prevented = CallScriptProcHandlers(aurApp, eventInfo);
     if (!prevented)
@@ -2948,7 +2934,7 @@ SpellInfo const* Aura::GetTriggeredByAuraSpellInfo() const
     return m_triggeredByAuraSpellInfo;
 }
 
-UnitAura::UnitAura(SpellInfo const* spellproto, uint8 effMask, WorldObject* owner, Unit* caster, int32* baseAmount, Item* castItem, ObjectGuid casterGUID, ObjectGuid itemGUID /*= ObjectGuid::Empty*/)
+UnitAura::UnitAura(SpellInfo const* spellproto, uint32 effMask, WorldObject* owner, Unit* caster, int32* baseAmount, Item* castItem, ObjectGuid casterGUID, ObjectGuid itemGUID /*= ObjectGuid::Empty*/)
     : Aura(spellproto, owner, caster, castItem, casterGUID, itemGUID)
 {
     m_AuraDRGroup = DIMINISHING_NONE;
@@ -2982,7 +2968,7 @@ void UnitAura::Remove(AuraRemoveMode removeMode)
     GetUnitOwner()->RemoveOwnedAura(this, removeMode);
 }
 
-void UnitAura::FillTargetMap(std::map<Unit*, uint8>& targets, Unit* caster)
+void UnitAura::FillTargetMap(std::map<Unit*, uint32>& targets, Unit* caster)
 {
     for (uint8 effIndex = 0; effIndex < MAX_SPELL_EFFECTS; ++effIndex)
     {
@@ -3042,7 +3028,7 @@ void UnitAura::FillTargetMap(std::map<Unit*, uint8>& targets, Unit* caster)
 
         for (UnitList::iterator itr = targetList.begin(); itr != targetList.end(); ++itr)
         {
-            std::map<Unit*, uint8>::iterator existing = targets.find(*itr);
+            std::map<Unit*, uint32>::iterator existing = targets.find(*itr);
             if (existing != targets.end())
                 existing->second |= 1 << effIndex;
             else
@@ -3051,7 +3037,7 @@ void UnitAura::FillTargetMap(std::map<Unit*, uint8>& targets, Unit* caster)
     }
 }
 
-DynObjAura::DynObjAura(SpellInfo const* spellproto, uint8 effMask, WorldObject* owner, Unit* caster, int32* baseAmount, Item* castItem, ObjectGuid casterGUID, ObjectGuid itemGUID /*= ObjectGuid::Empty*/)
+DynObjAura::DynObjAura(SpellInfo const* spellproto, uint32 effMask, WorldObject* owner, Unit* caster, int32* baseAmount, Item* castItem, ObjectGuid casterGUID, ObjectGuid itemGUID /*= ObjectGuid::Empty*/)
     : Aura(spellproto, owner, caster, castItem, casterGUID, itemGUID)
 {
     LoadScripts();
@@ -3069,7 +3055,7 @@ void DynObjAura::Remove(AuraRemoveMode removeMode)
     _Remove(removeMode);
 }
 
-void DynObjAura::FillTargetMap(std::map<Unit*, uint8>& targets, Unit* /*caster*/)
+void DynObjAura::FillTargetMap(std::map<Unit*, uint32>& targets, Unit* /*caster*/)
 {
     Unit* dynObjOwnerCaster = GetDynobjOwner()->GetCaster();
     float radius = GetDynobjOwner()->GetRadius();
@@ -3120,7 +3106,7 @@ void DynObjAura::FillTargetMap(std::map<Unit*, uint8>& targets, Unit* /*caster*/
                 continue;
             }
 
-            std::map<Unit*, uint8>::iterator existing = targets.find(*itr);
+            std::map<Unit*, uint32>::iterator existing = targets.find(*itr);
             if (existing != targets.end())
                 existing->second |= 1 << effIndex;
             else

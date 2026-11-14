@@ -97,6 +97,7 @@ DumpTable const DumpTables[] =
     { "character_archaeology_projects", DTT_CHAR_TABLE   },
     { "character_archaeology_sites",    DTT_CHAR_TABLE   },
     { "character_aura",                 DTT_CHAR_TABLE   },
+    { "character_aura_effect",          DTT_CHAR_TABLE   },
     { "character_cuf_profiles",         DTT_CHAR_TABLE   },
     { "character_currency",             DTT_CHAR_TABLE   },
     { "character_declinedname",         DTT_CHAR_TABLE   },
@@ -121,6 +122,7 @@ DumpTable const DumpTables[] =
     { "mail",                           DTT_MAIL         },
     { "mail_items",                     DTT_MAIL_ITEM    }, // must be after mail
     { "pet_aura",                       DTT_PET_TABLE    }, // must be after character_pet
+    { "pet_aura_effect",                DTT_PET_TABLE    }, // must be after character_pet
     { "pet_spell",                      DTT_PET_TABLE    }, // must be after character_pet
     { "pet_spell_cooldown",             DTT_PET_TABLE    }, // must be after character_pet
     { "item_instance",                  DTT_ITEM         }, // must be after character_inventory and mail_items

@@ -920,6 +920,7 @@ enum PlayerLoginQueryIndex
     PLAYER_LOGIN_QUERY_LOAD_ARCHAEOLOGY_PROJECTS         = 43,
     PLAYER_LOGIN_QUERY_LOAD_CUF_PROFILES                 = 44,
     PLAYER_LOGIN_QUERY_LOAD_QUEST_STATUS_OBJECTIVES      = 45,
+    PLAYER_LOGIN_QUERY_LOAD_AURA_EFFECTS                 = 46,
     MAX_PLAYER_LOGIN_QUERY
 };
 
@@ -2983,7 +2984,7 @@ protected:
     /*********************************************************/
 
     void _LoadActions(PreparedQueryResult result);
-    void _LoadAuras(PreparedQueryResult result, uint32 timediff);
+    void _LoadAuras(PreparedQueryResult auraResult, PreparedQueryResult effectResult, uint32 timediff);
     void _LoadGlyphAuras();
     void _LoadInventory(PreparedQueryResult result, uint32 timeDiff);
     void _LoadMail(PreparedQueryResult mailsResult, PreparedQueryResult mailItemsResult);
