@@ -17,19 +17,13 @@
 
 #include "ObjectMgr.h"
 #include "Opcodes.h"
+#include "ReferAFriendPackets.h"
 #include "Player.h"
 #include "WorldSession.h"
 
-void WorldSession::HandleGrantLevel(WorldPacket& recvData)
+void WorldSession::HandleGrantLevel(WorldPackets::RaF::GrantLevel& grantLevel)
 {
-    LOG_DEBUG("network", "WORLD: CMSG_GRANT_LEVEL");
-
-    // 5.4.8 18414, from Project SkyFire
-    ObjectGuid guid;
-    recvData.ReadGuidMask(guid, { 2, 1, 5, 3, 7, 4, 0, 6 });
-    recvData.ReadGuidBytes(guid, { 1, 4, 2, 7, 5, 3, 6, 0 });
-
-    Player* target = ObjectAccessor::GetPlayer(*_player, guid);
+    Player* target = ObjectAccessor::GetPlayer(*_player, grantLevel.Target);
 
     // check cheating
     uint8 levels = _player->GetGrantableLevels();
@@ -51,34 +45,24 @@ void WorldSession::HandleGrantLevel(WorldPacket& recvData)
 
     if (error)
     {
-        WorldPacket data(SMSG_REFER_A_FRIEND_FAILURE, 24);
-        data << uint32(error);
+        WorldPackets::RaF::ReferAFriendFailure failure;
+        failure.Reason = error;
         if (error == ERR_REFER_A_FRIEND_NOT_IN_GROUP)
-            data << target->GetName();
+            failure.Str = target->GetName();
 
-        SendPacket(&data);
+        SendPacket(failure.Write());
         return;
     }
 
-    ObjectGuid granterGuid = _player->GetGUID();
-    WorldPacket data2(SMSG_PROPOSE_LEVEL_GRANT, 1 + 8);
-    data2.WriteGuidMask(granterGuid, { 6, 7, 2, 5, 3, 0, 1, 4 });
-    data2.FlushBits();
-    data2.WriteGuidBytes(granterGuid, { 2, 5, 6, 7, 1, 4, 3, 0 });
-    target->SendDirectMessage(&data2);
+    WorldPackets::RaF::ProposeLevelGrant proposeLevelGrant;
+    proposeLevelGrant.Sender = _player->GetGUID();
+    target->SendDirectMessage(proposeLevelGrant.Write());
 }
 
-void WorldSession::HandleAcceptGrantLevel(WorldPacket& recvData)
+void WorldSession::HandleAcceptGrantLevel(WorldPackets::RaF::AcceptLevelGrant& acceptLevelGrant)
 {
-    LOG_DEBUG("network", "WORLD: CMSG_ACCEPT_LEVEL_GRANT");
-
-    // 5.4.8 18414, from Project SkyFire
-    ObjectGuid guid;
-    recvData.ReadGuidMask(guid, { 2, 7, 5, 4, 3, 0, 1, 6 });
-    recvData.ReadGuidBytes(guid, { 5, 3, 2, 7, 4, 1, 0, 6 });
-
-    Player* other = ObjectAccessor::GetPlayer(*_player, guid);
-    if (!other)
+    Player* other = ObjectAccessor::GetPlayer(*_player, acceptLevelGrant.Granter);
+    if (!other || !other->GetSession())
         return;
 
     if (GetAccountId() != other->GetSession()->GetRecruiterId())

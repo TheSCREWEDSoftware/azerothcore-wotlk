@@ -19,6 +19,7 @@
 #include "DBCStores.h"
 #include "Item.h"
 #include "Log.h"
+#include "NPCPackets.h"
 #include "Player.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
@@ -41,12 +42,9 @@ bool WorldSession::CanUseBank(ObjectGuid bankerGUID) const
     return true;
 }
 
-void WorldSession::HandleBankerActivateOpcode(WorldPacket& recvData)
+void WorldSession::HandleBankerActivateOpcode(WorldPackets::NPC::Hello& packet)
 {
-    ObjectGuid guid;
-    // 5.4.8 18414, from Project SkyFire
-    recvData.ReadGuidMask(guid, { 4, 5, 0, 6, 1, 2, 7, 3 });
-    recvData.ReadGuidBytes(guid, { 1, 7, 2, 5, 6, 3, 0, 4 });
+    ObjectGuid guid = packet.Unit;
 
     Creature* unit = GetPlayer()->GetNPCIfCanInteractWith(guid, UNIT_NPC_FLAG_BANKER);
     if (!unit)
@@ -143,12 +141,10 @@ void WorldSession::HandleAutoStoreBankItemOpcode(WorldPackets::Bank::AutoStoreBa
 
 void WorldSession::HandleBuyBankSlotOpcode(WorldPackets::Bank::BuyBankSlot& buyBankSlot)
 {
-    WorldPackets::Bank::BuyBankSlotResult packet;
-    if (!CanUseBank(buyBankSlot.Banker))
+    // 6.x 19342: SMSG_BUY_BANK_SLOT_RESULT has no known 6.x opcode, the client only sees the new slot
+    if (!CanUseBank(buyBankSlot.Guid))
     {
-        packet.Result = ERR_BANKSLOT_NOTBANKER;
-        SendPacket(packet.Write());
-        LOG_DEBUG("network", "WORLD: HandleBuyBankSlotOpcode - {} not found or you can't interact with him.", buyBankSlot.Banker.ToString());
+        LOG_DEBUG("network", "WORLD: HandleBuyBankSlotOpcode - {} not found or you can't interact with him.", buyBankSlot.Guid.ToString());
         return;
     }
 
@@ -161,8 +157,6 @@ void WorldSession::HandleBuyBankSlotOpcode(WorldPackets::Bank::BuyBankSlot& buyB
 
     if (!slotEntry)
     {
-        packet.Result = ERR_BANKSLOT_FAILED_TOO_MANY;
-        SendPacket(packet.Write());
         return;
     }
 
@@ -170,16 +164,11 @@ void WorldSession::HandleBuyBankSlotOpcode(WorldPackets::Bank::BuyBankSlot& buyB
 
     if (!_player->HasEnoughMoney(price))
     {
-        packet.Result = ERR_BANKSLOT_INSUFFICIENT_FUNDS;
-        SendPacket(packet.Write());
         return;
     }
 
     _player->SetBankBagSlotCount(slot);
     _player->ModifyMoney(-int32(price));
-
-    packet.Result = ERR_BANKSLOT_OK;
-    SendPacket(packet.Write());
 
     _player->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_BUY_BANK_SLOT);
 }
@@ -187,7 +176,7 @@ void WorldSession::HandleBuyBankSlotOpcode(WorldPackets::Bank::BuyBankSlot& buyB
 void WorldSession::SendShowBank(ObjectGuid guid)
 {
     m_currentBankerGUID = guid;
-    WorldPackets::Bank::ShowBank packet;
-    packet.Banker = guid;
+    WorldPackets::NPC::ShowBank packet;
+    packet.Guid = guid;
     SendPacket(packet.Write());
 }

@@ -17,26 +17,15 @@
 
 #include "Log.h"
 #include "Opcodes.h"
+#include "VoicePackets.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
 
-void WorldSession::HandleVoiceSessionEnableOpcode(WorldPacket& recvData)
+// 6.x 19342: voice chat is not implemented (TC 6.x)
+void WorldSession::HandleVoiceSessionEnable(WorldPackets::Voice::VoiceSessionEnable& /*packet*/)
 {
-    LOG_DEBUG("network", "WORLD: CMSG_VOICE_SESSION_ENABLE");
-    // 5.4.8 18414: bit isVoiceEnabled, bit isMicrophoneEnabled
-    recvData.ReadBit();
-    recvData.ReadBit();
 }
 
-void WorldSession::HandleChannelVoiceOnOpcode(WorldPacket& /*recvData*/)
+void WorldSession::HandleSetActiveVoiceChannel(WorldPackets::Voice::SetActiveVoiceChannel& /*packet*/)
 {
-    LOG_DEBUG("network", "WORLD: CMSG_CHAT_CHANNEL_VOICE_ON");
-    // Enable Voice button in channel context menu
-}
-
-void WorldSession::HandleSetActiveVoiceChannel(WorldPacket& recvData)
-{
-    LOG_DEBUG("network", "WORLD: CMSG_SET_ACTIVE_VOICE_CHANNEL");
-    recvData.read_skip<uint32>();
-    recvData.read_skip<char*>();
 }

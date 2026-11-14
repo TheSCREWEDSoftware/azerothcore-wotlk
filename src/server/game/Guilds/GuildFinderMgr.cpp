@@ -353,7 +353,7 @@ void GuildFinderMgr::DeleteGuild(uint32 guildId)
 
 void GuildFinderMgr::SendApplicantListUpdate(Guild& guild)
 {
-    WorldPackets::GuildFinder::ApplicantListUpdated packet;
+    WorldPackets::GuildFinder::LFGuildApplicantListChanged packet;
     WorldPacket const* raw = packet.Write();
     if (Player* player = ObjectAccessor::FindPlayer(guild.GetLeaderGUID()))
         player->SendDirectMessage(raw);
@@ -362,6 +362,6 @@ void GuildFinderMgr::SendApplicantListUpdate(Guild& guild)
 
 void GuildFinderMgr::SendMembershipRequestListUpdate(Player& player)
 {
-    WorldPackets::GuildFinder::ApplicationsListChanged packet;
+    WorldPackets::GuildFinder::LFGuildApplicationsListChanged packet;
     player.SendDirectMessage(packet.Write());
 }
