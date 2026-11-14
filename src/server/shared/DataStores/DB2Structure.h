@@ -557,9 +557,9 @@ struct GarrSiteLevelEntry
     uint32 MapID;                                                   // 2
     uint32 SiteID;                                                  // 3
     uint32 UITextureKitID;                                          // 4
-    DBCPosition2D TownHall;                                         // 5-6
+    DBCPosition2D TownHallUiPos;                                    // 5-6 world map UI position, not world coordinates
     uint32 MovieID;                                                 // 7
-    uint32 Level2;                                                  // 8
+    uint32 MaxBuildingLevel;                                        // 8
     uint32 UpgradeResourceCost;                                     // 9
     uint32 UpgradeMoneyCost;                                        // 10
 };

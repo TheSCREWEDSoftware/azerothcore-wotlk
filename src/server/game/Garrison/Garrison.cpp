@@ -226,9 +226,11 @@ void Garrison::DeleteFromDB(ObjectGuid::LowType ownerGuid, CharacterDatabaseTran
 
 bool Garrison::Create(uint32 garrSiteId)
 {
-    _siteLevel = sGarrisonMgr.GetGarrSiteLevelEntry(garrSiteId, 1);
-    if (!_siteLevel)
+    GarrSiteLevelEntry const* siteLevel = sGarrisonMgr.GetGarrSiteLevelEntry(garrSiteId, 1);
+    if (!siteLevel)
         return false;
+
+    _siteLevel = siteLevel;
 
     InitializePlots();
 
@@ -271,6 +273,7 @@ void Garrison::InitializePlots()
             Plot& plotInfo = _plots[garrPlotInstanceId];
             plotInfo.PacketInfo.GarrPlotInstanceID = garrPlotInstanceId;
             plotInfo.PacketInfo.PlotPos.Relocate(gameObject->Position.X, gameObject->Position.Y, gameObject->Position.Z, 2 * std::acos(gameObject->RotationW));
+            plotInfo.Rotation = G3D::Quat(gameObject->RotationX, gameObject->RotationY, gameObject->RotationZ, gameObject->RotationW);
             plotInfo.PacketInfo.PlotType = plot->PlotType;
             plotInfo.EmptyGameObjectId = gameObject->ID;
             plotInfo.GarrSiteLevelPlotInstId = plots->at(i)->ID;
@@ -310,11 +313,11 @@ void Garrison::Leave() const
 
 // TC master moves the player between the parent continent and the garrison map with
 // server side area triggers (at_garrison_enter / at_garrison_exit). This core has no
-// area trigger entities, so the owner is checked against the town hall position of the
-// current site level on the zone update tick instead. The leave radius is larger than
-// the enter radius so the player is not moved back and forth at the edge.
-static constexpr float GARRISON_ENTER_RADIUS = 150.0f;
-static constexpr float GARRISON_LEAVE_RADIUS = 180.0f;
+// area trigger entities, so the owner is checked against the area covered by the plots
+// of the current site level on the zone update tick instead. The leave margin is larger
+// than the enter margin so the player is not moved back and forth at the edge.
+static constexpr float GARRISON_ENTER_MARGIN = 30.0f;
+static constexpr float GARRISON_LEAVE_MARGIN = 60.0f;
 
 void Garrison::CheckEnterOrLeave() const
 {
@@ -325,15 +328,34 @@ void Garrison::CheckEnterOrLeave() const
     if (!map)
         return;
 
-    float dist = _owner->GetExactDist2d(_siteLevel->TownHall.X, _siteLevel->TownHall.Y);
+    if (_plots.empty())
+        return;
+
+    // The plots surround the town hall, so their centre and spread describe the garrison area
+    float centerX = 0.0f;
+    float centerY = 0.0f;
+    for (auto const& [plotInstanceId, plot] : _plots)
+    {
+        centerX += plot.PacketInfo.PlotPos.GetPositionX();
+        centerY += plot.PacketInfo.PlotPos.GetPositionY();
+    }
+
+    centerX /= float(_plots.size());
+    centerY /= float(_plots.size());
+
+    float radius = 0.0f;
+    for (auto const& [plotInstanceId, plot] : _plots)
+        radius = std::max(radius, plot.PacketInfo.PlotPos.GetExactDist2d(centerX, centerY));
+
+    float dist = _owner->GetExactDist2d(centerX, centerY);
     if (int32(_owner->GetMapId()) == map->ParentMapID)
     {
-        if (dist < GARRISON_ENTER_RADIUS)
+        if (dist < radius + GARRISON_ENTER_MARGIN)
             Enter();
     }
     else if (_owner->GetMapId() == _siteLevel->MapID)
     {
-        if (dist > GARRISON_LEAVE_RADIUS)
+        if (dist > radius + GARRISON_LEAVE_MARGIN)
             Leave();
     }
 }
@@ -642,7 +664,7 @@ GarrisonError Garrison::CheckBuildingPlacement(uint32 garrPlotInstanceId, uint32
         return GARRISON_ERROR_INVALID_PLOT_BUILDING;
 
     // Cannot place buldings of higher level than garrison level
-    if (building->Level > _siteLevel->Level)
+    if (building->Level > _siteLevel->MaxBuildingLevel) // TC master
         return GARRISON_ERROR_INVALID_BUILDINGID;
 
     if (building->Flags & GARRISON_BUILDING_FLAG_NEEDS_PLAN)
@@ -753,7 +775,7 @@ GameObject* Garrison::Plot::CreateGameObject(Map* map, GarrisonFactionIndex fact
     Position const& pos = PacketInfo.PlotPos;
     GameObject* building = new GameObject();
     if (!building->Create(map->GenerateLowGuid<HighGuid::GameObject>(), entry, map, PHASEMASK_NORMAL, pos.GetPositionX(), pos.GetPositionY(), pos.GetPositionZ(), pos.GetOrientation(),
-        G3D::Quat(G3D::Matrix3::fromEulerAnglesZYX(pos.GetOrientation(), 0.0f, 0.0f)), 255, GO_STATE_READY))
+        Rotation, 255, GO_STATE_READY))
     {
         delete building;
         return nullptr;

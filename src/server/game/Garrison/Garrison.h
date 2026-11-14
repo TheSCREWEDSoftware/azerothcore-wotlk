@@ -18,6 +18,7 @@
 #ifndef Garrison_h__
 #define Garrison_h__
 
+#include <G3D/Quat.h>
 #include "Player.h"
 #include "GarrisonPackets.h"
 
@@ -100,6 +101,7 @@ public:
         void SetBuildingInfo(WorldPackets::Garrison::GarrisonBuildingInfo const& buildingInfo, Player* owner);
 
         WorldPackets::Garrison::GarrisonPlotInfo PacketInfo;
+        G3D::Quat Rotation;                                     // TC master: the plot keeps the full GameObjects.db2 rotation
         uint32 EmptyGameObjectId = 0;
         uint32 GarrSiteLevelPlotInstId = 0;
         Building BuildingInfo;
