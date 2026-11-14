@@ -66,6 +66,10 @@ load() {
     sed 's/utf8mb4_0900_ai_ci/utf8mb4_unicode_ci/g' "$2" | mysql_run "$1"
 }
 
+# The converted item_template insert is one statement well over the 16MB server default
+mysql_run -e "SET GLOBAL max_allowed_packet = 1073741824" \
+    || echo "warning: could not raise max_allowed_packet; set it to 1G on the server" >&2
+
 echo "== 1. $SOURCE_DB from $(basename "$TDB_SQL")"
 recreate "$SOURCE_DB"
 load "$SOURCE_DB" "$TDB_SQL"
@@ -111,6 +115,7 @@ python3 "$here/convert_items_from_db2.py" "$DBC_DIR/Item.db2" "$DBC_DIR/Item-spa
     mysql_run "$TARGET_DB"
 # every zone with TDB quests unless ZONES_FILE names a smaller set
 zones_file=${ZONES_FILE:-$(mktemp)}
+[[ -n ${ZONES_FILE:-} ]] || trap 'rm -f "$zones_file"' EXIT
 [[ -n ${ZONES_FILE:-} ]] || CONTAINER="$CONTAINER" DB_USER="$DB_USER" DB_PASSWORD="$DB_PASSWORD" \
     bash "$here/list_quest_zones.sh" "$SOURCE_DB" > "$zones_file"
 CONTAINER="$CONTAINER" DB_USER="$DB_USER" DB_PASSWORD="$DB_PASSWORD" DBC_DIR="$DBC_DIR" SOURCE_DB="$SOURCE_DB" \

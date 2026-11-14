@@ -3,6 +3,8 @@
 # applied updates the way an AzerothCore database squash does.
 #   export_world_base.sh <world_schema>
 # CONTAINER ("local" default), DB_USER, DB_PASSWORD as in build_world_base.sh; KEEP_UPDATES=1 skips the archive.
+# ARCHIVE_NAME (default cata) names the data/sql/old/db_world subdirectory and the prefix archived pending
+# files get.
 set -euo pipefail
 
 TARGET_DB=${1:?world schema}
@@ -24,14 +26,16 @@ else
 fi
 
 base="$root/data/sql/base/db_world"
-archive="$root/data/sql/old/db_world/cata"
+ARCHIVE_NAME=${ARCHIVE_NAME:-cata}
+[[ $ARCHIVE_NAME =~ ^[a-z0-9]+$ ]] || { echo "invalid archive name" >&2; exit 2; }
+archive="$root/data/sql/old/db_world/$ARCHIVE_NAME"
 if [[ ${KEEP_UPDATES:-0} != 1 ]]; then
     # record every applied update as ARCHIVED before the `updates` table is dumped
     mkdir -p "$archive"
     for dir in updates/db_world updates/pending_db_world; do
         while IFS= read -r -d '' update; do
             name=$(basename "$update")
-            [[ $dir == updates/pending_db_world ]] && name="cata_$name"
+            [[ $dir == updates/pending_db_world ]] && name="${ARCHIVE_NAME}_$name"
             hash=$(sha1sum "$update" | cut -c1-40 | tr a-f A-F)
             mysql_run -e "REPLACE INTO \`$TARGET_DB\`.updates (name, hash, state, speed) VALUES ('$name', '$hash', 'ARCHIVED', 0)"
             git -C "$root" mv "$update" "$archive/$name" 2>/dev/null || mv "$update" "$archive/$name"

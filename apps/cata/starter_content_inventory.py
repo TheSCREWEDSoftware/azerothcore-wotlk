@@ -20,10 +20,11 @@ from pathlib import Path
 
 
 def query(container: str, user: str, password: str, schema: str, sql: str) -> list[list[str]]:
+    # the statement goes through stdin: zone-sized IN lists exceed the kernel's argument length limit
     result = subprocess.run(
         (["mysql", f"-u{user}"] + ([f"-p{password}"] if password else []) if container == "local"
-         else ["docker", "exec", container, "mysql", f"-u{user}", f"-p{password}"]) + ["-N", "-B", schema, "-e", sql],
-        capture_output=True, text=True, check=False,
+         else ["docker", "exec", "-i", container, "mysql", f"-u{user}", f"-p{password}"]) + ["-N", "-B", schema],
+        input=sql, capture_output=True, text=True, check=False,
     )
     if result.returncode:
         raise RuntimeError(f"query failed: {sql}\n{result.stderr.strip()}")
