@@ -21,6 +21,7 @@
 
 #include "TC9Sidecar.h"
 #include "WorldSession.h"
+#include "ChatPackets.h"
 #include "ClientConfigPackets.h"
 #include "AuthenticationPackets.h"
 #include "BattlenetRpcErrorCodes.h"
@@ -1803,30 +1804,16 @@ bool WorldSession::IsAddonRegistered(std::string const& prefix) const
     return std::find(_registeredAddonPrefixes.begin(), _registeredAddonPrefixes.end(), prefix) != _registeredAddonPrefixes.end();
 }
 
-void WorldSession::HandleUnregisterAddonPrefixesOpcode(WorldPacket& /*recvData*/)
+void WorldSession::HandleUnregisterAllAddonPrefixesOpcode(WorldPackets::Chat::ChatUnregisterAllAddonPrefixes& /*packet*/)
 {
     _registeredAddonPrefixes.clear();
 }
 
-void WorldSession::HandleAddonRegisteredPrefixesOpcode(WorldPacket& recvData)
+void WorldSession::HandleAddonRegisteredPrefixesOpcode(WorldPackets::Chat::ChatRegisterAddonPrefixes& packet)
 {
-    // always sent after CMSG_UNREGISTER_ALL_ADDON_PREFIXES
-    static constexpr std::size_t REGISTERED_ADDON_PREFIX_SOFTCAP = 64;
+    // always sent after CMSG_CHAT_UNREGISTER_ALL_ADDON_PREFIXES; the packet holds at most MAX_PREFIXES
+    _registeredAddonPrefixes.insert(_registeredAddonPrefixes.end(), packet.Prefixes.begin(), packet.Prefixes.end());
 
-    uint32 count = recvData.ReadBits(25);
-    if (count > REGISTERED_ADDON_PREFIX_SOFTCAP)
-    {
-        _filterAddonMessages = false;
-        recvData.rfinish();
-        return;
-    }
-
-    std::vector<uint8> lengths(count);
-    for (uint8& length : lengths)
-        length = recvData.ReadBits(5);
-
-    for (uint8 length : lengths)
-        _registeredAddonPrefixes.push_back(recvData.ReadString(length));
-
-    _filterAddonMessages = _registeredAddonPrefixes.size() <= REGISTERED_ADDON_PREFIX_SOFTCAP;
+    // past the client limit nothing is filtered
+    _filterAddonMessages = _registeredAddonPrefixes.size() <= WorldPackets::Chat::ChatRegisterAddonPrefixes::MAX_PREFIXES;
 }

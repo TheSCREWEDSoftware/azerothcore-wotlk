@@ -58,37 +58,74 @@ inline bool isNasty(uint8 c)
     return false;
 }
 
-void WorldSession::HandleMessagechatOpcode(WorldPacket& recvData)
+void WorldSession::HandleChatMessageOpcode(WorldPackets::Chat::ChatMessage& chatMessage)
 {
-    // The chat type is part of the opcode.
-    uint32 type;
-    switch (recvData.GetOpcode())
+    ChatMsg type;
+
+    switch (chatMessage.GetOpcode())
     {
-        case CMSG_MESSAGECHAT_SAY:            type = CHAT_MSG_SAY;            break;
-        case CMSG_MESSAGECHAT_YELL:           type = CHAT_MSG_YELL;           break;
-        case CMSG_MESSAGECHAT_CHANNEL:        type = CHAT_MSG_CHANNEL;        break;
-        case CMSG_MESSAGECHAT_WHISPER:        type = CHAT_MSG_WHISPER;        break;
-        case CMSG_MESSAGECHAT_GUILD:          type = CHAT_MSG_GUILD;          break;
-        case CMSG_MESSAGECHAT_OFFICER:        type = CHAT_MSG_OFFICER;        break;
-        case CMSG_MESSAGECHAT_AFK:
-        case CMSG_CHAT_MESSAGE_AFK:           type = CHAT_MSG_AFK;            break;
-        case CMSG_MESSAGECHAT_DND:            type = CHAT_MSG_DND;            break;
-        case CMSG_MESSAGECHAT_EMOTE:          type = CHAT_MSG_EMOTE;          break;
-        case CMSG_MESSAGECHAT_PARTY:          type = CHAT_MSG_PARTY;          break;
-        case CMSG_MESSAGECHAT_RAID:           type = CHAT_MSG_RAID;           break;
-        case CMSG_MESSAGECHAT_BATTLEGROUND:
-        case CMSG_MESSAGECHAT_INSTANCE:       type = CHAT_MSG_INSTANCE;       break;
-        case CMSG_MESSAGECHAT_RAID_WARNING:   type = CHAT_MSG_RAID_WARNING;   break;
+        case CMSG_CHAT_MESSAGE_SAY:
+            type = CHAT_MSG_SAY;
+            break;
+        case CMSG_CHAT_MESSAGE_YELL:
+            type = CHAT_MSG_YELL;
+            break;
+        case CMSG_CHAT_MESSAGE_GUILD:
+            type = CHAT_MSG_GUILD;
+            break;
+        case CMSG_CHAT_MESSAGE_OFFICER:
+            type = CHAT_MSG_OFFICER;
+            break;
+        case CMSG_CHAT_MESSAGE_PARTY:
+            type = CHAT_MSG_PARTY;
+            break;
+        case CMSG_CHAT_MESSAGE_RAID:
+            type = CHAT_MSG_RAID;
+            break;
+        case CMSG_CHAT_MESSAGE_RAID_WARNING:
+            type = CHAT_MSG_RAID_WARNING;
+            break;
+        case CMSG_CHAT_MESSAGE_INSTANCE_CHAT:
+            type = CHAT_MSG_INSTANCE_CHAT;
+            break;
         default:
-            LOG_ERROR("network.opcode", "HandleMessagechatOpcode: unknown chat opcode {}", recvData.GetOpcode());
-            recvData.rfinish();
+            LOG_ERROR("network", "HandleChatMessageOpcode : Unknown chat opcode ({})", chatMessage.GetOpcode());
             return;
     }
 
+    HandleChatMessage(type, chatMessage.Language, chatMessage.Text);
+}
+
+void WorldSession::HandleChatMessageWhisperOpcode(WorldPackets::Chat::ChatMessageWhisper& chatMessageWhisper)
+{
+    HandleChatMessage(CHAT_MSG_WHISPER, chatMessageWhisper.Language, chatMessageWhisper.Text, chatMessageWhisper.Target);
+}
+
+void WorldSession::HandleChatMessageChannelOpcode(WorldPackets::Chat::ChatMessageChannel& chatMessageChannel)
+{
+    HandleChatMessage(CHAT_MSG_CHANNEL, chatMessageChannel.Language, chatMessageChannel.Text, chatMessageChannel.Target);
+}
+
+void WorldSession::HandleChatMessageEmoteOpcode(WorldPackets::Chat::ChatMessageEmote& chatMessageEmote)
+{
+    HandleChatMessage(CHAT_MSG_EMOTE, LANG_UNIVERSAL, chatMessageEmote.Text);
+}
+
+void WorldSession::HandleChatMessageAFKOpcode(WorldPackets::Chat::ChatMessageAFK& chatMessageAFK)
+{
+    HandleChatMessage(CHAT_MSG_AFK, LANG_UNIVERSAL, chatMessageAFK.Text);
+}
+
+void WorldSession::HandleChatMessageDNDOpcode(WorldPackets::Chat::ChatMessageDND& chatMessageDND)
+{
+    HandleChatMessage(CHAT_MSG_DND, LANG_UNIVERSAL, chatMessageDND.Text);
+}
+
+void WorldSession::HandleChatMessage(ChatMsg type, uint32 lang, std::string msg, std::string target /*= ""*/)
+{
     if (type >= MAX_CHAT_MSG_TYPE)
     {
         LOG_ERROR("network.opcode", "CHAT: Wrong message type received: {}", type);
-        recvData.rfinish();
         return;
     }
 
@@ -96,17 +133,13 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recvData)
 
     // Cata build 15595 sends no language field for emote, AFK and DND; reading one there
     // consumes the first bits of the message and garbles it (issue #169).
-    uint32 lang = LANG_UNIVERSAL;
     if (type != CHAT_MSG_EMOTE && type != CHAT_MSG_AFK && type != CHAT_MSG_DND)
     {
-        recvData >> lang;
-
         if (lang == LANG_UNIVERSAL)
         {
             LOG_ERROR("entities.player.cheat", "CMSG_MESSAGECHAT: Possible hacking-attempt: {} tried to send a message in universal language", GetPlayerInfo());
             ChatHandler(this).SendNotification(LANG_UNKNOWN_LANGUAGE);
-            recvData.rfinish();
-            return;
+                return;
         }
 
         // prevent talking at unknown language (cheating)
@@ -114,8 +147,7 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recvData)
         if (!langDesc)
         {
             ChatHandler(this).SendNotification(LANG_UNKNOWN_LANGUAGE);
-            recvData.rfinish();
-            return;
+                return;
         }
 
         if (langDesc->skill_id != 0 && !sender->HasSkill(langDesc->skill_id))
@@ -134,8 +166,7 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recvData)
             if (!foundAura && !sScriptMgr->OnPlayerCanSpeakUnlearnedLanguage(sender, type, lang))
             {
                 ChatHandler(this).SendNotification(LANG_NOT_LEARNED_LANGUAGE);
-                recvData.rfinish();
-                return;
+                        return;
             }
         }
     }
@@ -148,7 +179,6 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recvData)
         WorldPacket data;
         ChatHandler::BuildChatPacket(data, CHAT_MSG_RESTRICTED, LANG_UNIVERSAL, sender, sender, "");
         SendPacket(&data);
-        recvData.rfinish();
         return;
     }
 
@@ -179,8 +209,7 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recvData)
                     if (sender->GetTotalPlayedTime() < minutes * MINUTE)
                     {
                         ChatHandler(this).SendNotification(LANG_MUTED_PLAYER, minutes);
-                        recvData.rfinish();
-                        return;
+                                        return;
                     }
                 }
             }
@@ -196,17 +225,16 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recvData)
         case CHAT_MSG_TEXT_EMOTE:
         case CHAT_MSG_AFK:
         case CHAT_MSG_DND:
-        if (sender->IsSpectator())
-        {
-            recvData.rfinish();
-            return;
-        }
+            if (sender->IsSpectator())
+                return;
+            break;
+        default:
+            break;
     }
 
     if (sender->HasAura(1852) && type != CHAT_MSG_WHISPER)
     {
         ChatHandler(this).SendNotification(LANG_GM_SILENCE, sender->GetName());
-        recvData.rfinish();
         return;
     }
 
@@ -223,16 +251,14 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recvData)
                 // check if addon messages are disabled
                 if (!sWorld->getBoolConfig(CONFIG_ADDON_CHANNEL))
                 {
-                    recvData.rfinish();
-                    return;
+                                return;
                 }
                 break;
             default:
                 LOG_ERROR("network", "Player {} ({}) sent a chatmessage with an invalid language/message type combination",
                                GetPlayer()->GetName(), GetPlayer()->GetGUID().ToString());
 
-                recvData.rfinish();
-                return;
+                        return;
         }
     }
     else
@@ -264,6 +290,8 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recvData)
                         if (sWorld->getBoolConfig(CONFIG_ALLOW_TWO_SIDE_INTERACTION_GUILD))
                             lang = LANG_UNIVERSAL;
                         break;
+                    default:
+                        break;
                 }
             }
             // Overwritten by SPELL_AURA_MOD_LANGUAGE auras (Affects only Say and Yell)
@@ -276,46 +304,21 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recvData)
             sender->UpdateSpeakTime(lang == LANG_ADDON ? Player::ChatFloodThrottle::ADDON : Player::ChatFloodThrottle::REGULAR);
     }
 
-    // The string lengths are bit-packed ahead of the strings.
-    uint32 textLength = 0;
-    uint32 receiverLength = 0;
-    std::string to, channel, msg;
+    std::string to, channel;
     bool ignoreChecks = false;
     switch (type)
     {
-        // 5.4.8 18414: messages are at most 255 bytes, from Project SkyFire (HandleMessagechatOpcode)
-        case CHAT_MSG_SAY:
-        case CHAT_MSG_EMOTE:
-        case CHAT_MSG_YELL:
-        case CHAT_MSG_PARTY:
-        case CHAT_MSG_PARTY_LEADER:
-        case CHAT_MSG_GUILD:
-        case CHAT_MSG_OFFICER:
-        case CHAT_MSG_RAID:
-        case CHAT_MSG_RAID_LEADER:
-        case CHAT_MSG_RAID_WARNING:
-        case CHAT_MSG_INSTANCE:
-        case CHAT_MSG_INSTANCE_LEADER:
-            textLength = recvData.ReadBits(8);
-            msg = recvData.ReadString(textLength);
-            break;
         case CHAT_MSG_WHISPER:
-            textLength = recvData.ReadBits(8);
-            receiverLength = recvData.ReadBits(9);
-            msg = recvData.ReadString(textLength);
-            to = recvData.ReadString(receiverLength);
+            to = target;
             break;
         case CHAT_MSG_CHANNEL:
-            receiverLength = recvData.ReadBits(9);
-            textLength = recvData.ReadBits(8);
-            msg = recvData.ReadString(textLength);
-            channel = recvData.ReadString(receiverLength);
+            channel = target;
             break;
         case CHAT_MSG_AFK:
         case CHAT_MSG_DND:
-            textLength = recvData.ReadBits(8);
-            msg = recvData.ReadString(textLength);
             ignoreChecks = true;
+            break;
+        default:
             break;
     }
 
@@ -398,7 +401,9 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recvData)
         ++_addonMessageReceiveCount;
     }
 
-    sScriptMgr->OnPlayerBeforeSendChatMessage(_player, type, lang, msg);
+    uint32 scriptType = type;
+    sScriptMgr->OnPlayerBeforeSendChatMessage(_player, scriptType, lang, msg);
+    type = ChatMsg(scriptType);
 
     switch (type)
     {
@@ -720,73 +725,51 @@ namespace
     }
 }
 
-void WorldSession::HandleAddonMessagechatOpcode(WorldPacket& recvData)
+void WorldSession::HandleChatAddonMessageOpcode(WorldPackets::Chat::ChatAddonMessage& chatAddonMessage)
 {
-    Player* sender = GetPlayer();
-    uint32 type;
+    ChatMsg type;
 
-    switch (recvData.GetOpcode())
+    switch (chatAddonMessage.GetOpcode())
     {
-        case CMSG_MESSAGECHAT_ADDON_BATTLEGROUND: type = CHAT_MSG_BATTLEGROUND; break;
-        case CMSG_MESSAGECHAT_ADDON_GUILD:        type = CHAT_MSG_GUILD;        break;
-        case CMSG_MESSAGECHAT_ADDON_OFFICER:      type = CHAT_MSG_OFFICER;      break;
-        case CMSG_MESSAGECHAT_ADDON_PARTY:        type = CHAT_MSG_PARTY;        break;
-        case CMSG_MESSAGECHAT_ADDON_RAID:         type = CHAT_MSG_RAID;         break;
-        case CMSG_MESSAGECHAT_ADDON_WHISPER:      type = CHAT_MSG_WHISPER;      break;
+        case CMSG_CHAT_ADDON_MESSAGE_GUILD:
+            type = CHAT_MSG_GUILD;
+            break;
+        case CMSG_CHAT_ADDON_MESSAGE_OFFICER:
+            type = CHAT_MSG_OFFICER;
+            break;
+        case CMSG_CHAT_ADDON_MESSAGE_PARTY:
+            type = CHAT_MSG_PARTY;
+            break;
+        case CMSG_CHAT_ADDON_MESSAGE_RAID:
+            type = CHAT_MSG_RAID;
+            break;
+        case CMSG_CHAT_ADDON_MESSAGE_INSTANCE_CHAT:
+            type = CHAT_MSG_INSTANCE_CHAT;
+            break;
         default:
-            LOG_ERROR("network.opcode", "HandleAddonMessagechatOpcode: unknown addon chat opcode {}", recvData.GetOpcode());
-            recvData.rfinish();
+            LOG_ERROR("network", "HandleChatAddonMessageOpcode: Unknown addon chat opcode ({})", chatAddonMessage.GetOpcode());
             return;
     }
 
-    std::string prefix, message, to;
-    switch (type)
-    {
-        case CHAT_MSG_WHISPER:
-        {
-            uint32 msgLen = recvData.ReadBits(9);
-            uint32 prefixLen = recvData.ReadBits(5);
-            uint32 targetLen = recvData.ReadBits(10);
-            message = recvData.ReadString(msgLen);
-            prefix = recvData.ReadString(prefixLen);
-            to = recvData.ReadString(targetLen);
-            break;
-        }
-        case CHAT_MSG_RAID:
-        case CHAT_MSG_BATTLEGROUND:
-        {
-            uint32 prefixLen = recvData.ReadBits(5);
-            uint32 msgLen = recvData.ReadBits(9);
-            prefix = recvData.ReadString(prefixLen);
-            message = recvData.ReadString(msgLen);
-            break;
-        }
-        case CHAT_MSG_PARTY:
-        case CHAT_MSG_OFFICER:
-        {
-            uint32 prefixLen = recvData.ReadBits(5);
-            uint32 msgLen = recvData.ReadBits(9);
-            message = recvData.ReadString(msgLen);
-            prefix = recvData.ReadString(prefixLen);
-            break;
-        }
-        case CHAT_MSG_GUILD:
-        {
-            uint32 msgLen = recvData.ReadBits(9);
-            uint32 prefixLen = recvData.ReadBits(5);
-            message = recvData.ReadString(msgLen);
-            prefix = recvData.ReadString(prefixLen);
-            break;
-        }
-        default:
-            break;
-    }
+    HandleChatAddonMessage(type, chatAddonMessage.Prefix, chatAddonMessage.Text);
+}
+
+void WorldSession::HandleChatAddonMessageWhisperOpcode(WorldPackets::Chat::ChatAddonMessageWhisper& chatAddonMessageWhisper)
+{
+    HandleChatAddonMessage(CHAT_MSG_WHISPER, chatAddonMessageWhisper.Prefix, chatAddonMessageWhisper.Text, chatAddonMessageWhisper.Target);
+}
+
+void WorldSession::HandleChatAddonMessageChannelOpcode(WorldPackets::Chat::ChatAddonMessageChannel& chatAddonMessageChannel)
+{
+    HandleChatAddonMessage(CHAT_MSG_CHANNEL, chatAddonMessageChannel.Prefix, chatAddonMessageChannel.Text, chatAddonMessageChannel.Target);
+}
+
+void WorldSession::HandleChatAddonMessage(ChatMsg type, std::string prefix, std::string message, std::string to /*= ""*/)
+{
+    Player* sender = GetPlayer();
 
     if (prefix.empty() || prefix.length() > 16 || !sWorld->getBoolConfig(CONFIG_ADDON_CHANNEL) || !sender->CanSpeak())
-    {
-        recvData.rfinish();
         return;
-    }
 
     sender->UpdateSpeakTime(Player::ChatFloodThrottle::ADDON);
     std::string combined = prefix + '\t' + message;
@@ -847,14 +830,21 @@ void WorldSession::HandleAddonMessagechatOpcode(WorldPacket& recvData)
             BroadcastAddonToGroup(group, &data, prefix);
             break;
         }
-        case CHAT_MSG_BATTLEGROUND:
+        case CHAT_MSG_INSTANCE_CHAT:
         {
             Group* group = GetPlayer()->GetGroup();
-            if (!group || !group->isBGGroup())
+            if (!group)
                 break;
             WorldPacket data;
-            ChatHandler::BuildChatPacket(data, CHAT_MSG_BATTLEGROUND, LANG_ADDON, sender, nullptr, message, 0, "", DEFAULT_LOCALE, prefix);
+            ChatHandler::BuildChatPacket(data, CHAT_MSG_INSTANCE_CHAT, LANG_ADDON, sender, nullptr, message, 0, "", DEFAULT_LOCALE, prefix);
             BroadcastAddonToGroup(group, &data, prefix);
+            break;
+        }
+        case CHAT_MSG_CHANNEL:
+        {
+            if (ChannelMgr* cMgr = ChannelMgr::forTeam(sender->GetTeamId()))
+                if (Channel* chn = cMgr->GetChannel(to, sender, false))
+                    chn->Say(sender->GetGUID(), message, uint32(LANG_ADDON));
             break;
         }
         default:
@@ -862,125 +852,30 @@ void WorldSession::HandleAddonMessagechatOpcode(WorldPacket& recvData)
     }
 }
 
-void WorldSession::HandleEmoteOpcode(WorldPackets::Chat::EmoteClient& packet)
+void WorldSession::HandleEmoteOpcode(WorldPackets::Chat::EmoteClient& /*packet*/)
 {
     if (GetPlayer()->IsSpectator())
-        return;
-
-    uint32 emoteId = packet.EmoteID;
-
-    // restrict to the only emotes hardcoded in client
-    if (emoteId != EMOTE_ONESHOT_NONE && emoteId != EMOTE_ONESHOT_WAVE)
         return;
 
     if (!_player->IsAlive() || _player->HasUnitState(UNIT_STATE_DIED))
         return;
 
-    sScriptMgr->OnPlayerEmote(_player, emoteId);
-    _player->HandleEmoteCommand(emoteId);
+    // 6.x CMSG_EMOTE has no payload: the client clears its emote state
+    sScriptMgr->OnPlayerEmote(_player, EMOTE_ONESHOT_NONE);
+
+    if (_player->GetUInt32Value(UNIT_NPC_EMOTESTATE))
+        _player->SetUInt32Value(UNIT_NPC_EMOTESTATE, 0);
 }
 
-namespace Acore
+void WorldSession::HandleTextEmoteOpcode(WorldPackets::Chat::CTextEmote& packet)
 {
-    class EmoteChatBuilder
-    {
-    public:
-        EmoteChatBuilder(Player const& player, uint32 text_emote, uint32 emote_num, Unit const* target)
-            : i_player(player), i_text_emote(text_emote), i_emote_num(emote_num), i_target(target) {}
-
-        void operator()(WorldPacket& data, LocaleConstant loc_idx)
-        {
-            std::string const name(i_target ? i_target->GetNameForLocaleIdx(loc_idx) : "");
-            uint32 namlen = name.size();
-
-            data.Initialize(SMSG_TEXT_EMOTE, 20 + namlen);
-            data << i_player.GetGUID();
-            data << uint32(i_text_emote);
-            data << uint32(i_emote_num);
-            data << uint32(namlen);
-            if (namlen > 1)
-                data << name;
-            else
-                data << uint8(0x00);
-        }
-
-    private:
-        Player const& i_player;
-        uint32        i_text_emote;
-        uint32        i_emote_num;
-        Unit const*   i_target;
-    };
-
-    class SendTextEmoteBuilder
-    {
-    public:
-        SendTextEmoteBuilder(Player const& player, uint32 emoteId, uint32 soundIndex, Unit const* target)
-            : i_player(player), i_emoteId(emoteId), i_soundIndex(soundIndex), i_target(target) {}
-
-        // 5.4.8 18414, from Project SkyFire (EmoteChatBuilder)
-        void operator()(WorldPacket& data, LocaleConstant /*loc_idx*/)
-        {
-            ObjectGuid const playerGuid = i_player.GetGUID();
-            ObjectGuid const targetGuid = i_target ? i_target->GetGUID() : ObjectGuid::Empty;
-
-            data.Initialize(SMSG_TEXT_EMOTE, 2 * (8 + 1) + 4 + 4);
-            data.WriteBit(playerGuid[1]);
-            data.WriteBit(targetGuid[7]);
-            data.WriteBit(playerGuid[6]);
-            data.WriteBit(targetGuid[5]);
-            data.WriteBit(playerGuid[3]);
-            data.WriteBit(targetGuid[6]);
-            data.WriteBit(targetGuid[2]);
-            data.WriteBit(playerGuid[7]);
-            data.WriteBit(targetGuid[0]);
-            data.WriteBit(targetGuid[1]);
-            data.WriteBit(playerGuid[4]);
-            data.WriteBit(playerGuid[2]);
-            data.WriteBit(targetGuid[3]);
-            data.WriteBit(targetGuid[4]);
-            data.WriteBit(playerGuid[0]);
-            data.WriteBit(playerGuid[5]);
-            data.FlushBits();
-
-            data.WriteByteSeq(targetGuid[2]);
-            data.WriteByteSeq(targetGuid[1]);
-            data.WriteByteSeq(playerGuid[7]);
-            data.WriteByteSeq(playerGuid[4]);
-            data.WriteByteSeq(targetGuid[7]);
-            data.WriteByteSeq(playerGuid[5]);
-            data.WriteByteSeq(playerGuid[2]);
-            data << uint32(i_emoteId);
-            data.WriteByteSeq(playerGuid[6]);
-            data.WriteByteSeq(targetGuid[0]);
-            data.WriteByteSeq(playerGuid[3]);
-            data.WriteByteSeq(playerGuid[1]);
-            data.WriteByteSeq(targetGuid[6]);
-            data.WriteByteSeq(playerGuid[0]);
-            data.WriteByteSeq(targetGuid[3]);
-            data.WriteByteSeq(targetGuid[5]);
-            data.WriteByteSeq(targetGuid[4]);
-            data << uint32(i_soundIndex);
-        }
-
-    private:
-        Player const& i_player;
-        uint32        i_emoteId;
-        uint32        i_soundIndex;
-        Unit const*   i_target;
-    };
-}                                                           // namespace Acore
-
-void WorldSession::HandleTextEmoteOpcode(WorldPacket& recvData)
-{
-    uint32 text_emote;
-    recvData >> text_emote;
-
-    constexpr uint32 readyEmote = 126;
+    constexpr int32 readyEmote = 126;
 
     // Handle confirmation redirect when the player types "/ready" after the new node becomes available for redirection.
-    if (text_emote == readyEmote && GetPlayer()->GetMap()->IsPlayerRedirectKickTimerActive())
+    if (packet.EmoteID == readyEmote && GetPlayer()->GetMap()->IsPlayerRedirectKickTimerActive())
     {
-        HandleTC9PrepareForRedirect(recvData);
+        WorldPacket emptyPacket;
+        HandleTC9PrepareForRedirect(emptyPacket);
         return;
     }
 
@@ -999,89 +894,13 @@ void WorldSession::HandleTextEmoteOpcode(WorldPacket& recvData)
     if (GetPlayer()->IsSpectator())
         return;
 
-    uint32 emoteNum;
-    ObjectGuid guid;
+    sScriptMgr->OnPlayerTextEmote(GetPlayer(), packet.EmoteID, packet.SoundIndex, packet.Target);
 
-    // 5.4.8 18414, from Project SkyFire
-    recvData >> emoteNum;
-    recvData.ReadGuidMask(guid, { 6, 7, 3, 2, 0, 5, 1, 4 });
-    recvData.ReadGuidBytes(guid, { 0, 5, 1, 4, 2, 3, 7, 6 });
-
-    sScriptMgr->OnPlayerTextEmote(GetPlayer(), text_emote, emoteNum, guid);
-
-    EmotesTextEntry const* em = sEmotesTextStore.LookupEntry(text_emote);
+    EmotesTextEntry const* em = sEmotesTextStore.LookupEntry(packet.EmoteID);
     if (!em)
         return;
 
-    uint32 emote_anim = em->textid;
-
-    switch (emote_anim)
-    {
-        case EMOTE_STATE_SLEEP:
-        case EMOTE_STATE_SIT:
-        case EMOTE_STATE_KNEEL:
-        case EMOTE_ONESHOT_NONE:
-            break;
-        case EMOTE_STATE_DANCE:
-            GetPlayer()->SetUInt32Value(UNIT_NPC_EMOTESTATE, emote_anim);
-            break;
-        default:
-            // Only allow text-emotes for "dead" entities (feign death included)
-            if (GetPlayer()->HasUnitState(UNIT_STATE_DIED))
-                break;
-            GetPlayer()->HandleEmoteCommand(emote_anim);
-            break;
-    }
-
-    Unit* unit = ObjectAccessor::GetUnit(*_player, guid);
-
-    Acore::EmoteChatBuilder emote_builder(*GetPlayer(), text_emote, emoteNum, unit);
-    Acore::LocalizedPacketDo<Acore::EmoteChatBuilder > emote_do(emote_builder);
-    Acore::PlayerDistWorker<Acore::LocalizedPacketDo<Acore::EmoteChatBuilder > > emote_worker(GetPlayer(), sWorld->getFloatConfig(CONFIG_LISTEN_RANGE_TEXTEMOTE), emote_do);
-    Cell::VisitObjects(GetPlayer(), emote_worker, sWorld->getFloatConfig(CONFIG_LISTEN_RANGE_TEXTEMOTE));
-
-    GetPlayer()->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_DO_EMOTE, text_emote, 0, unit);
-
-    //Send scripted event call
-    if (unit && unit->IsCreature() && ((Creature*)unit)->AI())
-        ((Creature*)unit)->AI()->ReceiveEmote(GetPlayer(), text_emote);
-}
-
-// 5.4.8 18414: CMSG_SEND_TEXT_EMOTE, from Project SkyFire (WorldSession::HandleTextEmoteOpcode)
-void WorldSession::HandleSendTextEmoteOpcode(WorldPacket& recvData)
-{
-    uint32 emoteId;
-    uint32 soundIndex;
-    ObjectGuid targetGuid;
-    recvData >> emoteId;
-    recvData >> soundIndex;
-    for (uint8 index : { 6, 7, 3, 2, 0, 5, 1, 4 })
-        targetGuid[index] = recvData.ReadBit();
-    for (uint8 index : { 0, 5, 1, 4, 2, 3, 7, 6 })
-        recvData.ReadByteSeq(targetGuid[index]);
-
-    if (!GetPlayer()->IsAlive())
-        return;
-
-    GetPlayer()->UpdateSpeakTime(Player::ChatFloodThrottle::REGULAR);
-
-    if (!GetPlayer()->CanSpeak())
-    {
-        std::string timeStr = secsToTimeString(m_muteTime - GameTime::GetGameTime().count());
-        ChatHandler(this).SendNotification(LANG_WAIT_BEFORE_SPEAKING, timeStr);
-        return;
-    }
-
-    if (GetPlayer()->IsSpectator())
-        return;
-
-    sScriptMgr->OnPlayerTextEmote(GetPlayer(), emoteId, soundIndex, targetGuid);
-
-    EmotesTextEntry const* em = sEmotesTextStore.LookupEntry(emoteId);
-    if (!em)
-        return;
-
-    uint32 emoteAnim = em->textid;
+    uint32 emoteAnim = em->EmoteID;
 
     switch (emoteAnim)
     {
@@ -1091,6 +910,7 @@ void WorldSession::HandleSendTextEmoteOpcode(WorldPacket& recvData)
         case EMOTE_ONESHOT_NONE:
             break;
         case EMOTE_STATE_DANCE:
+        case EMOTE_STATE_READ:
             GetPlayer()->SetUInt32Value(UNIT_NPC_EMOTESTATE, emoteAnim);
             break;
         default:
@@ -1101,33 +921,29 @@ void WorldSession::HandleSendTextEmoteOpcode(WorldPacket& recvData)
             break;
     }
 
-    Unit* unit = ObjectAccessor::GetUnit(*_player, targetGuid);
+    WorldPackets::Chat::STextEmote textEmote;
+    textEmote.SourceGUID = _player->GetGUID();
+    textEmote.SourceAccountGUID = GetAccountGUID();
+    textEmote.TargetGUID = packet.Target;
+    textEmote.EmoteID = packet.EmoteID;
+    textEmote.SoundIndex = packet.SoundIndex;
+    _player->SendMessageToSetInRange(textEmote.Write(), sWorld->getFloatConfig(CONFIG_LISTEN_RANGE_TEXTEMOTE), true);
 
-    Acore::SendTextEmoteBuilder emote_builder(*GetPlayer(), emoteId, soundIndex, unit);
-    Acore::LocalizedPacketDo<Acore::SendTextEmoteBuilder> emote_do(emote_builder);
-    Acore::PlayerDistWorker<Acore::LocalizedPacketDo<Acore::SendTextEmoteBuilder>> emote_worker(
-        GetPlayer(), sWorld->getFloatConfig(CONFIG_LISTEN_RANGE_TEXTEMOTE), emote_do);
-    Cell::VisitObjects(GetPlayer(), emote_worker, sWorld->getFloatConfig(CONFIG_LISTEN_RANGE_TEXTEMOTE));
+    Unit* unit = ObjectAccessor::GetUnit(*_player, packet.Target);
 
-    GetPlayer()->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_DO_EMOTE, emoteId, 0, unit);
+    GetPlayer()->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_DO_EMOTE, packet.EmoteID, 0, unit);
 
-    if (unit && unit->IsCreature() && ((Creature*)unit)->AI())
-        ((Creature*)unit)->AI()->ReceiveEmote(GetPlayer(), emoteId);
+    //Send scripted event call
+    if (unit)
+        if (Creature* creature = unit->ToCreature())
+            if (creature->AI())
+                creature->AI()->ReceiveEmote(GetPlayer(), packet.EmoteID);
 }
 
-void WorldSession::HandleChatIgnoredOpcode(WorldPacket& recvData)
+void WorldSession::HandleChatIgnoredOpcode(WorldPackets::Chat::ChatReportIgnored& chatReportIgnored)
 {
-    ObjectGuid iguid;
-    uint8 unk;
-
-    recvData >> unk;                                       // probably related to spam reporting
-    for (uint8 index : { 5, 0, 1, 3, 6, 7, 4, 2 })
-        iguid[index] = recvData.ReadBit();
-    for (uint8 index : { 2, 0, 3, 4, 7, 6, 1, 5 })
-        recvData.ReadByteSeq(iguid[index]);
-
-    Player* player = ObjectAccessor::FindConnectedPlayer(iguid);
-    if (!player)
+    Player* player = ObjectAccessor::FindConnectedPlayer(chatReportIgnored.IgnoredGUID);
+    if (!player || !player->GetSession())
         return;
 
     WorldPacket data;
@@ -1135,41 +951,28 @@ void WorldSession::HandleChatIgnoredOpcode(WorldPacket& recvData)
     player->SendDirectMessage(&data);
 }
 
-void WorldSession::HandleChannelDeclineInvite(WorldPacket& recvPacket)
-{
-    // used only with EXTRA_LOGS
-    (void)recvPacket;
-
-    LOG_DEBUG("network", "Opcode {}", recvPacket.GetOpcode());
-}
-
 void WorldSession::SendPlayerNotFoundNotice(std::string const& name)
 {
-    WorldPacket data(SMSG_CHAT_PLAYER_NOT_FOUND, name.size() + 2);
-    data.WriteBits(name.size(), 9);
-    data.FlushBits();
-    data.WriteString(name);
-    SendPacket(&data);
+    WorldPackets::Chat::ChatPlayerNotfound packet(name);
+    SendPacket(packet.Write());
 }
 
 void WorldSession::SendPlayerAmbiguousNotice(std::string const& name)
 {
-    WorldPacket data(SMSG_CHAT_PLAYER_AMBIGUOUS, name.size() + 2);
-    data.WriteBits(name.size(), 9);
-    data.FlushBits();
-    data.WriteString(name);
-    SendPacket(&data);
+    WorldPackets::Chat::ChatPlayerAmbiguous packet(name);
+    SendPacket(packet.Write());
 }
 
 void WorldSession::SendWrongFactionNotice()
 {
-    WorldPacket data(SMSG_CHAT_WRONG_FACTION, 0);
-    SendPacket(&data);
+    // 6.x has no SMSG_CHAT_WRONG_FACTION; the client shows the not found message
+    WorldPackets::Chat::ChatPlayerNotfound packet("");
+    SendPacket(packet.Write());
 }
 
 void WorldSession::SendChatRestrictedNotice(ChatRestrictionType restriction)
 {
-    WorldPacket data(SMSG_CHAT_RESTRICTED, 1);
-    data << uint8(restriction);
-    SendPacket(&data);
+    WorldPackets::Chat::ChatRestricted packet;
+    packet.Reason = restriction;
+    SendPacket(packet.Write());
 }

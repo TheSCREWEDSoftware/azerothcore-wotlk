@@ -116,7 +116,7 @@ void ChatHandler::SendNotification(std::string_view str)
     std::vector<std::string_view> lines = Acore::Tokenize(str, '\n', true);
     for (std::string_view line : lines)
     {
-        m_session->SendPacket(WorldPackets::Chat::PrintNotification(line).Write());
+        m_session->SendPacket(WorldPackets::Chat::PrintNotification(std::string(line)).Write());
     }
 }
 
@@ -269,168 +269,40 @@ bool ChatHandler::ParseCommands(std::string_view text)
     return _ParseCommands(text.substr(1));
 }
 
-// 5.4.8 18414 SMSG_MESSAGECHAT, from Project SkyFire (ChatHandler::BuildChatPacket)
+// 6.x SMSG_CHAT (WorldPackets::Chat::Chat)
 std::size_t ChatHandler::BuildChatPacket(WorldPacket& data, ChatMsg chatType, Language language, ObjectGuid senderGUID, ObjectGuid receiverGUID, std::string_view message, uint8 chatTag,
                                     std::string const& senderName /*= ""*/, std::string const& receiverName /*= ""*/,
                                     uint32 achievementId /*= 0*/, bool gmMessage /*= false*/, std::string const& channelName /*= ""*/, std::string const& addonPrefix /*= ""*/)
 {
-    bool const hasAchievementId = (chatType == CHAT_MSG_ACHIEVEMENT || chatType == CHAT_MSG_GUILD_ACHIEVEMENT) && achievementId;
-    // LANG_ADDON must be on the wire, it is how the client tells an addon message from chat
-    bool const hasLanguage = language != LANG_UNIVERSAL;
-    bool hasSenderName = false;
-    bool hasReceiverName = false;
-    bool hasChannelName = false;
-    bool hasGroupGUID = false;
-    bool hasGuildGUID = false;
+    WorldPackets::Chat::Chat packet;
+    packet.SlashCmd = chatType;
+    packet._Language = language;
+    packet.SenderGUID = senderGUID;
+    packet.TargetGUID = receiverGUID;
+    packet.SenderName = senderName;
+    packet.TargetName = receiverName;
+    packet.SenderVirtualAddress = GetVirtualRealmAddress();
+    packet.TargetVirtualAddress = GetVirtualRealmAddress();
+    packet.AchievementID = achievementId;
+    packet._Channel = channelName;
+    packet.Prefix = addonPrefix;
+    packet.ChatText = std::string(message);
+    packet._ChatFlags = chatTag | (gmMessage ? CHAT_FLAG_GM : CHAT_FLAG_NONE);
 
-    switch (chatType)
+    // account, guild and party of an online player sender
+    if (senderGUID.IsPlayer())
     {
-        case CHAT_MSG_INSTANCE:
-        case CHAT_MSG_INSTANCE_LEADER:
-        case CHAT_MSG_PARTY:
-        case CHAT_MSG_PARTY_LEADER:
-        case CHAT_MSG_RAID:
-        case CHAT_MSG_RAID_LEADER:
-        case CHAT_MSG_RAID_WARNING:
-            hasGroupGUID = true;
-            break;
-        case CHAT_MSG_GUILD:
-        case CHAT_MSG_OFFICER:
-        case CHAT_MSG_GUILD_ACHIEVEMENT:
-            hasGuildGUID = true;
-            break;
-        case CHAT_MSG_MONSTER_WHISPER:
-        case CHAT_MSG_RAID_BOSS_WHISPER:
-            if (receiverGUID && !receiverGUID.IsPlayer() && !receiverGUID.IsPet())
-                hasReceiverName = !receiverName.empty();
-            break;
-        case CHAT_MSG_TEXT_EMOTE:
-        case CHAT_MSG_MONSTER_SAY:
-        case CHAT_MSG_MONSTER_PARTY:
-        case CHAT_MSG_MONSTER_YELL:
-        case CHAT_MSG_MONSTER_EMOTE:
-        case CHAT_MSG_RAID_BOSS_EMOTE:
-        case CHAT_MSG_BATTLENET:
-            hasSenderName = !senderName.empty();
-            break;
-        case CHAT_MSG_BG_SYSTEM_NEUTRAL:
-        case CHAT_MSG_BG_SYSTEM_ALLIANCE:
-        case CHAT_MSG_BG_SYSTEM_HORDE:
-            if (receiverGUID && !receiverGUID.IsPlayer())
-                hasReceiverName = !receiverName.empty();
-            break;
-        case CHAT_MSG_CHANNEL:
-            ASSERT(!channelName.empty());
-            hasChannelName = true;
-            hasSenderName = !senderName.empty();
-            break;
-        default:
-            if (gmMessage)
-                hasSenderName = !senderName.empty();
-            break;
+        if (Player* player = ObjectAccessor::FindConnectedPlayer(senderGUID))
+        {
+            packet.SenderAccountGUID = player->GetSession()->GetAccountGUID();
+            if (player->GetGuildId())
+                packet.SenderGuildGUID = ObjectGuid::Create<HighGuid::Guild>(player->GetGuildId());
+            if (Group const* group = player->GetGroup())
+                packet.PartyGUID = group->GetGUID();
+        }
     }
 
-    bool const hasPrefix = language == LANG_ADDON && !addonPrefix.empty();
-
-    ObjectGuid guildGUID;
-    ObjectGuid groupGUID;
-    if (hasGuildGUID || hasGroupGUID)
-        if (Player* sender = ObjectAccessor::FindConnectedPlayer(senderGUID))
-        {
-            if (hasGuildGUID && sender->GetGuildId())
-                guildGUID = ObjectGuid::Create<HighGuid::Guild>(sender->GetGuildId());
-            if (hasGroupGUID && sender->GetGroup())
-                groupGUID = sender->GetGroup()->GetGUID();
-        }
-
-    data.Initialize(SMSG_MESSAGECHAT, 100 + message.size());
-    data.WriteBit(!hasSenderName);
-    data.WriteBit(false);                                   // hide in chat log, bubble only
-    if (hasSenderName)
-        data.WriteBits(senderName.size(), 11);
-    data.WriteBit(false);
-    data.WriteBit(!hasChannelName);
-    data.WriteBit(false);
-    data.WriteBit(true);                                    // !has display time
-    data.WriteBit(!chatTag);
-    data.WriteBit(true);                                    // !has realm id
-
-    for (uint8 index : { 0, 1, 5, 4, 3, 2, 6, 7 })
-        data.WriteBit(groupGUID[index]);
-
-    if (chatTag)
-        data.WriteBits(chatTag, 9);
-
-    data.WriteBit(false);
-    for (uint8 index : { 7, 6, 1, 4, 0, 2, 3, 5 })
-        data.WriteBit(receiverGUID[index]);
-
-    data.WriteBit(false);
-    data.WriteBit(!hasLanguage);
-    data.WriteBit(!hasPrefix);
-
-    for (uint8 index : { 0, 3, 7, 2, 1, 5, 4, 6 })
-        data.WriteBit(senderGUID[index]);
-
-    data.WriteBit(!hasAchievementId);
-    data.WriteBit(message.empty());
-
-    if (hasChannelName)
-        data.WriteBits(channelName.size(), 7);
-
-    if (!message.empty())
-        data.WriteBits(message.size(), 12);
-
-    data.WriteBit(!hasReceiverName);
-
-    if (hasPrefix)
-        data.WriteBits(addonPrefix.size(), 5);
-
-    data.WriteBit(true);                                    // !has realm id
-
-    if (hasReceiverName)
-        data.WriteBits(receiverName.size(), 11);
-
-    data.WriteBit(false);
-    for (uint8 index : { 2, 5, 7, 4, 0, 1, 3, 6 })
-        data.WriteBit(guildGUID[index]);
-    data.FlushBits();
-
-    for (uint8 index : { 4, 5, 7, 3, 2, 6, 0, 1 })
-        data.WriteByteSeq(guildGUID[index]);
-
-    if (hasChannelName)
-        data.WriteString(channelName);
-
-    if (hasPrefix)
-        data.WriteString(addonPrefix);
-
-    for (uint8 index : { 4, 7, 1, 5, 0, 6, 2, 3 })
-        data.WriteByteSeq(senderGUID[index]);
-
-    data << uint8(chatType);
-
-    if (hasAchievementId)
-        data << uint32(achievementId);
-
-    for (uint8 index : { 1, 3, 4, 6, 0, 2, 5, 7 })
-        data.WriteByteSeq(groupGUID[index]);
-
-    for (uint8 index : { 2, 5, 3, 6, 7, 4, 1, 0 })
-        data.WriteByteSeq(receiverGUID[index]);
-
-    if (hasLanguage)
-        data << uint8(language);
-
-    if (!message.empty())
-        data.WriteString(message);
-
-    if (hasReceiverName)
-        data.WriteString(receiverName);
-
-    if (hasSenderName)
-        data.WriteString(senderName);
-
+    data = *packet.Write();
     return data.wpos();
 }
 
