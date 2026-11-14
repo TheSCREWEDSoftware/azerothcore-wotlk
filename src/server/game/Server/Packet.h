@@ -45,7 +45,7 @@ namespace WorldPackets
     class AC_GAME_API ServerPacket : public Packet
     {
     public:
-        ServerPacket(OpcodeServer opcode, std::size_t initialSize = 200);
+        ServerPacket(OpcodeServer opcode, std::size_t initialSize = 200, ConnectionType connection = CONNECTION_TYPE_DEFAULT);
 
         void Read() final;
 

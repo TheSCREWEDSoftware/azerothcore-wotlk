@@ -184,6 +184,7 @@ void WorldConfig::BuildConfigCache()
     SetConfigValue<uint32>(CONFIG_INTERVAL_CHANGEWEATHER, "ChangeWeatherInterval", 600000);
 
     SetConfigValue<uint32>(CONFIG_PORT_WORLD, "WorldServerPort", 8085, ConfigValueCache::Reloadable::No);
+    SetConfigValue<uint32>(CONFIG_PORT_INSTANCE, "InstanceServerPort", 8086, ConfigValueCache::Reloadable::No);
 
     SetConfigValue<uint32>(CONFIG_SOCKET_TIMEOUTTIME, "SocketTimeOutTime", 900000);
     SetConfigValue<uint32>(CONFIG_SOCKET_TIMEOUTTIME_ACTIVE, "SocketTimeOutTimeActive", 60000);

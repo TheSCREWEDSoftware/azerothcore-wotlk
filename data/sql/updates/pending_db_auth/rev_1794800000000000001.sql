@@ -51,8 +51,10 @@ CREATE TABLE IF NOT EXISTS `account_last_played_character` (
   PRIMARY KEY (`accountId`,`region`,`battlegroup`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- game accounts belong to a Battle.net account; session_key_bnet is the 6.x world session key (JoinRealm)
+-- game accounts belong to a Battle.net account; session_key_bnet is the 6.x world session key (JoinRealm);
+-- the 6.x client reports its OS as Win, Wn64 or Mc64
 ALTER TABLE `account`
+    MODIFY COLUMN `os` varchar(4) NOT NULL DEFAULT '',
     ADD COLUMN `session_key_bnet` varbinary(64) DEFAULT NULL AFTER `session_key`,
     ADD COLUMN `battlenet_account` int unsigned DEFAULT NULL AFTER `totaltime`,
     ADD COLUMN `battlenet_index` tinyint unsigned DEFAULT NULL AFTER `battlenet_account`,

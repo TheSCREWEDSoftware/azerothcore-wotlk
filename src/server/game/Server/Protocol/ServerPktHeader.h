@@ -18,41 +18,43 @@
 #ifndef __SERVERPKTHDR_H__
 #define __SERVERPKTHDR_H__
 
-#include "Log.h"
+#include "Define.h"
 
 #pragma pack(push, 1)
 
-// 5.4.8 server packet header (SkyFire_548 WorldSocket)
-// - encrypted: one uint32, (payload size << 13) | (opcode & 0x1FFF), encrypted as 4 bytes
-// - before encryption: uint16 size (payload + opcode) then uint16 opcode, little endian
-struct ServerPktHeader
+/// 6.2.4 world packet headers (TrinityCore 6.x WorldSocket)
+/// - before encryption (connection setup, SMSG_AUTH_CHALLENGE): uint16 size (payload + opcode), uint16 opcode
+/// - encrypted: uint32 size (payload + opcode), uint16 opcode; the first 4 bytes are encrypted
+union ServerPktHeader
 {
-    static constexpr uint32 OPCODE_MASK = 0x1FFF;
-
-    ServerPktHeader(uint32 payloadSize, uint16 cmd, bool encrypted) : size(payloadSize)
+    struct
     {
-        if (encrypted)
-        {
-            uint32 data = (payloadSize << 13) | (cmd & OPCODE_MASK);
-            header[0] = uint8(data);
-            header[1] = uint8(data >> 8);
-            header[2] = uint8(data >> 16);
-            header[3] = uint8(data >> 24);
-        }
-        else
-        {
-            uint32 const sizeWithOpcode = payloadSize + 2;
-            header[0] = uint8(sizeWithOpcode);
-            header[1] = uint8(sizeWithOpcode >> 8);
-            header[2] = uint8(cmd);
-            header[3] = uint8(cmd >> 8);
-        }
-    }
+        uint16 Size;
+        uint16 Command;
+    } Setup;
 
-    uint8 getHeaderLength() const { return 4; }
+    struct
+    {
+        uint32 Size;
+        uint16 Command;
+    } Normal;
+};
 
-    const uint32 size;
-    uint8 header[4];
+union ClientPktHeader
+{
+    struct
+    {
+        uint16 Size;
+        uint16 Command;
+    } Setup;
+
+    struct
+    {
+        uint32 Size;
+        uint16 Command;
+    } Normal;
+
+    static bool IsValidSize(uint32 size) { return size < 10240; }
 };
 
 #pragma pack(pop)

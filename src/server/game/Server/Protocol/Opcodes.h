@@ -2602,7 +2602,17 @@ enum OpcodeMisc : uint16
     NUM_MSG_TYPES = 0xFFFF,
     NUM_OPCODE_HANDLERS = NUM_MSG_TYPES,
     NULL_OPCODE = 0x0000,
-    COMPRESSED_OPCODE_MASK = 0x8000
+    PARKED_OPCODE_BASE = 0xF000                             // opcodes without a 6.2.4 value are numbered from here
+};
+
+/// 6.x: a session has a realm socket and, once in game, an instance socket (SMSG_CONNECT_TO)
+enum ConnectionType : int8
+{
+    CONNECTION_TYPE_REALM       = 0,
+    CONNECTION_TYPE_INSTANCE    = 1,
+    MAX_CONNECTION_TYPES,
+
+    CONNECTION_TYPE_DEFAULT     = -1                        // use the connection of the opcode table entry
 };
 
 /// Player state
@@ -2650,8 +2660,10 @@ public:
 class ServerOpcodeHandler : public OpcodeHandler
 {
 public:
-    ServerOpcodeHandler(char const* name, SessionStatus status)
-        : OpcodeHandler(name, status) { }
+    ServerOpcodeHandler(char const* name, SessionStatus status, ConnectionType connectionIndex)
+        : OpcodeHandler(name, status), ConnectionIndex(connectionIndex) { }
+
+    ConnectionType ConnectionIndex;
 };
 
 class OpcodeTable
@@ -2684,7 +2696,7 @@ private:
     template<typename Handler, Handler HandlerFunction>
     void ValidateAndSetClientOpcode(OpcodeClient opcode, char const* name, SessionStatus status, PacketProcessing processing);
 
-    void ValidateAndSetServerOpcode(OpcodeServer opcode, char const* name, SessionStatus status);
+    void ValidateAndSetServerOpcode(OpcodeServer opcode, char const* name, SessionStatus status, ConnectionType connectionIndex);
 
     void SetBidirectionalOpcodeNames(char const* name, OpcodeClient clientOpcode, OpcodeServer serverOpcode);
 

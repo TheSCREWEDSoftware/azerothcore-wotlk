@@ -23,6 +23,7 @@
 #include "Battleground.h"
 #include "CalendarMgr.h"
 #include "CharacterCache.h"
+#include "AuthenticationPackets.h"
 #include "CharacterPackets.h"
 #include "Chat.h"
 #include "Common.h"
@@ -903,12 +904,30 @@ void WorldSession::HandlePlayerLoginOpcode(WorldPackets::Character::PlayerLogin&
         }
     }
 
+    // 6.x: the character loads once the client has opened the instance connection (HandleContinuePlayerLogin)
+    m_playerLoading = true;
+    _playerLoadingGuid = playerGuid;
+    SendConnectToInstance(WorldPackets::Auth::ConnectToSerial::WorldAttempt1);
+}
+
+void WorldSession::HandleContinuePlayerLogin()
+{
+    if (!PlayerLoading() || GetPlayer())
+    {
+        KickPlayer("WorldSession::HandleContinuePlayerLogin unexpected instance connection");
+        return;
+    }
+
+    ObjectGuid playerGuid = _playerLoadingGuid;
+
+    SendPacket(WorldPackets::Auth::ResumeComms(CONNECTION_TYPE_INSTANCE).Write());
+
     if (WorldSession* sess = sWorldSessionMgr->FindOfflineSession(GetAccountId()))
     {
         Player* p = sess->GetPlayer();
         if (!p || sess->IsKicked())
         {
-            SendCharLoginFailed(LoginFailureReason::DuplicateCharacter);
+            AbortLogin(LoginFailureReason::DuplicateCharacter);
             return;
         }
 
@@ -919,7 +938,7 @@ void WorldSession::HandlePlayerLoginOpcode(WorldPackets::Character::PlayerLogin&
             // pussywizard: players stay ingame no matter what (prevent abuse), but allow to turn it off to stop crashing
             if (!sWorld->getBoolConfig(CONFIG_ENABLE_LOGIN_AFTER_DC))
             {
-                SendCharLoginFailed(LoginFailureReason::DuplicateCharacter);
+                AbortLogin(LoginFailureReason::DuplicateCharacter);
                 return;
             }
 
@@ -961,7 +980,7 @@ void WorldSession::HandlePlayerLoginOpcode(WorldPackets::Character::PlayerLogin&
             }
             if (!p->FindMap() || !p->IsInWorld() || sess->IsKicked())
             {
-                SendCharLoginFailed(LoginFailureReason::DuplicateCharacter);
+                AbortLogin(LoginFailureReason::DuplicateCharacter);
                 return;
             }
 
@@ -970,6 +989,7 @@ void WorldSession::HandlePlayerLoginOpcode(WorldPackets::Character::PlayerLogin&
             p->SetSession(this);
             delete p->PlayerTalkClass;
             p->PlayerTalkClass = new PlayerMenu(p->GetSession());
+            m_playerLoading = false;
             HandlePlayerLoginToCharInWorld(p);
             return;
         }
@@ -977,13 +997,27 @@ void WorldSession::HandlePlayerLoginOpcode(WorldPackets::Character::PlayerLogin&
 
     std::shared_ptr<LoginQueryHolder> holder = std::make_shared<LoginQueryHolder>(GetAccountId(), playerGuid);
     if (!holder->Initialize())
+    {
+        m_playerLoading = false;
         return;
+    }
 
-    m_playerLoading = true;
     AddQueryHolderCallback(CharacterDatabase.DelayQueryHolder(holder)).AfterComplete([this](SQLQueryHolderBase const& holder)
     {
         HandlePlayerLoginFromDB(static_cast<LoginQueryHolder const&>(holder));
     });
+}
+
+void WorldSession::AbortLogin(LoginFailureReason reason)
+{
+    if (!PlayerLoading() || GetPlayer())
+    {
+        KickPlayer("WorldSession::AbortLogin no login in progress");
+        return;
+    }
+
+    m_playerLoading = false;
+    SendCharLoginFailed(reason);
 }
 
 void WorldSession::HandlePlayerLoginFromDB(LoginQueryHolder const& holder)

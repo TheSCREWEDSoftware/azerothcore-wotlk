@@ -21,6 +21,8 @@
 
 #include "TC9Sidecar.h"
 #include "WorldSession.h"
+#include "AuthenticationPackets.h"
+#include "BattlenetRpcErrorCodes.h"
 #include "ServerPktHeader.h"
 #include "AccountMgr.h"
 #include "BattlegroundMgr.h"
@@ -123,7 +125,6 @@ WorldSession::WorldSession(uint32 id, std::string&& name, uint32 accountFlags, s
     AntiDOS(this),
     m_GUIDLow(0),
     _player(nullptr),
-    m_Socket(sock),
     _security(sec),
     _skipQueue(skipQueue),
     _accountId(id),
@@ -158,6 +159,9 @@ WorldSession::WorldSession(uint32 id, std::string&& name, uint32 accountFlags, s
 {
     memset(m_Tutorials, 0, sizeof(m_Tutorials));
 
+    m_Socket[CONNECTION_TYPE_REALM] = sock;
+    _instanceConnectKey.Raw = UI64LIT(0);
+
     _offlineTime = 0;
     _kicked = false;
 
@@ -184,11 +188,14 @@ WorldSession::~WorldSession()
     if (_player)
         LogoutPlayer(true);
 
-    /// - If have unclosed socket, close it
-    if (m_Socket)
+    /// - If have unclosed sockets, close them
+    for (std::shared_ptr<WorldSocket>& socket : m_Socket)
     {
-        m_Socket->CloseSocket();
-        m_Socket = nullptr;
+        if (socket)
+        {
+            socket->CloseSocket();
+            socket = nullptr;
+        }
     }
 
     delete _RBACData;
@@ -318,17 +325,29 @@ void WorldSession::SendPacket(WorldPacket const* packet)
 {
     sScriptMgr->OnPacketSent(this, *packet);
 
-    if (!m_Socket)
-        return;
-
-    // Opcodes with no 5.4.8 value are parked above the 13 bit opcode range. The header keeps
-    // only the low 13 bits, so sending one would reach the client as some other opcode.
-    if (packet->GetOpcode() > ServerPktHeader::OPCODE_MASK)
+    // Opcodes with no 6.2.4 value are parked at 0xF000 and above
+    if (packet->GetOpcode() >= PARKED_OPCODE_BASE)
     {
-        LOG_DEBUG("network.opcode", "Not sending {} to {}: the opcode has no 5.4.8 value",
+        LOG_DEBUG("network.opcode", "Not sending {} to {}: the opcode has no 6.2.4 value",
             GetOpcodeNameForLogging(static_cast<OpcodeServer>(packet->GetOpcode())), GetPlayerInfo());
         return;
     }
+
+    ServerOpcodeHandler const* handler = opcodeTable[static_cast<OpcodeServer>(packet->GetOpcode())];
+    if (!handler)
+    {
+        LOG_ERROR("network.opcode", "Prevented sending of opcode {} with non existing handler to {}", packet->GetOpcode(), GetPlayerInfo());
+        return;
+    }
+
+    // the opcode table says which connection a packet uses unless the packet overrides it; until the
+    // instance connection exists (character screen, loading) everything goes to the realm connection
+    ConnectionType conIdx = packet->GetConnection() != CONNECTION_TYPE_DEFAULT ? packet->GetConnection() : handler->ConnectionIndex;
+    if (conIdx == CONNECTION_TYPE_INSTANCE && !m_Socket[CONNECTION_TYPE_INSTANCE])
+        conIdx = CONNECTION_TYPE_REALM;
+
+    if (!m_Socket[conIdx])
+        return;
 
 #if defined(ACORE_DEBUG)
     // Code for network use statistic
@@ -371,7 +390,7 @@ void WorldSession::SendPacket(WorldPacket const* packet)
         return;
     }
 
-    m_Socket->SendPacketAndLogOpcode(*packet);
+    m_Socket[conIdx]->SendPacketAndLogOpcode(*packet);
 }
 
 /// Add an incoming packet to the queue
@@ -405,8 +424,8 @@ bool WorldSession::Update(uint32 diff, PacketFilter& updater)
     ///- Before we process anything:
     /// If necessary, kick the player because the client didn't send anything for too long
     /// (or they've been idling in character select)
-    if (m_Socket && IsConnectionIdle() && !HasPermission(rbac::RBAC_PERM_IGNORE_IDLE_CONNECTION))
-        m_Socket->CloseSocket();
+    if (m_Socket[CONNECTION_TYPE_REALM] && IsConnectionIdle() && !HasPermission(rbac::RBAC_PERM_IGNORE_IDLE_CONNECTION))
+        m_Socket[CONNECTION_TYPE_REALM]->CloseSocket();
 
     if (updater.ProcessUnsafe())
         UpdateTimeOutTime(diff);
@@ -429,14 +448,14 @@ bool WorldSession::Update(uint32 diff, PacketFilter& updater)
 
     constexpr uint32 MAX_PROCESSED_PACKETS_IN_SAME_WORLDSESSION_UPDATE = 150;
 
-    while (m_Socket && _recvQueue.next(packet, updater))
+    while (m_Socket[CONNECTION_TYPE_REALM] && _recvQueue.next(packet, updater))
     {
         OpcodeClient opcode = static_cast<OpcodeClient>(packet->GetOpcode());
         ClientOpcodeHandler const* opHandle = opcodeTable[opcode];
         OpcodeHandler const* opMetadata = opcodeTable.GetIncomingOpcode(packet->GetOpcode());
 
         METRIC_DETAILED_TIMER("worldsession_update_opcode_time", METRIC_TAG("opcode", opMetadata->Name));
-        LOG_INFO("network", "message id {} ({}), status: {} under READ", opcode, opMetadata->Name, opMetadata->Status);
+        LOG_TRACE("network", "message id {} ({}), status: {} under READ", opcode, opMetadata->Name, opMetadata->Status);
 
         WorldSession::DosProtection::Policy const evaluationPolicy = AntiDOS.EvaluateOpcode(*packet, currentTime);
         switch (evaluationPolicy)
@@ -627,7 +646,7 @@ bool WorldSession::Update(uint32 diff, PacketFilter& updater)
     {
         sScriptMgr->OnSessionUpdate(this, diff);
 
-        if (m_Socket && m_Socket->IsOpen() && _warden)
+        if (m_Socket[CONNECTION_TYPE_REALM] && m_Socket[CONNECTION_TYPE_REALM]->IsOpen() && _warden)
         {
             _warden->Update(diff);
         }
@@ -637,15 +656,25 @@ bool WorldSession::Update(uint32 diff, PacketFilter& updater)
             LogoutPlayer(true);
         }
 
-        if (m_Socket && !m_Socket->IsOpen())
+        if (m_Socket[CONNECTION_TYPE_REALM] && !m_Socket[CONNECTION_TYPE_REALM]->IsOpen())
         {
             if (GetPlayer() && _warden)
                 _warden->Update(diff);
 
-            m_Socket = nullptr;
+            // the instance connection does not outlive the realm connection
+            if (m_Socket[CONNECTION_TYPE_INSTANCE])
+            {
+                m_Socket[CONNECTION_TYPE_INSTANCE]->CloseSocket();
+                m_Socket[CONNECTION_TYPE_INSTANCE] = nullptr;
+            }
+
+            m_Socket[CONNECTION_TYPE_REALM] = nullptr;
         }
 
-        if (!m_Socket)
+        if (m_Socket[CONNECTION_TYPE_INSTANCE] && !m_Socket[CONNECTION_TYPE_INSTANCE]->IsOpen())
+            m_Socket[CONNECTION_TYPE_INSTANCE] = nullptr;
+
+        if (!m_Socket[CONNECTION_TYPE_REALM])
         {
             return false;                                       //Will remove this session from the world session map
         }
@@ -656,9 +685,10 @@ bool WorldSession::Update(uint32 diff, PacketFilter& updater)
 
 bool WorldSession::HandleSocketClosed()
 {
-    if (m_Socket && !m_Socket->IsOpen() && !IsKicked() && GetPlayer() && !PlayerLogout() && GetPlayer()->m_taxi.empty() && GetPlayer()->IsInWorld() && !World::IsStopped())
+    if (m_Socket[CONNECTION_TYPE_REALM] && !m_Socket[CONNECTION_TYPE_REALM]->IsOpen() && !IsKicked() && GetPlayer() && !PlayerLogout() && GetPlayer()->m_taxi.empty() && GetPlayer()->IsInWorld() && !World::IsStopped())
     {
-        m_Socket = nullptr;
+        for (std::shared_ptr<WorldSocket>& socket : m_Socket)
+            socket = nullptr;
         GetPlayer()->TradeCancel(false);
         return true;
     }
@@ -668,7 +698,7 @@ bool WorldSession::HandleSocketClosed()
 
 bool WorldSession::IsSocketClosed() const
 {
-    return !m_Socket || !m_Socket->IsOpen();
+    return !m_Socket[CONNECTION_TYPE_REALM] || !m_Socket[CONNECTION_TYPE_REALM]->IsOpen();
 }
 
 void WorldSession::CheckPlayedTimeLimit(Seconds now)
@@ -808,7 +838,7 @@ void WorldSession::LogoutPlayer(bool save, bool redirecting)
 
             // remove player from the group if he is:
             // a) in group; b) not in raid group; c) logging out normally (not being kicked or disconnected) d) LeaveGroupOnLogout is enabled
-            if (!sToCloud9Sidecar->ClusterModeEnabled() && _player->GetGroup() && !_player->GetGroup()->isRaidGroup() && !_player->GetGroup()->isLFGGroup() && m_Socket && sWorld->getBoolConfig(CONFIG_LEAVE_GROUP_ON_LOGOUT))
+            if (!sToCloud9Sidecar->ClusterModeEnabled() && _player->GetGroup() && !_player->GetGroup()->isRaidGroup() && !_player->GetGroup()->isLFGGroup() && m_Socket[CONNECTION_TYPE_REALM] && sWorld->getBoolConfig(CONFIG_LEAVE_GROUP_ON_LOGOUT))
                 _player->RemoveFromGroup();
             // Remove player from active loot rolls in LFG groups (player stays in group but should not block rolls)
             else if (Group* group = _player->GetGroup())
@@ -910,12 +940,14 @@ void WorldSession::LogoutPlayer(bool save, bool redirecting)
 /// Kick a player out of the World
 void WorldSession::KickPlayer(std::string const& reason, bool setKicked)
 {
-    if (m_Socket)
+    if (m_Socket[CONNECTION_TYPE_REALM])
     {
         LOG_INFO("network.kick", "Account: {} Character: '{}' {} kicked with reason: {}", GetAccountId(), _player ? _player->GetName() : "<none>",
             _player ? _player->GetGUID().ToString() : "", reason);
 
-        m_Socket->CloseSocket();
+        for (std::shared_ptr<WorldSocket> const& socket : m_Socket)
+            if (socket)
+                socket->CloseSocket();
     }
 
     if (setKicked)
@@ -989,7 +1021,16 @@ void WorldSession::Handle_Deprecated(WorldPacket& recvPacket)
 
 void WorldSession::SendAuthWaitQueue(uint32 position)
 {
-    SendAuthResponse(position == 0 ? AUTH_OK : AUTH_WAIT_QUEUE, position == 0, position);
+    WorldPackets::Auth::AuthResponse response;
+    response.Result = ERROR_OK;
+
+    if (position)
+    {
+        response.WaitInfo.emplace();
+        response.WaitInfo->WaitCount = position;
+    }
+
+    SendPacket(response.Write());
 }
 
 void WorldSession::LoadAccountData(PreparedQueryResult result, uint32 mask)
@@ -1643,7 +1684,7 @@ void WorldSession::InitializeSession()
     std::shared_ptr<AccountInfoQueryHolderPerRealm> realmHolder = std::make_shared<AccountInfoQueryHolderPerRealm>();
     if (!realmHolder->Initialize(GetAccountId()))
     {
-        SendAuthResponse(AUTH_SYSTEM_ERROR, true);
+        SendAuthResponse(ERROR_INTERNAL, false);
         return;
     }
 
@@ -1662,7 +1703,7 @@ void WorldSession::InitializeSessionCallback(CharacterDatabaseQueryHolder const&
     {
         if (!m_inQueue)
         {
-            SendAuthResponse(AUTH_OK, true);
+            SendAuthResponse(ERROR_OK, false);
         }
         else
         {
@@ -1725,8 +1766,9 @@ void WorldSession::HandleTC9PrepareForRedirect(WorldPacket& /*recvData*/)
 
 void WorldSession::SetPacketLogging(bool state)
 {
-    if (m_Socket)
-        m_Socket->SetPacketLogging(state);
+    for (std::shared_ptr<WorldSocket> const& socket : m_Socket)
+        if (socket)
+            socket->SetPacketLogging(state);
 }
 
 std::unique_ptr<WorldPacket> WorldSession::NextQueuedPacket()

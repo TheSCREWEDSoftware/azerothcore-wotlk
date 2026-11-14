@@ -16,32 +16,89 @@
  */
 
 #include "AuthenticationPackets.h"
+#include "BattlenetRpcErrorCodes.h"
+#include "Random.h"
 #include "Realm.h"
 #include "World.h"
 #include "WorldSession.h"
+#include <boost/asio/ip/address.hpp>
 
-void WorldSession::SendAuthResponse(uint8 code, bool shortForm, uint32 queuePos)
+namespace
 {
-    WorldPackets::Auth::AuthResponse packet(code);
-
-    if (code == AUTH_OK)
+    // 6.2.4 playable races and classes with the expansion that unlocks them
+    // (TrinityCore 6.x race_expansion_requirement / class_expansion_requirement)
+    WorldPackets::Auth::ExpansionRequirementContainer const RaceExpansions =
     {
-        WorldPackets::Auth::AuthSuccessInfo& successInfo = packet.SuccessInfo.emplace();
-        successInfo.ActiveExpansionLevel = uint8(sWorld->getIntConfig(CONFIG_EXPANSION));
+        { 1, 0 }, { 2, 0 }, { 3, 0 }, { 4, 0 }, { 5, 0 }, { 6, 0 }, { 7, 0 }, { 8, 0 }, { 9, 3 }, { 10, 1 }, { 11, 1 },
+        { 22, 3 }, { 24, 4 }, { 25, 4 }, { 26, 4 }
+    };
+
+    WorldPackets::Auth::ExpansionRequirementContainer const ClassExpansions =
+    {
+        { 1, 0 }, { 2, 0 }, { 3, 0 }, { 4, 0 }, { 5, 0 }, { 6, 2 }, { 7, 0 }, { 8, 0 }, { 9, 0 }, { 10, 4 }, { 11, 0 }
+    };
+
+    std::string NormalizeRealmName(std::string name)
+    {
+        name.erase(std::remove(name.begin(), name.end(), ' '), name.end());
+        return name;
+    }
+}
+
+uint32 WorldSession::GetVirtualRealmAddress() const
+{
+    return realm.Id.GetAddress();
+}
+
+void WorldSession::SendAuthResponse(uint32 code, bool queued, uint32 queuePos)
+{
+    WorldPackets::Auth::AuthResponse response;
+    response.Result = code;
+
+    if (queued)
+    {
+        response.WaitInfo.emplace();
+        response.WaitInfo->WaitCount = queuePos;
+    }
+    else if (code == ERROR_OK)
+    {
+        WorldPackets::Auth::AuthResponse::AuthSuccessInfo& successInfo = response.SuccessInfo.emplace();
         successInfo.AccountExpansionLevel = Expansion();
-        successInfo.VirtualRealmID = realm.Id.Realm;
-        successInfo.RealmName = realm.Name;
+        successInfo.ActiveExpansionLevel = uint8(sWorld->getIntConfig(CONFIG_EXPANSION));
+        successInfo.VirtualRealmAddress = GetVirtualRealmAddress();
+
+        // the home realm; there is no need to send it again in realm queries
+        successInfo.VirtualRealms.emplace_back(GetVirtualRealmAddress(), true, false, realm.Name, NormalizeRealmName(realm.Name));
+
+        successInfo.AvailableClasses = &ClassExpansions;
+        successInfo.AvailableRaces = &RaceExpansions;
     }
 
-    if (!shortForm)
-        packet.WaitInfo.emplace(WorldPackets::Auth::AuthWaitInfo{ queuePos, false });
+    SendPacket(response.Write());
+}
 
-    SendPacket(packet.Write());
+void WorldSession::SendConnectToInstance(WorldPackets::Auth::ConnectToSerial serial)
+{
+    boost::system::error_code ignoredError;
+    boost::asio::ip::tcp::endpoint instanceAddress = realm.GetAddressForClient(boost::asio::ip::make_address(GetRemoteAddress(), ignoredError));
+    instanceAddress.port(uint16(sWorld->getIntConfig(CONFIG_PORT_INSTANCE)));
+
+    _instanceConnectKey.Fields.AccountId = GetAccountId();
+    _instanceConnectKey.Fields.ConnectionType = CONNECTION_TYPE_INSTANCE;
+    _instanceConnectKey.Fields.Key = urand(0, 0x7FFFFFFF);
+
+    WorldPackets::Auth::ConnectTo connectTo;
+    connectTo.Key = _instanceConnectKey.Raw;
+    connectTo.Serial = serial;
+    connectTo.Payload.Where = instanceAddress;
+    connectTo.Con = CONNECTION_TYPE_INSTANCE;
+
+    SendPacket(connectTo.Write());
 }
 
 void WorldSession::SendClientCacheVersion(uint32 version)
 {
-    WorldPacket data(SMSG_CLIENTCACHE_VERSION, 4);
+    WorldPacket data(SMSG_CACHE_VERSION, 4);
     data << uint32(version);
     SendPacket(&data);
 }

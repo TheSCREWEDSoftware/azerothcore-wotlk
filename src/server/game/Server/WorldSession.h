@@ -502,9 +502,27 @@ struct PacketCounter
 };
 
 /// Player session in the World
+namespace WorldPackets::Auth
+{
+    enum class ConnectToSerial : uint32;
+}
+
 class WorldSession
 {
 public:
+    /// key of the 6.x instance connection (SMSG_CONNECT_TO / CMSG_AUTH_CONTINUED_SESSION)
+    union ConnectToKey
+    {
+        struct
+        {
+            uint64 AccountId : 32;
+            uint64 ConnectionType : 1;
+            uint64 Key : 31;
+        } Fields;
+
+        uint64 Raw;
+    };
+
     WorldSession(uint32 id, std::string&& name, uint32 accountFlags, std::shared_ptr<WorldSocket> sock,
         AccountTypes sec, uint8 expansion, time_t mute_time, LocaleConstant locale, uint32 recruiter, bool isARecruiter,
         bool skipQueue, uint32 TotalTime);
@@ -561,8 +579,16 @@ public:
 
     void SendTimeQueryResponse();
 
-    void SendAuthResponse(uint8 code, bool shortForm, uint32 queuePos = 0);
+    /// code is a BattlenetRpcErrorCode; queued sends the login queue position instead of the account information
+    void SendAuthResponse(uint32 code, bool queued, uint32 queuePos = 0);
     void SendClientCacheVersion(uint32 version);
+
+    // 6.x instance connection
+    void SendConnectToInstance(WorldPackets::Auth::ConnectToSerial serial);
+    void AddInstanceConnection(std::shared_ptr<WorldSocket> sock) { m_Socket[CONNECTION_TYPE_INSTANCE] = sock; }
+    uint64 GetConnectToInstanceKey() const { return _instanceConnectKey.Raw; }
+    /// realm address of this realm for the 6.x client (region << 24 | battlegroup << 16 | realm)
+    uint32 GetVirtualRealmAddress() const;
 
     AccountTypes GetSecurity() const { return _security; }
     bool CanSkipQueue() const { return _skipQueue; }
@@ -577,6 +603,9 @@ public:
     /// For unit testing - initializes RBAC data without database access
     void InitRBACDataForTest();
     uint32 GetAccountId() const { return _accountId; }
+    /// 6.x: the Battle.net account of this game account (0 when not linked)
+    uint32 GetBattlenetAccountId() const { return _battlenetAccountId; }
+    void SetBattlenetAccountId(uint32 battlenetAccountId) { _battlenetAccountId = battlenetAccountId; }
     Player* GetPlayer() const { return _player; }
     std::string const& GetPlayerName() const;
     std::string GetPlayerInfo() const;
@@ -835,6 +864,8 @@ public:                                                 // opcodes handlers
     void HandleWhoOpcode(WorldPacket& recvPacket);
     void HandleLogoutRequestOpcode(WorldPackets::Character::LogoutRequest& logoutRequest);
     void HandlePlayerLoginOpcode(WorldPackets::Character::PlayerLogin& playerLogin);
+    void HandleContinuePlayerLogin();
+    void AbortLogin(LoginFailureReason reason);
     void HandleRequestResearchHistory(WorldPackets::Archaeology::RequestResearchHistory& packet);
     void HandleRequestPvpOptions(WorldPacket& recvData);
     void HandleRequestPvpReward(WorldPacket& recvData);
@@ -1460,7 +1491,9 @@ private:
 
     ObjectGuid::LowType m_GUIDLow;                     // set logined or recently logout player (while m_playerRecentlyLogout set)
     Player* _player;
-    std::shared_ptr<WorldSocket> m_Socket;
+    std::shared_ptr<WorldSocket> m_Socket[MAX_CONNECTION_TYPES];
+    ConnectToKey _instanceConnectKey;
+    uint32 _battlenetAccountId = 0;
     std::string m_Address;
 
     AccountTypes _security;
@@ -1483,6 +1516,7 @@ private:
     time_t _logoutTime;
     bool m_inQueue;                                     // session wait in auth.queue
     bool m_playerLoading;                               // code processed in LoginPlayer
+    ObjectGuid _playerLoadingGuid;                      // character waiting for the 6.x instance connection
     bool m_playerLogout;                                // code processed in LogoutPlayer
     bool m_playerRecentlyLogout;
     bool m_playerSave;

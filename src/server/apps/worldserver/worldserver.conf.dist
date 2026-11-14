@@ -100,6 +100,14 @@ RealmID = 1
 WorldServerPort = 8085
 
 #
+#    InstanceServerPort
+#        Description: TCP port of the 6.x instance connection (SMSG_CONNECT_TO). The client opens it
+#                     at character login; both ports must be reachable.
+#        Default:     8086
+
+InstanceServerPort = 8086
+
+#
 #    BindIP
 #        Description: Bind world server to IP/hostname
 #        Default:     "0.0.0.0" - (Bind to all IPs on the system)

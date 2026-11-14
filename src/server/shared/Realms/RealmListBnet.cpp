@@ -155,7 +155,7 @@ uint32 RealmList::JoinRealm(uint32 realmAddress, uint32 build, boost::asio::ip::
     LoginDatabasePreparedStatement* stmt = LoginDatabase.GetPreparedStatement(LOGIN_UPD_BNET_GAME_ACCOUNT_LOGIN_INFO);
     stmt->SetData(0, sessionKey);
     stmt->SetData(1, clientAddress.to_string());
-    stmt->SetData(2, uint8(locale));
+    stmt->SetData(2, localeNames[locale < TOTAL_LOCALES ? locale : LOCALE_enUS]); // account.locale is the locale name
     stmt->SetData(3, os);
     stmt->SetData(4, accountName);
     LoginDatabase.DirectExecute(stmt);

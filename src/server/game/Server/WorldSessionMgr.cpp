@@ -15,6 +15,7 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "BattlenetRpcErrorCodes.h"
 #include "Chat.h"
 #include "ChatPackets.h"
 #include "RBAC.h"
@@ -24,6 +25,7 @@
 #include "World.h"
 #include "WorldSession.h"
 #include "WorldSessionMgr.h"
+#include "WorldSocket.h"
 
 WorldSessionMgr* WorldSessionMgr::Instance()
 {
@@ -131,6 +133,11 @@ void WorldSessionMgr::UpdateSessions(uint32 const diff)
         {
             AddSession_(sess);
         }
+
+        ///- Link authenticated instance connections to their sessions
+        std::pair<std::weak_ptr<WorldSocket>, uint64> linkInfo;
+        while (_linkSocketQueue.next(linkInfo))
+            ProcessLinkInstanceSocket(std::move(linkInfo));
     }
 
     ///- Then send an update signal to remaining ones
@@ -260,13 +267,40 @@ void WorldSessionMgr::AddSession(WorldSession* session)
     _addSessQueue.add(session);
 }
 
+void WorldSessionMgr::AddInstanceSocket(std::weak_ptr<WorldSocket> sock, uint64 connectToKey)
+{
+    _linkSocketQueue.add(std::make_pair(sock, connectToKey));
+}
+
+void WorldSessionMgr::ProcessLinkInstanceSocket(std::pair<std::weak_ptr<WorldSocket>, uint64> linkInfo)
+{
+    std::shared_ptr<WorldSocket> sock = linkInfo.first.lock();
+    if (!sock || !sock->IsOpen())
+        return;
+
+    WorldSession::ConnectToKey key;
+    key.Raw = linkInfo.second;
+
+    WorldSession* session = FindSession(uint32(key.Fields.AccountId));
+    if (!session || session->GetConnectToInstanceKey() != linkInfo.second)
+    {
+        sock->SendAuthResponseError(ERROR_TIMED_OUT);
+        sock->DelayedCloseSocket();
+        return;
+    }
+
+    sock->SetWorldSession(session);
+    session->AddInstanceConnection(sock);
+    session->HandleContinuePlayerLogin();
+}
+
 void WorldSessionMgr::AddQueuedPlayer(WorldSession* session)
 {
     session->SetInQueue(true);
     _queuedPlayer.push_back(session);
 
     // The 1st SMSG_AUTH_RESPONSE needs to contain other info too.
-    session->SendAuthResponse(AUTH_OK, false, GetQueuePos(session));
+    session->SendAuthResponse(ERROR_OK, true, GetQueuePos(session));
 }
 
 bool WorldSessionMgr::RemoveQueuedPlayer(WorldSession* session)
