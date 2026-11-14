@@ -21,6 +21,7 @@
 #include "DatabaseEnv.h"
 #include "GameObject.h"
 #include "Group.h"
+#include "InstancePackets.h"
 #include "InstanceSaveMgr.h"
 #include "LFGMgr.h"
 #include "Log.h"
@@ -778,35 +779,46 @@ void InstanceScript::SetCompletedEncountersMask(uint32 newMask, bool save)
     }
 }
 
-void InstanceScript::SendEncounterUnit(uint32 type, Unit* unit /*= nullptr*/, uint8 param1 /*= 0*/, uint8 param2 /*= 0*/)
+void InstanceScript::SendEncounterUnit(uint32 type, Unit* unit /*= nullptr*/, uint8 param1 /*= 0*/, uint8 /*param2 = 0*/)
 {
-    // size of this packet is at most 15 (usually less)
-    WorldPacket data(SMSG_UPDATE_INSTANCE_ENCOUNTER_UNIT, 15);
-    data << uint32(type);
-
+    // 6.x 21742 (TC 6.x): one packet per frame action; timers and objectives are not sent any more
     switch (type)
     {
-        case ENCOUNTER_FRAME_ENGAGE:
-        case ENCOUNTER_FRAME_DISENGAGE:
-        case ENCOUNTER_FRAME_UPDATE_PRIORITY:
-            data << unit->GetPackGUID();
-            data << uint8(param1);
+        case ENCOUNTER_FRAME_ENGAGE:                    // SMSG_INSTANCE_ENCOUNTER_ENGAGE_UNIT
+        {
+            if (!unit)
+                return;
+
+            WorldPackets::Instance::InstanceEncounterEngageUnit encounterEngageMessage;
+            encounterEngageMessage.Unit = unit->GetGUID();
+            encounterEngageMessage.TargetFramePriority = param1;
+            instance->SendToPlayers(encounterEngageMessage.Write());
             break;
-        case ENCOUNTER_FRAME_ADD_TIMER:
-        case ENCOUNTER_FRAME_ENABLE_OBJECTIVE:
-        case ENCOUNTER_FRAME_DISABLE_OBJECTIVE:
-            data << uint8(param1);
+        }
+        case ENCOUNTER_FRAME_DISENGAGE:                 // SMSG_INSTANCE_ENCOUNTER_DISENGAGE_UNIT
+        {
+            if (!unit)
+                return;
+
+            WorldPackets::Instance::InstanceEncounterDisengageUnit encounterDisengageMessage;
+            encounterDisengageMessage.Unit = unit->GetGUID();
+            instance->SendToPlayers(encounterDisengageMessage.Write());
             break;
-        case ENCOUNTER_FRAME_UPDATE_OBJECTIVE:
-            data << uint8(param1);
-            data << uint8(param2);
+        }
+        case ENCOUNTER_FRAME_UPDATE_PRIORITY:           // SMSG_INSTANCE_ENCOUNTER_CHANGE_PRIORITY
+        {
+            if (!unit)
+                return;
+
+            WorldPackets::Instance::InstanceEncounterChangePriority encounterChangePriorityMessage;
+            encounterChangePriorityMessage.Unit = unit->GetGUID();
+            encounterChangePriorityMessage.TargetFramePriority = param1;
+            instance->SendToPlayers(encounterChangePriorityMessage.Write());
             break;
-        case ENCOUNTER_FRAME_REFRESH_FRAMES:
+        }
         default:
             break;
     }
-
-    instance->SendToPlayers(&data);
 }
 
 void InstanceScript::LoadInstanceSavedGameobjectStateData()

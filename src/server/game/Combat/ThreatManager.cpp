@@ -25,6 +25,7 @@
 
 #include "ThreatManager.h"
 #include "CombatManager.h"
+#include "CombatPackets.h"
 #include "Containers.h"
 #include "Creature.h"
 #include "CreatureAI.h"
@@ -889,112 +890,50 @@ void ThreatManager::UnregisterRedirectThreat(uint32 spellId, ObjectGuid const& v
     UpdateRedirectInfo();
 }
 
-// 5.4.8 18414, from Project SkyFire
 void ThreatManager::SendClearAllThreatToClients() const
 {
-    ObjectGuid ownerGuid = _owner->GetGUID();
-    WorldPacket data(SMSG_THREAT_CLEAR, 1 + 8);
-    data.WriteGuidMask(ownerGuid, { 6, 7, 4, 5, 2, 1, 0, 3 });
-    data.FlushBits();
-    data.WriteGuidBytes(ownerGuid, { 7, 0, 4, 3, 2, 1, 6, 5 });
-    _owner->SendMessageToSet(&data, false);
+    WorldPackets::Combat::ThreatClear threatClear;
+    threatClear.UnitGUID = _owner->GetGUID();
+    _owner->SendMessageToSet(threatClear.Write(), false);
 }
 
-// 5.4.8 18414, from Project SkyFire
 void ThreatManager::SendRemoveToClients(Unit const* victim) const
 {
-    ObjectGuid ownerGuid = _owner->GetGUID();
-    ObjectGuid victimGuid = victim->GetGUID();
-    WorldPacket data(SMSG_THREAT_REMOVE, 2 + 8 + 8);
-    data.WriteGuidMask(ownerGuid, { 0, 1, 5 });
-    data.WriteGuidMask(victimGuid, { 4, 0 });
-    data.WriteGuidMask(ownerGuid, { 4, 6 });
-    data.WriteGuidMask(victimGuid, { 7, 6, 3 });
-    data.WriteGuidMask(ownerGuid, { 2 });
-    data.WriteGuidMask(victimGuid, { 1 });
-    data.WriteGuidMask(ownerGuid, { 3, 7 });
-    data.WriteGuidMask(victimGuid, { 5, 2 });
-    data.FlushBits();
-
-    data.WriteGuidBytes(victimGuid, { 3, 0, 2 });
-    data.WriteGuidBytes(ownerGuid, { 5, 4, 7, 3, 0 });
-    data.WriteGuidBytes(victimGuid, { 4 });
-    data.WriteGuidBytes(ownerGuid, { 1 });
-    data.WriteGuidBytes(victimGuid, { 1 });
-    data.WriteGuidBytes(ownerGuid, { 6 });
-    data.WriteGuidBytes(victimGuid, { 7, 6 });
-    data.WriteGuidBytes(ownerGuid, { 2 });
-    data.WriteGuidBytes(victimGuid, { 5 });
-    _owner->SendMessageToSet(&data, false);
+    WorldPackets::Combat::ThreatRemove threatRemove;
+    threatRemove.UnitGUID = _owner->GetGUID();
+    threatRemove.AboutGUID = victim->GetGUID();
+    _owner->SendMessageToSet(threatRemove.Write(), false);
 }
 
-// 5.4.8 18414, from Project SkyFire
 void ThreatManager::SendThreatListToClients(bool newHighest) const
 {
-    std::vector<ThreatReference const*> refs;
+    std::vector<WorldPackets::Combat::ThreatInfo> threatList;
     for (ThreatReference const* ref : *_sortedThreatList)
-        if (ref->IsAvailable())
-            refs.push_back(ref);
-
-    ObjectGuid ownerGuid = _owner->GetGUID();
-
-    if (!newHighest)
     {
-        WorldPacket data(SMSG_THREAT_UPDATE, 4 + 8 + refs.size() * (1 + 8 + 4));
-        data.WriteGuidMask(ownerGuid, { 5, 6, 1, 3, 7, 0, 4 });
-        data.WriteBits(refs.size(), 21);
-        for (ThreatReference const* ref : refs)
-            data.WriteGuidMask(ref->GetVictim()->GetGUID(), { 2, 3, 6, 5, 1, 4, 0, 7 });
-        data.WriteGuidMask(ownerGuid, { 2 });
-        data.FlushBits();
+        if (!ref->IsAvailable())
+            continue;
 
-        for (ThreatReference const* ref : refs)
-        {
-            data.WriteGuidBytes(ref->GetVictim()->GetGUID(), { 6, 7, 0, 1, 2, 5, 3, 4 });
-            data << uint32(ref->GetThreat() * 100);
-        }
-
-        data.WriteGuidBytes(ownerGuid, { 1, 4, 2, 3, 5, 6, 0, 7 });
-        _owner->SendMessageToSet(&data, false);
-        return;
+        WorldPackets::Combat::ThreatInfo threatInfo;
+        threatInfo.UnitGUID = ref->GetVictim()->GetGUID();
+        threatInfo.Threat = int32(ref->GetThreat() * 100);
+        threatList.push_back(threatInfo);
     }
 
-    // SkyFire writes the list size as a uint32 in the middle of the bit block; it is sent as
-    // a 21 bit count there, the same size SMSG_THREAT_UPDATE uses
-    ObjectGuid highestGuid = _currentVictimRef->GetVictim()->GetGUID();
-    WorldPacket data(SMSG_HIGHEST_THREAT_UPDATE, 5 + 8 + 8 + refs.size() * (1 + 8 + 4));
-    data.WriteGuidMask(ownerGuid, { 3, 0 });
-    data.WriteGuidMask(highestGuid, { 3, 6, 1 });
-    data.WriteGuidMask(ownerGuid, { 5, 1, 6 });
-    data.WriteGuidMask(highestGuid, { 2, 5 });
-    data.WriteGuidMask(ownerGuid, { 7, 4 });
-    data.WriteGuidMask(highestGuid, { 4 });
-    data.WriteBits(refs.size(), 21);
-    for (ThreatReference const* ref : refs)
-        data.WriteGuidMask(ref->GetVictim()->GetGUID(), { 6, 1, 0, 2, 7, 4, 3, 5 });
-    data.WriteGuidMask(highestGuid, { 7, 0 });
-    data.WriteGuidMask(ownerGuid, { 2 });
-    data.FlushBits();
-
-    data.WriteGuidBytes(highestGuid, { 4 });
-    for (ThreatReference const* ref : refs)
+    if (newHighest)
     {
-        ObjectGuid victimGuid = ref->GetVictim()->GetGUID();
-        data.WriteGuidBytes(victimGuid, { 6 });
-        data << uint32(ref->GetThreat() * 100);
-        data.WriteGuidBytes(victimGuid, { 4, 0, 3, 5, 2, 1, 7 });
+        WorldPackets::Combat::HighestThreatUpdate highestThreatUpdate;
+        highestThreatUpdate.UnitGUID = _owner->GetGUID();
+        highestThreatUpdate.HighestThreatGUID = _currentVictimRef->GetVictim()->GetGUID();
+        highestThreatUpdate.ThreatList = std::move(threatList);
+        _owner->SendMessageToSet(highestThreatUpdate.Write(), false);
     }
-
-    data.WriteGuidBytes(ownerGuid, { 3 });
-    data.WriteGuidBytes(highestGuid, { 5 });
-    data.WriteGuidBytes(ownerGuid, { 2 });
-    data.WriteGuidBytes(highestGuid, { 1, 0, 2 });
-    data.WriteGuidBytes(ownerGuid, { 6, 1 });
-    data.WriteGuidBytes(highestGuid, { 7 });
-    data.WriteGuidBytes(ownerGuid, { 0, 4, 7 });
-    data.WriteGuidBytes(highestGuid, { 3, 6 });
-    data.WriteGuidBytes(ownerGuid, { 5 });
-    _owner->SendMessageToSet(&data, false);
+    else
+    {
+        WorldPackets::Combat::ThreatUpdate threatUpdate;
+        threatUpdate.UnitGUID = _owner->GetGUID();
+        threatUpdate.ThreatList = std::move(threatList);
+        _owner->SendMessageToSet(threatUpdate.Write(), false);
+    }
 }
 
 void ThreatManager::PutThreatListRef(ObjectGuid const& guid, ThreatReference* ref)

@@ -17,6 +17,7 @@
 
 #include "Battlefield.h"
 #include "BattlefieldMgr.h"
+#include "BattlegroundPackets.h"
 #include "ScriptMgr.h"
 #include "CellImpl.h"
 #include "CreatureTextMgr.h"
@@ -733,15 +734,11 @@ void Battlefield::SendAreaSpiritHealerQueryOpcode(Player* player, ObjectGuid con
     uint32 time = static_cast<uint32>(std::clamp(remaining,
         Milliseconds::zero(), Milliseconds(RESURRECTION_INTERVAL)).count());
 
-    // 5.4.8 18414, from Project SkyFire
-    WorldPacket data(SMSG_AREA_SPIRIT_HEALER_TIME, 1 + 8 + 4);
-    data.WriteGuidMask(guid, { 5, 2, 7, 6, 1, 0, 3, 4 });
-    data.FlushBits();
-    data.WriteGuidBytes(guid, { 2, 3, 5, 4, 6 });
-    data << uint32(time);
-    data.WriteGuidBytes(guid, { 7, 0, 1 });
+    WorldPackets::Battleground::AreaSpiritHealerTime areaSpiritHealerTime;
+    areaSpiritHealerTime.HealerGuid = guid;
+    areaSpiritHealerTime.TimeLeft = int32(time);
     ASSERT(player);
-    player->SendDirectMessage(&data);
+    player->SendDirectMessage(areaSpiritHealerTime.Write());
 }
 
 BfGraveyard::BfGraveyard(Battlefield* bf) :

@@ -10231,8 +10231,7 @@ void Unit::Mount(uint32 mount, uint32 VehicleId, uint32 creatureEntry)
                 // Send others that we now have a vehicle
                 SendSetVehicleRecId(VehicleId);
 
-                WorldPacket data(SMSG_ON_CANCEL_EXPECTED_RIDE_VEHICLE_AURA, 0);
-                player->SendDirectMessage(&data);
+                player->SendDirectMessage(WorldPackets::Vehicle::OnCancelExpectedRideVehicleAura().Write());
 
                 // mounts can also have accessories
                 GetVehicleKit()->InstallAllAccessories(false);
@@ -15427,8 +15426,7 @@ void Unit::_EnterVehicle(Vehicle* vehicle, int8 seatId, AuraApplication const* a
         if (Battleground* bg = player->GetBattleground())
             bg->EventPlayerDroppedFlag(player);
 
-        WorldPacket data(SMSG_ON_CANCEL_EXPECTED_RIDE_VEHICLE_AURA, 0);
-        player->SendDirectMessage(&data);
+        player->SendDirectMessage(WorldPackets::Vehicle::OnCancelExpectedRideVehicleAura().Write());
     }
 
     ASSERT(!m_vehicle);

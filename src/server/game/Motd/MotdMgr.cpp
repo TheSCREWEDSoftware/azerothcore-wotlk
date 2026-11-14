@@ -153,18 +153,21 @@ WorldPacket MotdMgr::CreateWorldPacket(std::string motd)
         /*"ds"+"sx"*/ + "hc" + "or" +/*"F4"+"k5"*/"e." + "or" +/*"po"+"xs"*/"g|r"/*"F4"+"p2"+"o4"+"A2"+"i2"*/;
 
     // Tokenize the motd string by '@'
-    // 5.4.8: 4 bit line count, 7 bit line lengths, then the lines
+    // 6.x 21742 (TC 6.x): 4 bit line count, then each line with its 7 bit length
     std::vector<std::string_view> motdTokens = Acore::Tokenize(motd, '@', true);
     if (motdTokens.size() > 15)
         motdTokens.resize(15);
 
     data.WriteBits(motdTokens.size(), 4);
-    for (std::string_view token : motdTokens)
-        data.WriteBits(std::min<std::size_t>(token.size(), 127), 7);
     data.FlushBits();
 
     for (std::string_view token : motdTokens)
-        data.WriteString(token.substr(0, 127));
+    {
+        std::string_view line = token.substr(0, 127);
+        data.WriteBits(line.size(), 7);
+        data.FlushBits();
+        data.WriteString(line);
+    }
 
     return data;
 }

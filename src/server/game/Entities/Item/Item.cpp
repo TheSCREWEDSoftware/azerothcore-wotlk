@@ -1139,19 +1139,12 @@ bool Item::IsLimitedToAnotherMapOrZone(uint32 cur_mapId, uint32 cur_zoneId) cons
 
 void Item::SendUpdateSockets()
 {
-    // 5.4.8 18414, from Project SkyFire
-    ObjectGuid guid = GetGUID();
-    WorldPacket data(SMSG_SOCKET_GEMS_RESULT, 1 + 8 + 4 + 4 + 4 + 4);
-    data.WriteGuidMask(guid, { 2, 5, 7, 6, 0, 1, 3, 4 });
-    data.FlushBits();
-    data.WriteGuidBytes(guid, { 2 });
-    data << uint32(GetEnchantmentId(BONUS_ENCHANTMENT_SLOT));
-    data.WriteGuidBytes(guid, { 3, 7, 4 });
-    for (uint32 i = SOCK_ENCHANTMENT_SLOT; i <= SOCK_ENCHANTMENT_SLOT_3; ++i)
-        data << uint32(GetEnchantmentId(EnchantmentSlot(i)));
-    data.WriteGuidBytes(guid, { 5, 0, 1, 6 });
-
-    GetOwner()->SendDirectMessage(&data);
+    WorldPackets::Item::SocketGemsResult socketGems;
+    socketGems.Item = GetGUID();
+    for (uint32 i = 0; i < MAX_GEM_SOCKETS; ++i)
+        socketGems.Sockets[i] = int32(GetEnchantmentId(EnchantmentSlot(SOCK_ENCHANTMENT_SLOT + i)));
+    socketGems.SocketMatch = int32(GetEnchantmentId(BONUS_ENCHANTMENT_SLOT));
+    GetOwner()->SendDirectMessage(socketGems.Write());
 }
 
 // Though the client has the information in the item's data field,
@@ -1163,14 +1156,10 @@ void Item::SendTimeUpdate(Player* owner)
     if (!duration)
         return;
 
-    // 5.4.8 18414, from Project SkyFire
-    ObjectGuid guid = GetGUID();
-    WorldPacket data(SMSG_ITEM_TIME_UPDATE, 1 + 8 + 4);
-    data.WriteGuidMask(guid, { 5, 3, 4, 1, 2, 6, 0, 7 });
-    data.FlushBits();
-    data.WriteGuidBytes(guid, { 2, 6, 7, 4, 0, 3, 5, 1 });
-    data << uint32(duration);
-    owner->SendDirectMessage(&data);
+    WorldPackets::Item::ItemTimeUpdate itemTimeUpdate;
+    itemTimeUpdate.ItemGuid = GetGUID();
+    itemTimeUpdate.DurationLeft = duration;
+    owner->SendDirectMessage(itemTimeUpdate.Write());
 }
 
 Item* Item::CreateItem(uint32 item, uint32 count, Player const* player, bool clone, uint32 randomPropertyId)

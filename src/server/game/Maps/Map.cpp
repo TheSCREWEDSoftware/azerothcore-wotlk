@@ -27,6 +27,7 @@
 #include "GridNotifiers.h"
 #include "Group.h"
 #include "GuildMgr.h"
+#include "InstancePackets.h"
 #include "InstanceScript.h"
 #include "IVMapMgr.h"
 #include "LFGMgr.h"
@@ -2377,14 +2378,12 @@ bool InstanceMap::AddPlayerToMap(Player* player)
 
         if (!playerBind->perm && !mapSave->CanReset() && group && !group->isLFGGroup() && !group->IsLfgRandomInstance())
         {
-            // 5.4.8 18414, from Project SkyFire
-            WorldPacket data(SMSG_INSTANCE_LOCK_WARNING_QUERY, 4 + 4 + 1);
-            data << uint32(60000);
-            data << uint32(instance_data ? instance_data->GetCompletedEncounterMask() : 0);
-            data.WriteBit(false);                       // extending
-            data.WriteBit(false);                       // warning only
-            data.FlushBits();
-            player->SendDirectMessage(&data);
+            WorldPackets::Instance::PendingRaidLock pendingRaidLock;
+            pendingRaidLock.TimeUntilLock = 60000;
+            pendingRaidLock.CompletedMask = instance_data ? instance_data->GetCompletedEncounterMask() : 0;
+            pendingRaidLock.Extending = false;
+            pendingRaidLock.WarningOnly = false;
+            player->SendDirectMessage(pendingRaidLock.Write());
             player->SetPendingBind(mapSave->GetInstanceId(), 60000);
         }
     }
@@ -2555,11 +2554,9 @@ void InstanceMap::PermBindAllPlayers()
 
         if (!bind || !bind->perm)
         {
-            // 5.4.8 18414, from Project SkyFire
-            WorldPacket data(SMSG_INSTANCE_SAVE_CREATED, 1);
-            data.WriteBit(player->IsGameMaster());
-            data.FlushBits();
-            player->SendDirectMessage(&data);
+            WorldPackets::Instance::InstanceSaveCreated data;
+            data.Gm = player->IsGameMaster();
+            player->SendDirectMessage(data.Write());
             sInstanceSaveMgr->PlayerBindToInstance(player->GetGUID(), save, true, player);
         }
 
@@ -3588,11 +3585,11 @@ void Map::SendZoneDynamicInfo(uint32 zoneId, Player* player) const
 
     if (uint32 overrideLight = itr->second.OverrideLightId)
     {
-        WorldPacket data(SMSG_OVERRIDE_LIGHT, 4 + 4 + 4);
-        data << uint32(_defaultLight);
-        data << uint32(overrideLight);
-        data << uint32(itr->second.LightFadeInTime);
-        player->SendDirectMessage(&data);
+        WorldPackets::Misc::OverrideLight overrideLightPacket;
+        overrideLightPacket.AreaLightID = int32(_defaultLight);
+        overrideLightPacket.OverrideLightID = int32(overrideLight);
+        overrideLightPacket.TransitionMilliseconds = int32(itr->second.LightFadeInTime);
+        player->SendDirectMessage(overrideLightPacket.Write());
     }
 }
 
@@ -3687,11 +3684,11 @@ void Map::SetZoneOverrideLight(uint32 zoneId, uint32 lightId, Milliseconds fadeI
     info.OverrideLightId = lightId;
     info.LightFadeInTime = static_cast<uint32>(fadeInTime.count());
 
-    WorldPacket data(SMSG_OVERRIDE_LIGHT, 4 + 4 + 4);
-    data << uint32(_defaultLight);
-    data << uint32(lightId);
-    data << uint32(static_cast<uint32>(fadeInTime.count()));
-    SendZoneMessage(zoneId, &data);
+    WorldPackets::Misc::OverrideLight overrideLight;
+    overrideLight.AreaLightID = int32(_defaultLight);
+    overrideLight.OverrideLightID = int32(lightId);
+    overrideLight.TransitionMilliseconds = int32(fadeInTime.count());
+    SendZoneMessage(zoneId, overrideLight.Write());
 }
 
 void Map::DoForAllPlayers(std::function<void(Player*)> exec)

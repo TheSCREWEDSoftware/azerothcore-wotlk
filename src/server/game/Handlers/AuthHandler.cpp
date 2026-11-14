@@ -17,6 +17,7 @@
 
 #include "AuthenticationPackets.h"
 #include "BattlenetRpcErrorCodes.h"
+#include "ClientConfigPackets.h"
 #include "Random.h"
 #include "Realm.h"
 #include "World.h"
@@ -98,7 +99,7 @@ void WorldSession::SendConnectToInstance(WorldPackets::Auth::ConnectToSerial ser
 
 void WorldSession::SendClientCacheVersion(uint32 version)
 {
-    WorldPacket data(SMSG_CACHE_VERSION, 4);
-    data << uint32(version);
-    SendPacket(&data);
+    WorldPackets::ClientConfig::ClientCacheVersion cache;
+    cache.CacheVersion = version;
+    SendPacket(cache.Write());
 }

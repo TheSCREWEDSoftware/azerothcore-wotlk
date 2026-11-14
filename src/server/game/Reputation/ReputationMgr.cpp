@@ -16,10 +16,12 @@
  */
 
 #include "ReputationMgr.h"
+#include "CharacterPackets.h"
 #include "DBCStores.h"
 #include "DatabaseEnv.h"
 #include "ObjectMgr.h"
 #include "Player.h"
+#include "ReputationPackets.h"
 #include "ScriptMgr.h"
 #include "World.h"
 #include "WorldPacket.h"
@@ -164,32 +166,24 @@ uint32 ReputationMgr::GetDefaultStateFlags(FactionEntry const* factionEntry) con
 
 void ReputationMgr::SendForceReactions()
 {
-    WorldPacket data;
-    data.Initialize(SMSG_SET_FORCED_REACTIONS, 1 + _forcedReactions.size() * (4 + 4));
-    data.WriteBits(_forcedReactions.size(), 6);
-    data.FlushBits();
+    WorldPackets::Reputation::SetForcedReactions setForcedReactions;
+    setForcedReactions.Reactions.reserve(_forcedReactions.size());
     for (ForcedReactions::const_iterator itr = _forcedReactions.begin(); itr != _forcedReactions.end(); ++itr)
     {
-        data << uint32(itr->first);                         // faction_id (Faction.dbc)
-        data << uint32(itr->second);                        // reputation rank
+        WorldPackets::Reputation::ForcedReaction forcedReaction;
+        forcedReaction.Faction = int32(itr->first);         // faction_id (Faction.dbc)
+        forcedReaction.Reaction = int32(itr->second);       // reputation rank
+        setForcedReactions.Reactions.push_back(forcedReaction);
     }
-    _player->SendDirectMessage(&data);
+    _player->SendDirectMessage(setForcedReactions.Write());
 }
 
 void ReputationMgr::SendState(FactionState const* faction)
 {
-    uint32 count = 1;
-
-    // 5.4.8 18414, from Project SkyFire
-    WorldPacket data(SMSG_SET_FACTION_STANDING, 3 + 8 + 4 + 4);
-    std::size_t countPos = data.bitwpos() + 1;              // after the faction increased bit
-    data.WriteBit(_sendFactionIncreased);
-    data.WriteBits(count, 21);
-    data.FlushBits();
-    _sendFactionIncreased = false; // Reset
-
-    data << uint32(faction->Standing);
-    data << uint32(faction->ReputationListID);
+    WorldPackets::Reputation::SetFactionStanding setFactionStanding;
+    setFactionStanding.ReferAFriendBonus = 0.0f;
+    setFactionStanding.BonusFromAchievementSystem = 0.0f;
+    setFactionStanding.Faction.emplace_back(int32(faction->ReputationListID), faction->Standing);
 
     for (FactionStateList::iterator itr = _factions.begin(); itr != _factions.end(); ++itr)
     {
@@ -197,60 +191,31 @@ void ReputationMgr::SendState(FactionState const* faction)
         {
             itr->second.needSend = false;
             if (itr->second.ReputationListID != faction->ReputationListID)
-            {
-                data << uint32(itr->second.Standing);
-                data << uint32(itr->second.ReputationListID);
-                ++count;
-            }
+                setFactionStanding.Faction.emplace_back(int32(itr->second.ReputationListID), itr->second.Standing);
         }
     }
 
-    data << float(0);                                       // refer-a-friend bonus
-    data << float(0);                                       // account bonus
-    data.PutBits(countPos, count, 21);
-    _player->SendDirectMessage(&data);
+    setFactionStanding.ShowVisual = _sendFactionIncreased;
+    _sendFactionIncreased = false; // Reset
+    _player->SendDirectMessage(setFactionStanding.Write());
 }
 
 void ReputationMgr::SendInitialReputations()
 {
-    // 5.4.8 18414: 256 fixed entries, then one bonus reputation bit per entry
-    uint16 constexpr count = 256;
-    WorldPacket data(SMSG_INITIALIZE_FACTIONS, count * 5 + count / 8);
-    ByteBuffer bonusBits;
-
-    RepListID a = 0;
+    WorldPackets::Reputation::InitializeFactions initFactions;
 
     for (FactionStateList::iterator itr = _factions.begin(); itr != _factions.end(); ++itr)
     {
-        // fill in absent fields
-        for (; a != itr->first; a++)
-        {
-            data << uint8(0x00);
-            data << uint32(0x00000000);
-            bonusBits.WriteBit(false);
-        }
+        if (itr->first >= RepListID(WorldPackets::Reputation::FactionCount))
+            continue;
 
-        // fill in encountered data
-        data << uint8(itr->second.Flags);
-        data << uint32(itr->second.Standing);
-        bonusBits.WriteBit(false);
-
+        initFactions.FactionFlags[itr->first] = itr->second.Flags;
+        initFactions.FactionStandings[itr->first] = itr->second.Standing;
+        /// @todo faction bonus
         itr->second.needSend = false;
-
-        ++a;
     }
 
-    for (; a < count; ++a)
-    {
-        data << uint8(0);
-        data << uint32(0);
-        bonusBits.WriteBit(false);
-    }
-
-    bonusBits.FlushBits();
-    data.append(bonusBits);
-
-    _player->SendDirectMessage(&data);
+    _player->SendDirectMessage(initFactions.Write());
 }
 
 void ReputationMgr::SendStates()
@@ -265,9 +230,9 @@ void ReputationMgr::SendVisible(FactionState const* faction) const
         return;
 
     // make faction visible in reputation list at client
-    WorldPacket data(SMSG_SET_FACTION_VISIBLE, 4);
-    data << faction->ReputationListID;
-    _player->SendDirectMessage(&data);
+    WorldPackets::Character::SetFactionVisible packet(true);
+    packet.FactionIndex = faction->ReputationListID;
+    _player->SendDirectMessage(packet.Write());
 }
 
 void ReputationMgr::Initialize()

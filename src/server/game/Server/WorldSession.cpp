@@ -313,11 +313,8 @@ void WorldSession::SendAreaTriggerMessage(std::string_view str)
     std::vector<std::string_view> lines = Acore::Tokenize(str, '\n', true);
     for (std::string_view line : lines)
     {
-        uint32 length = line.size() + 1;
-        WorldPacket data(SMSG_AREA_TRIGGER_MESSAGE, 4 + length);
-        data << length;
-        data << line.data();
-        SendPacket(&data);
+        // 6.x has no area trigger message; the client shows it as a notification
+        SendPacket(WorldPackets::Chat::PrintNotification(std::string(line)).Write());
     }
 }
 
@@ -1102,15 +1099,14 @@ void WorldSession::SetAccountData(AccountDataType type, time_t tm, std::string c
 
 void WorldSession::SendAccountDataTimes(uint32 mask)
 {
-    // 5.4.8 18414: every data type's time, then the mask and the server time
-    WorldPacket data(SMSG_ACCOUNT_DATA_TIMES, 1 + NUM_ACCOUNT_DATA_TYPES * 4 + 4 + 4);
-    data.WriteBit(true);
-    data.FlushBits();
+    // 6.x 21742 (TC 6.x): the player guid replaces the mask
+    (void)mask;
+    WorldPackets::ClientConfig::AccountDataTimes accountDataTimes;
+    accountDataTimes.PlayerGuid = _player ? _player->GetGUID() : ObjectGuid::Empty;
+    accountDataTimes.ServerTime = uint32(GameTime::GetGameTime().count());
     for (uint32 i = 0; i < NUM_ACCOUNT_DATA_TYPES; ++i)
-        data << uint32(GetAccountData(AccountDataType(i))->Time);
-    data << uint32(mask);
-    data << uint32(GameTime::GetGameTime().count());
-    SendPacket(&data);
+        accountDataTimes.AccountTimes[i] = uint32(GetAccountData(AccountDataType(i))->Time);
+    SendPacket(accountDataTimes.Write());
 }
 
 void WorldSession::LoadTutorialsData(PreparedQueryResult result)
@@ -1130,10 +1126,9 @@ void WorldSession::LoadTutorialsData(PreparedQueryResult result)
 
 void WorldSession::SendTutorialsData()
 {
-    WorldPacket data(SMSG_TUTORIAL_FLAGS, 4 * MAX_ACCOUNT_TUTORIAL_VALUES);
-    for (uint8 i = 0; i < MAX_ACCOUNT_TUTORIAL_VALUES; ++i)
-        data << m_Tutorials[i];
-    SendPacket(&data);
+    WorldPackets::Misc::TutorialFlags packet;
+    memcpy(packet.TutorialData, m_Tutorials, sizeof(m_Tutorials));
+    SendPacket(packet.Write());
 }
 
 void WorldSession::SaveTutorialsData(CharacterDatabaseTransaction trans)

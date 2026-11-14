@@ -26,6 +26,7 @@
 #include "Language.h"
 #include "Log.h"
 #include "MapInstanced.h"
+#include "MiscPackets.h"
 #include "ObjectAccessor.h"
 #include "ObjectMgr.h"
 #include "Opcodes.h"
@@ -205,8 +206,7 @@ Map::EnterState MapMgr::PlayerCannotEnter(uint32 mapid, Player* player, bool log
 
             if (!corpseMap)
             {
-                WorldPacket data(SMSG_CORPSE_NOT_IN_INSTANCE, 0);
-                player->SendDirectMessage(&data);
+                player->SendDirectMessage(WorldPackets::Misc::AreaTriggerNoCorpse().Write());
                 LOG_DEBUG("maps", "MAP: Player '{}' does not have a corpse in instance '{}' and cannot enter.", player->GetName(), mapName);
                 return Map::CANNOT_ENTER_CORPSE_IN_DIFFERENT_INSTANCE;
             }
