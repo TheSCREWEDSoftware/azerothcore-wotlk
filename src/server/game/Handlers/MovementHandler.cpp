@@ -650,7 +650,11 @@ bool WorldSession::VerifyMovementInfo(MovementInfo const& movementInfo, Player* 
 
 bool WorldSession::ProcessMovementInfo(MovementInfo& movementInfo, Unit* mover, Player* plrMover, WorldPacket& recvData)
 {
-    OpcodeClient opcode = static_cast<OpcodeClient>(recvData.GetOpcode());
+    return ProcessMovementInfo(movementInfo, mover, plrMover, static_cast<OpcodeClient>(recvData.GetOpcode()));
+}
+
+bool WorldSession::ProcessMovementInfo(MovementInfo& movementInfo, Unit* mover, Player* plrMover, OpcodeClient opcode)
+{
     if (!VerifyMovementInfo(movementInfo, plrMover, mover, opcode))
         return false;
 

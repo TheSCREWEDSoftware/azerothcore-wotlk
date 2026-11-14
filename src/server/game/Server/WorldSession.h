@@ -987,6 +987,7 @@ public:
     void HandleMoverRelocation(MovementInfo& movementInfo, Unit* mover);
     bool VerifyMovementInfo(MovementInfo const& movementInfo, Player* plrMover, Unit* mover, OpcodeClient opcode) const;
     bool ProcessMovementInfo(MovementInfo& movementInfo, Unit* mover, Player* plrMover, WorldPacket& recvData);
+    bool ProcessMovementInfo(MovementInfo& movementInfo, Unit* mover, Player* plrMover, OpcodeClient opcode);
 
     void SendPacket(WorldPacket const* packet);
     void SendPetNameInvalid(uint32 error, std::string const& name, DeclinedName* declinedName, uint32 petNumber = 0);
