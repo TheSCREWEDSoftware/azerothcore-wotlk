@@ -24,27 +24,17 @@
 #include "ObjectMgr.h"
 #include "Opcodes.h"
 #include "PetitionMgr.h"
+#include "PetitionPackets.h"
 #include "ScriptMgr.h"
 #include "SocialMgr.h"
 #include "World.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
 
-void WorldSession::HandlePetitionBuyOpcode(WorldPacket& recvData)
+void WorldSession::HandlePetitionBuy(WorldPackets::Petition::PetitionBuy& packet)
 {
-    LOG_DEBUG("network", "Received opcode CMSG_PETITION_BUY");
-
-    ObjectGuid guidNPC;
-    uint32 clientIndex;                                     // 1 for guild and arenaslot+1 for arenas in client
-    std::string name;
-
-    // 5.4.8 18414, from Project SkyFire: guild charters only, there is no arena slot index
-    recvData.ReadGuidMask(guidNPC, { 5, 2, 3 });
-    uint32 nameLength = recvData.ReadBits(7);
-    recvData.ReadGuidMask(guidNPC, { 4, 1, 7, 0, 6 });
-    name = recvData.ReadString(nameLength);
-    recvData.ReadGuidBytes(guidNPC, { 1, 7, 4, 6, 0, 5, 2, 3 });
-    clientIndex = 1;
+    ObjectGuid guidNPC = packet.Unit;
+    std::string name = packet.Title;
 
     LOG_DEBUG("network", "Petitioner ({}) tried sell petition: name {}", guidNPC.ToString(), name);
 
@@ -82,40 +72,9 @@ void WorldSession::HandlePetitionBuyOpcode(WorldPacket& recvData)
     }
     else
     {
-        /// @todo: find correct opcode
-        if (_player->GetLevel() < sWorld->getIntConfig(CONFIG_MAX_PLAYER_LEVEL))
-        {
-            SendArenaTeamCommandResult(ERR_ARENA_TEAM_CREATE_S, "", _player->GetName(), ERR_ARENA_TEAM_TARGET_TOO_LOW_S);
-            return;
-        }
-
-        switch (clientIndex)                                 // arenaSlot+1 as received from client (1 from 3 case)
-        {
-            case 1:
-                charterid = ARENA_TEAM_CHARTER_2v2;
-                cost = sWorld->getIntConfig(CONFIG_CHARTER_COST_ARENA_2v2);
-                type = ARENA_TEAM_CHARTER_2v2_TYPE;
-                break;
-            case 2:
-                charterid = ARENA_TEAM_CHARTER_3v3;
-                cost = sWorld->getIntConfig(CONFIG_CHARTER_COST_ARENA_3v3);
-                type = ARENA_TEAM_CHARTER_3v3_TYPE;
-                break;
-            case 3:
-                charterid = ARENA_TEAM_CHARTER_5v5;
-                cost = sWorld->getIntConfig(CONFIG_CHARTER_COST_ARENA_5v5);
-                type = ARENA_TEAM_CHARTER_5v5_TYPE;
-                break;
-            default:
-                LOG_DEBUG("network", "unknown selection at buy arena petition: {}", clientIndex);
-                return;
-        }
-
-        if (_player->GetArenaTeamId(clientIndex - 1))        // arenaSlot+1 as received from client
-        {
-            SendArenaTeamCommandResult(ERR_ARENA_TEAM_CREATE_S, name, "", ERR_ALREADY_IN_ARENA_TEAM);
-            return;
-        }
+        // 6.x has no arena charters
+        LOG_DEBUG("network", "WORLD: HandlePetitionBuy - {} is not a guild charter seller.", guidNPC.ToString());
+        return;
     }
 
     sScriptMgr->OnPlayerPetitionBuy(_player, creature, charterid, cost, type);
@@ -219,14 +178,9 @@ void WorldSession::HandlePetitionBuyOpcode(WorldPacket& recvData)
     sPetitionMgr->AddPetition(charter->GetGUID(), _player->GetGUID(), name, uint8(type), petitionId);
 }
 
-void WorldSession::HandlePetitionShowSignOpcode(WorldPacket& recvData)
+void WorldSession::HandlePetitionShowSignatures(WorldPackets::Petition::PetitionShowSignatures& packet)
 {
-    LOG_DEBUG("network", "Received opcode CMSG_PETITION_SHOW_SIGNATURES");
-
-    ObjectGuid petitionguid;
-    // 5.4.8 18414, from Project SkyFire
-    recvData.ReadGuidMask(petitionguid, { 3, 7, 2, 4, 5, 6, 0, 1 });
-    recvData.ReadGuidBytes(petitionguid, { 2, 4, 5, 7, 1, 0, 3, 6 });
+    ObjectGuid petitionguid = packet.Item;
 
     // solve (possible) some strange compile problems with explicit use petition low guid at some GCC versions (wrong code optimization in compiler?)
     Petition const* petition = sPetitionMgr->GetPetition(petitionguid);
@@ -240,91 +194,49 @@ void WorldSession::HandlePetitionShowSignOpcode(WorldPacket& recvData)
         return;
 
     Signatures const* signatures = sPetitionMgr->GetSignature(petitionguid);
-    uint8 signs = signatures ? signatures->signatureMap.size() : 0;
-
     LOG_DEBUG("network", "CMSG_PETITION_SHOW_SIGNATURES petition {}", petitionguid.ToString());
 
-    (void)signs;
     WorldPacket data = BuildPetitionShowSignatures(petitionguid, _player->GetGUID(), petition->petitionId, signatures);
     SendPacket(&data);
 }
 
-void WorldSession::HandlePetitionQueryOpcode(WorldPacket& recvData)
+void WorldSession::HandleQueryPetition(WorldPackets::Petition::QueryPetition& packet)
 {
-    LOG_DEBUG("network", "Received opcode CMSG_PETITION_QUERY");   // ok
-
-    ObjectGuid::LowType guildguid;
-    ObjectGuid petitionguid;
-    // 5.4.8 18414, from Project SkyFire
-    recvData >> guildguid;                                 // in Trinity always same as petition low guid
-    recvData.ReadGuidMask(petitionguid, { 2, 3, 1, 0, 4, 7, 6, 5 });
-    recvData.ReadGuidBytes(petitionguid, { 0, 4, 7, 5, 1, 6, 3, 2 });
-    LOG_DEBUG("network", "CMSG_PETITION_QUERY Petition ({}) Guild GUID {}", petitionguid.ToString(), guildguid);
+    ObjectGuid petitionguid = packet.ItemGUID;
+    LOG_DEBUG("network", "CMSG_QUERY_PETITION Petition ({}) PetitionID {}", petitionguid.ToString(), packet.PetitionID);
 
     SendPetitionQueryOpcode(petitionguid);
 }
 
 void WorldSession::SendPetitionQueryOpcode(ObjectGuid petitionguid)
 {
+    WorldPackets::Petition::QueryPetitionResponse responsePacket;
+
     Petition const* petition = sPetitionMgr->GetPetition(petitionguid);
     if (!petition)
     {
-        LOG_DEBUG("network", "CMSG_PETITION_QUERY failed for petition ({})", petitionguid.ToString());
+        responsePacket.Allow = false;
+        SendPacket(responsePacket.Write());
+        LOG_DEBUG("network", "CMSG_QUERY_PETITION failed for petition ({})", petitionguid.ToString());
         return;
     }
 
-    // 5.4.8 18414, from Project SkyFire
-    uint8 type = petition->petitionType;
-    ObjectGuid ownerGuid = petition->ownerGuid;
-    WorldPacket data(SMSG_PETITION_QUERY_RESPONSE, (4 + 1 + 8 + petition->petitionName.size() + 4 * 16 + 2 + 10));
-    data << uint32(petition->petitionId);                   // guild id (was item low guid)
-    data.WriteBit(true);                                    // has data
-    for (int i = 0; i < 10; ++i)
-        data.WriteBits(0, 6);                               // choice texts
-    data.WriteGuidMask(ownerGuid, { 2, 4 });
-    data.WriteBits(0, 12);                                  // body text
-    data.WriteGuidMask(ownerGuid, { 0, 7, 3, 6, 5 });
-    data.WriteBits(petition->petitionName.size(), 7);
-    data.WriteGuidMask(ownerGuid, { 1 });
-    data.FlushBits();
+    int32 reqSignatures = int32(sWorld->getIntConfig(CONFIG_MIN_PETITION_SIGNS));
 
-    data.WriteGuidBytes(ownerGuid, { 5 });
-    data << uint32(0);
-    data.WriteString(petition->petitionName);
-    data << uint32(0);
-    data.WriteGuidBytes(ownerGuid, { 4 });
-    data << uint32(type);                                   // 4 = guild
-    data.WriteGuidBytes(ownerGuid, { 6 });
-    data << uint32(0);
-    data << uint32(sWorld->getIntConfig(CONFIG_MIN_PETITION_SIGNS)); // required signatures
-    data.WriteGuidBytes(ownerGuid, { 1, 7, 0 });
-    data << uint32(0);
-    data << uint32(0);
-    data.WriteGuidBytes(ownerGuid, { 2 });
-    data << uint32(GameTime::GetGameTime().count() + YEAR); // deadline
-    data << uint16(0);
-    data << uint32(0);
-    data.WriteGuidBytes(ownerGuid, { 3 });
-    data << uint32(0);
-    data << uint32(0);
-    data << uint32(0);
-    data << uint32(0);
-    SendPacket(&data);
+    responsePacket.PetitionID = petition->petitionId;
+    responsePacket.Allow = true;
+    responsePacket.Info.PetitionID = int32(petition->petitionId);
+    responsePacket.Info.Petitioner = petition->ownerGuid;
+    responsePacket.Info.MinSignatures = reqSignatures;
+    responsePacket.Info.MaxSignatures = reqSignatures;
+    responsePacket.Info.Title = petition->petitionName;
+    SendPacket(responsePacket.Write());
 }
 
-void WorldSession::HandlePetitionRenameOpcode(WorldPacket& recvData)
+void WorldSession::HandlePetitionRenameGuild(WorldPackets::Petition::PetitionRenameGuild& packet)
 {
-    LOG_DEBUG("network", "Received opcode MSG_PETITION_RENAME");   // ok
-
-    ObjectGuid petitionGuid;
-    std::string newName;
-
-    // 5.4.8 18414, from Project SkyFire
-    uint32 nameLength = recvData.ReadBits(7);
-    recvData.ReadGuidMask(petitionGuid, { 7, 4, 6, 2, 0, 5, 3, 1 });
-    recvData.ReadGuidBytes(petitionGuid, { 4, 1, 7 });
-    newName = recvData.ReadString(nameLength);
-    recvData.ReadGuidBytes(petitionGuid, { 0, 3, 2, 6, 5 });
+    ObjectGuid petitionGuid = packet.PetitionGuid;
+    std::string newName = packet.NewGuildName;
 
     Item* item = _player->GetItemByGuid(petitionGuid);
     if (!item)
@@ -375,25 +287,15 @@ void WorldSession::HandlePetitionRenameOpcode(WorldPacket& recvData)
     const_cast<Petition*>(petition)->petitionName = newName;
 
     LOG_DEBUG("network", "Petition ({}) renamed to {}", petitionGuid.ToString(), newName);
-    // 5.4.8 18414, from Project SkyFire
-    WorldPacket data(SMSG_PETITION_RENAME_RESULT, (1 + 8 + 1 + newName.size()));
-    data.WriteBits(newName.length(), 7);
-    data.WriteGuidMask(petitionGuid, { 0, 3, 4, 2, 6, 5, 7, 1 });
-    data.FlushBits();
-    data.WriteGuidBytes(petitionGuid, { 4, 3, 6, 0, 5, 2, 1, 7 });
-    data.WriteString(newName);
-    SendPacket(&data);
+    WorldPackets::Petition::PetitionRenameGuildResponse renameResponse;
+    renameResponse.PetitionGuid = petitionGuid;
+    renameResponse.NewGuildName = newName;
+    SendPacket(renameResponse.Write());
 }
 
-void WorldSession::HandlePetitionSignOpcode(WorldPacket& recvData)
+void WorldSession::HandleSignPetition(WorldPackets::Petition::SignPetition& packet)
 {
-    LOG_DEBUG("network", "Received opcode CMSG_PETITION_SIGN");    // ok
-
-    ObjectGuid petitionGuid;
-    // 5.4.8 18414, from Project SkyFire
-    recvData.read_skip<uint8>();
-    recvData.ReadGuidMask(petitionGuid, { 4, 2, 0, 1, 5, 3, 6, 7 });
-    recvData.ReadGuidBytes(petitionGuid, { 6, 1, 7, 2, 5, 3, 0, 4 });
+    ObjectGuid petitionGuid = packet.PetitionGUID;
 
     Petition const* petition = sPetitionMgr->GetPetition(petitionGuid);
     if (!petition)
@@ -527,51 +429,25 @@ void WorldSession::HandlePetitionSignOpcode(WorldPacket& recvData)
         owner->SendDirectMessage(&data);
 }
 
-void WorldSession::HandlePetitionDeclineOpcode(WorldPacket& recvData)
+void WorldSession::HandleDeclinePetition(WorldPackets::Petition::DeclinePetition& packet)
 {
-    LOG_DEBUG("network", "Received opcode MSG_PETITION_DECLINE");  // ok
-
-    ObjectGuid petitionguid;
+    ObjectGuid petitionguid = packet.PetitionGUID;
     ObjectGuid ownerguid;
-    // 5.4.8 18414, from Project SkyFire
-    recvData.ReadGuidMask(petitionguid, { 5, 6, 4, 3, 1, 7, 0, 2 });
-    recvData.ReadGuidBytes(petitionguid, { 6, 2, 1, 5, 0, 7, 4, 3 });
     LOG_DEBUG("network", "Petition {} declined by {}", petitionguid.ToString(), _player->GetGUID().ToString());
 
     Petition const* petition = sPetitionMgr->GetPetition(petitionguid);
     if (!petition)
         return;
 
-    // 5.4.8 has no decline notice for the owner
+    // 6.x: the client does not handle SMSG_PETITION_DECLINED, the owner gets no notice
     (void)ownerguid;
 }
 
-void WorldSession::HandleOfferPetitionOpcode(WorldPacket& recvData)
+void WorldSession::HandleOfferPetition(WorldPackets::Petition::OfferPetition& packet)
 {
-    LOG_DEBUG("network", "Received opcode CMSG_OFFER_PETITION");   // ok
-
-    ObjectGuid petitionguid, plguid;
+    ObjectGuid petitionguid = packet.ItemGUID;
+    ObjectGuid plguid = packet.TargetPlayer;
     Player* player;
-    // 5.4.8 18414, from Project SkyFire
-    recvData.read_skip<uint32>();                          // this is not petition type!
-    recvData.ReadGuidMask(plguid, { 4, 1 });
-    recvData.ReadGuidMask(petitionguid, { 2 });
-    recvData.ReadGuidMask(plguid, { 6 });
-    recvData.ReadGuidMask(petitionguid, { 1 });
-    recvData.ReadGuidMask(plguid, { 2 });
-    recvData.ReadGuidMask(petitionguid, { 4 });
-    recvData.ReadGuidMask(plguid, { 3, 7 });
-    recvData.ReadGuidMask(petitionguid, { 0, 6 });
-    recvData.ReadGuidMask(plguid, { 5, 0 });
-    recvData.ReadGuidMask(petitionguid, { 3, 5, 7 });
-    recvData.ReadGuidBytes(plguid, { 7 });
-    recvData.ReadGuidBytes(petitionguid, { 1, 4, 2 });
-    recvData.ReadGuidBytes(plguid, { 6 });
-    recvData.ReadGuidBytes(petitionguid, { 3, 0, 5 });
-    recvData.ReadGuidBytes(plguid, { 0, 2, 5, 3, 4 });
-    recvData.ReadGuidBytes(petitionguid, { 7 });
-    recvData.ReadGuidBytes(plguid, { 1 });
-    recvData.ReadGuidBytes(petitionguid, { 6 });
 
     player = ObjectAccessor::FindConnectedPlayer(plguid);
     if (!player)
@@ -635,24 +511,14 @@ void WorldSession::HandleOfferPetitionOpcode(WorldPacket& recvData)
     }
 
     Signatures const* signatures = sPetitionMgr->GetSignature(petitionguid);
-    uint8 signs = signatures ? signatures->signatureMap.size() : 0;
 
-    (void)signs;
     WorldPacket data = BuildPetitionShowSignatures(petitionguid, _player->GetGUID(), petition->petitionId, signatures);
     player->SendDirectMessage(&data);
 }
 
-void WorldSession::HandleTurnInPetitionOpcode(WorldPacket& recvData)
+void WorldSession::HandleTurnInPetition(WorldPackets::Petition::TurnInPetition& packet)
 {
-    LOG_DEBUG("network", "Received opcode CMSG_TURN_IN_PETITION");
-
-    // Get petition guid from packet
-    WorldPacket data;
-    ObjectGuid petitionGuid;
-
-    // 5.4.8 18414, from Project SkyFire
-    recvData.ReadGuidMask(petitionGuid, { 1, 2, 3, 0, 5, 7, 4, 6 });
-    recvData.ReadGuidBytes(petitionGuid, { 2, 1, 4, 6, 0, 7, 5, 3 });
+    ObjectGuid petitionGuid = packet.Item;
 
     // Check if player really has the required petition charter
     Item* item = _player->GetItemByGuid(petitionGuid);
@@ -689,11 +555,7 @@ void WorldSession::HandleTurnInPetitionOpcode(WorldPacket& recvData)
         // Check if player is already in a guild
         if (_player->GetGuildId())
         {
-            // 5.4.8 18414, from Project SkyFire
-            data.Initialize(SMSG_TURN_IN_PETITION_RESULTS, 1);
-            data.WriteBits(PETITION_TURN_ALREADY_IN_GUILD, 4);
-            data.FlushBits();
-            SendPacket(&data);
+            SendTurnInPetitionResult(PETITION_TURN_ALREADY_IN_GUILD);
             return;
         }
 
@@ -742,11 +604,7 @@ void WorldSession::HandleTurnInPetitionOpcode(WorldPacket& recvData)
     // Notify player if signatures are missing
     if (signs < requiredSignatures)
     {
-        // 5.4.8 18414, from Project SkyFire
-        data.Initialize(SMSG_TURN_IN_PETITION_RESULTS, 1);
-        data.WriteBits(PETITION_TURN_NEED_MORE_SIGNATURES, 4);
-        data.FlushBits();
-        SendPacket(&data);
+        SendTurnInPetitionResult(PETITION_TURN_NEED_MORE_SIGNATURES);
         return;
     }
 
@@ -778,30 +636,8 @@ void WorldSession::HandleTurnInPetitionOpcode(WorldPacket& recvData)
     }
     else
     {
-        // Receive the rest of the packet in arena team creation case
-        uint32 background, icon, iconcolor, border, bordercolor;
-        recvData >> background >> icon >> iconcolor >> border >> bordercolor;
-
-        // Create arena team
-        ArenaTeam* arenaTeam = new ArenaTeam();
-
-        if (!arenaTeam->Create(_player->GetGUID(), type, name, background, icon, iconcolor, border, bordercolor))
-        {
-            delete arenaTeam;
-            return;
-        }
-
-        // Register arena team
-        sArenaTeamMgr->AddArenaTeam(arenaTeam);
-        LOG_DEBUG("network", "PetitonsHandler: Arena team (guid: {}) added to ObjectMgr", arenaTeam->GetId());
-
-        // Add members
-        if (signs)
-            for (SignatureMap::const_iterator itr = signatureCopy.begin(); itr != signatureCopy.end(); ++itr)
-            {
-                LOG_DEBUG("network", "PetitionsHandler: Adding arena team (guid: {}) member {}", arenaTeam->GetId(), itr->first.ToString());
-                arenaTeam->AddMember(itr->first);
-            }
+        // 6.x has no arena team charters
+        return;
     }
 
     CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
@@ -822,21 +658,12 @@ void WorldSession::HandleTurnInPetitionOpcode(WorldPacket& recvData)
     // created
     LOG_DEBUG("network", "TURN IN PETITION {}", petitionGuid.ToString());
 
-    // 5.4.8 18414, from Project SkyFire
-    data.Initialize(SMSG_TURN_IN_PETITION_RESULTS, 1);
-    data.WriteBits(PETITION_TURN_OK, 4);
-    data.FlushBits();
-    SendPacket(&data);
+    SendTurnInPetitionResult(PETITION_TURN_OK);
 }
 
-void WorldSession::HandlePetitionShowListOpcode(WorldPacket& recvData)
+void WorldSession::HandlePetitionShowList(WorldPackets::Petition::PetitionShowList& packet)
 {
-    LOG_DEBUG("network", "Received CMSG_PETITION_SHOWLIST");
-
-    ObjectGuid guid;
-    // 5.4.8 18414, from Project SkyFire
-    recvData.ReadGuidMask(guid, { 1, 7, 2, 5, 4, 0, 3, 6 });
-    recvData.ReadGuidBytes(guid, { 6, 3, 2, 4, 1, 7, 5, 0 });
+    ObjectGuid guid = packet.PetitionUnit;
 
     SendPetitionShowList(guid);
 }
@@ -850,10 +677,10 @@ void WorldSession::SendPetitionShowList(ObjectGuid guid)
         return;
     }
 
-    // 5.4.8 sells guild charters only, arena teams are gone
+    // 6.x sells guild charters only, arena teams are gone
     if (!creature->IsTabardDesigner())
     {
-        LOG_DEBUG("network", "WORLD: SendPetitionShowList - {} sells arena charters, which 5.4.8 has no list for.", guid.ToString());
+        LOG_DEBUG("network", "WORLD: SendPetitionShowList - {} sells arena charters, which 6.x has no list for.", guid.ToString());
         return;
     }
 
@@ -862,84 +689,49 @@ void WorldSession::SendPetitionShowList(ObjectGuid guid)
     uint32 CharterCost = sWorld->getIntConfig(CONFIG_CHARTER_COST_GUILD);
     sScriptMgr->OnPlayerPetitionShowList(_player, creature, CharterEntry, CharterDispayID, CharterCost);
 
-    // 5.4.8 18414, from Project SkyFire
-    WorldPacket data(SMSG_PETITION_SHOWLIST, 1 + 8 + 4);
-    data.WriteGuidMask(guid, { 3, 5, 7, 6, 1, 0, 2, 4 });
-    data.FlushBits();
-    data.WriteGuidBytes(guid, { 6, 0, 1 });
-    data << uint32(CharterCost);
-    data.WriteGuidBytes(guid, { 4, 3, 5, 2, 7 });
-    SendPacket(&data);
-    LOG_DEBUG("network", "Sent SMSG_PETITION_SHOWLIST");
+    WorldPackets::Petition::ServerPetitionShowList packet;
+    packet.Unit = guid;
+    packet.Price = CharterCost;
+    SendPacket(packet.Write());
 }
 
 WorldPacket WorldSession::BuildPetitionShowSignatures(ObjectGuid petitionGuid, ObjectGuid ownerGuid, uint32 petitionId, Signatures const* signatures)
 {
-    // 5.4.8 18414, from Project SkyFire
-    std::vector<ObjectGuid> signers;
+    WorldPackets::Petition::ServerPetitionShowSignatures signaturesPacket;
+    signaturesPacket.Item = petitionGuid;
+    signaturesPacket.Owner = ownerGuid;
+    signaturesPacket.OwnerAccountID = ObjectGuid::Create<HighGuid::WowAccount>(sCharacterCache->GetCharacterAccountIdByGuid(ownerGuid));
+    signaturesPacket.PetitionID = int32(petitionId);
+
     if (signatures)
-        for (auto const& [signerGuid, accountId] : signatures->signatureMap)
-            signers.push_back(signerGuid);
-
-    WorldPacket data(SMSG_PETITION_SHOW_SIGNATURES, (8 + 8 + 4 + 4 + signers.size() * (8 + 4)));
-    data.WriteGuidMask(ownerGuid, { 1 });
-    data.WriteGuidMask(petitionGuid, { 3 });
-    data.WriteGuidMask(ownerGuid, { 3 });
-    data.WriteGuidMask(petitionGuid, { 4, 0 });
-    data.WriteGuidMask(ownerGuid, { 7, 5 });
-    data.WriteGuidMask(petitionGuid, { 1, 5, 7 });
-    data.WriteGuidMask(ownerGuid, { 0, 6 });
-    data.WriteGuidMask(petitionGuid, { 6 });
-    data.WriteGuidMask(ownerGuid, { 2, 4 });
-    data.WriteBits(signers.size(), 21);
-    for (ObjectGuid const& signer : signers)
-        data.WriteGuidMask(signer, { 2, 0, 4, 7, 5, 1, 6, 3 });
-    data.WriteGuidMask(petitionGuid, { 2 });
-    data.FlushBits();
-
-    for (ObjectGuid const& signer : signers)
     {
-        data.WriteGuidBytes(signer, { 6, 0, 1, 3, 2, 5, 7, 4 });
-        data << uint32(0);                                  // choice, 0 = signed
+        signaturesPacket.Signatures.reserve(signatures->signatureMap.size());
+        for (auto const& [signerGuid, accountId] : signatures->signatureMap)
+        {
+            WorldPackets::Petition::ServerPetitionShowSignatures::PetitionSignature signature;
+            signature.Signer = signerGuid;
+            signature.Choice = 0;
+            signaturesPacket.Signatures.push_back(signature);
+        }
     }
 
-    data.WriteGuidBytes(petitionGuid, { 6, 5, 4 });
-    data.WriteGuidBytes(ownerGuid, { 4 });
-    data.WriteGuidBytes(petitionGuid, { 1 });
-    data << uint32(petitionId);                             // guild id
-    data.WriteGuidBytes(petitionGuid, { 2, 3, 7 });
-    data.WriteGuidBytes(ownerGuid, { 5, 6, 3, 7, 1, 0 });
-    data.WriteGuidBytes(petitionGuid, { 0 });
-    data.WriteGuidBytes(ownerGuid, { 2 });
-    return data;
+    signaturesPacket.Write();
+    return signaturesPacket.Move();
 }
 
 WorldPacket WorldSession::BuildPetitionSignResults(ObjectGuid petitionGuid, ObjectGuid playerGuid, uint32 result)
 {
-    // 5.4.8 18414, from Project SkyFire
-    WorldPacket data(SMSG_PETITION_SIGN_RESULTS, 8 + 8 + 1);
-    data.WriteGuidMask(playerGuid, { 2, 0 });
-    data.WriteGuidMask(petitionGuid, { 0 });
-    data.WriteGuidMask(playerGuid, { 1 });
-    data.WriteGuidMask(petitionGuid, { 5, 2, 4 });
-    data.WriteGuidMask(playerGuid, { 6 });
-    data.WriteGuidMask(petitionGuid, { 1, 6 });
-    data.WriteGuidMask(playerGuid, { 4 });
-    data.WriteGuidMask(petitionGuid, { 3 });
-    data.WriteGuidMask(playerGuid, { 5, 3 });
-    data.WriteGuidMask(petitionGuid, { 7 });
-    data.WriteGuidMask(playerGuid, { 7 });
-    data.WriteBits(result, 4);
-    data.FlushBits();
+    WorldPackets::Petition::PetitionSignResults signResult;
+    signResult.Item = petitionGuid;
+    signResult.Player = playerGuid;
+    signResult.Error = int32(result);
+    signResult.Write();
+    return signResult.Move();
+}
 
-    data.WriteGuidBytes(petitionGuid, { 0, 5 });
-    data.WriteGuidBytes(playerGuid, { 3, 0 });
-    data.WriteGuidBytes(petitionGuid, { 3 });
-    data.WriteGuidBytes(playerGuid, { 2, 6, 4, 1 });
-    data.WriteGuidBytes(petitionGuid, { 6, 7 });
-    data.WriteGuidBytes(playerGuid, { 7 });
-    data.WriteGuidBytes(petitionGuid, { 2, 1 });
-    data.WriteGuidBytes(playerGuid, { 5 });
-    data.WriteGuidBytes(petitionGuid, { 4 });
-    return data;
+void WorldSession::SendTurnInPetitionResult(uint32 result)
+{
+    WorldPackets::Petition::TurnInPetitionResult packet;
+    packet.Result = int32(result);
+    SendPacket(packet.Write());
 }

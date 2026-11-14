@@ -1194,6 +1194,7 @@ public:
     void SendPetitionShowList(ObjectGuid guid);
     static WorldPacket BuildPetitionShowSignatures(ObjectGuid petitionGuid, ObjectGuid ownerGuid, uint32 petitionId, Signatures const* signatures);
     static WorldPacket BuildPetitionSignResults(ObjectGuid petitionGuid, ObjectGuid playerGuid, uint32 result);
+    void SendTurnInPetitionResult(uint32 result);
 
     void DoLootRelease(ObjectGuid lguid);
 
