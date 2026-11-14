@@ -225,7 +225,7 @@ public:
     [[nodiscard]] bool IsRespawnCompatibilityMode() const { return _respawnCompatibilityMode; }
     void SaveToDB();
 
-    virtual void SaveToDB(uint32 mapid, uint8 spawnMask, uint32 phaseMask);   // overriden in Pet
+    virtual void SaveToDB(uint32 mapid, uint64 spawnMask, uint32 phaseMask);   // overriden in Pet
     virtual void DeleteFromDB();    // overriden in Pet
 
     Loot loot;

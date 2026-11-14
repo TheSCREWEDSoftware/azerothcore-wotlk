@@ -170,7 +170,7 @@ protected:
     uint32     m_tempspell;
 
 private:
-    void SaveToDB(uint32, uint8, uint32) override                // override of Creature::SaveToDB     - must not be called
+    void SaveToDB(uint32, uint64, uint32) override               // override of Creature::SaveToDB     - must not be called
     {
         ABORT();
     }

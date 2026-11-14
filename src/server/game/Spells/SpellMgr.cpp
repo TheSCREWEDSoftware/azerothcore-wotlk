@@ -598,23 +598,7 @@ uint32 SpellMgr::GetSpellIdForDifficulty(uint32 spellId, WorldObject const* cast
         return spellId;
 
     // 6.x Difficulty.dbc id -> legacy mode: 10 man (or 5 man normal), 25 man (or 5 man heroic), 10 heroic, 25 heroic
-    uint32 mode = 0;
-    switch (caster->GetMap()->GetDifficultyID())
-    {
-        case DIFFICULTY_HEROIC:
-        case DIFFICULTY_25_N:
-        case DIFFICULTY_LFR:
-            mode = 1;
-            break;
-        case DIFFICULTY_10_HC:
-            mode = 2;
-            break;
-        case DIFFICULTY_25_HC:
-            mode = 3;
-            break;
-        default:
-            break;
-    }
+    uint32 mode = caster->GetMap()->GetLegacySpawnMode();
 
     std::array<uint32, 4> const& spells = itr->second;
     if (!spells[mode] && mode > 1)

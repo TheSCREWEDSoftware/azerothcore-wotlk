@@ -111,6 +111,23 @@ void Map::OnCreateMap()
     sScriptMgr->OnCreateMap(this);
 }
 
+uint8 Map::GetLegacySpawnMode() const
+{
+    switch (GetDifficulty())
+    {
+        case DIFFICULTY_HEROIC:
+        case DIFFICULTY_25_N:
+        case DIFFICULTY_LFR:
+            return 1;
+        case DIFFICULTY_10_HC:
+            return 2;
+        case DIFFICULTY_25_HC:
+            return 3;
+        default:
+            return 0;
+    }
+}
+
 void Map::InitVisibilityDistance()
 {
     //init visibility for continents

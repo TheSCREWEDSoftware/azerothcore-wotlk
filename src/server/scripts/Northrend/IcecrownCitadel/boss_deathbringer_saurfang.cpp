@@ -1817,7 +1817,7 @@ class spell_deathbringer_blood_nova_targeting : public SpellScript
     {
         // select one random target, with preference of ranged targets
         uint32 targetsAtRange = 0;
-        uint32 const minTargets = uint32(GetCaster()->GetMap()->GetSpawnMode() & 1 ? 10 : 4);
+        uint32 const minTargets = uint32(GetCaster()->GetMap()->Is25ManRaid() ? 10 : 4);
         targets.sort(Acore::ObjectDistanceOrderPred(GetCaster(), false));
 
         // get target count at range

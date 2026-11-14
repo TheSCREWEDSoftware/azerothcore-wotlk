@@ -450,7 +450,7 @@ bool Condition::Meets(ConditionSourceInfo& sourceInfo)
     }
     case CONDITION_SPAWNMASK:
     {
-        condMeets = ((1 << object->GetMap()->GetSpawnMode()) & ConditionValue1);
+        condMeets = ((UI64LIT(1) << object->GetMap()->GetSpawnMode()) & ConditionValue1);
         break;
     }
     case CONDITION_UNIT_STATE:
@@ -2596,7 +2596,7 @@ bool ConditionMgr::isConditionTypeValid(Condition* cond)
     }
     case CONDITION_SPAWNMASK:
     {
-        if (cond->ConditionValue1 > SPAWNMASK_RAID_ALL)
+        if (cond->ConditionValue1 >= (1u << MAX_DIFFICULTY))
         {
             LOG_ERROR("condition", "SpawnMask condition has non existing SpawnMask in value1 ({}), skipped", cond->ConditionValue1);
             return false;

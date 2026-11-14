@@ -5384,7 +5384,7 @@ void SmartScript::FillScript(SmartAIEventList e, WorldObject* obj, AreaTrigger c
         {
             if (obj && obj->GetMap()->IsDungeon())
             {
-                if ((1 << (obj->GetMap()->GetSpawnMode() + 1)) & (*i).event.event_flags)
+                if ((1 << (obj->GetMap()->GetLegacySpawnMode() + 1)) & (*i).event.event_flags)
                 {
                     mEvents.push_back((*i));
                 }

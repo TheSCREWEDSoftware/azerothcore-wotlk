@@ -601,7 +601,7 @@ void ObjectMgr::LoadCreatureTemplate(Field* fields, bool triggerHook)
     // build the creatureTemplate
     creatureTemplate.Entry = entry;
 
-    for (uint8 i = 0; i < MAX_DIFFICULTY - 1; ++i)
+    for (uint8 i = 0; i < MAX_CREATURE_DIFFICULTIES; ++i)
     {
         creatureTemplate.DifficultyEntry[i] = fields[1 + i].Get<uint32>();
     }
@@ -983,7 +983,7 @@ void ObjectMgr::CheckCreatureTemplate(CreatureTemplate const* cInfo)
         return;
 
     bool ok = true;                                     // bool to allow continue outside this loop
-    for (uint32 diff = 0; diff < MAX_DIFFICULTY - 1 && ok; ++diff)
+    for (uint32 diff = 0; diff < MAX_CREATURE_DIFFICULTIES && ok; ++diff)
     {
         if (!cInfo->DifficultyEntry[diff])
             continue;
@@ -998,7 +998,7 @@ void ObjectMgr::CheckCreatureTemplate(CreatureTemplate const* cInfo)
         }
 
         bool ok2 = true;
-        for (uint32 diff2 = 0; diff2 < MAX_DIFFICULTY - 1 && ok2; ++diff2)
+        for (uint32 diff2 = 0; diff2 < MAX_CREATURE_DIFFICULTIES && ok2; ++diff2)
         {
             ok2 = false;
             if (_difficultyEntries[diff2].find(cInfo->Entry) != _difficultyEntries[diff2].end())
@@ -2386,12 +2386,12 @@ void ObjectMgr::LoadCreatures()
         LOG_INFO("server.loading", "Calculating zone and area fields. This may take a moment...");
 
     // Build single time for check spawnmask
-    std::map<uint32, uint32> spawnMasks;
+    std::map<uint32, uint64> spawnMasks;
     for (uint32 i = 0; i < sMapStore.GetNumRows(); ++i)
         if (sMapStore.LookupEntry(i))
             for (int k = 0; k < MAX_DIFFICULTY; ++k)
                 if (GetMapDifficultyData(i, Difficulty(k)))
-                    spawnMasks[i] |= (1 << k);
+                    spawnMasks[i] |= (UI64LIT(1) << k);
 
     _creatureDataStore.rehash(result->GetRowCount());
     uint32 count = 0;
@@ -2423,7 +2423,7 @@ void ObjectMgr::LoadCreatures()
         data.curhealth          = fields[11].Get<uint32>();
         data.curmana            = fields[12].Get<uint32>();
         data.movementType       = fields[13].Get<uint8>();
-        data.spawnMask          = fields[14].Get<uint8>();
+        data.spawnMask          = fields[14].Get<uint64>();
         data.phaseMask          = fields[15].Get<uint32>();
         int16 gameEvent         = fields[16].Get<int16>();
         data.poolId             = fields[17].Get<uint32>();
@@ -2467,7 +2467,7 @@ void ObjectMgr::LoadCreatures()
             data.spawnGroupId = 1; // force compatibility group for transport spawns
 
         bool ok = true;
-        for (uint32 diff = 0; diff < MAX_DIFFICULTY - 1 && ok; ++diff)
+        for (uint32 diff = 0; diff < MAX_CREATURE_DIFFICULTIES && ok; ++diff)
         {
             if (_difficultyEntries[diff].find(data.id) != _difficultyEntries[diff].end())
             {
@@ -2580,7 +2580,7 @@ void ObjectMgr::LoadCreatures()
 
             // Check difficulty entries for variant
             bool diffOk = true;
-            for (uint32 diff = 0; diff < MAX_DIFFICULTY - 1 && diffOk; ++diff)
+            for (uint32 diff = 0; diff < MAX_CREATURE_DIFFICULTIES && diffOk; ++diff)
             {
                 if (_difficultyEntries[diff].find(entry) != _difficultyEntries[diff].end())
                 {
@@ -2663,7 +2663,7 @@ CreatureData const* ObjectMgr::LoadCreatureDataFromDB(ObjectGuid::LowType spawnI
     creatureData.curhealth        = fields[11].Get<uint32>();
     creatureData.curmana          = fields[12].Get<uint32>();
     creatureData.movementType     = fields[13].Get<uint8>();
-    creatureData.spawnMask        = fields[14].Get<uint8>();
+    creatureData.spawnMask        = fields[14].Get<uint64>();
     creatureData.phaseMask        = fields[15].Get<uint32>();
     creatureData.npcflag          = fields[16].Get<uint32>();
     creatureData.unit_flags       = fields[17].Get<uint32>();
@@ -2698,7 +2698,7 @@ CreatureData const* ObjectMgr::LoadCreatureDataFromDB(ObjectGuid::LowType spawnI
 
             // Check difficulty entries for variant
             bool diffOk = true;
-            for (uint32 diff = 0; diff < MAX_DIFFICULTY - 1 && diffOk; ++diff)
+            for (uint32 diff = 0; diff < MAX_CREATURE_DIFFICULTIES && diffOk; ++diff)
             {
                 if (_difficultyEntries[diff].find(variantEntry) != _difficultyEntries[diff].end())
                 {
@@ -2738,7 +2738,7 @@ CreatureData const* ObjectMgr::LoadCreatureDataFromDB(ObjectGuid::LowType spawnI
         creatureData.spawntimesecs = 14 * DAY;
 
     bool ok = true;
-    for (uint32 diff = 0; diff < MAX_DIFFICULTY - 1 && ok; ++diff)
+    for (uint32 diff = 0; diff < MAX_CREATURE_DIFFICULTIES && ok; ++diff)
     {
         if (_difficultyEntries[diff].find(creatureId) != _difficultyEntries[diff].end())
         {
@@ -2844,7 +2844,7 @@ void ObjectMgr::LoadCreatureSparring()
 
 void ObjectMgr::AddCreatureToGrid(ObjectGuid::LowType guid, CreatureData const* data)
 {
-    uint8 mask = data->spawnMask;
+    uint64 mask = data->spawnMask;
     for (uint8 i = 0; mask != 0; i++, mask >>= 1)
     {
         if (mask & 1)
@@ -2858,7 +2858,7 @@ void ObjectMgr::AddCreatureToGrid(ObjectGuid::LowType guid, CreatureData const* 
 
 void ObjectMgr::RemoveCreatureFromGrid(ObjectGuid::LowType guid, CreatureData const* data)
 {
-    uint8 mask = data->spawnMask;
+    uint64 mask = data->spawnMask;
     for (uint8 i = 0; mask != 0; i++, mask >>= 1)
     {
         if (mask & 1)
@@ -2938,7 +2938,7 @@ ObjectGuid::LowType ObjectMgr::AddCreData(uint32 entry, uint32 mapId, float x, f
     ObjectGuid::LowType spawnId = GenerateCreatureSpawnId();
     CreatureData& data = NewOrExistCreatureData(spawnId);
     data.spawnId = spawnId;
-    data.spawnMask = spawnId;
+    data.spawnMask = 1;
     data.id = entry;
     data.id2 = 0;
     data.id3 = 0;
@@ -3003,12 +3003,12 @@ void ObjectMgr::LoadGameobjects()
         LOG_INFO("server.loading", "Calculating zone and area fields. This may take a moment...");
 
     // build single time for check spawnmask
-    std::map<uint32, uint32> spawnMasks;
+    std::map<uint32, uint64> spawnMasks;
     for (uint32 i = 0; i < sMapStore.GetNumRows(); ++i)
         if (sMapStore.LookupEntry(i))
             for (int k = 0; k < MAX_DIFFICULTY; ++k)
                 if (GetMapDifficultyData(i, Difficulty(k)))
-                    spawnMasks[i] |= (1 << k);
+                    spawnMasks[i] |= (UI64LIT(1) << k);
 
     _gameObjectDataStore.rehash(result->GetRowCount());
     do
@@ -3086,7 +3086,7 @@ void ObjectMgr::LoadGameobjects()
         }
         data.go_state       = GOState(go_state);
 
-        data.spawnMask      = fields[14].Get<uint8>();
+        data.spawnMask      = fields[14].Get<uint64>();
 
         if (!_transportMaps.count(data.mapid))
         {
@@ -3249,7 +3249,7 @@ GameObjectData const* ObjectMgr::LoadGameObjectDataFromDB(ObjectGuid::LowType sp
     }
     goData.go_state = GOState(go_state);
 
-    goData.spawnMask        = fields[14].Get<uint8>();
+    goData.spawnMask        = fields[14].Get<uint64>();
     goData.phaseMask        = fields[15].Get<uint32>();
     goData.phaseId          = fields[17].Get<uint32>();
     goData.phaseGroup       = fields[18].Get<uint32>();
@@ -3314,7 +3314,7 @@ GameObjectData const* ObjectMgr::LoadGameObjectDataFromDB(ObjectGuid::LowType sp
 
 void ObjectMgr::AddGameobjectToGrid(ObjectGuid::LowType guid, GameObjectData const* data)
 {
-    uint8 mask = data->spawnMask;
+    uint64 mask = data->spawnMask;
     for (uint8 i = 0; mask != 0; i++, mask >>= 1)
     {
         if (mask & 1)
@@ -3328,7 +3328,7 @@ void ObjectMgr::AddGameobjectToGrid(ObjectGuid::LowType guid, GameObjectData con
 
 void ObjectMgr::RemoveGameobjectFromGrid(ObjectGuid::LowType guid, GameObjectData const* data)
 {
-    uint8 mask = data->spawnMask;
+    uint64 mask = data->spawnMask;
     for (uint8 i = 0; mask != 0; i++, mask >>= 1)
     {
         if (mask & 1)

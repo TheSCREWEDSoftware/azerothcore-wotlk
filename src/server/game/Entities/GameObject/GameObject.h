@@ -161,7 +161,7 @@ public:
     [[nodiscard]] std::string const& GetNameForLocaleIdx(LocaleConstant locale_idx) const override;
 
     void SaveToDB(bool saveAddon = false);
-    void SaveToDB(uint32 mapid, uint8 spawnMask, uint32 phaseMask, bool saveAddon = false);
+    void SaveToDB(uint32 mapid, uint64 spawnMask, uint32 phaseMask, bool saveAddon = false);
     virtual bool LoadFromDB(ObjectGuid::LowType guid, Map* map) { return LoadGameObjectFromDB(guid, map, false); }
     virtual bool LoadGameObjectFromDB(ObjectGuid::LowType guid, Map* map, bool addToMap = true);
     [[nodiscard]] bool IsRespawnCompatibilityMode() const { return _respawnCompatibilityMode; }

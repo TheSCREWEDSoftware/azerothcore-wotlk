@@ -915,7 +915,7 @@ public:
             return false;
 
         if (LanaThelAI* lanaThelAI = CAST_AI(LanaThelAI, target->GetAI()))
-            return (target->GetMap()->GetSpawnMode() % 2) == _spawnMode && lanaThelAI->WasVampire(source->GetGUID()) == _wasVampire;
+            return uint32(target->GetMap()->Is25ManRaid() ? 1 : 0) == _spawnMode && lanaThelAI->WasVampire(source->GetGUID()) == _wasVampire;
         return false;
     }
 

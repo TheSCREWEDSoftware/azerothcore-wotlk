@@ -494,7 +494,7 @@ bool Creature::InitEntry(uint32 Entry, CreatureData const* data)
     // get difficulty 1 mode entry
     // Xinef: Skip for pets!
     CreatureTemplate const* cinfo = normalInfo;
-    for (uint8 diff = uint8(GetMap()->GetSpawnMode()); diff > 0 && !IsPet();)
+    for (uint8 diff = GetMap()->GetLegacySpawnMode(); diff > 0 && !IsPet();)
     {
         // we already have valid Map pointer for current creature!
         if (normalInfo->DifficultyEntry[diff - 1])
@@ -508,7 +508,7 @@ bool Creature::InitEntry(uint32 Entry, CreatureData const* data)
         }
 
         // for instances heroic to normal, other cases attempt to retrieve previous difficulty
-        if (diff >= DIFFICULTY_10_HC && GetMap()->IsRaid())
+        if (diff >= 2 && GetMap()->IsRaid())   // legacy 10 man heroic or 25 man heroic
             diff -= 2;                                      // to normal raid difficulty cases
         else
             --diff;
@@ -1408,7 +1408,7 @@ void Creature::SaveToDB()
     SaveToDB(mapId, data->spawnMask, GetPhaseMask());
 }
 
-void Creature::SaveToDB(uint32 mapid, uint8 spawnMask, uint32 phaseMask)
+void Creature::SaveToDB(uint32 mapid, uint64 spawnMask, uint32 phaseMask)
 {
     // update in loaded data
     if (!m_spawnId)
@@ -1660,7 +1660,7 @@ bool Creature::CreateFromProto(ObjectGuid::LowType guidlow, uint32 Entry, uint32
     if (!vehId)
     {
         CreatureTemplate const* cinfo = normalInfo;
-        for (uint8 diff = uint8(GetMap()->GetSpawnMode()); diff > 0 && !IsPet();)
+        for (uint8 diff = GetMap()->GetLegacySpawnMode(); diff > 0 && !IsPet();)
         {
             // we already have valid Map pointer for current creature!
             if (cinfo->DifficultyEntry[diff - 1])
@@ -1674,7 +1674,7 @@ bool Creature::CreateFromProto(ObjectGuid::LowType guidlow, uint32 Entry, uint32
             }
 
             // for instances heroic to normal, other cases attempt to retrieve previous difficulty
-            if (diff >= DIFFICULTY_10_HC && GetMap()->IsRaid())
+            if (diff >= 2 && GetMap()->IsRaid())   // legacy 10 man heroic or 25 man heroic
                 diff -= 2;                                      // to normal raid difficulty cases
             else
                 --diff;

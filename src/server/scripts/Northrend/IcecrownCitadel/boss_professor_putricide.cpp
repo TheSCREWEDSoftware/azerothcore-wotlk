@@ -1404,7 +1404,7 @@ class spell_putricide_mutation_init_aura : public AuraScript
     void OnRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
     {
         uint32 spellId = 70311;
-        if (GetTarget()->GetMap()->GetSpawnMode() & 1)
+        if (GetTarget()->GetMap()->Is25ManRaid())
             spellId = 71503;
 
         GetTarget()->CastSpell(GetTarget(), spellId, true);

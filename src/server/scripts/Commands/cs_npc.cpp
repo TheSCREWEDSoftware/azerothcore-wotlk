@@ -240,7 +240,7 @@ public:
 
                 if (Creature* creature = trans->CreateNPCPassenger(guid, &data))
                 {
-                    creature->SaveToDB(trans->GetGOInfo()->moTransport.mapID, 1 << map->GetSpawnMode(), chr->GetPhaseMaskForSpawn());
+                    creature->SaveToDB(trans->GetGOInfo()->moTransport.mapID, UI64LIT(1) << map->GetSpawnMode(), chr->GetPhaseMaskForSpawn());
                     sObjectMgr->AddCreatureToGrid(guid, &data);
                 }
                 return true;
@@ -253,7 +253,7 @@ public:
             return false;
         }
 
-        creature->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()), chr->GetPhaseMaskForSpawn());
+        creature->SaveToDB(map->GetId(), (UI64LIT(1) << map->GetSpawnMode()), chr->GetPhaseMaskForSpawn());
 
         ObjectGuid::LowType spawnId = creature->GetSpawnId();
 

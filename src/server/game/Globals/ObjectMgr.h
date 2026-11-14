@@ -1782,8 +1782,8 @@ private:
     std::unordered_map<uint8, std::vector<Trainer::Trainer const*>> _classTrainers;
     std::unordered_map<uint32, uint32> _creatureDefaultTrainers;
 
-    std::set<uint32> _difficultyEntries[MAX_DIFFICULTY - 1]; // already loaded difficulty 1 value in creatures, used in CheckCreatureTemplate
-    std::set<uint32> _hasDifficultyEntries[MAX_DIFFICULTY - 1]; // already loaded creatures with difficulty 1 values, used in CheckCreatureTemplate
+    std::set<uint32> _difficultyEntries[MAX_CREATURE_DIFFICULTIES]; // already loaded difficulty 1 value in creatures, used in CheckCreatureTemplate
+    std::set<uint32> _hasDifficultyEntries[MAX_CREATURE_DIFFICULTIES]; // already loaded creatures with difficulty 1 values, used in CheckCreatureTemplate
 
     enum CreatureLinkedRespawnType
     {

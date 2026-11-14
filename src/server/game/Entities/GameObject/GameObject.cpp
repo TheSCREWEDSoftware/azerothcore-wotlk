@@ -1161,7 +1161,7 @@ void GameObject::SaveToDB(bool saveAddon /*= false*/)
     SaveToDB(GetMapId(), data->spawnMask, data->phaseMask, saveAddon);
 }
 
-void GameObject::SaveToDB(uint32 mapid, uint8 spawnMask, uint32 phaseMask, bool saveAddon /*= false*/)
+void GameObject::SaveToDB(uint32 mapid, uint64 spawnMask, uint32 phaseMask, bool saveAddon /*= false*/)
 {
     GameObjectTemplate const* goI = GetGOInfo();
 

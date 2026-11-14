@@ -186,11 +186,14 @@ struct CreatureModel
     float Probability;
 };
 
+// difficulty_entry_1..3 of creature_template: heroic dungeon / 25 man, 10 man heroic, 25 man heroic (TC 6.x)
+#define MAX_CREATURE_DIFFICULTIES 3
+
 // from `creature_template` table
 struct CreatureTemplate
 {
     uint32  Entry;
-    uint32  DifficultyEntry[MAX_DIFFICULTY - 1];
+    uint32  DifficultyEntry[MAX_CREATURE_DIFFICULTIES];
     uint32  KillCredit[MAX_KILL_CREDIT];
     std::vector<CreatureModel> Models;
     std::string  Name;

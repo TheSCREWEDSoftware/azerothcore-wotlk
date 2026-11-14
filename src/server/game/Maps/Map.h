@@ -317,6 +317,9 @@ public:
     // have meaning only for instanced map (that have set real difficulty), the spawn mode is a Difficulty.dbc id in 6.x
     [[nodiscard]] Difficulty GetDifficulty() const { return Difficulty(GetSpawnMode()); }
     [[nodiscard]] Difficulty GetDifficultyID() const { return GetDifficulty(); }
+    // the 3.3.5 spawn mode of the 6.x difficulty: 0 normal / 10 man, 1 heroic / 25 man, 2 10 man heroic, 3 25 man heroic
+    // (creature difficulty_entry_N, spell difficulty, SmartAI difficulty flags)
+    [[nodiscard]] uint8 GetLegacySpawnMode() const;
     [[nodiscard]] bool IsRegularDifficulty() const;
     [[nodiscard]] MapDifficultyEntry const* GetMapDifficulty() const;
     [[nodiscard]] uint32 GetDifficultyLootBonusTreeMod() const;

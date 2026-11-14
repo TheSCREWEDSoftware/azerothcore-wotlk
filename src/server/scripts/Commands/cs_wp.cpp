@@ -690,7 +690,7 @@ public:
                         return false;
                     }
 
-                    wpCreature2->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()), chr->GetPhaseMaskForSpawn());
+                    wpCreature2->SaveToDB(map->GetId(), (UI64LIT(1) << map->GetSpawnMode()), chr->GetPhaseMaskForSpawn());
                     // To call _LoadGoods(); _LoadQuests(); CreateTrainerSpells();
                     //TODO: Should we first use "Create" then use "LoadFromDB"?
                     if (!wpCreature2->LoadCreatureFromDB(wpCreature2->GetSpawnId(), map, true, true))
@@ -906,7 +906,7 @@ public:
                     return false;
                 }
 
-                wpCreature->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()), chr->GetPhaseMaskForSpawn());
+                wpCreature->SaveToDB(map->GetId(), (UI64LIT(1) << map->GetSpawnMode()), chr->GetPhaseMaskForSpawn());
 
                 // Set "wpguid" column to the visual waypoint
                 WorldDatabasePreparedStatement* stmt = WorldDatabase.GetPreparedStatement(WORLD_UPD_WAYPOINT_DATA_WPGUID);
@@ -968,7 +968,7 @@ public:
                 return false;
             }
 
-            creature->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()), chr->GetPhaseMaskForSpawn());
+            creature->SaveToDB(map->GetId(), (UI64LIT(1) << map->GetSpawnMode()), chr->GetPhaseMaskForSpawn());
             if (!creature->LoadCreatureFromDB(creature->GetSpawnId(), map, true, true))
             {
                 handler->PSendSysMessage(LANG_WAYPOINT_VP_NOTCREATED, id);
@@ -1017,7 +1017,7 @@ public:
                 return false;
             }
 
-            creature->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()), chr->GetPhaseMaskForSpawn());
+            creature->SaveToDB(map->GetId(), (UI64LIT(1) << map->GetSpawnMode()), chr->GetPhaseMaskForSpawn());
             if (!creature->LoadCreatureFromDB(creature->GetSpawnId(), map, true, true))
             {
                 handler->PSendSysMessage(LANG_WAYPOINT_NOTCREATED, id);

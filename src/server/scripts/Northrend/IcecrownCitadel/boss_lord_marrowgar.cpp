@@ -541,7 +541,7 @@ class spell_marrowgar_bone_spike_graveyard : public SpellScript
         {
             bool didHit = false;
             CreatureAI* marrowgarAI = marrowgar->AI();
-            uint8 boneSpikeCount = uint8(GetCaster()->GetMap()->GetSpawnMode() & 1 ? 3 : 1);
+            uint8 boneSpikeCount = uint8(GetCaster()->GetMap()->Is25ManRaid() ? 3 : 1);
 
             std::vector<Player*> validPlayers;
             Map::PlayerList const& pList = marrowgar->GetMap()->GetPlayers();

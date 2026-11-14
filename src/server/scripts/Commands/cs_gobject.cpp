@@ -131,7 +131,7 @@ public:
             object->SetRespawnTime(*spawnTimeSecs);
 
         // fill the gameobject data and save to the db
-        object->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()), player->GetPhaseMaskForSpawn());
+        object->SaveToDB(map->GetId(), (UI64LIT(1) << map->GetSpawnMode()), player->GetPhaseMaskForSpawn());
         guidLow = object->GetSpawnId();
 
         // delete the old object and do a clean load from DB with a fresh new GameObject instance.

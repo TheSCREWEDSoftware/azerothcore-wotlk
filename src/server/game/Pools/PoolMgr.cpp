@@ -317,14 +317,14 @@ template <>
 bool PoolGroup<Creature>::IsSpawnableOnMap(uint32 db_guid, Map* map)
 {
     CreatureData const* data = sObjectMgr->GetCreatureData(db_guid);
-    return data && (data->spawnMask & (1 << map->GetSpawnMode()));
+    return data && (data->spawnMask & (UI64LIT(1) << map->GetSpawnMode()));
 }
 
 template <>
 bool PoolGroup<GameObject>::IsSpawnableOnMap(uint32 db_guid, Map* map)
 {
     GameObjectData const* data = sObjectMgr->GetGameObjectData(db_guid);
-    return data && (data->spawnMask & (1 << map->GetSpawnMode()));
+    return data && (data->spawnMask & (UI64LIT(1) << map->GetSpawnMode()));
 }
 
 template <class T>

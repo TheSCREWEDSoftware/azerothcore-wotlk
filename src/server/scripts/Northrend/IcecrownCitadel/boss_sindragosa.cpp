@@ -876,7 +876,7 @@ class spell_sindragosa_unchained_magic : public SpellScript
         std::list<WorldObject*> healList = unitList;
         std::list<WorldObject*> dpsList = unitList;
         unitList.clear();
-        uint32 maxSize = uint32(GetCaster()->GetMap()->GetSpawnMode() & 1 ? 3 : 1);
+        uint32 maxSize = uint32(GetCaster()->GetMap()->Is25ManRaid() ? 3 : 1);
         healList.remove_if(UnchainedMagicTargetSelector(false));
         if (healList.size() > maxSize)
             Acore::Containers::RandomResize(healList, maxSize);

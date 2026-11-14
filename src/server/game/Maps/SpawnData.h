@@ -74,7 +74,7 @@ struct SpawnData
     float posY{0.0f};
     float posZ{0.0f};
     float orientation{0.0f};
-    uint8 spawnMask{0};
+    uint64 spawnMask{0};                            // 6.x: one bit per Difficulty.dbc id (TC 6.x)
     uint32 ScriptId{0};
     bool dbData{true};
     uint32 spawnGroupId{0};
