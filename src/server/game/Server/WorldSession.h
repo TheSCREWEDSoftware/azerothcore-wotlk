@@ -1162,7 +1162,6 @@ public:
 
     //Taxi
     void SendTaxiStatus(ObjectGuid guid);
-    static WorldPacket BuildTaxiNodeStatus(ObjectGuid guid, bool known);
     void SendTaxiMenu(Creature* unit);
     void SendDoFlight(uint32 mountDisplayId, uint32 path, uint32 pathNode = 0);
     bool SendLearnNewTaxiNode(Creature* unit);

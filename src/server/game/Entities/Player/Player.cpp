@@ -16,6 +16,7 @@
  */
 
 #include "Player.h"
+#include "TaxiPackets.h"
 #include "AccountMgr.h"
 #include "AchievementMgr.h"
 #include "Archaeology.h"
@@ -11139,8 +11140,10 @@ void Player::SendTaxiNodeStatusMultiple()
         if (!nearestNode)
             return;
 
-        WorldPacket data = WorldSession::BuildTaxiNodeStatus(creature->GetGUID(), m_taxi.IsTaximaskNodeKnown(nearestNode));
-        SendDirectMessage(&data);
+        WorldPackets::Taxi::TaxiNodeStatus data;
+        data.Unit = creature->GetGUID();
+        data.Status = m_taxi.IsTaximaskNodeKnown(nearestNode) ? TAXISTATUS_LEARNED : TAXISTATUS_UNLEARNED;
+        SendDirectMessage(data.Write());
     });
 }
 

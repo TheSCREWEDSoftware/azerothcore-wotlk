@@ -18,17 +18,19 @@
 #include "ObjectMgr.h"
 #include "Player.h"
 #include "StringConvert.h"
+#include "TaxiPackets.h"
 #include "Tokenize.h"
 
 void PlayerTaxi::InitTaxiNodesForLevel(uint32 race, uint32 chrClass, uint8 level)
 {
     // class specific initial known nodes
+    TaxiMask const& factionMask = Player::TeamIdForRace(race) == TEAM_HORDE ? sHordeTaxiNodesMask : sAllianceTaxiNodesMask;
     switch (chrClass)
     {
         case CLASS_DEATH_KNIGHT:
         {
             for (uint8 i = 0; i < TaxiMaskSize; ++i)
-                m_taximask[i] |= sOldContinentsNodesMask[i];
+                m_taximask[i] |= sOldContinentsNodesMask[i] & factionMask[i];
             break;
         }
     }
@@ -37,50 +39,55 @@ void PlayerTaxi::InitTaxiNodesForLevel(uint32 race, uint32 chrClass, uint8 level
     switch (race)
     {
         case RACE_HUMAN:
-            SetTaximaskNode(2);
-            break;     // Human
-        case RACE_ORC:
-            SetTaximaskNode(23);
-            break;     // Orc
         case RACE_DWARF:
-            SetTaximaskNode(6);
-            break;     // Dwarf
         case RACE_NIGHTELF:
-            SetTaximaskNode(26);
-            SetTaximaskNode(27);
-            break;     // Night Elf
-        case RACE_UNDEAD_PLAYER:
-            SetTaximaskNode(11);
-            break;// Undead
-        case RACE_TAUREN:
-            SetTaximaskNode(22);
-            break;     // Tauren
         case RACE_GNOME:
-            SetTaximaskNode(6);
-            break;     // Gnome
-        case RACE_TROLL:
-            SetTaximaskNode(23);
-            break;     // Troll
-        case RACE_BLOODELF:
-            SetTaximaskNode(82);
-            break;     // Blood Elf
         case RACE_DRAENEI:
-            SetTaximaskNode(94);
-            break;     // Draenei
+        case RACE_WORGEN:
+        case RACE_PANDAREN_ALLIANCE:
+            SetTaximaskNode(2);     // Stormwind, Elwynn
+            SetTaximaskNode(6);     // Ironforge, Dun Morogh
+            SetTaximaskNode(26);    // Lor'danel, Darkshore
+            SetTaximaskNode(27);    // Rut'theran Village, Teldrassil
+            SetTaximaskNode(49);    // Moonglade (Alliance)
+            SetTaximaskNode(94);    // The Exodar
+            SetTaximaskNode(456);   // Dolanaar, Teldrassil
+            SetTaximaskNode(457);   // Darnassus, Teldrassil
+            SetTaximaskNode(582);   // Goldshire, Elwynn
+            SetTaximaskNode(589);   // Eastvale Logging Camp, Elwynn
+            SetTaximaskNode(619);   // Kharanos, Dun Morogh
+            SetTaximaskNode(620);   // Gol'Bolar Quarry, Dun Morogh
+            SetTaximaskNode(624);   // Azure Watch, Azuremyst Isle
+            break;
+        case RACE_ORC:
+        case RACE_UNDEAD_PLAYER:
+        case RACE_TAUREN:
+        case RACE_TROLL:
+        case RACE_BLOODELF:
+        case RACE_GOBLIN:
+        case RACE_PANDAREN_HORDE:
+            SetTaximaskNode(11);    // Undercity, Tirisfal
+            SetTaximaskNode(22);    // Thunder Bluff, Mulgore
+            SetTaximaskNode(23);    // Orgrimmar, Durotar
+            SetTaximaskNode(69);    // Moonglade (Horde)
+            SetTaximaskNode(82);    // Silvermoon City
+            SetTaximaskNode(384);   // The Bulwark, Tirisfal
+            SetTaximaskNode(402);   // Bloodhoof Village, Mulgore
+            SetTaximaskNode(460);   // Brill, Tirisfal Glades
+            SetTaximaskNode(536);   // Sen'jin Village, Durotar
+            SetTaximaskNode(537);   // Razor Hill, Durotar
+            SetTaximaskNode(625);   // Fairbreeze Village, Eversong Woods
+            SetTaximaskNode(631);   // Falconwing Square, Eversong Woods
+            break;
     }
 
     // new continent starting masks (It will be accessible only at new map)
     switch (Player::TeamIdForRace(race))
     {
-        case TEAM_ALLIANCE:
-            SetTaximaskNode(100);
-            break;
-        case TEAM_HORDE:
-            SetTaximaskNode(99);
-            break;
-        default:
-            break;
+        case TEAM_ALLIANCE: SetTaximaskNode(100); break;
+        case TEAM_HORDE:    SetTaximaskNode(99);  break;
     }
+
     // level dependent taxi hubs
     if (level >= 68)
         SetTaximaskNode(213);                               //Shattered Sun Staging Area
@@ -91,34 +98,47 @@ bool PlayerTaxi::LoadTaxiMask(std::string_view data)
     bool warn = false;
     std::vector<std::string_view> tokens = Acore::Tokenize(data, ' ', false);
 
-    for (uint8 index = 0; (index < TaxiMaskSize) && (index < tokens.size()); ++index)
-    {
-        if (Optional<uint32> mask = Acore::StringTo<uint32>(tokens[index]))
-        {
-            // load and set bits only for existing taxi nodes
-            m_taximask[index] = sTaxiNodesMask[index] & *mask;
+    // 6.x saves one byte per token; older characters saved 32-bit words, which are split into 4 bytes
+    bool const legacyWords = tokens.size() != TaxiMaskSize;
+    std::size_t const bytesPerToken = legacyWords ? 4 : 1;
 
-            if (m_taximask[index] != *mask)
-            {
-                warn = true;
-            }
-        }
-        else
+    m_taximask.fill(0);
+    for (std::size_t token = 0; token < tokens.size(); ++token)
+    {
+        Optional<uint32> value = Acore::StringTo<uint32>(tokens[token]);
+        if (!value)
         {
-            m_taximask[index] = 0;
             warn = true;
+            continue;
+        }
+
+        for (std::size_t b = 0; b < bytesPerToken; ++b)
+        {
+            std::size_t index = token * bytesPerToken + b;
+            uint8 mask = uint8(*value >> (b * 8));
+            if (index >= TaxiMaskSize)
+            {
+                if (mask)
+                    warn = true;
+                continue;
+            }
+
+            // load and set bits only for existing taxi nodes
+            m_taximask[index] = sTaxiNodesMask[index] & mask;
+            if (m_taximask[index] != mask)
+                warn = true;
         }
     }
 
     return !warn;
 }
 
-void PlayerTaxi::AppendTaximaskTo(ByteBuffer& data, bool all)
+void PlayerTaxi::AppendTaximaskTo(WorldPackets::Taxi::ShowTaxiNodes& data, bool all)
 {
-    // 5.4.8 sends the mask byte by byte, the count goes in SMSG_SHOW_TAXI_NODES' bits
-    TaxiMask const& mask = all ? sTaxiNodesMask : m_taximask; // all existing nodes or the known ones
-    for (std::size_t i = 0; i < TaxiMaskClientBytes; ++i)
-        data << uint8(mask[i / 4] >> ((i % 4) * 8));
+    if (all)
+        data.Nodes = &sTaxiNodesMask;              // all existed nodes
+    else
+        data.Nodes = &m_taximask;                  // known nodes
 }
 
 bool PlayerTaxi::LoadTaxiDestinationsFromString(std::string const& values, TeamId teamId)
@@ -222,8 +242,29 @@ uint32 PlayerTaxi::GetCurrentTaxiPath() const
 std::ostringstream& operator<< (std::ostringstream& ss, PlayerTaxi const& taxi)
 {
     for (uint8 i = 0; i < TaxiMaskSize; ++i)
-        ss << taxi.m_taximask[i] << ' ';
+        ss << uint32(taxi.m_taximask[i]) << ' ';
     return ss;
+}
+
+bool PlayerTaxi::RequestEarlyLanding()
+{
+    if (m_TaxiDestinations.size() <= 2)
+        return false;
+
+    // start from first destination - m_TaxiDestinations[0] is the current starting node
+    for (std::deque<uint32>::iterator it = ++m_TaxiDestinations.begin(); it != m_TaxiDestinations.end(); ++it)
+    {
+        if (IsTaximaskNodeKnown(*it))
+        {
+            if (++it == m_TaxiDestinations.end())
+                return false;   // if we are left with only 1 known node on the path don't change the spline, its our final destination anyway
+
+            m_TaxiDestinations.erase(it, m_TaxiDestinations.end());
+            return true;
+        }
+    }
+
+    return false;
 }
 
 FactionTemplateEntry const* PlayerTaxi::GetFlightMasterFactionTemplate() const

@@ -45,6 +45,7 @@
 #include "CreatureTextMgr.h"
 #include "DB2Stores.h"
 #include "DBCStores.h"
+#include "TaxiPathGraph.h"
 #include "DBUpdater.h"
 #include "DatabaseEnv.h"
 #include "DisableMgr.h"
@@ -401,6 +402,9 @@ void World::SetInitialWorldSettings()
     sDB2Manager.LoadHotfixData();
     LoadGameTables(_dataPath, GetDefaultDbcLocale());
     LoadDBCStoresAzerothCore();
+
+    // weighted graph of the taxi nodes, for the 6.x one-destination taxi requests
+    sTaxiPathGraph.Initialize();
 
     // Load cinematic cameras
     LoadM2Cameras(_dataPath);

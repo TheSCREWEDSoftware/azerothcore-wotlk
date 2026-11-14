@@ -22,6 +22,11 @@
 
 class ByteBuffer;
 
+namespace WorldPackets::Taxi
+{
+    class ShowTaxiNodes;
+}
+
 class AC_GAME_API PlayerTaxi
 {
 public:
@@ -34,15 +39,16 @@ public:
 
     [[nodiscard]] bool IsTaximaskNodeKnown(uint32 nodeidx) const
     {
-        uint8  field   = uint8((nodeidx - 1) / 32);
-        uint32 submask = 1 << ((nodeidx - 1) % 32);
+        // 6.x: the mask is a byte array
+        uint8  field   = uint8((nodeidx - 1) / 8);
+        uint32 submask = 1 << ((nodeidx - 1) % 8);
         return (m_taximask[field] & submask) == submask;
     }
 
     bool SetTaximaskNode(uint32 nodeidx)
     {
-        uint8  field   = uint8((nodeidx - 1) / 32);
-        uint32 submask = 1 << ((nodeidx - 1) % 32);
+        uint8  field   = uint8((nodeidx - 1) / 8);
+        uint32 submask = 1 << ((nodeidx - 1) % 8);
         if ((m_taximask[field] & submask) != submask)
         {
             m_taximask[field] |= submask;
@@ -52,7 +58,8 @@ public:
             return false;
     }
 
-    void AppendTaximaskTo(ByteBuffer& data, bool all);
+    void AppendTaximaskTo(WorldPackets::Taxi::ShowTaxiNodes& data, bool all);
+    [[nodiscard]] TaxiMask const& GetTaxiMask() const { return m_taximask; }
 
     // Destinations
     bool LoadTaxiDestinationsFromString(std::string const& values, TeamId teamId);
@@ -72,6 +79,8 @@ public:
         return GetTaxiDestination();
     }
 
+    bool RequestEarlyLanding();
+    void SetTaxiDestination(std::vector<uint32> const& nodes) { m_TaxiDestinations.assign(nodes.begin(), nodes.end()); }
     [[nodiscard]] std::deque<uint32> const& GetPath() const { return m_TaxiDestinations; }
     [[nodiscard]] bool empty() const { return m_TaxiDestinations.empty(); }
     [[nodiscard]] FactionTemplateEntry const* GetFlightMasterFactionTemplate() const;
