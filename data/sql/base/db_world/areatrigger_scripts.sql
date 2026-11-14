@@ -1,13 +1,14 @@
--- MySQL dump 10.13  Distrib 8.4.3, for Win64 (x86_64)
+/*M!999999\- enable the sandbox mode */ 
+-- MariaDB dump 10.19  Distrib 10.11.14-MariaDB, for debian-linux-gnu (x86_64)
 --
--- Host: localhost    Database: acore_world
+-- Host: localhost    Database: acore_world_build
 -- ------------------------------------------------------
--- Server version	8.4.3
+-- Server version	10.11.14-MariaDB-0ubuntu0.24.04.1
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
 /*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!50503 SET NAMES utf8mb4 */;
+/*!40101 SET NAMES utf8mb4 */;
 /*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
 /*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
@@ -19,10 +20,10 @@
 
 DROP TABLE IF EXISTS `areatrigger_scripts`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `areatrigger_scripts` (
-  `entry` int NOT NULL,
-  `ScriptName` char(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `entry` int(11) NOT NULL,
+  `ScriptName` char(64) NOT NULL,
   PRIMARY KEY (`entry`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -131,6 +132,7 @@ INSERT INTO `areatrigger_scripts` VALUES
 (4948,'SmartTrigger'),
 (4951,'SmartTrigger'),
 (4956,'SmartTrigger'),
+(4963,'SmartTrigger'),
 (4990,'SmartTrigger'),
 (4991,'SmartTrigger'),
 (5014,'at_karazhan_mirkblood_approach'),
@@ -174,13 +176,26 @@ INSERT INTO `areatrigger_scripts` VALUES
 (5339,'at_last_rites'),
 (5340,'at_last_rites'),
 (5401,'at_celestial_planetarium_enterance'),
-(5414,'SmartTrigger'),
-(5415,'SmartTrigger'),
-(5416,'SmartTrigger'),
-(5417,'SmartTrigger'),
 (5440,'SmartTrigger'),
-(5442,'SmartTrigger'),
-(5443,'SmartTrigger'),
+(5542,'at_gasping_for_breath'),
+(5543,'at_gasping_for_breath'),
+(5544,'at_gasping_for_breath'),
+(5545,'at_gasping_for_breath'),
+(5546,'at_gasping_for_breath'),
+(5547,'at_gasping_for_breath'),
+(5548,'at_gasping_for_breath'),
+(5549,'at_gasping_for_breath'),
+(5550,'at_gasping_for_breath'),
+(5551,'at_gasping_for_breath'),
+(5552,'at_gasping_for_breath'),
+(5553,'at_gasping_for_breath'),
+(5554,'at_gasping_for_breath'),
+(5567,'at_gasping_for_breath'),
+(5568,'at_gasping_for_breath'),
+(5574,'at_gasping_for_breath'),
+(5575,'at_gasping_for_breath'),
+(5576,'at_gasping_for_breath'),
+(5577,'at_gasping_for_breath'),
 (5578,'SmartTrigger'),
 (5579,'SmartTrigger'),
 (5580,'SmartTrigger'),
@@ -221,4 +236,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-06-01 22:39:29
+-- Dump completed on 2026-11-14  1:20:24

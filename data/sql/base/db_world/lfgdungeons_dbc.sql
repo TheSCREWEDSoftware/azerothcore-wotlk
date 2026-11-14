@@ -1,13 +1,14 @@
--- MySQL dump 10.13  Distrib 8.4.3, for Win64 (x86_64)
+/*M!999999\- enable the sandbox mode */ 
+-- MariaDB dump 10.19  Distrib 10.11.14-MariaDB, for debian-linux-gnu (x86_64)
 --
--- Host: localhost    Database: acore_world
+-- Host: localhost    Database: acore_world_build
 -- ------------------------------------------------------
--- Server version	8.4.3
+-- Server version	10.11.14-MariaDB-0ubuntu0.24.04.1
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
 /*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!50503 SET NAMES utf8mb4 */;
+/*!40101 SET NAMES utf8mb4 */;
 /*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
 /*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
@@ -19,57 +20,57 @@
 
 DROP TABLE IF EXISTS `lfgdungeons_dbc`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `lfgdungeons_dbc` (
-  `ID` int NOT NULL DEFAULT '0',
-  `Name_Lang_enUS` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-  `Name_Lang_enGB` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-  `Name_Lang_koKR` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-  `Name_Lang_frFR` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-  `Name_Lang_deDE` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-  `Name_Lang_enCN` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-  `Name_Lang_zhCN` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-  `Name_Lang_enTW` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-  `Name_Lang_zhTW` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-  `Name_Lang_esES` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-  `Name_Lang_esMX` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-  `Name_Lang_ruRU` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-  `Name_Lang_ptPT` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-  `Name_Lang_ptBR` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-  `Name_Lang_itIT` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-  `Name_Lang_Unk` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-  `Name_Lang_Mask` int unsigned NOT NULL DEFAULT '0',
-  `MinLevel` int NOT NULL DEFAULT '0',
-  `MaxLevel` int NOT NULL DEFAULT '0',
-  `Target_Level` int NOT NULL DEFAULT '0',
-  `Target_Level_Min` int NOT NULL DEFAULT '0',
-  `Target_Level_Max` int NOT NULL DEFAULT '0',
-  `MapID` int NOT NULL DEFAULT '0',
-  `Difficulty` int NOT NULL DEFAULT '0',
-  `Flags` int NOT NULL DEFAULT '0',
-  `TypeID` int NOT NULL DEFAULT '0',
-  `Faction` int NOT NULL DEFAULT '0',
-  `TextureFilename` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-  `ExpansionLevel` int NOT NULL DEFAULT '0',
-  `Order_Index` int NOT NULL DEFAULT '0',
-  `Group_Id` int NOT NULL DEFAULT '0',
-  `Description_Lang_enUS` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-  `Description_Lang_enGB` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-  `Description_Lang_koKR` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-  `Description_Lang_frFR` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-  `Description_Lang_deDE` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-  `Description_Lang_enCN` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-  `Description_Lang_zhCN` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-  `Description_Lang_enTW` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-  `Description_Lang_zhTW` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-  `Description_Lang_esES` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-  `Description_Lang_esMX` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-  `Description_Lang_ruRU` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-  `Description_Lang_ptPT` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-  `Description_Lang_ptBR` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-  `Description_Lang_itIT` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-  `Description_Lang_Unk` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-  `Description_Lang_Mask` int unsigned NOT NULL DEFAULT '0',
+  `ID` int(11) NOT NULL DEFAULT 0,
+  `Name_Lang_enUS` text DEFAULT NULL,
+  `Name_Lang_enGB` text DEFAULT NULL,
+  `Name_Lang_koKR` text DEFAULT NULL,
+  `Name_Lang_frFR` text DEFAULT NULL,
+  `Name_Lang_deDE` text DEFAULT NULL,
+  `Name_Lang_enCN` text DEFAULT NULL,
+  `Name_Lang_zhCN` text DEFAULT NULL,
+  `Name_Lang_enTW` text DEFAULT NULL,
+  `Name_Lang_zhTW` text DEFAULT NULL,
+  `Name_Lang_esES` text DEFAULT NULL,
+  `Name_Lang_esMX` text DEFAULT NULL,
+  `Name_Lang_ruRU` text DEFAULT NULL,
+  `Name_Lang_ptPT` text DEFAULT NULL,
+  `Name_Lang_ptBR` text DEFAULT NULL,
+  `Name_Lang_itIT` text DEFAULT NULL,
+  `Name_Lang_Unk` text DEFAULT NULL,
+  `Name_Lang_Mask` int(10) unsigned NOT NULL DEFAULT 0,
+  `MinLevel` int(11) NOT NULL DEFAULT 0,
+  `MaxLevel` int(11) NOT NULL DEFAULT 0,
+  `Target_Level` int(11) NOT NULL DEFAULT 0,
+  `Target_Level_Min` int(11) NOT NULL DEFAULT 0,
+  `Target_Level_Max` int(11) NOT NULL DEFAULT 0,
+  `MapID` int(11) NOT NULL DEFAULT 0,
+  `Difficulty` int(11) NOT NULL DEFAULT 0,
+  `Flags` int(11) NOT NULL DEFAULT 0,
+  `TypeID` int(11) NOT NULL DEFAULT 0,
+  `Faction` int(11) NOT NULL DEFAULT 0,
+  `TextureFilename` text DEFAULT NULL,
+  `ExpansionLevel` int(11) NOT NULL DEFAULT 0,
+  `Order_Index` int(11) NOT NULL DEFAULT 0,
+  `Group_Id` int(11) NOT NULL DEFAULT 0,
+  `Description_Lang_enUS` text DEFAULT NULL,
+  `Description_Lang_enGB` text DEFAULT NULL,
+  `Description_Lang_koKR` text DEFAULT NULL,
+  `Description_Lang_frFR` text DEFAULT NULL,
+  `Description_Lang_deDE` text DEFAULT NULL,
+  `Description_Lang_enCN` text DEFAULT NULL,
+  `Description_Lang_zhCN` text DEFAULT NULL,
+  `Description_Lang_enTW` text DEFAULT NULL,
+  `Description_Lang_zhTW` text DEFAULT NULL,
+  `Description_Lang_esES` text DEFAULT NULL,
+  `Description_Lang_esMX` text DEFAULT NULL,
+  `Description_Lang_ruRU` text DEFAULT NULL,
+  `Description_Lang_ptPT` text DEFAULT NULL,
+  `Description_Lang_ptBR` text DEFAULT NULL,
+  `Description_Lang_itIT` text DEFAULT NULL,
+  `Description_Lang_Unk` text DEFAULT NULL,
+  `Description_Lang_Mask` int(10) unsigned NOT NULL DEFAULT 0,
   PRIMARY KEY (`ID`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -91,4 +92,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-06-01 22:40:10
+-- Dump completed on 2026-11-14  1:20:29

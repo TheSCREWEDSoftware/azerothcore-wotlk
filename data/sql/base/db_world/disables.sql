@@ -1,13 +1,14 @@
--- MySQL dump 10.13  Distrib 8.4.3, for Win64 (x86_64)
+/*M!999999\- enable the sandbox mode */ 
+-- MariaDB dump 10.19  Distrib 10.11.14-MariaDB, for debian-linux-gnu (x86_64)
 --
--- Host: localhost    Database: acore_world
+-- Host: localhost    Database: acore_world_build
 -- ------------------------------------------------------
--- Server version	8.4.3
+-- Server version	10.11.14-MariaDB-0ubuntu0.24.04.1
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
 /*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!50503 SET NAMES utf8mb4 */;
+/*!40101 SET NAMES utf8mb4 */;
 /*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
 /*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
@@ -19,14 +20,14 @@
 
 DROP TABLE IF EXISTS `disables`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `disables` (
-  `sourceType` int unsigned NOT NULL,
-  `entry` int unsigned NOT NULL,
-  `flags` tinyint unsigned NOT NULL DEFAULT '0',
-  `params_0` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
-  `params_1` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
-  `comment` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `sourceType` int(10) unsigned NOT NULL,
+  `entry` int(10) unsigned NOT NULL,
+  `flags` tinyint(3) unsigned NOT NULL DEFAULT 0,
+  `params_0` varchar(255) NOT NULL DEFAULT '',
+  `params_1` varchar(255) NOT NULL DEFAULT '',
+  `comment` varchar(255) NOT NULL DEFAULT '',
   PRIMARY KEY (`sourceType`,`entry`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -147,8 +148,9 @@ INSERT INTO `disables` VALUES
 (0,62017,64,'','','Disable LOS for Thorim'),
 (0,63675,64,'','','Disable LOS for Improved Devouring Plague'),
 (0,64098,64,'','','Disable LOS for Thorim'),
-(0,66326,7,'','',''),
-(0,66327,7,'','',''),
+(0,64203,64,'','','XT-002: ignore LOS for Void Zone'),
+(0,64210,64,'','','XT-002: ignore LOS for Life Spark'),
+(0,64235,64,'','','XT-002: ignore LOS for Void Zone (25)'),
 (0,69240,64,'','','Vile Gas LOS (Putricide uses it during Rotface fight)'),
 (0,69244,64,'','','Vile Gas LOS (Putricide uses it during Rotface fight)'),
 (0,69248,64,'','','Vile Gas LOS (Putricide uses it during Rotface fight)'),
@@ -942,4 +944,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-06-01 22:39:46
+-- Dump completed on 2026-11-14  1:20:27

@@ -1,13 +1,14 @@
--- MySQL dump 10.13  Distrib 8.4.3, for Win64 (x86_64)
+/*M!999999\- enable the sandbox mode */ 
+-- MariaDB dump 10.19  Distrib 10.11.14-MariaDB, for debian-linux-gnu (x86_64)
 --
--- Host: localhost    Database: acore_world
+-- Host: localhost    Database: acore_world_build
 -- ------------------------------------------------------
--- Server version	8.4.3
+-- Server version	10.11.14-MariaDB-0ubuntu0.24.04.1
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
 /*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!50503 SET NAMES utf8mb4 */;
+/*!40101 SET NAMES utf8mb4 */;
 /*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
 /*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
@@ -19,15 +20,15 @@
 
 DROP TABLE IF EXISTS `areatrigger_teleport`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `areatrigger_teleport` (
-  `ID` int unsigned NOT NULL DEFAULT '0',
-  `Name` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-  `target_map` smallint unsigned NOT NULL DEFAULT '0',
-  `target_position_x` float NOT NULL DEFAULT '0',
-  `target_position_y` float NOT NULL DEFAULT '0',
-  `target_position_z` float NOT NULL DEFAULT '0',
-  `target_orientation` float NOT NULL DEFAULT '0',
+  `ID` int(10) unsigned NOT NULL DEFAULT 0,
+  `Name` text DEFAULT NULL,
+  `target_map` smallint(5) unsigned NOT NULL DEFAULT 0,
+  `target_position_x` float NOT NULL DEFAULT 0,
+  `target_position_y` float NOT NULL DEFAULT 0,
+  `target_position_z` float NOT NULL DEFAULT 0,
+  `target_orientation` float NOT NULL DEFAULT 0,
   PRIMARY KEY (`ID`),
   FULLTEXT KEY `name` (`Name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Trigger System';
@@ -58,7 +59,7 @@ INSERT INTO `areatrigger_teleport` VALUES
 (286,'Uldaman Entrance',70,-226.8,49.09,-46.03,1.39),
 (288,'Uldaman Instance Start',0,-6066.73,-2955.63,209.776,3.20443),
 (322,'Gnomeregan Instance Start',0,-5163.33,927.623,257.188,0),
-(324,'Gnomeregan Entrance',90,-332.22,-2.28,-150.86,2.77),
+(324,'Gnomeregan Entrance',90,-329.098,-3.20722,-152.851,2.96706),
 (442,'Razorfen Downs Entrance',129,2592.55,1107.5,51.29,4.74),
 (444,'Razorfen Downs Instance Start',1,-4658.12,-2526.35,81.492,1.25978),
 (446,'Altar of Atal\'Hakkar Entrance',109,-319.24,99.9,-131.85,3.19),
@@ -274,7 +275,7 @@ INSERT INTO `areatrigger_teleport` VALUES
 (5198,'Naxxramas, South-East (Exit)',571,3661.14,-1279.55,243.55,0.82),
 (5199,'Naxxramas, South-West (Exit)',571,3660.01,-1260.99,243.55,5.51),
 (5205,'Gundrak (entrance south)',604,1891.84,832.169,176.669,2.109),
-(5206,'Gundrak (entrance north)',604,1894.58,652.713,176.666,4.078),
+(5206,'Gundrak (North Entrance)',604,1882.32,631.027,176.696,3.14159),
 (5209,'Violet Hold (entrance)',608,1808.82,803.93,44.364,6.282),
 (5211,'Violet Hold (exit)',571,5680.7,487.323,652.418,0.882),
 (5213,'Ahn\'Kahet (exit)',571,3641.84,2032.94,2.47,1.178),
@@ -312,8 +313,8 @@ INSERT INTO `areatrigger_teleport` VALUES
 (5646,'Halls of Reflection (Exit)',571,5630.59,1997.55,798.049,1.44042),
 (5668,'IceCrown Citadel (Exit)',571,5790,2071.48,636.065,0.459897),
 (5670,'IceCrown Citadel (Entrance)',631,76.8638,2211.37,30,3.14965),
-(5683,'Pit of Saron (Exit)',571,5595.92,2013.02,798.041,0.648728),
-(5688,'Forge of Souls (Exit)',571,5667.72,2007.19,798.042,2.31535),
+(5683,'Halls of Reflection (Entrance from Pit of Saron)',668,5239.46,1932.99,707.695,0.785398),
+(5688,'Pit of Saron (Entrance from Forge of Souls)',658,432.568,212.344,528.709,0),
 (5869,'The Ruby Sanctum (Entrance)',724,3274,533.531,87.665,3.16),
 (5872,'The Ruby Sanctum (Exit)',571,3604.23,192.083,-110.821,2.195);
 /*!40000 ALTER TABLE `areatrigger_teleport` ENABLE KEYS */;
@@ -327,4 +328,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-06-01 22:39:30
+-- Dump completed on 2026-11-14  1:20:24

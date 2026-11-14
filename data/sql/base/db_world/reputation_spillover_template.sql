@@ -1,13 +1,14 @@
--- MySQL dump 10.13  Distrib 8.4.3, for Win64 (x86_64)
+/*M!999999\- enable the sandbox mode */ 
+-- MariaDB dump 10.19  Distrib 10.11.14-MariaDB, for debian-linux-gnu (x86_64)
 --
--- Host: localhost    Database: acore_world
+-- Host: localhost    Database: acore_world_build
 -- ------------------------------------------------------
--- Server version	8.4.3
+-- Server version	10.11.14-MariaDB-0ubuntu0.24.04.1
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
 /*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!50503 SET NAMES utf8mb4 */;
+/*!40101 SET NAMES utf8mb4 */;
 /*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
 /*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
@@ -19,27 +20,27 @@
 
 DROP TABLE IF EXISTS `reputation_spillover_template`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `reputation_spillover_template` (
-  `faction` smallint unsigned NOT NULL DEFAULT '0' COMMENT 'faction entry',
-  `faction1` smallint unsigned NOT NULL DEFAULT '0' COMMENT 'faction to give spillover for',
-  `rate_1` float NOT NULL DEFAULT '0' COMMENT 'the given rep points * rate',
-  `rank_1` tinyint unsigned NOT NULL DEFAULT '0' COMMENT 'max rank,above this will not give any spillover',
-  `faction2` smallint unsigned NOT NULL DEFAULT '0',
-  `rate_2` float NOT NULL DEFAULT '0',
-  `rank_2` tinyint unsigned NOT NULL DEFAULT '0',
-  `faction3` smallint unsigned NOT NULL DEFAULT '0',
-  `rate_3` float NOT NULL DEFAULT '0',
-  `rank_3` tinyint unsigned NOT NULL DEFAULT '0',
-  `faction4` smallint unsigned NOT NULL DEFAULT '0',
-  `rate_4` float NOT NULL DEFAULT '0',
-  `rank_4` tinyint unsigned NOT NULL DEFAULT '0',
-  `faction5` smallint unsigned NOT NULL DEFAULT '0',
-  `rate_5` float NOT NULL DEFAULT '0',
-  `rank_5` tinyint unsigned NOT NULL DEFAULT '0',
-  `faction6` smallint unsigned NOT NULL DEFAULT '0',
-  `rate_6` float NOT NULL DEFAULT '0',
-  `rank_6` tinyint unsigned NOT NULL DEFAULT '0',
+  `faction` smallint(5) unsigned NOT NULL DEFAULT 0 COMMENT 'faction entry',
+  `faction1` smallint(5) unsigned NOT NULL DEFAULT 0 COMMENT 'faction to give spillover for',
+  `rate_1` float NOT NULL DEFAULT 0 COMMENT 'the given rep points * rate',
+  `rank_1` tinyint(3) unsigned NOT NULL DEFAULT 0 COMMENT 'max rank,above this will not give any spillover',
+  `faction2` smallint(5) unsigned NOT NULL DEFAULT 0,
+  `rate_2` float NOT NULL DEFAULT 0,
+  `rank_2` tinyint(3) unsigned NOT NULL DEFAULT 0,
+  `faction3` smallint(5) unsigned NOT NULL DEFAULT 0,
+  `rate_3` float NOT NULL DEFAULT 0,
+  `rank_3` tinyint(3) unsigned NOT NULL DEFAULT 0,
+  `faction4` smallint(5) unsigned NOT NULL DEFAULT 0,
+  `rate_4` float NOT NULL DEFAULT 0,
+  `rank_4` tinyint(3) unsigned NOT NULL DEFAULT 0,
+  `faction5` smallint(5) unsigned NOT NULL DEFAULT 0,
+  `rate_5` float NOT NULL DEFAULT 0,
+  `rank_5` tinyint(3) unsigned NOT NULL DEFAULT 0,
+  `faction6` smallint(5) unsigned NOT NULL DEFAULT 0,
+  `rate_6` float NOT NULL DEFAULT 0,
+  `rank_6` tinyint(3) unsigned NOT NULL DEFAULT 0,
   PRIMARY KEY (`faction`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Reputation spillover reputation gain';
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -88,4 +89,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-06-01 22:40:31
+-- Dump completed on 2026-11-14  1:20:30

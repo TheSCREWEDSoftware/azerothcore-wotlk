@@ -1,13 +1,14 @@
--- MySQL dump 10.13  Distrib 8.4.3, for Win64 (x86_64)
+/*M!999999\- enable the sandbox mode */ 
+-- MariaDB dump 10.19  Distrib 10.11.14-MariaDB, for debian-linux-gnu (x86_64)
 --
--- Host: localhost    Database: acore_world
+-- Host: localhost    Database: acore_world_build
 -- ------------------------------------------------------
--- Server version	8.4.3
+-- Server version	10.11.14-MariaDB-0ubuntu0.24.04.1
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
 /*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!50503 SET NAMES utf8mb4 */;
+/*!40101 SET NAMES utf8mb4 */;
 /*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
 /*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
@@ -19,15 +20,15 @@
 
 DROP TABLE IF EXISTS `script_waypoint`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `script_waypoint` (
-  `entry` int unsigned NOT NULL DEFAULT '0' COMMENT 'creature_template entry',
-  `pointid` int unsigned NOT NULL DEFAULT '0',
-  `location_x` float NOT NULL DEFAULT '0',
-  `location_y` float NOT NULL DEFAULT '0',
-  `location_z` float NOT NULL DEFAULT '0',
-  `waittime` int unsigned NOT NULL DEFAULT '0' COMMENT 'waittime in millisecs',
-  `point_comment` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `entry` int(10) unsigned NOT NULL DEFAULT 0 COMMENT 'creature_template entry',
+  `pointid` int(10) unsigned NOT NULL DEFAULT 0,
+  `location_x` float NOT NULL DEFAULT 0,
+  `location_y` float NOT NULL DEFAULT 0,
+  `location_z` float NOT NULL DEFAULT 0,
+  `waittime` int(10) unsigned NOT NULL DEFAULT 0 COMMENT 'waittime in millisecs',
+  `point_comment` text DEFAULT NULL,
   PRIMARY KEY (`entry`,`pointid`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Script Creature waypoints';
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -402,14 +403,6 @@ INSERT INTO `script_waypoint` VALUES
 (8856,16,-8352.99,379.932,122.275,0,''),
 (8856,17,-8335.58,393.519,122.275,0,''),
 (8856,18,-8334.89,394.13,122.274,0,''),
-(9503,0,883.295,-188.926,-43.7037,0,''),
-(9503,1,872.764,-185.606,-43.7037,5000,'b1'),
-(9503,2,867.923,-188.006,-43.7037,5000,'b2'),
-(9503,3,863.296,-190.795,-43.7037,5000,'b3'),
-(9503,4,856.14,-194.653,-43.7037,5000,'b4'),
-(9503,5,851.879,-196.928,-43.7037,15000,'b5'),
-(9503,6,877.035,-187.048,-43.7037,0,''),
-(9503,7,891.198,-197.924,-43.6204,0,'home'),
 (9623,1,-6380.38,-1965.14,-258.292,5000,''),
 (9623,2,-6383.06,-1962.9,-258.936,0,''),
 (9623,3,-6391.09,-1956.13,-260.291,0,''),
@@ -1469,29 +1462,6 @@ INSERT INTO `script_waypoint` VALUES
 (23089,30,775.029,242.006,347.686,0,'Akama, Illidan encounter'),
 (23089,31,766.372,238.074,353.647,0,'Akama, Illidan encounter'),
 (23089,32,751.664,238.933,353.106,0,'Akama, Illidan encounter'),
-(23784,1,1383.52,-6411.72,1.2181,5,'Apothecary Hanes'),
-(23784,2,1392.57,-6403.5,1.9699,2000,'Apothecary Hanes'),
-(23784,3,1397.42,-6378.76,4.996,5,'Apothecary Hanes'),
-(23784,4,1427.36,-6359.47,6.385,5,'Apothecary Hanes'),
-(23784,5,1406.46,-6334.45,6.149,2000,'Apothecary Hanes'),
-(23784,6,1400.77,-6339.71,6.367,5000,'Apothecary Hanes'),
-(23784,7,1424.09,-6326.67,5.716,5,'Apothecary Hanes'),
-(23784,8,1470,-6347.45,7.596,5000,'Apothecary Hanes'),
-(23784,9,1465.18,-6343.53,7.58766,2000,'Apothecary Hanes'),
-(23784,10,1463.9,-6339.28,7.56152,5,'Apothecary Hanes'),
-(23784,11,1474.6,-6327.65,7.02011,5,'Apothecary Hanes'),
-(23784,12,1486.59,-6319.08,8.13591,5,'Apothecary Hanes'),
-(23784,13,1499.87,-6312.24,7.11185,5,'Apothecary Hanes'),
-(23784,14,1507.95,-6315.27,7.05227,5000,'Apothecary Hanes'),
-(23784,15,1511.92,-6300.64,6.43812,5,'Apothecary Hanes'),
-(23784,16,1520.02,-6279.71,5.31363,5,'Apothecary Hanes'),
-(23784,17,1534.01,-6245,6.31535,5,'Apothecary Hanes'),
-(23784,18,1537.98,-6224.37,6.36504,5,'Apothecary Hanes'),
-(23784,19,1551.58,-6206.27,6.9545,2000,'Apothecary Hanes'),
-(23784,20,1572.99,-6197.74,6.70809,5,'Apothecary Hanes'),
-(23784,21,1608.51,-6175.83,8.80075,5,'Apothecary Hanes'),
-(23784,22,1619.15,-6167.6,9.39125,5,'Apothecary Hanes'),
-(23784,23,1634.05,-6153.81,8.08527,5,'Apothecary Hanes'),
 (24156,1,1859.74,-6178.15,24.3033,0,''),
 (24156,2,1866.06,-6172.81,23.9216,0,''),
 (24156,3,1876.43,-6167.42,23.7332,0,''),
@@ -1581,36 +1551,6 @@ INSERT INTO `script_waypoint` VALUES
 (25504,19,2821.29,6797.99,4.49696,0,'Mootoo the Younger'),
 (25504,20,2798.25,6770.64,5.0632,1000,'Mootoo the Younger'),
 (25504,21,2807.49,6748.29,8.25933,5000,'Mootoo the Younger'),
-(25589,1,4462.37,5372.75,-15.2912,0,NULL),
-(25589,2,4478.7,5377.27,-15.0012,5000,NULL),
-(25589,3,4482.25,5390.64,-15.2354,0,NULL),
-(25589,4,4477.09,5405.02,-15.2386,0,NULL),
-(25589,5,4468.71,5416.9,-15.2602,0,NULL),
-(25589,6,4457.24,5426.87,-15.6104,0,NULL),
-(25589,7,4439.7,5433.46,-15.2384,0,NULL),
-(25589,8,4422.63,5432.32,-14.8822,0,NULL),
-(25589,9,4404.71,5422.74,-14.4494,0,NULL),
-(25589,10,4394.68,5406.63,-10.8423,0,NULL),
-(25589,11,4391.99,5392.88,-6.45477,0,NULL),
-(25589,12,4390.65,5370.91,0.504708,0,NULL),
-(25589,13,4393.34,5354.19,3.1859,0,NULL),
-(25589,14,4401.68,5342.78,5.20245,0,NULL),
-(25589,15,4417.98,5335.18,8.31299,0,NULL),
-(25589,16,4431.01,5335.17,11.0135,0,NULL),
-(25589,17,4446.21,5340.58,14.4585,0,NULL),
-(25589,18,4462.73,5350.22,16.8783,0,NULL),
-(25589,19,4475.06,5362.82,19.1229,0,NULL),
-(25589,20,4480.92,5381.72,22.2479,0,NULL),
-(25589,21,4481.31,5394.2,26.2008,0,NULL),
-(25589,22,4476.32,5409.12,29.0811,5000,NULL),
-(25589,23,4466.33,5420.75,31.8093,0,NULL),
-(25589,24,4450.66,5430.03,36.2843,0,NULL),
-(25589,25,4431.24,5433.77,38.2282,0,NULL),
-(25589,26,4417.65,5437.11,40.2429,0,NULL),
-(25589,27,4402.5,5440.94,42.7727,0,NULL),
-(25589,28,4387.11,5450.98,48.6992,0,NULL),
-(25589,29,4364.52,5468.98,48.8229,0,NULL),
-(25589,30,4344.02,5483.26,48.0509,0,NULL),
 (26499,0,1903.17,1291.57,143.32,0,'culling Bridge WP1'),
 (26499,1,1911.09,1314.26,150.026,0,'culling Bridge WP2'),
 (26499,2,1902.96,1295.13,143.388,0,'culling Bridge WP3'),
@@ -1695,46 +1635,6 @@ INSERT INTO `script_waypoint` VALUES
 (26588,25,4353.72,-3965.61,190.154,0,'0'),
 (26588,26,4363.12,-3995.61,183.327,0,'0'),
 (26588,27,4371.99,-4010.97,181.33,0,'0'),
-(28070,1,1064.12,474.883,207.721,0,'Brann Bronzebeard - Halls of Stone'),
-(28070,2,1045.25,471.345,208.611,0,'Brann Bronzebeard - Halls of Stone'),
-(28070,3,1022.27,458.81,207.72,0,'Brann Bronzebeard - Halls of Stone'),
-(28070,4,995.493,432.994,207.413,0,'Brann Bronzebeard - Halls of Stone'),
-(28070,5,982.247,421.768,205.994,0,'Brann Bronzebeard - Halls of Stone'),
-(28070,6,977.403,420.578,205.994,0,'Brann Bronzebeard - Halls of Stone'),
-(28070,7,968.479,421.992,205.994,0,'Brann Bronzebeard - Halls of Stone'),
-(28070,8,959.337,420.403,205.994,0,'Brann Bronzebeard - Halls of Stone'),
-(28070,9,949.226,413.964,205.994,0,'Brann Bronzebeard - Halls of Stone'),
-(28070,10,944.901,401.561,205.994,0,'Brann Bronzebeard - Halls of Stone'),
-(28070,11,943.739,394.289,205.994,0,'Brann Bronzebeard - Halls of Stone'),
-(28070,12,943.949,383.505,206.696,0,'Brann Bronzebeard - Halls of Stone'),
-(28070,13,942.623,378.852,207.423,0,'Brann Bronzebeard - Halls of Stone'),
-(28070,14,937.271,373.627,207.422,0,'Brann Bronzebeard - Halls of Stone'),
-(28070,15,926.094,362.071,203.706,0,'Brann Bronzebeard - Halls of Stone'),
-(28070,16,897.082,332.612,203.706,0,'Brann Bronzebeard - Halls of Stone'),
-(28070,17,916.701,352.318,203.706,0,'Brann Bronzebeard - Halls of Stone'),
-(28070,18,946.597,383.533,205.994,2000,'Brann Bronzebeard - Halls of Stone'),
-(28070,19,973.525,379.987,205.994,0,'Brann Bronzebeard - Halls of Stone'),
-(28070,20,982.317,390.587,205.994,0,'Brann Bronzebeard - Halls of Stone'),
-(28070,21,984.925,406.454,205.994,0,'Brann Bronzebeard - Halls of Stone'),
-(28070,22,999.096,433.512,207.412,0,'Brann Bronzebeard - Halls of Stone'),
-(28070,23,1023.27,457.194,207.719,0,'Brann Bronzebeard - Halls of Stone'),
-(28070,24,1046.27,479.728,207.748,0,'Brann Bronzebeard - Halls of Stone'),
-(28070,25,1064.12,474.883,207.721,0,'Brann Bronzebeard - Halls of Stone'),
-(28070,26,1047.91,521.103,207.719,0,'Brann Bronzebeard - Halls of Stone'),
-(28070,27,1048.57,622.492,207.719,0,'Brann Bronzebeard - Halls of Stone'),
-(28070,28,1048.86,662.867,201.672,0,'Brann Bronzebeard - Halls of Stone'),
-(28070,29,1105.7,662.475,202.871,0,'Brann Bronzebeard - Halls of Stone'),
-(28070,30,1121.44,662.366,196.235,0,'Brann Bronzebeard - Halls of Stone'),
-(28070,31,1138.58,632.499,196.235,0,'Brann Bronzebeard - Halls of Stone'),
-(28070,32,1164.78,637.113,196.294,0,'Brann Bronzebeard - Halls of Stone'),
-(28070,33,1199.88,667.139,196.242,2000,'Brann Bronzebeard - Halls of Stone'),
-(28070,34,1202.49,667.226,196.243,2000,'Brann Bronzebeard - Halls of Stone'),
-(28070,35,1230.13,666.967,189.607,0,'Brann Bronzebeard - Halls of Stone'),
-(28070,36,1256.34,666.921,189.611,0,'Brann Bronzebeard - Halls of Stone'),
-(28070,37,1282.12,666.744,189.607,0,'Brann Bronzebeard - Halls of Stone'),
-(28070,38,1307.56,666.938,189.607,0,'Brann Bronzebeard - Halls of Stone'),
-(28070,39,1306.05,666.85,189.607,0,'Brann Bronzebeard - Halls of Stone'),
-(28070,40,1307.56,666.938,189.607,0,'Brann Bronzebeard - Halls of Stone'),
 (28787,0,5919.43,5374.88,-98.8816,5000,''),
 (28787,1,5919.43,5374.88,-98.8816,5000,''),
 (28787,2,5925.17,5372.37,-98.8815,0,''),
@@ -2075,4 +1975,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-06-01 22:40:32
+-- Dump completed on 2026-11-14  1:20:30

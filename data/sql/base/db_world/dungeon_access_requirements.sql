@@ -1,13 +1,14 @@
--- MySQL dump 10.13  Distrib 8.4.3, for Win64 (x86_64)
+/*M!999999\- enable the sandbox mode */ 
+-- MariaDB dump 10.19  Distrib 10.11.14-MariaDB, for debian-linux-gnu (x86_64)
 --
--- Host: localhost    Database: acore_world
+-- Host: localhost    Database: acore_world_build
 -- ------------------------------------------------------
--- Server version	8.4.3
+-- Server version	10.11.14-MariaDB-0ubuntu0.24.04.1
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
 /*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!50503 SET NAMES utf8mb4 */;
+/*!40101 SET NAMES utf8mb4 */;
 /*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
 /*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
@@ -19,16 +20,16 @@
 
 DROP TABLE IF EXISTS `dungeon_access_requirements`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `dungeon_access_requirements` (
-  `dungeon_access_id` tinyint unsigned NOT NULL COMMENT 'ID from dungeon_access_template',
-  `requirement_type` tinyint unsigned NOT NULL COMMENT '0 = achiev, 1 = quest, 2 = item',
-  `requirement_id` int unsigned NOT NULL COMMENT 'Achiev/quest/item ID',
-  `requirement_note` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Optional msg shown ingame to player if he cannot enter. You can add extra info',
-  `faction` tinyint unsigned NOT NULL DEFAULT '2' COMMENT '0 = Alliance, 1 = Horde, 2 = Both factions',
-  `priority` tinyint unsigned DEFAULT NULL COMMENT 'Priority order for the requirement, sorted by type. 0 is the highest priority',
-  `leader_only` tinyint NOT NULL DEFAULT '0' COMMENT '0 = check the requirement for the player trying to enter, 1 = check the requirement for the party leader',
-  `comment` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `dungeon_access_id` tinyint(3) unsigned NOT NULL COMMENT 'ID from dungeon_access_template',
+  `requirement_type` tinyint(3) unsigned NOT NULL COMMENT '0 = achiev, 1 = quest, 2 = item',
+  `requirement_id` int(10) unsigned NOT NULL COMMENT 'Achiev/quest/item ID',
+  `requirement_note` varchar(255) DEFAULT NULL COMMENT 'Optional msg shown ingame to player if he cannot enter. You can add extra info',
+  `faction` tinyint(3) unsigned NOT NULL DEFAULT 2 COMMENT '0 = Alliance, 1 = Horde, 2 = Both factions',
+  `priority` tinyint(3) unsigned DEFAULT NULL COMMENT 'Priority order for the requirement, sorted by type. 0 is the highest priority',
+  `leader_only` tinyint(4) NOT NULL DEFAULT 0 COMMENT '0 = check the requirement for the player trying to enter, 1 = check the requirement for the party leader',
+  `comment` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`dungeon_access_id`,`requirement_type`,`requirement_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Add (multiple) requirements before being able to enter a dungeon/raid';
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -65,8 +66,6 @@ INSERT INTO `dungeon_access_requirements` VALUES
 (77,1,11492,'You must complete the quest \"Hard to Kill\" and be level 70 before entering the Heroic difficulty of the Magisters\' Terrace.',2,NULL,0,'Isle of Quel\'Danas: Magisters\' Terrace (Heroic)'),
 (104,0,4530,NULL,2,NULL,0,'Icecrown Citadel (10 player, Heroic)'),
 (105,0,4597,NULL,2,NULL,0,'Icecrown Citadel (25 player, Heroic)'),
-(110,0,3917,NULL,2,NULL,0,'Trial of the Crusader (10 player, Heroic)'),
-(111,0,3916,NULL,2,NULL,0,'Trial of the Crusader (25 player, Heroic)'),
 (114,1,24499,'You must complete the quest \"Echoes of Tortured Souls\" before entering the Pit of Saron.',0,NULL,0,'Icecrown Citadel: Pit of Saron (Normal)'),
 (114,1,24511,'You must complete the quest \"Echoes of Tortured Souls\" before entering the Pit of Saron.',1,NULL,0,'Icecrown Citadel: Pit of Saron (Normal)'),
 (115,1,24499,'You must complete the quest \"Echoes of Tortured Souls\" and be level 80 before entering the Heroic difficulty of the Pit of Saron.',0,NULL,0,'Icecrown Citadel: Pit of Saron (Heroic)'),
@@ -86,4 +85,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-06-01 22:39:47
+-- Dump completed on 2026-11-14  1:20:27

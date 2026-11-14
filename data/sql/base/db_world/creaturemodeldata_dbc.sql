@@ -1,13 +1,14 @@
--- MySQL dump 10.13  Distrib 8.4.3, for Win64 (x86_64)
+/*M!999999\- enable the sandbox mode */ 
+-- MariaDB dump 10.19  Distrib 10.11.14-MariaDB, for debian-linux-gnu (x86_64)
 --
--- Host: localhost    Database: acore_world
+-- Host: localhost    Database: acore_world_build
 -- ------------------------------------------------------
--- Server version	8.4.3
+-- Server version	10.11.14-MariaDB-0ubuntu0.24.04.1
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
 /*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!50503 SET NAMES utf8mb4 */;
+/*!40101 SET NAMES utf8mb4 */;
 /*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
 /*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
@@ -19,36 +20,36 @@
 
 DROP TABLE IF EXISTS `creaturemodeldata_dbc`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `creaturemodeldata_dbc` (
-  `ID` int NOT NULL DEFAULT '0',
-  `Flags` int NOT NULL DEFAULT '0',
-  `ModelName` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `SizeClass` int NOT NULL DEFAULT '0',
-  `ModelScale` float NOT NULL DEFAULT '0',
-  `BloodID` int NOT NULL DEFAULT '0',
-  `FootprintTextureID` int NOT NULL DEFAULT '0',
-  `FootprintTextureLength` float NOT NULL DEFAULT '0',
-  `FootprintTextureWidth` float NOT NULL DEFAULT '0',
-  `FootprintParticleScale` float NOT NULL DEFAULT '0',
-  `FoleyMaterialID` int NOT NULL DEFAULT '0',
-  `FootstepShakeSize` int NOT NULL DEFAULT '0',
-  `DeathThudShakeSize` int NOT NULL DEFAULT '0',
-  `SoundID` int NOT NULL DEFAULT '0',
-  `CollisionWidth` float NOT NULL DEFAULT '0',
-  `CollisionHeight` float NOT NULL DEFAULT '0',
-  `MountHeight` float NOT NULL DEFAULT '0',
-  `GeoBoxMinX` float NOT NULL DEFAULT '0',
-  `GeoBoxMinY` float NOT NULL DEFAULT '0',
-  `GeoBoxMinZ` float NOT NULL DEFAULT '0',
-  `GeoBoxMaxX` float NOT NULL DEFAULT '0',
-  `GeoBoxMaxY` float NOT NULL DEFAULT '0',
-  `GeoBoxMaxZ` float NOT NULL DEFAULT '0',
-  `WorldEffectScale` float NOT NULL DEFAULT '0',
-  `AttachedEffectScale` float NOT NULL DEFAULT '0',
-  `MissileCollisionRadius` float NOT NULL DEFAULT '0',
-  `MissileCollisionPush` float NOT NULL DEFAULT '0',
-  `MissileCollisionRaise` float NOT NULL DEFAULT '0',
+  `ID` int(11) NOT NULL DEFAULT 0,
+  `Flags` int(11) NOT NULL DEFAULT 0,
+  `ModelName` varchar(100) DEFAULT NULL,
+  `SizeClass` int(11) NOT NULL DEFAULT 0,
+  `ModelScale` float NOT NULL DEFAULT 0,
+  `BloodID` int(11) NOT NULL DEFAULT 0,
+  `FootprintTextureID` int(11) NOT NULL DEFAULT 0,
+  `FootprintTextureLength` float NOT NULL DEFAULT 0,
+  `FootprintTextureWidth` float NOT NULL DEFAULT 0,
+  `FootprintParticleScale` float NOT NULL DEFAULT 0,
+  `FoleyMaterialID` int(11) NOT NULL DEFAULT 0,
+  `FootstepShakeSize` int(11) NOT NULL DEFAULT 0,
+  `DeathThudShakeSize` int(11) NOT NULL DEFAULT 0,
+  `SoundID` int(11) NOT NULL DEFAULT 0,
+  `CollisionWidth` float NOT NULL DEFAULT 0,
+  `CollisionHeight` float NOT NULL DEFAULT 0,
+  `MountHeight` float NOT NULL DEFAULT 0,
+  `GeoBoxMinX` float NOT NULL DEFAULT 0,
+  `GeoBoxMinY` float NOT NULL DEFAULT 0,
+  `GeoBoxMinZ` float NOT NULL DEFAULT 0,
+  `GeoBoxMaxX` float NOT NULL DEFAULT 0,
+  `GeoBoxMaxY` float NOT NULL DEFAULT 0,
+  `GeoBoxMaxZ` float NOT NULL DEFAULT 0,
+  `WorldEffectScale` float NOT NULL DEFAULT 0,
+  `AttachedEffectScale` float NOT NULL DEFAULT 0,
+  `MissileCollisionRadius` float NOT NULL DEFAULT 0,
+  `MissileCollisionPush` float NOT NULL DEFAULT 0,
+  `MissileCollisionRaise` float NOT NULL DEFAULT 0,
   PRIMARY KEY (`ID`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -70,4 +71,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-06-01 22:39:45
+-- Dump completed on 2026-11-14  1:20:26

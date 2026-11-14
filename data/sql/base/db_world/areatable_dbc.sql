@@ -1,13 +1,14 @@
--- MySQL dump 10.13  Distrib 8.4.3, for Win64 (x86_64)
+/*M!999999\- enable the sandbox mode */ 
+-- MariaDB dump 10.19  Distrib 10.11.14-MariaDB, for debian-linux-gnu (x86_64)
 --
--- Host: localhost    Database: acore_world
+-- Host: localhost    Database: acore_world_build
 -- ------------------------------------------------------
--- Server version	8.4.3
+-- Server version	10.11.14-MariaDB-0ubuntu0.24.04.1
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
 /*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!50503 SET NAMES utf8mb4 */;
+/*!40101 SET NAMES utf8mb4 */;
 /*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
 /*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
@@ -19,44 +20,44 @@
 
 DROP TABLE IF EXISTS `areatable_dbc`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `areatable_dbc` (
-  `ID` int NOT NULL DEFAULT '0',
-  `ContinentID` int NOT NULL DEFAULT '0',
-  `ParentAreaID` int NOT NULL DEFAULT '0',
-  `AreaBit` int NOT NULL DEFAULT '0',
-  `Flags` int NOT NULL DEFAULT '0',
-  `SoundProviderPref` int NOT NULL DEFAULT '0',
-  `SoundProviderPrefUnderwater` int NOT NULL DEFAULT '0',
-  `AmbienceID` int NOT NULL DEFAULT '0',
-  `ZoneMusic` int NOT NULL DEFAULT '0',
-  `IntroSound` int NOT NULL DEFAULT '0',
-  `ExplorationLevel` int NOT NULL DEFAULT '0',
-  `AreaName_Lang_enUS` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `AreaName_Lang_enGB` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `AreaName_Lang_koKR` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `AreaName_Lang_frFR` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `AreaName_Lang_deDE` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `AreaName_Lang_enCN` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `AreaName_Lang_zhCN` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `AreaName_Lang_enTW` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `AreaName_Lang_zhTW` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `AreaName_Lang_esES` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `AreaName_Lang_esMX` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `AreaName_Lang_ruRU` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `AreaName_Lang_ptPT` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `AreaName_Lang_ptBR` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `AreaName_Lang_itIT` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `AreaName_Lang_Unk` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `AreaName_Lang_Mask` int unsigned NOT NULL DEFAULT '0',
-  `FactionGroupMask` int NOT NULL DEFAULT '0',
-  `LiquidTypeID_1` int NOT NULL DEFAULT '0',
-  `LiquidTypeID_2` int NOT NULL DEFAULT '0',
-  `LiquidTypeID_3` int NOT NULL DEFAULT '0',
-  `LiquidTypeID_4` int NOT NULL DEFAULT '0',
-  `MinElevation` float NOT NULL DEFAULT '0',
-  `Ambient_Multiplier` float NOT NULL DEFAULT '0',
-  `Lightid` int NOT NULL DEFAULT '0',
+  `ID` int(11) NOT NULL DEFAULT 0,
+  `ContinentID` int(11) NOT NULL DEFAULT 0,
+  `ParentAreaID` int(11) NOT NULL DEFAULT 0,
+  `AreaBit` int(11) NOT NULL DEFAULT 0,
+  `Flags` int(11) NOT NULL DEFAULT 0,
+  `SoundProviderPref` int(11) NOT NULL DEFAULT 0,
+  `SoundProviderPrefUnderwater` int(11) NOT NULL DEFAULT 0,
+  `AmbienceID` int(11) NOT NULL DEFAULT 0,
+  `ZoneMusic` int(11) NOT NULL DEFAULT 0,
+  `IntroSound` int(11) NOT NULL DEFAULT 0,
+  `ExplorationLevel` int(11) NOT NULL DEFAULT 0,
+  `AreaName_Lang_enUS` varchar(100) DEFAULT NULL,
+  `AreaName_Lang_enGB` varchar(100) DEFAULT NULL,
+  `AreaName_Lang_koKR` varchar(100) DEFAULT NULL,
+  `AreaName_Lang_frFR` varchar(100) DEFAULT NULL,
+  `AreaName_Lang_deDE` varchar(100) DEFAULT NULL,
+  `AreaName_Lang_enCN` varchar(100) DEFAULT NULL,
+  `AreaName_Lang_zhCN` varchar(100) DEFAULT NULL,
+  `AreaName_Lang_enTW` varchar(100) DEFAULT NULL,
+  `AreaName_Lang_zhTW` varchar(100) DEFAULT NULL,
+  `AreaName_Lang_esES` varchar(100) DEFAULT NULL,
+  `AreaName_Lang_esMX` varchar(100) DEFAULT NULL,
+  `AreaName_Lang_ruRU` varchar(100) DEFAULT NULL,
+  `AreaName_Lang_ptPT` varchar(100) DEFAULT NULL,
+  `AreaName_Lang_ptBR` varchar(100) DEFAULT NULL,
+  `AreaName_Lang_itIT` varchar(100) DEFAULT NULL,
+  `AreaName_Lang_Unk` varchar(100) DEFAULT NULL,
+  `AreaName_Lang_Mask` int(10) unsigned NOT NULL DEFAULT 0,
+  `FactionGroupMask` int(11) NOT NULL DEFAULT 0,
+  `LiquidTypeID_1` int(11) NOT NULL DEFAULT 0,
+  `LiquidTypeID_2` int(11) NOT NULL DEFAULT 0,
+  `LiquidTypeID_3` int(11) NOT NULL DEFAULT 0,
+  `LiquidTypeID_4` int(11) NOT NULL DEFAULT 0,
+  `MinElevation` float NOT NULL DEFAULT 0,
+  `Ambient_Multiplier` float NOT NULL DEFAULT 0,
+  `Lightid` int(11) NOT NULL DEFAULT 0,
   PRIMARY KEY (`ID`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -78,4 +79,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-06-01 22:39:29
+-- Dump completed on 2026-11-14  1:20:24
