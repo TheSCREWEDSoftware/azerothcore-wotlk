@@ -113,6 +113,7 @@ namespace Movement
         void operator &= (uint32 f) { raw() &= f; }
         void operator |= (uint32 f) { raw() |= f; }
 
+        [[nodiscard]] uint8 getAnimationId() const { return animId; }
         void EnableAnimation() { raw() = (raw() & ~(Falling | Parabolic)) | Animation; }
         void EnableParabolic() { raw() = (raw() & ~(Falling | Animation)) | Parabolic; }
         void EnableFalling() { raw() = (raw() & ~(Parabolic | Flying | Animation)) | Falling; }

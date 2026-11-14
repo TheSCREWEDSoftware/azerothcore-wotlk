@@ -167,6 +167,9 @@ struct CreatureMovementData
     std::string ToString() const;
 };
 
+#define MAX_CREATURE_MODELS 4                               // 6.x SMSG_QUERY_CREATURE_RESPONSE display ids
+#define MAX_CREATURE_NAMES 4
+
 struct CreatureModel
 {
     static CreatureModel const DefaultInvisibleModel;

@@ -20,6 +20,7 @@
 #include "InstancePackets.h"
 #include "MapMgr.h"
 #include "Player.h"
+#include "CombatPackets.h"
 #include "RBAC.h"
 #include "ScriptMgr.h"
 #include "WorldSession.h"
@@ -79,11 +80,7 @@ bool Player::CanSpeak() const
 
 void Player::SendAttackSwingNotInRange()
 {
-    // 5.4.8 18414 SMSG_ATTACKSWING_ERROR, from Project SkyFire
-    WorldPacket data(SMSG_ATTACKSWING_NOTINRANGE, 1);
-    data.WriteBits(0, 2);                                   // not in range
-    data.FlushBits();
-    SendDirectMessage(&data);
+    SendDirectMessage(WorldPackets::Combat::AttackSwingError(ATTACKSWINGERR_NOTINRANGE).Write());
 }
 
 void Player::SavePositionInDB(uint32 mapid, float x, float y, float z, float o, uint32 zone, ObjectGuid guid)
@@ -132,35 +129,22 @@ void Player::Customize(CharacterCustomizeInfo const* customizeInfo, CharacterDat
 
 void Player::SendAttackSwingDeadTarget()
 {
-    // 5.4.8 18414 SMSG_ATTACKSWING_ERROR, from Project SkyFire
-    WorldPacket data(SMSG_ATTACKSWING_NOTINRANGE, 1);
-    data.WriteBits(2, 2);                                   // dead target
-    data.FlushBits();
-    SendDirectMessage(&data);
+    SendDirectMessage(WorldPackets::Combat::AttackSwingError(ATTACKSWINGERR_DEADTARGET).Write());
 }
 
 void Player::SendAttackSwingCantAttack()
 {
-    // 5.4.8 18414 SMSG_ATTACKSWING_ERROR, from Project SkyFire
-    WorldPacket data(SMSG_ATTACKSWING_NOTINRANGE, 1);
-    data.WriteBits(3, 2);                                   // can not attack
-    data.FlushBits();
-    SendDirectMessage(&data);
+    SendDirectMessage(WorldPackets::Combat::AttackSwingError(ATTACKSWINGERR_CANT_ATTACK).Write());
 }
 
 void Player::SendAttackSwingCancelAttack()
 {
-    WorldPacket data(SMSG_CANCEL_COMBAT, 0);
-    SendDirectMessage(&data);
+    SendDirectMessage(WorldPackets::Combat::CancelCombat().Write());
 }
 
 void Player::SendAttackSwingBadFacingAttack()
 {
-    // 5.4.8 18414 SMSG_ATTACKSWING_ERROR, from Project SkyFire
-    WorldPacket data(SMSG_ATTACKSWING_NOTINRANGE, 1);
-    data.WriteBits(1, 2);                                   // bad facing
-    data.FlushBits();
-    SendDirectMessage(&data);
+    SendDirectMessage(WorldPackets::Combat::AttackSwingError(ATTACKSWINGERR_BADFACING).Write());
 }
 
 void Player::SendAutoRepeatCancel(Unit* target)

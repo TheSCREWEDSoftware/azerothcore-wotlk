@@ -17,6 +17,7 @@
 
 #include "MiscPackets.h"
 #include "PacketUtilities.h"
+#include "WorldSession.h"
 
 WorldPacket const* WorldPackets::Misc::BindPointUpdate::Write()
 {

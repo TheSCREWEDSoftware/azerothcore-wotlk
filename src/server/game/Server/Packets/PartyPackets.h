@@ -19,6 +19,7 @@
 #define PartyPackets_h__
 
 #include "Packet.h"
+#include "Optional.h"
 #include "ObjectGuid.h"
 #include "Group.h"
 
@@ -204,7 +205,7 @@ namespace WorldPackets
             PartyMemberStats() : ServerPacket(SMSG_PARTY_MEMBER_STATE, 80) { }
 
             WorldPacket const* Write() override;
-            void Initialize(Player const* player);
+            void Initialize(Player* player);
 
             GroupMemberStats MemberStats;
             bool ForEnemy = false;

@@ -19,6 +19,7 @@
 #define GuildFinderPackets_h__
 
 #include "Packet.h"
+#include "Optional.h"
 #include "ObjectGuid.h"
 
 namespace WorldPackets

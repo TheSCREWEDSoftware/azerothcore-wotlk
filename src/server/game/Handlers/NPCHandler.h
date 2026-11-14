@@ -40,6 +40,7 @@ struct GossipTextOption
 };
 
 #define MAX_GOSSIP_TEXT_OPTIONS 8
+#define MAX_NPC_TEXT_OPTIONS MAX_GOSSIP_TEXT_OPTIONS
 
 struct GossipText
 {

@@ -184,6 +184,23 @@ void AuraApplication::_HandleEffect(uint8 effIndex, bool apply)
     SetNeedClientUpdate();
 }
 
+// 5.4.8/6.x client aura flags: no caster 0x01, positive 0x02, duration 0x04, scalable (amounts) 0x08, negative 0x10
+uint8 AuraApplication::BuildClientFlags(uint8 flags)
+{
+    uint8 clientFlags = 0;
+    if (flags & AFLAG_CASTER)
+        clientFlags |= 0x01;
+    if (flags & AFLAG_POSITIVE)
+        clientFlags |= 0x02;
+    if (flags & AFLAG_DURATION)
+        clientFlags |= 0x04;
+    if (flags & AFLAG_ANY_EFFECT_AMOUNT_SENT)
+        clientFlags |= 0x08;
+    if (flags & AFLAG_NEGATIVE)
+        clientFlags |= 0x10;
+    return clientFlags;
+}
+
 void AuraApplication::BuildUpdatePacket(ByteBuffer& bits, ByteBuffer& data, bool remove) const
 {
     // 5.4.8 18414, from Project SkyFire
@@ -221,18 +238,7 @@ void AuraApplication::BuildUpdatePacket(ByteBuffer& bits, ByteBuffer& data, bool
         bits.WriteBit(hasDuration);
         bits.WriteBit(hasDuration);                         // max duration
 
-        // 5.4.8 aura flags: caster 0x01, positive 0x02, duration 0x04, amounts 0x08, negative 0x10
-        uint8 clientFlags = 0;
-        if (flags & AFLAG_CASTER)
-            clientFlags |= 0x01;
-        if (flags & AFLAG_POSITIVE)
-            clientFlags |= 0x02;
-        if (flags & AFLAG_DURATION)
-            clientFlags |= 0x04;
-        if (flags & AFLAG_ANY_EFFECT_AMOUNT_SENT)
-            clientFlags |= 0x08;
-        if (flags & AFLAG_NEGATIVE)
-            clientFlags |= 0x10;
+        uint8 clientFlags = BuildClientFlags(flags);
 
         if (hasCaster)
             data.WriteGuidBytes(casterGuid, { 3, 2, 1, 6, 4, 0, 5, 7 });

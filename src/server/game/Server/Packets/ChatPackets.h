@@ -19,6 +19,7 @@
 #define ChatPackets_h__
 
 #include "Packet.h"
+#include "Common.h"
 #include "SharedDefines.h"
 #include "ObjectGuid.h"
 #include "PacketUtilities.h"

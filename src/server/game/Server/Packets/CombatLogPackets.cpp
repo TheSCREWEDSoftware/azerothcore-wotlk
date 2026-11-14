@@ -306,7 +306,7 @@ WorldPacket const* WorldPackets::CombatLog::AttackerStateUpdate::Write()
     if (HitInfo & HITINFO_RAGE_GAIN)
         attackRoundInfo << RageGained;
 
-    if (HitInfo & HITINFO_UNK1)
+    if (HitInfo & HITINFO_DEBUG)
     {
         attackRoundInfo << UnkState.State1;
         attackRoundInfo << UnkState.State2;
@@ -321,7 +321,7 @@ WorldPacket const* WorldPackets::CombatLog::AttackerStateUpdate::Write()
         attackRoundInfo << UnkState.State11;
         attackRoundInfo << UnkState.State12;
     }
-    if (HitInfo & (HITINFO_BLOCK | HITINFO_UNK12))
+    if (HitInfo & (HITINFO_BLOCK | HITINFO_ROLLED_BLOCK))
         attackRoundInfo << Unk;
 
     WriteLogDataBit();

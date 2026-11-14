@@ -69,8 +69,8 @@ WorldPacket const* WorldPackets::ClientConfig::AddonInfo::Write()
         for (BannedAddon const& addon : *BannedAddons)
         {
             _worldPacket << uint32(addon.Id);                                   // Id
-            _worldPacket.append(addon.NameMD5, MD5_DIGEST_LENGTH);              // NameMD5 - MD5 of addon .toc filename without extension
-            _worldPacket.append(addon.VersionMD5, MD5_DIGEST_LENGTH);           // VersionMD5 - MD5 of version string declared in addon .toc file
+            _worldPacket.append(addon.NameMD5.data(), addon.NameMD5.size());            // NameMD5 - MD5 of addon .toc filename without extension
+            _worldPacket.append(addon.VersionMD5.data(), addon.VersionMD5.size());           // VersionMD5 - MD5 of version string declared in addon .toc file
             _worldPacket << uint32(addon.Timestamp);                            // LastModified
             _worldPacket << uint32(1);                                          // Flags
         }

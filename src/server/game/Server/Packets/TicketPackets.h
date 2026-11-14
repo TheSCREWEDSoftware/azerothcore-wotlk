@@ -22,6 +22,14 @@
 #include "LFGPackets.h"
 #include <G3D/Vector3.h>
 
+// CMSG_SUPPORT_TICKET_SUBMIT_COMPLAINT spam report types (TrinityCore 6.x SupportMgr.h)
+enum SupportSpamType
+{
+    SUPPORT_SPAM_TYPE_MAIL     = 0,
+    SUPPORT_SPAM_TYPE_CHAT     = 1,
+    SUPPORT_SPAM_TYPE_CALENDAR = 2
+};
+
 namespace WorldPackets
 {
     namespace Ticket

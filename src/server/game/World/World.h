@@ -42,6 +42,9 @@ struct Realm;
 
 AC_GAME_API extern Realm realm;
 
+/// the realm address sent to 6.x clients (Region << 24 | Site << 16 | Realm)
+AC_GAME_API uint32 GetVirtualRealmAddress();
+
 enum ShutdownMask : uint8
 {
     SHUTDOWN_MASK_RESTART = 1,

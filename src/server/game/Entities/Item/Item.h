@@ -132,11 +132,14 @@ enum InventoryResult : uint8
     EQUIP_ERR_ARTEFACTS_ONLY_FOR_OWN_CHARACTERS  = 82,
     // no output                                 = 83,
     EQUIP_ERR_ITEM_MAX_LIMIT_CATEGORY_COUNT_EXCEEDED     = 84,
+    EQUIP_ERR_ITEM_MAX_LIMIT_CATEGORY_COUNT_EXCEEDED_IS  = 84,     // You can only carry %d %s
     EQUIP_ERR_ITEM_MAX_LIMIT_CATEGORY_SOCKETED_EXCEEDED  = 85,
+    EQUIP_ERR_ITEM_MAX_LIMIT_CATEGORY_SOCKETED_EXCEEDED_IS = 85,   // You can only equip %d |4item:items in the %s category
     EQUIP_ERR_SCALING_STAT_ITEM_LEVEL_EXCEEDED           = 86,
     EQUIP_ERR_PURCHASE_LEVEL_TOO_LOW                     = 87,
     EQUIP_ERR_CANT_EQUIP_NEED_TALENT                     = 88,
     EQUIP_ERR_ITEM_MAX_LIMIT_CATEGORY_EQUIPPED_EXCEEDED  = 89,
+    EQUIP_ERR_ITEM_MAX_LIMIT_CATEGORY_EQUIPPED_EXCEEDED_IS = 89,   // You can only equip %d |4item:items in the %s category
     EQUIP_ERR_CANT_BUY_QUANTITY                          = 93, // You can't buy the specified quantity of that item.
 };
 

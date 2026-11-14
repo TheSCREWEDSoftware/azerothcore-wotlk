@@ -767,6 +767,13 @@ enum PartyOperation
     PARTY_OP_SWAP = 4
 };
 
+enum TutorialAction : uint8
+{
+    TUTORIAL_ACTION_UPDATE  = 0,
+    TUTORIAL_ACTION_CLEAR   = 1,
+    TUTORIAL_ACTION_RESET   = 2
+};
+
 enum BarberShopResult
 {
     BARBER_SHOP_RESULT_SUCCESS      = 0,
@@ -1044,6 +1051,8 @@ public:
     uint32 GetAccountId() const { return _accountId; }
     /// 6.x: the Battle.net account of this game account (0 when not linked)
     uint32 GetBattlenetAccountId() const { return _battlenetAccountId; }
+    ObjectGuid GetAccountGUID() const { return ObjectGuid::Create<HighGuid::WowAccount>(GetAccountId()); }
+    ObjectGuid GetBattlenetAccountGUID() const { return ObjectGuid::Create<HighGuid::BNetAccount>(GetBattlenetAccountId()); }
     CollectionMgr* GetCollectionMgr() const { return _collectionMgr.get(); }
     void SetBattlenetAccountId(uint32 battlenetAccountId) { _battlenetAccountId = battlenetAccountId; }
     Player* GetPlayer() const { return _player; }

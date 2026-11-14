@@ -17,6 +17,7 @@
 
 #include "QueryPackets.h"
 #include "BattlenetAccountMgr.h"
+#include "CharacterCache.h"
 #include "Player.h"
 #include "World.h"
 #include "ObjectMgr.h"
@@ -115,7 +116,7 @@ ByteBuffer& operator<<(ByteBuffer& data, WorldPackets::Query::PlayerGuidLookupHi
 
 bool WorldPackets::Query::PlayerGuidLookupData::Initialize(ObjectGuid const& guid, Player const* player /*= nullptr*/)
 {
-    CharacterInfo const* characterInfo = sWorld->GetCharacterInfo(guid);
+    CharacterCacheEntry const* characterInfo = sCharacterCache->GetCharacterCacheByGuid(guid);
     if (!characterInfo)
         return false;
 
@@ -129,14 +130,14 @@ bool WorldPackets::Query::PlayerGuidLookupData::Initialize(ObjectGuid const& gui
         Race          = player->getRace();
         Sex           = player->GetByteValue(PLAYER_BYTES_3, PLAYER_BYTES_3_OFFSET_GENDER);
         ClassID       = player->getClass();
-        Level         = player->getLevel();
+        Level         = player->GetLevel();
 
         if (DeclinedName const* names = player->GetDeclinedNames())
             DeclinedNames = *names;
     }
     else
     {
-        uint32 accountId = ObjectMgr::GetPlayerAccountIdByGUID(guid);
+        uint32 accountId = characterInfo->AccountId;
         uint32 bnetAccountId = ::Battlenet::AccountMgr::GetIdByGameAccount(accountId);
 
         AccountID     = ObjectGuid::Create<HighGuid::WowAccount>(accountId);
@@ -148,7 +149,7 @@ bool WorldPackets::Query::PlayerGuidLookupData::Initialize(ObjectGuid const& gui
         Level         = characterInfo->Level;
     }
 
-    IsDeleted = characterInfo->IsDeleted;
+    IsDeleted = false;                                      // deleted characters are not in the character cache
     GuidActual = guid;
     VirtualRealmAddress = GetVirtualRealmAddress();
 

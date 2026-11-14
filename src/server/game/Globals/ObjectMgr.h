@@ -1109,6 +1109,9 @@ public:
     void LoadItemLocales();
     void LoadItemSetNames();
     void LoadItemSetNameLocales();
+    void LoadRealmNames();
+    [[nodiscard]] std::string GetRealmName(uint32 realmId) const;
+    [[nodiscard]] std::string GetNormalizedRealmName(uint32 realmId) const;
     void LoadQuestLocales();
     void LoadQuestObjectivesLocale();
     void LoadNpcTextLocales();
@@ -1747,6 +1750,7 @@ private:
     std::vector<ItemTemplate*> _itemTemplateStoreFast; // pussywizard
     ItemLocaleContainer _itemLocaleStore;
     ItemSetNameLocaleContainer _itemSetNameLocaleStore;
+    std::unordered_map<uint32, std::string> _realmNameStore;
     QuestLocaleContainer _questLocaleStore;
     QuestObjectivesLocaleContainer _questObjectivesLocaleStore;
     QuestOfferRewardLocaleContainer _questOfferRewardLocaleStore;

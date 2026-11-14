@@ -5830,4 +5830,13 @@ enum ResetFailedReason : uint8
 #define BG_TEAMS_COUNT  2
 #define CURRENCY_PRECISION 100
 
+// SMSG_ATTACK_SWING_ERROR reasons (6.x)
+enum AttackSwingErr
+{
+    ATTACKSWINGERR_CANT_ATTACK = 0,
+    ATTACKSWINGERR_NOTINRANGE  = 1,
+    ATTACKSWINGERR_BADFACING   = 2,
+    ATTACKSWINGERR_DEADTARGET  = 3
+};
+
 #endif

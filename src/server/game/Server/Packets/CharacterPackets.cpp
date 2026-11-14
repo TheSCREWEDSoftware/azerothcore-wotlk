@@ -16,6 +16,8 @@
  */
 
 #include "CharacterPackets.h"
+#include "StringConvert.h"
+#include "Tokenize.h"
 #include "ObjectMgr.h"
 #include "PacketUtilities.h"
 #include "World.h"
@@ -31,28 +33,28 @@ WorldPackets::Character::EnumCharactersResult::CharacterInfo::CharacterInfo(Fiel
     //  23                     24               25                      26
     // "character_banned.guid, characters.slot, characters.logout_time, character_declinedname.genitive"
 
-    Guid              = ObjectGuid::Create<HighGuid::Player>(fields[0].GetUInt64());
-    Name              = fields[1].GetString();
-    Race              = fields[2].GetUInt8();
-    Class             = fields[3].GetUInt8();
-    Sex               = fields[4].GetUInt8();
-    Skin              = fields[5].GetUInt8();
-    Face              = fields[6].GetUInt8();
-    HairStyle         = fields[7].GetUInt8();
-    HairColor         = fields[8].GetUInt8();
-    FacialHair        = fields[9].GetUInt8();
-    Level             = fields[10].GetUInt8();
-    ZoneId            = int32(fields[11].GetUInt16());
-    MapId             = int32(fields[12].GetUInt16());
-    PreLoadPosition.x = fields[13].GetFloat();
-    PreLoadPosition.y = fields[14].GetFloat();
-    PreLoadPosition.z = fields[15].GetFloat();
+    Guid              = ObjectGuid::Create<HighGuid::Player>(fields[0].Get<uint64>());
+    Name              = fields[1].Get<std::string>();
+    Race              = fields[2].Get<uint8>();
+    Class             = fields[3].Get<uint8>();
+    Sex               = fields[4].Get<uint8>();
+    Skin              = fields[5].Get<uint8>();
+    Face              = fields[6].Get<uint8>();
+    HairStyle         = fields[7].Get<uint8>();
+    HairColor         = fields[8].Get<uint8>();
+    FacialHair        = fields[9].Get<uint8>();
+    Level             = fields[10].Get<uint8>();
+    ZoneId            = int32(fields[11].Get<uint16>());
+    MapId             = int32(fields[12].Get<uint16>());
+    PreLoadPosition.x = fields[13].Get<float>();
+    PreLoadPosition.y = fields[14].Get<float>();
+    PreLoadPosition.z = fields[15].Get<float>();
 
-    if (ObjectGuid::LowType guildId = fields[16].GetUInt64())
+    if (ObjectGuid::LowType guildId = fields[16].Get<uint64>())
         GuildGuid = ObjectGuid::Create<HighGuid::Guild>(guildId);
 
-    uint32 playerFlags  = fields[17].GetUInt32();
-    uint32 atLoginFlags = fields[18].GetUInt16();
+    uint32 playerFlags  = fields[17].Get<uint32>();
+    uint32 atLoginFlags = fields[18].Get<uint16>();
 
     if (atLoginFlags & AT_LOGIN_RESURRECT)
         playerFlags &= ~PLAYER_FLAGS_GHOST;
@@ -69,10 +71,10 @@ WorldPackets::Character::EnumCharactersResult::CharacterInfo::CharacterInfo(Fiel
     if (atLoginFlags & AT_LOGIN_RENAME)
         Flags |= CHARACTER_FLAG_RENAME;
 
-    if (fields[23].GetUInt64())
+    if (fields[23].Get<uint64>())
         Flags |= CHARACTER_FLAG_LOCKED_BY_BILLING;
 
-    if (sWorld->getBoolConfig(CONFIG_DECLINED_NAMES_USED) && !fields[26].GetString().empty())
+    if (sWorld->getBoolConfig(CONFIG_DECLINED_NAMES_USED) && !fields[26].Get<std::string>().empty())
         Flags |= CHARACTER_FLAG_DECLINED;
 
     if (atLoginFlags & AT_LOGIN_CUSTOMIZE)
@@ -88,10 +90,10 @@ WorldPackets::Character::EnumCharactersResult::CharacterInfo::CharacterInfo(Fiel
     // show pet at selection character in character list only for non-ghost character
     if (!(playerFlags & PLAYER_FLAGS_GHOST) && (Class == CLASS_WARLOCK || Class == CLASS_HUNTER || Class == CLASS_DEATH_KNIGHT))
     {
-        if (CreatureTemplate const* creatureInfo = sObjectMgr->GetCreatureTemplate(fields[19].GetUInt32()))
+        if (CreatureTemplate const* creatureInfo = sObjectMgr->GetCreatureTemplate(fields[19].Get<uint32>()))
         {
-            Pet.CreatureDisplayId = fields[20].GetUInt32();
-            Pet.Level = fields[21].GetUInt16();
+            Pet.CreatureDisplayId = fields[20].Get<uint32>();
+            Pet.Level = fields[21].Get<uint16>();
             Pet.CreatureFamily = creatureInfo->family;
         }
     }
@@ -100,16 +102,23 @@ WorldPackets::Character::EnumCharactersResult::CharacterInfo::CharacterInfo(Fiel
     ProfessionIds[0] = 0;
     ProfessionIds[1] = 0;
 
-    Tokenizer equipment(fields[22].GetString(), ' ');
-    ListPosition = fields[24].GetUInt8();
-    LastPlayedTime = fields[25].GetUInt32();
+    std::string const equipmentCache = fields[22].Get<std::string>();
+    std::vector<std::string_view> equipment = Acore::Tokenize(equipmentCache, ' ', false);
+    auto equipmentValue = [&equipment](uint32 index) -> uint32
+    {
+        if (index >= equipment.size())
+            return 0;
+        return Acore::StringTo<uint32>(equipment[index]).value_or(0);
+    };
+    ListPosition = fields[24].Get<uint8>();
+    LastPlayedTime = fields[25].Get<uint32>();
 
     for (uint8 slot = 0; slot < INVENTORY_SLOT_BAG_END; ++slot)
     {
         uint32 visualBase = slot * 3;
-        VisualItems[slot].InventoryType = Player::GetUInt32ValueFromArray(equipment, visualBase);
-        VisualItems[slot].DisplayId = Player::GetUInt32ValueFromArray(equipment, visualBase + 1);
-        VisualItems[slot].DisplayEnchantId = Player::GetUInt32ValueFromArray(equipment, visualBase + 2);
+        VisualItems[slot].InventoryType = equipmentValue(visualBase);
+        VisualItems[slot].DisplayId = equipmentValue(visualBase + 1);
+        VisualItems[slot].DisplayEnchantId = equipmentValue(visualBase + 2);
     }
 }
 

@@ -22,6 +22,7 @@
 #include "DataMap.h"
 #include "GroupRefMgr.h"
 #include "LootMgr.h"
+#include "Position.h"
 #include "QueryResult.h"
 #include "SharedDefines.h"
 #include <functional>
@@ -46,6 +47,20 @@ struct MapEntry;
 #define MAXRAIDSIZE 40
 #define MAX_RAID_SUBGROUPS MAXRAIDSIZE/MAXGROUPSIZE
 #define TARGETICONCOUNT 8
+#define TARGET_ICONS_COUNT TARGETICONCOUNT
+
+// raid marker as sent in SMSG_RAID_MARKERS_CHANGED (TrinityCore 6.x)
+struct RaidMarker
+{
+    WorldLocation Location;
+    ObjectGuid TransportGUID;
+
+    RaidMarker(uint32 mapId, float positionX, float positionY, float positionZ, ObjectGuid transportGuid = ObjectGuid::Empty)
+    {
+        Location.WorldRelocate(mapId, positionX, positionY, positionZ);
+        TransportGUID = transportGuid;
+    }
+};
 
 enum RollVote : uint8
 {

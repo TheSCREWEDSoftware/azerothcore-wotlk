@@ -92,7 +92,7 @@ void WorldPackets::Spells::SpellCastLogData::Initialize(Unit const* unit)
 {
     Health = unit->GetHealth();
     AttackPower = unit->GetTotalAttackPowerValue(unit->getClass() == CLASS_HUNTER ? RANGED_ATTACK : BASE_ATTACK);
-    SpellPower = unit->SpellBaseDamageBonusDone(SPELL_SCHOOL_MASK_SPELL);
+    SpellPower = const_cast<Unit*>(unit)->SpellBaseDamageBonusDone(SPELL_SCHOOL_MASK_SPELL);
     PowerData.emplace_back(int32(unit->getPowerType()), unit->GetPower(unit->getPowerType()));
 }
 

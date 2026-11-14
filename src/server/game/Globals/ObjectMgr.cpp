@@ -6022,6 +6022,40 @@ void ObjectMgr::LoadQuests()
     LOG_INFO("server.loading", " ");
 }
 
+void ObjectMgr::LoadRealmNames()
+{
+    uint32 oldMSTime = getMSTime();
+    _realmNameStore.clear();
+
+    PreparedQueryResult result = LoginDatabase.Query(LoginDatabase.GetPreparedStatement(LOGIN_SEL_REALM_NAMES));
+    if (!result)
+    {
+        LOG_INFO("server.loading", ">> Loaded 0 realm names. DB table `realmlist` is empty.");
+        return;
+    }
+
+    do
+    {
+        Field* fields = result->Fetch();
+        _realmNameStore[fields[0].Get<uint32>()] = fields[1].Get<std::string>();
+    } while (result->NextRow());
+
+    LOG_INFO("server.loading", ">> Loaded {} realm names in {} ms.", uint32(_realmNameStore.size()), GetMSTimeDiffToNow(oldMSTime));
+}
+
+std::string ObjectMgr::GetRealmName(uint32 realmId) const
+{
+    auto iter = _realmNameStore.find(realmId);
+    return iter != _realmNameStore.end() ? iter->second : "";
+}
+
+std::string ObjectMgr::GetNormalizedRealmName(uint32 realmId) const
+{
+    std::string name = GetRealmName(realmId);
+    name.erase(std::remove_if(name.begin(), name.end(), ::isspace), name.end());
+    return name;
+}
+
 void ObjectMgr::LoadQuestLocales()
 {
     uint32 oldMSTime = getMSTime();

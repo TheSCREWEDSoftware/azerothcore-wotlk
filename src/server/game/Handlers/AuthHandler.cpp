@@ -47,7 +47,7 @@ namespace
 
 uint32 WorldSession::GetVirtualRealmAddress() const
 {
-    return realm.Id.GetAddress();
+    return ::GetVirtualRealmAddress();
 }
 
 void WorldSession::SendAuthResponse(uint32 code, bool queued, uint32 queuePos)

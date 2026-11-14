@@ -77,6 +77,8 @@ enum GuildChallengeType
     MAX_GUILD_CHALLENGE_TYPES
 };
 
+#define GUILD_CHALLENGES_TYPES 6                            // 6.x SMSG_GUILD_CHALLENGE_UPDATE array size
+
 enum GuildMemberData
 {
     GUILD_MEMBER_DATA_ZONEID,

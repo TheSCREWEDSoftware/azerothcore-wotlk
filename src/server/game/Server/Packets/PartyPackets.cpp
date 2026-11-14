@@ -16,6 +16,7 @@
  */
 
 #include "PartyPackets.h"
+#include "Realm.h"
 
 #include "Player.h"
 #include "Pet.h"
@@ -408,7 +409,7 @@ WorldPacket const* WorldPackets::Party::RaidMarkersChanged::Write()
     return &_worldPacket;
 }
 
-void WorldPackets::Party::PartyMemberStats::Initialize(Player const* player)
+void WorldPackets::Party::PartyMemberStats::Initialize(Player* player)
 {
     ForEnemy = false;
 
@@ -438,7 +439,7 @@ void WorldPackets::Party::PartyMemberStats::Initialize(Player const* player)
         MemberStats.Status |= MEMBER_STATUS_DND;
 
     // Level
-    MemberStats.Level = player->getLevel();
+    MemberStats.Level = player->GetLevel();
 
     // Health
     MemberStats.CurrentHealth = player->GetHealth();
@@ -477,9 +478,9 @@ void WorldPackets::Party::PartyMemberStats::Initialize(Player const* player)
 
             aura.SpellId = aurApp->GetBase()->GetId();
             aura.EffectMask = aurApp->GetEffectMask();
-            aura.Scalings = aurApp->GetFlags(); // ??
+            aura.Scalings = AuraApplication::BuildClientFlags(aurApp->GetFlags());
 
-            if (aurApp->GetFlags() & AFLAG_SCALABLE)
+            if (aurApp->GetFlags() & AFLAG_ANY_EFFECT_AMOUNT_SENT)
             {
                 for (uint32 e = 0; e < MAX_SPELL_EFFECTS; ++e)
                 {
@@ -495,7 +496,7 @@ void WorldPackets::Party::PartyMemberStats::Initialize(Player const* player)
     }
 
     // Phases
-    std::set<uint32> const& phases = player->GetPhases();
+    std::vector<uint32> const& phases = player->GetPhases();
     MemberStats.Phases.PhaseShiftFlags = 0x08 | (phases.size() ? 0x10 : 0);
     MemberStats.Phases.PersonalGUID = ObjectGuid::Empty;
     for (uint32 phaseId : phases)
@@ -528,9 +529,9 @@ void WorldPackets::Party::PartyMemberStats::Initialize(Player const* player)
 
                 aura.SpellId = aurApp->GetBase()->GetId();
                 aura.EffectMask = aurApp->GetEffectMask();
-                aura.Scalings = aurApp->GetFlags(); // ??
+                aura.Scalings = AuraApplication::BuildClientFlags(aurApp->GetFlags());
 
-                if (aurApp->GetFlags() & AFLAG_SCALABLE)
+                if (aurApp->GetFlags() & AFLAG_ANY_EFFECT_AMOUNT_SENT)
                 {
                     for (uint32 e = 0; e < MAX_SPELL_EFFECTS; ++e)
                     {

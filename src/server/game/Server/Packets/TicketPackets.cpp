@@ -18,7 +18,6 @@
 #include "LFGPackets.h"
 #include "TicketPackets.h"
 #include "PacketUtilities.h"
-#include "SupportMgr.h"
 
 using namespace WorldPackets;
 

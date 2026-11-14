@@ -125,6 +125,11 @@ float World::_maxVisibleDistanceForGameObjects = DEFAULT_VISIBILITY_GAMEOBJECTS;
 
 Realm realm;
 
+uint32 GetVirtualRealmAddress()
+{
+    return realm.Id.GetAddress();
+}
+
 /// World constructor
 World::World()
 {
@@ -648,6 +653,7 @@ void World::SetInitialWorldSettings()
     WeatherMgr::LoadWeatherData();
 
     LOG_INFO("server.loading", "Loading Quests...");
+    sObjectMgr->LoadRealmNames();
     sObjectMgr->LoadQuests();                                    // must be loaded after DBCs, creature_template, item_template, gameobject tables
 
     LOG_INFO("server.loading", "Checking Quest Disables");
