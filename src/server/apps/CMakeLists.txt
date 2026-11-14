@@ -24,7 +24,7 @@ if (APPS_BUILD MATCHES "-only")
   set(BUILD_APPS_USE_WHITELIST ON)
 
   if (APPS_BUILD STREQUAL "auth-only")
-    list(APPEND BUILD_APPS_WHITELIST authserver)
+    list(APPEND BUILD_APPS_WHITELIST authserver bnetserver)
   endif()
 
   if (APPS_BUILD STREQUAL "world-only")
@@ -131,6 +131,24 @@ foreach(APPLICATION_NAME ${APPLICATIONS_BUILD_LIST})
     target_link_libraries(${APP_PROJECT_NAME}
       PUBLIC
         shared)
+  elseif(${APP_PROJECT_NAME} MATCHES "bnetserver")
+    target_link_libraries(${APP_PROJECT_NAME}
+      PUBLIC
+        shared
+        gsoap
+        zlib)
+
+    # TLS certificate and key of the Battle.net listeners (CertificatesFile / PrivateKeyFile)
+    foreach(PEM_FILE bnetserver.cert.pem bnetserver.key.pem)
+      add_custom_command(TARGET ${APP_PROJECT_NAME}
+        POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "${SOURCE_APP_PATH}/${PEM_FILE}" "$<TARGET_FILE_DIR:${APP_PROJECT_NAME}>")
+      if (UNIX)
+        install(FILES "${SOURCE_APP_PATH}/${PEM_FILE}" DESTINATION bin)
+      elseif (WIN32)
+        install(FILES "${SOURCE_APP_PATH}/${PEM_FILE}" DESTINATION "${CMAKE_INSTALL_PREFIX}")
+      endif()
+    endforeach()
   elseif(${APP_PROJECT_NAME} MATCHES "worldserver")
     target_link_libraries(${APP_PROJECT_NAME}
       PUBLIC

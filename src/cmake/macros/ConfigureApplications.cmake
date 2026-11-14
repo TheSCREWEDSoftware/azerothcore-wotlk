@@ -11,6 +11,7 @@
 #
 
 set(BUILD_APPLICATION_AUTHSERVER 0)
+set(BUILD_APPLICATION_BNETSERVER 0)
 set(BUILD_APPLICATION_WORLDSERVER 0)
 
 # Returns the base path to the apps directory in the source directory
@@ -72,7 +73,7 @@ function(CheckApplicationsBuildList)
     set(BUILD_APPS_USE_WHITELIST ON)
 
     if (APPS_BUILD STREQUAL "auth-only")
-      list(APPEND BUILD_APPS_WHITELIST authserver)
+      list(APPEND BUILD_APPS_WHITELIST authserver bnetserver)
     endif()
 
     if (APPS_BUILD STREQUAL "world-only")
@@ -100,6 +101,8 @@ function(CheckApplicationsBuildList)
     if(${APPLICATION_BUILD_VARIABLE} MATCHES "enabled")
       if (${APPLICATION_BUILD_NAME} MATCHES "authserver")
         set (BUILD_APPLICATION_AUTHSERVER 1 PARENT_SCOPE)
+      elseif(${APPLICATION_BUILD_NAME} MATCHES "bnetserver")
+        set (BUILD_APPLICATION_BNETSERVER 1 PARENT_SCOPE)
       elseif(${APPLICATION_BUILD_NAME} MATCHES "worldserver")
         set (BUILD_APPLICATION_WORLDSERVER 1 PARENT_SCOPE)
       endif()
