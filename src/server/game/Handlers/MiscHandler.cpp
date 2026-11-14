@@ -35,6 +35,7 @@
 #include "GameObjectAI.h"
 #include "GameTime.h"
 #include "GossipDef.h"
+#include "NPCPackets.h"
 #include "Group.h"
 #include "GuildMgr.h"
 #include "InspectPackets.h"
@@ -65,6 +66,130 @@
 #include <zlib.h>
 
 #include "Corpse.h"
+
+void WorldSession::HandleGossipSelectOptionOpcode(WorldPackets::NPC::GossipSelectOption& packet)
+{
+    uint32 gossipListId = uint32(packet.GossipIndex);
+    uint32 menuId = uint32(packet.GossipID);
+    ObjectGuid guid = packet.GossipUnit;
+    std::string code = packet.PromotionCode;
+
+    if (!_player->PlayerTalkClass->GetGossipMenu().GetItem(gossipListId))
+        return;
+
+    if (!_player->PlayerTalkClass->IsGossipOptionCoded(gossipListId))
+        code.clear();
+
+    // Prevent cheating on C++ scripted menus
+    if (_player->PlayerTalkClass->GetGossipMenu().GetSenderGUID() != guid)
+    {
+        return;
+    }
+
+    Creature* unit = nullptr;
+    GameObject* go = nullptr;
+    Item* item = nullptr;
+    if (guid.IsCreatureOrVehicle())
+    {
+        unit = GetPlayer()->GetNPCIfCanInteractWith(guid, UNIT_NPC_FLAG_NONE);
+        if (!unit)
+        {
+            LOG_DEBUG("network", "WORLD: HandleGossipSelectOptionOpcode - Unit ({}) not found or you can't interact with him.", guid.ToString());
+            return;
+        }
+    }
+    else if (guid.IsGameObject())
+    {
+        go = _player->GetMap()->GetGameObject(guid);
+        if (!go)
+        {
+            LOG_DEBUG("network", "WORLD: HandleGossipSelectOptionOpcode - GameObject ({}) not found.", guid.ToString());
+            return;
+        }
+    }
+    else if (guid.IsItem())
+    {
+        item = _player->GetItemByGuid(guid);
+        if (!item || _player->IsBankPos(item->GetPos()))
+        {
+            //LOG_DEBUG("network", "WORLD: HandleGossipSelectOptionOpcode - {} not found.", guid.ToString());
+            return;
+        }
+    }
+    else if (guid.IsPlayer())
+    {
+        if (guid != _player->GetGUID() || menuId != _player->PlayerTalkClass->GetGossipMenu().GetMenuId())
+        {
+            //LOG_DEBUG("network", "WORLD: HandleGossipSelectOptionOpcode - {} not found.", guid.ToString());
+            return;
+        }
+    }
+    else
+    {
+        LOG_DEBUG("network", "WORLD: HandleGossipSelectOptionOpcode - unsupported GUID type for {}.", guid.ToString());
+        return;
+    }
+
+    // remove fake death
+    if (GetPlayer()->HasUnitState(UNIT_STATE_DIED))
+        GetPlayer()->RemoveAurasByType(SPELL_AURA_FEIGN_DEATH);
+
+    if ((unit && unit->GetScriptId() != unit->LastUsedScriptID) || (go && go->GetScriptId() != go->LastUsedScriptID))
+    {
+        LOG_DEBUG("network", "WORLD: HandleGossipSelectOptionOpcode - Script reloaded while in use, ignoring and set new scipt id");
+        if (unit)
+            unit->LastUsedScriptID = unit->GetScriptId();
+        if (go)
+            go->LastUsedScriptID = go->GetScriptId();
+        _player->PlayerTalkClass->SendCloseGossip();
+        return;
+    }
+    if (!code.empty())
+    {
+        if (unit)
+        {
+            unit->AI()->sGossipSelectCode(_player, menuId, gossipListId, code.c_str());
+            if (!sScriptMgr->OnGossipSelectCode(_player, unit, _player->PlayerTalkClass->GetGossipOptionSender(gossipListId), _player->PlayerTalkClass->GetGossipOptionAction(gossipListId), code.c_str()))
+                _player->OnGossipSelect(unit, gossipListId, menuId);
+        }
+        else if (go)
+        {
+            go->AI()->GossipSelectCode(_player, menuId, gossipListId, code.c_str());
+            sScriptMgr->OnGossipSelectCode(_player, go, _player->PlayerTalkClass->GetGossipOptionSender(gossipListId), _player->PlayerTalkClass->GetGossipOptionAction(gossipListId), code.c_str());
+        }
+        else if (item)
+        {
+            sScriptMgr->OnGossipSelectCode(_player, item, _player->PlayerTalkClass->GetGossipOptionSender(gossipListId), _player->PlayerTalkClass->GetGossipOptionAction(gossipListId), code.c_str());
+        }
+        else
+        {
+            sScriptMgr->OnPlayerGossipSelectCode(_player, menuId, _player->PlayerTalkClass->GetGossipOptionSender(gossipListId), _player->PlayerTalkClass->GetGossipOptionAction(gossipListId), code.c_str());
+        }
+    }
+    else
+    {
+        if (unit)
+        {
+            unit->AI()->sGossipSelect(_player, menuId, gossipListId);
+            if (!sScriptMgr->OnGossipSelect(_player, unit, _player->PlayerTalkClass->GetGossipOptionSender(gossipListId), _player->PlayerTalkClass->GetGossipOptionAction(gossipListId)))
+                _player->OnGossipSelect(unit, gossipListId, menuId);
+        }
+        else if (go)
+        {
+            go->AI()->GossipSelect(_player, menuId, gossipListId);
+            if (!sScriptMgr->OnGossipSelect(_player, go, _player->PlayerTalkClass->GetGossipOptionSender(gossipListId), _player->PlayerTalkClass->GetGossipOptionAction(gossipListId)))
+                _player->OnGossipSelect(go, gossipListId, menuId);
+        }
+        else if (item)
+        {
+            sScriptMgr->OnGossipSelect(_player, item, _player->PlayerTalkClass->GetGossipOptionSender(gossipListId), _player->PlayerTalkClass->GetGossipOptionAction(gossipListId));
+        }
+        else
+        {
+            sScriptMgr->OnPlayerGossipSelect(_player, menuId, _player->PlayerTalkClass->GetGossipOptionSender(gossipListId), _player->PlayerTalkClass->GetGossipOptionAction(gossipListId));
+        }
+    }
+}
 
 void WorldSession::HandleRepopRequest(WorldPackets::Misc::RepopRequest& /*packet*/)
 {
