@@ -23,6 +23,7 @@
 #include "Battlefield.h"
 #include "Battleground.h"
 #include "BattlegroundMgr.h"
+#include "BattlePetMgr.h"
 #include "CollectionMgr.h"
 #include "DB2Stores.h"
 #include "CharacterDatabaseCleaner.h"
@@ -5633,6 +5634,9 @@ bool Player::LoadFromDB(ObjectGuid playerGuid, CharacterDatabaseQueryHolder cons
     LearnCustomSpells();
 
     _LoadSpells(holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_SPELLS));
+    // 6.x account wide toys and heirlooms (TC 6.x)
+    GetSession()->GetCollectionMgr()->LoadToys();
+    GetSession()->GetCollectionMgr()->LoadHeirlooms();
     _LoadTalents(holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_TALENTS));
     LearnSpecializationSpells();
 
@@ -7516,6 +7520,13 @@ void Player::SaveToDB(CharacterDatabaseTransaction trans, bool create, bool logo
         trans->Append(currencyStmt);
     }
     _SaveVoidStorage(trans);
+
+    // 6.x account wide collections (TC 6.x saves them with the character)
+    LoginDatabaseTransaction loginTransaction = LoginDatabase.BeginTransaction();
+    GetSession()->GetCollectionMgr()->SaveAccountToys(loginTransaction);
+    GetSession()->GetBattlePetMgr()->SaveToDB(loginTransaction);
+    GetSession()->GetCollectionMgr()->SaveAccountHeirlooms(loginTransaction);
+    LoginDatabase.CommitTransaction(loginTransaction);
 
     // check if stats should only be saved on logout
     // save stats can be out of transaction

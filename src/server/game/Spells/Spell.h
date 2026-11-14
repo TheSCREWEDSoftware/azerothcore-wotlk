@@ -96,6 +96,13 @@ enum SpellCastFlags
     CAST_FLAG_UNKNOWN_32         = 0x80000000
 };
 
+// 6.x SpellCastData.CastFlagsEx (TC 6.x)
+enum SpellCastFlagsEx
+{
+    CAST_FLAG_EX_NONE            = 0x00000,
+    CAST_FLAG_EX_USE_TOY_SPELL   = 0x08000, // Starts cooldown on toy
+};
+
 //Spells casted on self should not be diminished.
 enum SpellFlags
 {
@@ -595,6 +602,8 @@ public:
     Item* m_CastItem;
     Item* m_weaponItem;
     ObjectGuid m_castItemGUID;
+    uint32 m_castItemEntry = 0;                             // item the cooldowns go to, also set for toys (TC 6.x)
+    uint32 m_castFlagsEx = 0;                               // SpellCastFlagsEx sent in SMSG_SPELL_START / SMSG_SPELL_GO
     uint8 m_cast_count;
     uint32 m_glyphIndex;
     uint32 m_preCastSpell;

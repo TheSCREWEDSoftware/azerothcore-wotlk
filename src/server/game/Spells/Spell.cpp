@@ -3581,6 +3581,7 @@ SpellCastResult Spell::prepare(SpellCastTargets const* targets, AuraEffect const
     if (m_CastItem)
     {
         m_castItemGUID = m_CastItem->GetGUID();
+        m_castItemEntry = m_CastItem->GetEntry();
     }
     else
     {
@@ -4555,7 +4556,7 @@ void Spell::SendSpellCooldown()
         || HasTriggeredCastFlag(TRIGGERED_IGNORE_EFFECTS))
         return;
 
-    _player->AddSpellAndCategoryCooldowns(m_spellInfo, m_CastItem ? m_CastItem->GetEntry() : 0, this);
+    _player->AddSpellAndCategoryCooldowns(m_spellInfo, m_CastItem ? m_CastItem->GetEntry() : m_castItemEntry, this);
 }
 
 void Spell::update(uint32 difftime)
@@ -5071,7 +5072,7 @@ void Spell::FillSpellCastData(WorldPackets::Spells::SpellCastData& castData, Obj
     castData.SpellID = int32(m_spellInfo->Id);
     castData.SpellXSpellVisualID = m_spellInfo->GetSpellXSpellVisualId(unitCaster);
     castData.CastFlags = castFlags;
-    castData.CastFlagsEx = 0;
+    castData.CastFlagsEx = m_castFlagsEx;
 
     m_targets.Write(castData.Target);
 

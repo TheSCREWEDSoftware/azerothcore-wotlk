@@ -21,6 +21,7 @@
 
 #include "TC9Sidecar.h"
 #include "WorldSession.h"
+#include "BattlePetMgr.h"
 #include "SystemPackets.h"
 #include "ChatPackets.h"
 #include "ClientConfigPackets.h"
@@ -162,6 +163,7 @@ WorldSession::WorldSession(uint32 id, std::string&& name, uint32 accountFlags, s
     _headless(!sock)
 {
     _collectionMgr = std::make_unique<CollectionMgr>(this);
+    _battlePetMgr = std::make_unique<BattlePetMgr>(this);
     memset(m_Tutorials, 0, sizeof(m_Tutorials));
 
     m_Socket[CONNECTION_TYPE_REALM] = sock;
@@ -1508,6 +1510,8 @@ public:
     {
         GLOBAL_ACCOUNT_TOYS = 0,
         GLOBAL_ACCOUNT_HEIRLOOMS,
+        BATTLE_PETS,
+        BATTLE_PET_SLOTS,
 
         MAX_QUERIES
     };
@@ -1525,6 +1529,14 @@ public:
         stmt = LoginDatabase.GetPreparedStatement(LOGIN_SEL_ACCOUNT_HEIRLOOMS);
         stmt->SetData(0, battlenetAccountId);
         ok = SetPreparedQuery(GLOBAL_ACCOUNT_HEIRLOOMS, stmt) && ok;
+
+        stmt = LoginDatabase.GetPreparedStatement(LOGIN_SEL_BATTLE_PETS);
+        stmt->SetData(0, battlenetAccountId);
+        ok = SetPreparedQuery(BATTLE_PETS, stmt) && ok;
+
+        stmt = LoginDatabase.GetPreparedStatement(LOGIN_SEL_BATTLE_PET_SLOTS);
+        stmt->SetData(0, battlenetAccountId);
+        ok = SetPreparedQuery(BATTLE_PET_SLOTS, stmt) && ok;
 
         return ok;
     }
@@ -1565,6 +1577,7 @@ void WorldSession::InitializeSessionCallback(CharacterDatabaseQueryHolder const&
     LoadTutorialsData(realmHolder.GetPreparedResult(AccountInfoQueryHolderPerRealm::TUTORIALS));
     _collectionMgr->LoadAccountToys(holder.GetPreparedResult(AccountInfoQueryHolder::GLOBAL_ACCOUNT_TOYS));
     _collectionMgr->LoadAccountHeirlooms(holder.GetPreparedResult(AccountInfoQueryHolder::GLOBAL_ACCOUNT_HEIRLOOMS));
+    _battlePetMgr->LoadFromDB(holder.GetPreparedResult(AccountInfoQueryHolder::BATTLE_PETS), holder.GetPreparedResult(AccountInfoQueryHolder::BATTLE_PET_SLOTS));
 
     if (!sToCloud9Sidecar->ClusterModeEnabled())
     {

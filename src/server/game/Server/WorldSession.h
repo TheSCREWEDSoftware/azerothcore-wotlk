@@ -40,6 +40,7 @@
 #include <utility>
 
 class BlackMarketEntry;
+class BattlePetMgr;
 class CollectionMgr;
 class Creature;
 struct SpellCastRequest;
@@ -1067,6 +1068,7 @@ public:
     ObjectGuid GetAccountGUID() const { return ObjectGuid::Create<HighGuid::WowAccount>(GetAccountId()); }
     ObjectGuid GetBattlenetAccountGUID() const { return ObjectGuid::Create<HighGuid::BNetAccount>(GetBattlenetAccountId()); }
     CollectionMgr* GetCollectionMgr() const { return _collectionMgr.get(); }
+    BattlePetMgr* GetBattlePetMgr() const { return _battlePetMgr.get(); }
     void SetBattlenetAccountId(uint32 battlenetAccountId) { _battlenetAccountId = battlenetAccountId; }
     Player* GetPlayer() const { return _player; }
     std::string const& GetPlayerName() const;
@@ -1922,6 +1924,7 @@ private:
     ConnectToKey _instanceConnectKey;
     uint32 _battlenetAccountId = 0;
     std::unique_ptr<CollectionMgr> _collectionMgr;
+    std::unique_ptr<BattlePetMgr> _battlePetMgr;
     std::string m_Address;
 
     AccountTypes _security;

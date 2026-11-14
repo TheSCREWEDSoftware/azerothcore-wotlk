@@ -20,6 +20,7 @@
 */
 
 #include "World.h"
+#include "BattlePetMgr.h"
 #include "AccountMgr.h"
 #include "ArchaeologyMgr.h"
 #include "AchievementMgr.h"
@@ -817,6 +818,9 @@ void World::SetInitialWorldSettings()
     sGuildMgr->LoadGuildProfessionData();
 
     sGuildMgr->LoadGuilds();
+
+    LOG_INFO("server.loading", "Loading Battle Pets Info...");
+    BattlePetMgr::Initialize();
 
     LOG_INFO("server.loading", "Loading Guild Finder Data...");
     sGuildFinderMgr->LoadFromDB();
