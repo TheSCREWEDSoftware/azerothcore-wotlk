@@ -107,7 +107,7 @@ enum InventoryResult : uint8
     EQUIP_ERR_BAG_FULL4                          = 56,
     EQUIP_ERR_ITEM_SOLD_OUT                      = 57,
     EQUIP_ERR_OBJECT_IS_BUSY                     = 58,
-    EQUIP_ERR_NONE                               = 59,
+    EQUIP_ERR_CANT_BE_DISENCHANTED               = 59,
     EQUIP_ERR_NOT_IN_COMBAT                      = 60,
     EQUIP_ERR_NOT_WHILE_DISARMED                 = 61,
     EQUIP_ERR_BAG_FULL6                          = 62,
@@ -130,7 +130,7 @@ enum InventoryResult : uint8
     EQUIP_ERR_PERSONAL_ARENA_RATING_TOO_LOW      = 80,
     EQUIP_ERR_EVENT_AUTOEQUIP_BIND_CONFIRM       = 81,
     EQUIP_ERR_ARTEFACTS_ONLY_FOR_OWN_CHARACTERS  = 82,
-    // no output                                 = 83,
+    EQUIP_ERR_NONE                               = 83,     // 6.x: no output (59 is "can't be disenchanted" there)
     EQUIP_ERR_ITEM_MAX_LIMIT_CATEGORY_COUNT_EXCEEDED     = 84,
     EQUIP_ERR_ITEM_MAX_LIMIT_CATEGORY_COUNT_EXCEEDED_IS  = 84,     // You can only carry %d %s
     EQUIP_ERR_ITEM_MAX_LIMIT_CATEGORY_SOCKETED_EXCEEDED  = 85,
@@ -140,7 +140,14 @@ enum InventoryResult : uint8
     EQUIP_ERR_CANT_EQUIP_NEED_TALENT                     = 88,
     EQUIP_ERR_ITEM_MAX_LIMIT_CATEGORY_EQUIPPED_EXCEEDED  = 89,
     EQUIP_ERR_ITEM_MAX_LIMIT_CATEGORY_EQUIPPED_EXCEEDED_IS = 89,   // You can only equip %d |4item:items in the %s category
+    EQUIP_ERR_SHAPESHIFT_FORM_CANNOT_EQUIP               = 90, // Cannot equip item in this form
+    EQUIP_ERR_ITEM_INVENTORY_FULL_SATCHEL                = 91, // Your inventory is full. Your satchel has been delivered to your mailbox.
+    EQUIP_ERR_SCALING_STAT_ITEM_LEVEL_TOO_LOW            = 92, // Your level is too low to use that item
     EQUIP_ERR_CANT_BUY_QUANTITY                          = 93, // You can't buy the specified quantity of that item.
+    EQUIP_ERR_ITEM_IS_BATTLE_PAY_LOCKED                  = 94, // Your purchased item is still waiting to be unlocked
+    EQUIP_ERR_REAGENT_BANK_FULL                          = 95, // Your reagent bank is full
+    EQUIP_ERR_REAGENT_BANK_LOCKED                        = 96,
+    EQUIP_ERR_WRONG_BAG_TYPE_3                           = 97,
 };
 
 // EnumUtils: DESCRIBE THIS

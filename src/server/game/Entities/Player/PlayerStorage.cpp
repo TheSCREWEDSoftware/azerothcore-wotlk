@@ -311,7 +311,7 @@ InventoryResult Player::CanUnequipItems(uint32 item, uint32 count) const
                     return EQUIP_ERR_OK;
             }
 
-    for (uint8 i = KEYRING_SLOT_START; i < CURRENCYTOKEN_SLOT_END; ++i)
+    for (uint8 i = REAGENT_SLOT_START; i < REAGENT_SLOT_END; ++i)
         if (Item* pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, i))
             if (pItem->GetEntry() == item)
             {
@@ -343,7 +343,7 @@ uint32 Player::GetItemCount(uint32 item, bool inBankAlso, Item* skipItem) const
             if (pItem != skipItem &&  pItem->GetEntry() == item)
                 count += pItem->GetCount();
 
-    for (uint8 i = KEYRING_SLOT_START; i < CURRENCYTOKEN_SLOT_END; ++i)
+    for (uint8 i = REAGENT_SLOT_START; i < REAGENT_SLOT_END; ++i)
         if (Item* pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, i))
             if (pItem != skipItem && pItem->GetEntry() == item)
                 count += pItem->GetCount();
@@ -390,7 +390,7 @@ uint32 Player::GetItemCountWithLimitCategory(uint32 limitCategory, Item* skipIte
                     if (pProto->ItemLimitCategory == limitCategory)
                         count += pItem->GetCount();
 
-    for (int i = KEYRING_SLOT_START; i < CURRENCYTOKEN_SLOT_END; ++i)
+    for (int i = REAGENT_SLOT_START; i < REAGENT_SLOT_END; ++i)
         if (Item* pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, i))
             if (pItem != skipItem)
                 if (ItemTemplate const* pProto = pItem->GetTemplate())
@@ -422,7 +422,7 @@ Item* Player::GetItemByGuid(ObjectGuid guid) const
             if (pItem->GetGUID() == guid)
                 return pItem;
 
-    for (uint8 i = KEYRING_SLOT_START; i < CURRENCYTOKEN_SLOT_END; ++i)
+    for (uint8 i = REAGENT_SLOT_START; i < REAGENT_SLOT_END; ++i)
         if (Item* pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, i))
             if (pItem->GetGUID() == guid)
                 return pItem;
@@ -458,7 +458,7 @@ Item* Player::GetItemByPos(uint16 pos) const
 
 Item* Player::GetItemByPos(uint8 bag, uint8 slot) const
 {
-    if (bag == INVENTORY_SLOT_BAG_0 && (slot < BANK_SLOT_BAG_END || (slot >= KEYRING_SLOT_START && slot < CURRENCYTOKEN_SLOT_END)))
+    if (bag == INVENTORY_SLOT_BAG_0 && (slot < BANK_SLOT_BAG_END || (slot >= REAGENT_SLOT_START && slot < REAGENT_SLOT_END)))
         return m_items[slot];
     else if (Bag* pBag = GetBagByPos(bag))
         return pBag->GetItemByPos(slot);
@@ -573,7 +573,8 @@ bool Player::IsInventoryPos(uint8 bag, uint8 slot)
         return true;
     if (bag >= INVENTORY_SLOT_BAG_START && bag < INVENTORY_SLOT_BAG_END)
         return true;
-    if (bag == INVENTORY_SLOT_BAG_0 && (slot >= KEYRING_SLOT_START && slot < CURRENCYTOKEN_SLOT_END))
+    // 6.x reagent bank: usable for crafting from anywhere, like the bags (TC 7.3.5)
+    if (bag == INVENTORY_SLOT_BAG_0 && (slot >= REAGENT_SLOT_START && slot < REAGENT_SLOT_END))
         return true;
     return false;
 }
@@ -633,8 +634,8 @@ bool Player::IsValidPos(uint8 bag, uint8 slot, bool explicit_pos)
         if (slot >= INVENTORY_SLOT_ITEM_START && slot < INVENTORY_SLOT_ITEM_END)
             return true;
 
-        // keyring slots
-        if (slot >= KEYRING_SLOT_START && slot < KEYRING_SLOT_END)
+        // reagent bank slots
+        if (slot >= REAGENT_SLOT_START && slot < REAGENT_SLOT_END)
             return true;
 
         // bank main slots
@@ -676,7 +677,7 @@ bool Player::HasItemCount(uint32 item, uint32 count, bool inBankAlso) const
                 return true;
         }
     }
-    for (uint8 i = KEYRING_SLOT_START; i < CURRENCYTOKEN_SLOT_END; ++i)
+    for (uint8 i = REAGENT_SLOT_START; i < REAGENT_SLOT_END; ++i)
     {
         Item* pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, i);
         if (pItem && pItem->GetEntry() == item && !pItem->IsInTrade())
@@ -873,7 +874,7 @@ bool Player::HasItemTotemCategory(uint32 TotemCategory) const
         if (pItem && IsTotemCategoryCompatiableWith(pItem->GetTemplate(), TotemCategory))
             return true;
     }
-    for (uint8 i = KEYRING_SLOT_START; i < CURRENCYTOKEN_SLOT_END; ++i)
+    for (uint8 i = REAGENT_SLOT_START; i < REAGENT_SLOT_END; ++i)
     {
         pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, i);
         if (pItem && IsTotemCategoryCompatiableWith(pItem->GetTemplate(), TotemCategory))
@@ -937,13 +938,15 @@ InventoryResult Player::CanStoreItem_InSpecificSlot(uint8 bag, uint8 slot, ItemP
     {
         if (bag == INVENTORY_SLOT_BAG_0)
         {
-            // keyring case
-            if (slot >= KEYRING_SLOT_START && slot < KEYRING_SLOT_START + GetMaxKeyringSize() && !(pProto->BagFamily & BAG_FAMILY_MASK_KEYS))
-                return EQUIP_ERR_ITEM_DOESNT_GO_INTO_BAG;
+            // 6.x reagent bank: crafting reagents only, once it is unlocked
+            if (slot >= REAGENT_SLOT_START && slot < REAGENT_SLOT_END)
+            {
+                if (!HasPlayerFlagEx(PLAYER_FLAGS_EX_REAGENT_BANK_UNLOCKED))
+                    return EQUIP_ERR_REAGENT_BANK_LOCKED;
 
-            // currencytoken case
-            if (slot >= CURRENCYTOKEN_SLOT_START && slot < CURRENCYTOKEN_SLOT_END && !(pProto->IsCurrencyToken()))
-                return EQUIP_ERR_ITEM_DOESNT_GO_INTO_BAG;
+                if (!pProto->IsCraftingReagent())
+                    return EQUIP_ERR_ITEM_DOESNT_GO_INTO_BAG;
+            }
 
             // prevent cheating
             if ((slot >= BUYBACK_SLOT_START && slot < BUYBACK_SLOT_END) || slot >= PLAYER_SLOT_END)
@@ -1061,6 +1064,40 @@ InventoryResult Player::CanStoreItem_InBag(uint8 bag, ItemPosCountVec& dest, Ite
         }
     }
     return EQUIP_ERR_OK;
+}
+
+// 6.x reagent bank: crafting reagents only, once unlocked; fills existing stacks first
+InventoryResult Player::CanStoreReagentBankItem(ItemPosCountVec& dest, Item* pItem) const
+{
+    if (!pItem)
+        return EQUIP_ERR_ITEM_NOT_FOUND;
+
+    if (!HasPlayerFlagEx(PLAYER_FLAGS_EX_REAGENT_BANK_UNLOCKED))
+        return EQUIP_ERR_REAGENT_BANK_LOCKED;
+
+    ItemTemplate const* proto = pItem->GetTemplate();
+    if (!proto || !proto->IsCraftingReagent())
+        return EQUIP_ERR_ITEM_DOESNT_GO_INTO_BAG;
+
+    if (pItem->IsBindedNotWith(this))
+        return EQUIP_ERR_DONT_OWN_THAT_ITEM;
+
+    uint32 count = pItem->GetCount();
+    if (proto->Stackable != 1)
+    {
+        InventoryResult res = CanStoreItem_InInventorySlots(REAGENT_SLOT_START, REAGENT_SLOT_END, dest, proto, count, true, pItem, NULL_BAG, NULL_SLOT);
+        if (res != EQUIP_ERR_OK)
+            return res;
+
+        if (count == 0)
+            return EQUIP_ERR_OK;
+    }
+
+    InventoryResult res = CanStoreItem_InInventorySlots(REAGENT_SLOT_START, REAGENT_SLOT_END, dest, proto, count, false, pItem, NULL_BAG, NULL_SLOT);
+    if (res != EQUIP_ERR_OK)
+        return res;
+
+    return count == 0 ? EQUIP_ERR_OK : EQUIP_ERR_REAGENT_BANK_FULL;
 }
 
 InventoryResult Player::CanStoreItem_InInventorySlots(uint8 slot_begin, uint8 slot_end, ItemPosCountVec& dest, ItemTemplate const* pProto, uint32& count, bool merge, Item* pSrcItem, uint8 skip_bag, uint8 skip_slot) const
@@ -1195,24 +1232,6 @@ InventoryResult Player::CanStoreItem(uint8 bag, uint8 slot, ItemPosCountVec& des
         {
             if (bag == INVENTORY_SLOT_BAG_0)               // inventory
             {
-                res = CanStoreItem_InInventorySlots(KEYRING_SLOT_START, CURRENCYTOKEN_SLOT_END, dest, pProto, count, true, pItem, bag, slot);
-                if (res != EQUIP_ERR_OK)
-                {
-                    if (no_space_count)
-                        *no_space_count = count + no_similar_count;
-                    return res;
-                }
-
-                if (count == 0)
-                {
-                    if (no_similar_count == 0)
-                        return EQUIP_ERR_OK;
-
-                    if (no_space_count)
-                        *no_space_count = count + no_similar_count;
-                    return EQUIP_ERR_CANT_CARRY_MORE_OF_THIS;
-                }
-
                 res = CanStoreItem_InInventorySlots(INVENTORY_SLOT_ITEM_START, INVENTORY_SLOT_ITEM_END, dest, pProto, count, true, pItem, bag, slot);
                 if (res != EQUIP_ERR_OK)
                 {
@@ -1260,67 +1279,6 @@ InventoryResult Player::CanStoreItem(uint8 bag, uint8 slot, ItemPosCountVec& des
         // search free slot in bag for place to
         if (bag == INVENTORY_SLOT_BAG_0)                     // inventory
         {
-            // search free slot - keyring case
-            if (pProto->BagFamily & BAG_FAMILY_MASK_KEYS)
-            {
-                uint32 keyringSize = GetMaxKeyringSize();
-                res = CanStoreItem_InInventorySlots(KEYRING_SLOT_START, KEYRING_SLOT_START + keyringSize, dest, pProto, count, false, pItem, bag, slot);
-                if (res != EQUIP_ERR_OK)
-                {
-                    if (no_space_count)
-                        *no_space_count = count + no_similar_count;
-                    return res;
-                }
-
-                if (count == 0)
-                {
-                    if (no_similar_count == 0)
-                        return EQUIP_ERR_OK;
-
-                    if (no_space_count)
-                        *no_space_count = count + no_similar_count;
-                    return EQUIP_ERR_CANT_CARRY_MORE_OF_THIS;
-                }
-
-                res = CanStoreItem_InInventorySlots(CURRENCYTOKEN_SLOT_START, CURRENCYTOKEN_SLOT_END, dest, pProto, count, false, pItem, bag, slot);
-                if (res != EQUIP_ERR_OK)
-                {
-                    if (no_space_count)
-                        *no_space_count = count + no_similar_count;
-                    return res;
-                }
-
-                if (count == 0)
-                {
-                    if (no_similar_count == 0)
-                        return EQUIP_ERR_OK;
-
-                    if (no_space_count)
-                        *no_space_count = count + no_similar_count;
-                    return EQUIP_ERR_CANT_CARRY_MORE_OF_THIS;
-                }
-            }
-            else if (pProto->IsCurrencyToken())
-            {
-                res = CanStoreItem_InInventorySlots(CURRENCYTOKEN_SLOT_START, CURRENCYTOKEN_SLOT_END, dest, pProto, count, false, pItem, bag, slot);
-                if (res != EQUIP_ERR_OK)
-                {
-                    if (no_space_count)
-                        *no_space_count = count + no_similar_count;
-                    return res;
-                }
-
-                if (count == 0)
-                {
-                    if (no_similar_count == 0)
-                        return EQUIP_ERR_OK;
-
-                    if (no_space_count)
-                        *no_space_count = count + no_similar_count;
-                    return EQUIP_ERR_CANT_CARRY_MORE_OF_THIS;
-                }
-            }
-
             res = CanStoreItem_InInventorySlots(INVENTORY_SLOT_ITEM_START, INVENTORY_SLOT_ITEM_END, dest, pProto, count, false, pItem, bag, slot);
             if (res != EQUIP_ERR_OK)
             {
@@ -1369,24 +1327,6 @@ InventoryResult Player::CanStoreItem(uint8 bag, uint8 slot, ItemPosCountVec& des
     // search stack for merge to
     if (pProto->Stackable != 1)
     {
-        res = CanStoreItem_InInventorySlots(KEYRING_SLOT_START, CURRENCYTOKEN_SLOT_END, dest, pProto, count, true, pItem, bag, slot);
-        if (res != EQUIP_ERR_OK)
-        {
-            if (no_space_count)
-                *no_space_count = count + no_similar_count;
-            return res;
-        }
-
-        if (count == 0)
-        {
-            if (no_similar_count == 0)
-                return EQUIP_ERR_OK;
-
-            if (no_space_count)
-                *no_space_count = count + no_similar_count;
-            return EQUIP_ERR_CANT_CARRY_MORE_OF_THIS;
-        }
-
         res = CanStoreItem_InInventorySlots(INVENTORY_SLOT_ITEM_START, INVENTORY_SLOT_ITEM_END, dest, pProto, count, true, pItem, bag, slot);
         if (res != EQUIP_ERR_OK)
         {
@@ -1446,48 +1386,6 @@ InventoryResult Player::CanStoreItem(uint8 bag, uint8 slot, ItemPosCountVec& des
     // search free slot - special bag case
     if (pProto->BagFamily)
     {
-        if (pProto->BagFamily & BAG_FAMILY_MASK_KEYS)
-        {
-            uint32 keyringSize = GetMaxKeyringSize();
-            res = CanStoreItem_InInventorySlots(KEYRING_SLOT_START, KEYRING_SLOT_START + keyringSize, dest, pProto, count, false, pItem, bag, slot);
-            if (res != EQUIP_ERR_OK)
-            {
-                if (no_space_count)
-                    *no_space_count = count + no_similar_count;
-                return res;
-            }
-
-            if (count == 0)
-            {
-                if (no_similar_count == 0)
-                    return EQUIP_ERR_OK;
-
-                if (no_space_count)
-                    *no_space_count = count + no_similar_count;
-                return EQUIP_ERR_CANT_CARRY_MORE_OF_THIS;
-            }
-        }
-        else if (pProto->IsCurrencyToken())
-        {
-            res = CanStoreItem_InInventorySlots(CURRENCYTOKEN_SLOT_START, CURRENCYTOKEN_SLOT_END, dest, pProto, count, false, pItem, bag, slot);
-            if (res != EQUIP_ERR_OK)
-            {
-                if (no_space_count)
-                    *no_space_count = count + no_similar_count;
-                return res;
-            }
-
-            if (count == 0)
-            {
-                if (no_similar_count == 0)
-                    return EQUIP_ERR_OK;
-
-                if (no_space_count)
-                    *no_space_count = count + no_similar_count;
-                return EQUIP_ERR_CANT_CARRY_MORE_OF_THIS;
-            }
-        }
-
         for (uint32 i = INVENTORY_SLOT_BAG_START; i < INVENTORY_SLOT_BAG_END; i++)
         {
             res = CanStoreItem_InBag(i, dest, pProto, count, false, false, pItem, bag, slot);
@@ -1561,14 +1459,10 @@ InventoryResult Player::CanStoreItems(Item** items, int count, uint32* itemLimit
     // counts
     uint32 inventoryCounts[INVENTORY_SLOT_ITEM_END - INVENTORY_SLOT_ITEM_START] = {};
     uint32 bagCounts[INVENTORY_SLOT_BAG_END - INVENTORY_SLOT_BAG_START][MAX_BAG_SIZE] = {};
-    uint32 keyringCounts[KEYRING_SLOT_END - KEYRING_SLOT_START] = {};
-    uint32 currencyCounts[CURRENCYTOKEN_SLOT_END - CURRENCYTOKEN_SLOT_START] = {};
 
     // Item pointers
     Item* inventoryPointers[INVENTORY_SLOT_ITEM_END - INVENTORY_SLOT_ITEM_START] = {};
     Item* bagPointers[INVENTORY_SLOT_BAG_END - INVENTORY_SLOT_BAG_START][MAX_BAG_SIZE] = {};
-    Item* keyringPointers[KEYRING_SLOT_END - KEYRING_SLOT_START] = {};
-    Item* currencyPointers[CURRENCYTOKEN_SLOT_END - CURRENCYTOKEN_SLOT_START] = {};
 
     // filling inventory
     for (uint8 i = INVENTORY_SLOT_ITEM_START; i < INVENTORY_SLOT_ITEM_END; i++)
@@ -1579,28 +1473,6 @@ InventoryResult Player::CanStoreItems(Item** items, int count, uint32* itemLimit
         {
             inventoryCounts[i - INVENTORY_SLOT_ITEM_START] = item2->GetCount();
             inventoryPointers[i - INVENTORY_SLOT_ITEM_START] = item2;
-        }
-    }
-
-    for (uint8 i = KEYRING_SLOT_START; i < KEYRING_SLOT_END; i++)
-    {
-        // build items in key ring 'bag'
-        item2 = GetItemByPos(INVENTORY_SLOT_BAG_0, i);
-        if (item2 && !item2->IsInTrade())
-        {
-            keyringCounts[i - KEYRING_SLOT_START] = item2->GetCount();
-            keyringPointers[i - KEYRING_SLOT_START] = item2;
-        }
-    }
-
-    for (uint8 i = CURRENCYTOKEN_SLOT_START; i < CURRENCYTOKEN_SLOT_END; i++)
-    {
-        // build items in currency 'bag'
-        item2 = GetItemByPos(INVENTORY_SLOT_BAG_0, i);
-        if (item2 && !item2->IsInTrade())
-        {
-            currencyCounts[i - CURRENCYTOKEN_SLOT_START] = item2->GetCount();
-            currencyPointers[i - CURRENCYTOKEN_SLOT_START] = item2;
         }
     }
 
@@ -1656,44 +1528,6 @@ InventoryResult Player::CanStoreItems(Item** items, int count, uint32* itemLimit
         {
             bool b_found = false;
 
-            for (uint8 t = KEYRING_SLOT_START; t < KEYRING_SLOT_END; ++t)
-            {
-                item2 = keyringPointers[t - KEYRING_SLOT_START];
-                if (item2 && item2->CanBeMergedPartlyWith(pProto) == EQUIP_ERR_OK && keyringCounts[t - KEYRING_SLOT_START] < pProto->GetMaxStackSize())
-                {
-                    keyringCounts[t - KEYRING_SLOT_START] += remaining_count;
-                    remaining_count = keyringCounts[t - KEYRING_SLOT_START] < pProto->GetMaxStackSize() ? 0 : keyringCounts[t - KEYRING_SLOT_START] - pProto->GetMaxStackSize();
-
-                    b_found = remaining_count == 0;
-
-                    // if no pieces of the stack remain, then stop checking keyring
-                    if (b_found)
-                        break;
-                }
-            }
-
-            if (b_found)
-                continue;
-
-            for (int t = CURRENCYTOKEN_SLOT_START; t < CURRENCYTOKEN_SLOT_END; ++t)
-            {
-                item2 = currencyPointers[t - CURRENCYTOKEN_SLOT_START];
-                if (item2 && item2->CanBeMergedPartlyWith(pProto) == EQUIP_ERR_OK && currencyCounts[t - CURRENCYTOKEN_SLOT_START] < pProto->GetMaxStackSize())
-                {
-                    currencyCounts[t - CURRENCYTOKEN_SLOT_START] += remaining_count;
-                    remaining_count =
-                        currencyCounts[t - CURRENCYTOKEN_SLOT_START] < pProto->GetMaxStackSize() ? 0 : currencyCounts[t - CURRENCYTOKEN_SLOT_START] - pProto->GetMaxStackSize();
-
-                    b_found = remaining_count == 0;
-                    // if no pieces of the stack remain, then stop checking currency 'bag'
-                    if (b_found)
-                        break;
-                }
-            }
-
-            if (b_found)
-                continue;
-
             for (int t = INVENTORY_SLOT_ITEM_START; t < INVENTORY_SLOT_ITEM_END; ++t)
             {
                 item2 = inventoryPointers[t - INVENTORY_SLOT_ITEM_START];
@@ -1748,43 +1582,6 @@ InventoryResult Player::CanStoreItems(Item** items, int count, uint32* itemLimit
         if (pProto->BagFamily)
         {
             bool b_found = false;
-            if (pProto->BagFamily & BAG_FAMILY_MASK_KEYS)
-            {
-                uint32 keyringSize = GetMaxKeyringSize();
-                for (uint32 t = KEYRING_SLOT_START; t < KEYRING_SLOT_START + keyringSize; ++t)
-                {
-                    if (keyringCounts[t - KEYRING_SLOT_START] == 0)
-                    {
-                        keyringCounts[t - KEYRING_SLOT_START] = remaining_count;
-                        keyringPointers[t - KEYRING_SLOT_START] = item;
-
-                        b_found = true;
-                        break;
-                    }
-                }
-            }
-
-            if (b_found)
-                continue;
-
-            if (pProto->IsCurrencyToken())
-            {
-                for (uint32 t = CURRENCYTOKEN_SLOT_START; t < CURRENCYTOKEN_SLOT_END; ++t)
-                {
-                    if (currencyCounts[t - CURRENCYTOKEN_SLOT_START] == 0)
-                    {
-                        currencyCounts[t - CURRENCYTOKEN_SLOT_START] = remaining_count;
-                        currencyPointers[t - CURRENCYTOKEN_SLOT_START] = item;
-
-                        b_found = true;
-                        break;
-                    }
-                }
-            }
-
-            if (b_found)
-                continue;
-
             for (int t = INVENTORY_SLOT_BAG_START; !b_found && t < INVENTORY_SLOT_BAG_END; ++t)
             {
                 if (Bag* bag = GetBagByPos(t))
@@ -2132,15 +1929,6 @@ InventoryResult Player::CanBankItem(uint8 bag, uint8 slot, ItemPosCountVec& dest
 
     if (pItem->IsBindedNotWith(this))
         return EQUIP_ERR_DONT_OWN_THAT_ITEM;
-
-    // Currency tokens are not supposed to be swapped out of their hidden bag
-    uint8 pItemslot = pItem->GetSlot();
-    if (pItemslot >= CURRENCYTOKEN_SLOT_START && pItemslot < CURRENCYTOKEN_SLOT_END)
-    {
-        LOG_ERROR("entities.player", "Possible hacking attempt: Player {} [{}] tried to move token [{}, entry: {}] out of the currency bag!",
-                  GetName(), GetGUID().ToString(), pItem->GetGUID().ToString(), pProto->ItemId);
-        return EQUIP_ERR_ITEMS_CANT_BE_SWAPPED;
-    }
 
     // check count of items (skip for auto move for same player from bank)
     InventoryResult res = CanTakeMoreSimilarItems(pItem);
@@ -3270,7 +3058,7 @@ void Player::DestroyItemCount(uint32 itemEntry, uint32 count, bool update, bool 
         }
     }
 
-    for (uint8 i = KEYRING_SLOT_START; i < CURRENCYTOKEN_SLOT_END; ++i)
+    for (uint8 i = REAGENT_SLOT_START; i < REAGENT_SLOT_END; ++i)
     {
         if (Item* item = GetItemByPos(INVENTORY_SLOT_BAG_0, i))
         {
@@ -3437,7 +3225,7 @@ void Player::DestroyZoneLimitedItem(bool update, uint32 new_zone)
             if (pItem->IsLimitedToAnotherMapOrZone(GetMapId(), new_zone))
                 DestroyItem(INVENTORY_SLOT_BAG_0, i, update);
 
-    for (uint8 i = KEYRING_SLOT_START; i < CURRENCYTOKEN_SLOT_END; ++i)
+    for (uint8 i = REAGENT_SLOT_START; i < REAGENT_SLOT_END; ++i)
         if (Item* pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, i))
             if (pItem->IsLimitedToAnotherMapOrZone(GetMapId(), new_zone))
                 DestroyItem(INVENTORY_SLOT_BAG_0, i, update);
@@ -3492,7 +3280,7 @@ Item* Player::GetItemByEntry(uint32 entry) const
             if (pItem->GetEntry() == entry)
                 return pItem;
 
-    for (uint8 i = KEYRING_SLOT_START; i < CURRENCYTOKEN_SLOT_END; ++i)
+    for (uint8 i = REAGENT_SLOT_START; i < REAGENT_SLOT_END; ++i)
         if (Item* pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, i))
             if (pItem->GetEntry() == entry)
                 return pItem;
@@ -5181,6 +4969,7 @@ bool Player::LoadFromDB(ObjectGuid playerGuid, CharacterDatabaseQueryHolder cons
     SetByteValue(PLAYER_BYTES_3, 0, fields[5].Get<uint8>());
     SetByteValue(PLAYER_BYTES_3, 1, fields[54].Get<uint8>());
     ReplaceAllPlayerFlags((PlayerFlags)fields[16].Get<uint32>());
+    SetUInt32Value(PLAYER_FLAGS_EX, fields[78].Get<uint32>());   // 6.x: reagent bank unlock (TC 7.3.5 column)
 
     RemovePlayerFlag(PLAYER_FLAGS_NO_PLAY_TIME);
     RemovePlayerFlag(PLAYER_FLAGS_PARTIAL_PLAY_TIME);
@@ -6129,6 +5918,8 @@ void Player::_LoadInventory(PreparedQueryResult result, uint32 timeDiff)
                         if (err == EQUIP_ERR_OK)
                             item = BankItem(dest, item, true);
                     }
+                    else // e.g. slot 86, unused since 6.x removed the key ring: mail the item instead of losing it
+                        err = EQUIP_ERR_ITEM_DOESNT_GO_TO_SLOT;
 
                     // Remember bags that may contain items in them
                     if (err == EQUIP_ERR_OK)

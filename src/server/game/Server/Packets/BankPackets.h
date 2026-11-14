@@ -60,6 +60,52 @@ namespace WorldPackets
 
             ObjectGuid Guid;
         };
+
+        // 6.x reagent bank. The layouts follow WowPacketParser 6.0.2 (banker guid) and
+        // CMSG_AUTOBANK_ITEM / CMSG_AUTOSTORE_BANK_ITEM for the per-item moves.
+        class AutoBankReagent final : public ClientPacket
+        {
+        public:
+            AutoBankReagent(WorldPacket&& packet) : ClientPacket(CMSG_AUTOBANK_REAGENT, std::move(packet)) { }
+
+            void Read() override;
+
+            WorldPackets::Item::InvUpdate Inv;
+            uint8 Bag = 0;
+            uint8 Slot = 0;
+        };
+
+        class AutoStoreBankReagent final : public ClientPacket
+        {
+        public:
+            AutoStoreBankReagent(WorldPacket&& packet) : ClientPacket(CMSG_AUTOSTORE_BANK_REAGENT, std::move(packet)) { }
+
+            void Read() override;
+
+            WorldPackets::Item::InvUpdate Inv;
+            uint8 Bag = 0;
+            uint8 Slot = 0;
+        };
+
+        class BuyReagentBank final : public ClientPacket
+        {
+        public:
+            BuyReagentBank(WorldPacket&& packet) : ClientPacket(CMSG_BUY_REAGENT_BANK, std::move(packet)) { }
+
+            void Read() override;
+
+            ObjectGuid Banker;
+        };
+
+        class DepositReagentBank final : public ClientPacket
+        {
+        public:
+            DepositReagentBank(WorldPacket&& packet) : ClientPacket(CMSG_DEPOSIT_REAGENT_BANK, std::move(packet)) { }
+
+            void Read() override;
+
+            ObjectGuid Banker;
+        };
     }
 }
 #endif // BankPackets_h__

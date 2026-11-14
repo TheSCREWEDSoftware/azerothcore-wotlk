@@ -109,6 +109,10 @@ namespace WorldPackets
         class AutoBankItem;
         class AutoStoreBankItem;
         class BuyBankSlot;
+        class AutoBankReagent;
+        class AutoStoreBankReagent;
+        class BuyReagentBank;
+        class DepositReagentBank;
     }
 
     namespace Battlefield
@@ -1495,6 +1499,10 @@ public:                                                 // opcodes handlers
     void HandleAutoBankItemOpcode(WorldPackets::Bank::AutoBankItem& packet);
     void HandleAutoStoreBankItemOpcode(WorldPackets::Bank::AutoStoreBankItem& packet);
     void HandleBuyBankSlotOpcode(WorldPackets::Bank::BuyBankSlot& packet);
+    void HandleAutoBankReagentOpcode(WorldPackets::Bank::AutoBankReagent& packet);
+    void HandleAutoStoreBankReagentOpcode(WorldPackets::Bank::AutoStoreBankReagent& packet);
+    void HandleBuyReagentBankOpcode(WorldPackets::Bank::BuyReagentBank& packet);
+    void HandleDepositReagentBankOpcode(WorldPackets::Bank::DepositReagentBank& packet);
     void HandleBlackMarketOpen(WorldPackets::BlackMarket::BlackMarketOpen& blackMarketOpen);
     void HandleBlackMarketRequestItems(WorldPackets::BlackMarket::BlackMarketRequestItems& blackMarketRequestItems);
     void HandleBlackMarketBidOnItem(WorldPackets::BlackMarket::BlackMarketBidOnItem& blackMarketBidOnItem);

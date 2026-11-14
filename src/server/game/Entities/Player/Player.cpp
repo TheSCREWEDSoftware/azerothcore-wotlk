@@ -3989,7 +3989,7 @@ void Player::BuildCreateUpdateBlockForPlayer(UpdateData* data, Player* target)
 
             m_items[i]->BuildCreateUpdateBlockForPlayer(data, target);
         }
-        for (uint8 i = KEYRING_SLOT_START; i < CURRENCYTOKEN_SLOT_END; ++i)
+        for (uint8 i = REAGENT_SLOT_START; i < REAGENT_SLOT_END; ++i)
         {
             if (!m_items[i])
                 continue;
@@ -4022,7 +4022,7 @@ void Player::DestroyForPlayer(Player* target, bool onDeath) const
 
             m_items[i]->DestroyForPlayer(target);
         }
-        for (uint8 i = KEYRING_SLOT_START; i < CURRENCYTOKEN_SLOT_END; ++i)
+        for (uint8 i = REAGENT_SLOT_START; i < REAGENT_SLOT_END; ++i)
         {
             if (!m_items[i])
                 continue;
@@ -4876,7 +4876,7 @@ void Player::DurabilityLossAll(double percent, bool inventory)
                 DurabilityLoss(pItem, percent);
 
         // keys not have durability
-        //for (int i = KEYRING_SLOT_START; i < KEYRING_SLOT_END; i++)
+        //for (int i = REAGENT_SLOT_START; i < REAGENT_SLOT_END; i++)
 
         for (uint8 i = INVENTORY_SLOT_BAG_START; i < INVENTORY_SLOT_BAG_END; i++)
             if (Bag* pBag = GetBagByPos(i))
@@ -4920,7 +4920,7 @@ void Player::DurabilityPointsLossAll(int32 points, bool inventory)
                 DurabilityPointsLoss(pItem, points);
 
         // keys not have durability
-        //for (int i = KEYRING_SLOT_START; i < KEYRING_SLOT_END; i++)
+        //for (int i = REAGENT_SLOT_START; i < REAGENT_SLOT_END; i++)
 
         for (uint8 i = INVENTORY_SLOT_BAG_START; i < INVENTORY_SLOT_BAG_END; i++)
             if (Bag* pBag = (Bag*)GetItemByPos(INVENTORY_SLOT_BAG_0, i))

@@ -648,8 +648,9 @@ private:
             return -1;
         }
 
+        // 6.x: the key ring is gone; its slots became the reagent bank
         int16 count = 0;
-        for (uint8 i = KEYRING_SLOT_START; i < KEYRING_SLOT_END; ++i)
+        for (uint8 i = REAGENT_SLOT_START; i < REAGENT_SLOT_END; ++i)
         {
             Item* pItem = playerTarget->GetItemByPos(INVENTORY_SLOT_BAG_0, i);
             if (pItem)
@@ -669,18 +670,8 @@ private:
             return -1;
         }
 
-        int16 count = 0;
-        for (uint8 i = CURRENCYTOKEN_SLOT_START; i < CURRENCYTOKEN_SLOT_END; ++i)
-        {
-            Item* pItem = playerTarget->GetItemByPos(INVENTORY_SLOT_BAG_0, i);
-            if (pItem)
-            {
-                playerTarget->DestroyItem(INVENTORY_SLOT_BAG_0, i, true);
-                ++count;
-            }
-        }
-
-        return count;
+        // 6.x: currency tokens are not items any more, so there is no currency token bag
+        return 0;
     }
 
     static int16 ResetItemsInVendorBuyBackTab(Player* playerTarget)

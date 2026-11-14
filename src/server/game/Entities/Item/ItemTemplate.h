@@ -240,7 +240,7 @@ enum ItemFlags2 : uint32
     ITEM_FLAG2_CAN_DROP_IN_CHALLENGE_MODE               = 0x10000000, // NYI - unused
     ITEM_FLAG2_NEVER_STACK_IN_LOOT_UI                   = 0x20000000, // NYI - unused
     ITEM_FLAG2_DISENCHANT_TO_LOOT_TABLE                 = 0x40000000, // NYI - unused
-    ITEM_FLAG2_USED_IN_A_TRADESKILL                     = 0x80000000  // NYI - unused
+    ITEM_FLAG2_USED_IN_A_TRADESKILL                     = 0x80000000  // crafting reagent, can go into the 6.x reagent bank
 };
 
 enum ItemFlagsCustom : uint32
@@ -783,6 +783,7 @@ struct ItemTemplate
     }
 
     [[nodiscard]] bool IsCurrencyToken() const { return BagFamily & BAG_FAMILY_MASK_CURRENCY_TOKENS; }
+    [[nodiscard]] bool IsCraftingReagent() const { return HasFlag2(ITEM_FLAG2_USED_IN_A_TRADESKILL); } // TC 7.3.5
 
     [[nodiscard]] uint32 GetMaxStackSize() const
     {

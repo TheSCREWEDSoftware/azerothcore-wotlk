@@ -180,3 +180,133 @@ void WorldSession::SendShowBank(ObjectGuid guid)
     packet.Guid = guid;
     SendPacket(packet.Write());
 }
+
+// 6.x reagent bank. TC 6.x left these opcodes unhandled; the reagent slots (87-184) are part of
+// the inventory for crafting, as in TC 7.3.5, and only crafting reagents can be moved in.
+static constexpr uint64 REAGENT_BANK_UNLOCK_COST = 100 * GOLD;
+
+void WorldSession::HandleBuyReagentBankOpcode(WorldPackets::Bank::BuyReagentBank& packet)
+{
+    if (!CanUseBank(packet.Banker))
+    {
+        LOG_DEBUG("network", "WORLD: HandleBuyReagentBankOpcode - {} not found or you can't interact with him.", packet.Banker.ToString());
+        return;
+    }
+
+    if (_player->HasPlayerFlagEx(PLAYER_FLAGS_EX_REAGENT_BANK_UNLOCKED))
+        return;
+
+    if (!_player->HasEnoughMoney(REAGENT_BANK_UNLOCK_COST))
+    {
+        _player->SendEquipError(EQUIP_ERR_NOT_ENOUGH_MONEY, nullptr, nullptr);
+        return;
+    }
+
+    _player->ModifyMoney(-int64(REAGENT_BANK_UNLOCK_COST));
+    _player->SetPlayerFlagEx(PLAYER_FLAGS_EX_REAGENT_BANK_UNLOCKED);
+
+    CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_PLAYER_FLAGS_EX);
+    stmt->SetData(0, _player->GetUInt32Value(PLAYER_FLAGS_EX));
+    stmt->SetData(1, _player->GetGUID().GetCounter());
+    CharacterDatabase.Execute(stmt);
+}
+
+void WorldSession::HandleDepositReagentBankOpcode(WorldPackets::Bank::DepositReagentBank& packet)
+{
+    if (!CanUseBank(packet.Banker))
+    {
+        LOG_DEBUG("network", "WORLD: HandleDepositReagentBankOpcode - {} not found or you can't interact with him.", packet.Banker.ToString());
+        return;
+    }
+
+    if (!_player->HasPlayerFlagEx(PLAYER_FLAGS_EX_REAGENT_BANK_UNLOCKED))
+    {
+        _player->SendEquipError(EQUIP_ERR_REAGENT_BANK_LOCKED, nullptr, nullptr);
+        return;
+    }
+
+    // Collect first: moving items while walking the bags would change what is being walked
+    std::vector<Item*> reagents;
+    auto collect = [&reagents](Item* item)
+    {
+        if (item && !item->IsInTrade() && item->GetTemplate()->IsCraftingReagent())
+            reagents.push_back(item);
+    };
+
+    for (uint8 slot = INVENTORY_SLOT_ITEM_START; slot < INVENTORY_SLOT_ITEM_END; ++slot)
+        collect(_player->GetItemByPos(INVENTORY_SLOT_BAG_0, slot));
+
+    for (uint8 bagSlot = INVENTORY_SLOT_BAG_START; bagSlot < INVENTORY_SLOT_BAG_END; ++bagSlot)
+        if (Bag* bag = _player->GetBagByPos(bagSlot))
+            for (uint32 slot = 0; slot < bag->GetBagSize(); ++slot)
+                collect(bag->GetItemByPos(uint8(slot)));
+
+    for (Item* item : reagents)
+    {
+        ItemPosCountVec dest;
+        InventoryResult msg = _player->CanStoreReagentBankItem(dest, item);
+        if (msg != EQUIP_ERR_OK)
+        {
+            _player->SendEquipError(msg, item, nullptr);
+            break;
+        }
+
+        // Both sides count as inventory, so quest item counts do not change
+        _player->RemoveItem(item->GetBagSlot(), item->GetSlot(), true);
+        _player->StoreItem(dest, item, true);
+    }
+}
+
+void WorldSession::HandleAutoBankReagentOpcode(WorldPackets::Bank::AutoBankReagent& packet)
+{
+    if (!CanUseBank())
+    {
+        LOG_DEBUG("network", "WORLD: HandleAutoBankReagentOpcode - Unit ({}) not found or you can't interact with him.", m_currentBankerGUID.ToString());
+        return;
+    }
+
+    if (Player::IsReagentBankPos(packet.Bag, packet.Slot) || !_player->IsInventoryPos(packet.Bag, packet.Slot))
+        return;
+
+    Item* item = _player->GetItemByPos(packet.Bag, packet.Slot);
+    if (!item)
+        return;
+
+    ItemPosCountVec dest;
+    InventoryResult msg = _player->CanStoreReagentBankItem(dest, item);
+    if (msg != EQUIP_ERR_OK)
+    {
+        _player->SendEquipError(msg, item, nullptr);
+        return;
+    }
+
+    _player->RemoveItem(packet.Bag, packet.Slot, true);
+    _player->StoreItem(dest, item, true);
+}
+
+void WorldSession::HandleAutoStoreBankReagentOpcode(WorldPackets::Bank::AutoStoreBankReagent& packet)
+{
+    if (!CanUseBank())
+    {
+        LOG_DEBUG("network", "WORLD: HandleAutoStoreBankReagentOpcode - Unit ({}) not found or you can't interact with him.", m_currentBankerGUID.ToString());
+        return;
+    }
+
+    if (!Player::IsReagentBankPos(packet.Bag, packet.Slot))
+        return;
+
+    Item* item = _player->GetItemByPos(packet.Bag, packet.Slot);
+    if (!item)
+        return;
+
+    ItemPosCountVec dest;
+    InventoryResult msg = _player->CanStoreItem(NULL_BAG, NULL_SLOT, dest, item, false);
+    if (msg != EQUIP_ERR_OK)
+    {
+        _player->SendEquipError(msg, item, nullptr);
+        return;
+    }
+
+    _player->RemoveItem(packet.Bag, packet.Slot, true);
+    _player->StoreItem(dest, item, true);
+}

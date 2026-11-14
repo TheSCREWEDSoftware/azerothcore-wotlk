@@ -470,6 +470,13 @@ enum DrunkenState
 
 #define MAX_DRUNKEN   4
 
+// 6.x PLAYER_FLAGS_EX (TC 6.x)
+enum PlayerFlagsEx : uint32
+{
+    PLAYER_FLAGS_EX_REAGENT_BANK_UNLOCKED   = 0x0001,
+    PLAYER_FLAGS_EX_MERCENARY_MODE          = 0x0002
+};
+
 enum PlayerFlags : uint32
 {
     PLAYER_FLAGS_GROUP_LEADER      = 0x00000001,
@@ -668,7 +675,7 @@ enum PlayerSlots
     // first slot for item stored (in any way in player m_items data)
     PLAYER_SLOT_START           = 0,
     // last+1 slot for item stored (in any way in player m_items data)
-    PLAYER_SLOT_END             = 150,
+    PLAYER_SLOT_END             = 184,
     PLAYER_SLOTS_COUNT          = (PLAYER_SLOT_END - PLAYER_SLOT_START)
 };
 
@@ -730,10 +737,12 @@ enum BuyBackSlots                                           // 12 slots
     BUYBACK_SLOT_END            = 86
 };
 
-enum KeyRingSlots                                           // 32 slots
+// 6.x: slot 86 is unused, then the reagent bank (98 slots). The 3.3.5 key ring and
+// currency token slots no longer exist (TC 6.x).
+enum ReagentSlots                                           // 98 slots
 {
-    KEYRING_SLOT_START          = 86,
-    KEYRING_SLOT_END            = 118
+    REAGENT_SLOT_START          = 87,
+    REAGENT_SLOT_END            = 184
 };
 
 struct PlayerCurrency
@@ -742,12 +751,6 @@ struct PlayerCurrency
     uint32 WeeklyQuantity = 0;
     uint32 TrackedQuantity = 0;
     uint8 Flags = 0;
-};
-
-enum CurrencyTokenSlots                                     // 32 slots
-{
-    CURRENCYTOKEN_SLOT_START    = 118,
-    CURRENCYTOKEN_SLOT_END      = 150
 };
 
 enum EquipmentSetUpdateState
@@ -1216,6 +1219,9 @@ public:
 
     PlayerFlags GetPlayerFlags() const { return PlayerFlags(GetUInt32Value(PLAYER_FLAGS)); }
     bool HasPlayerFlag(PlayerFlags flags) const { return HasFlag(PLAYER_FLAGS, flags) != 0; }
+    bool HasPlayerFlagEx(PlayerFlagsEx flags) const { return HasFlag(PLAYER_FLAGS_EX, flags) != 0; }
+    void SetPlayerFlagEx(PlayerFlagsEx flags) { SetFlag(PLAYER_FLAGS_EX, flags); }
+    void RemovePlayerFlagEx(PlayerFlagsEx flags) { RemoveFlag(PLAYER_FLAGS_EX, flags); }
     void SetPlayerFlag(PlayerFlags flags) { SetFlag(PLAYER_FLAGS, flags); }
     void RemovePlayerFlag(PlayerFlags flags) { RemoveFlag(PLAYER_FLAGS, flags); }
     void ReplaceAllPlayerFlags(PlayerFlags flags) { SetUInt32Value(PLAYER_FLAGS, flags); }
@@ -1416,6 +1422,8 @@ public:
     [[nodiscard]] InventoryResult CanUnequipItems(uint32 item, uint32 count) const;
     [[nodiscard]] InventoryResult CanUnequipItem(uint16 src, bool swap) const;
     InventoryResult CanBankItem(uint8 bag, uint8 slot, ItemPosCountVec& dest, Item* pItem, bool swap, bool not_loading = true) const;
+    InventoryResult CanStoreReagentBankItem(ItemPosCountVec& dest, Item* pItem) const;
+    [[nodiscard]] static bool IsReagentBankPos(uint8 bag, uint8 slot) { return bag == INVENTORY_SLOT_BAG_0 && slot >= REAGENT_SLOT_START && slot < REAGENT_SLOT_END; }
     InventoryResult CanUseItem(Item* pItem, bool not_loading = true) const;
     [[nodiscard]] bool HasItemTotemCategory(uint32 TotemCategory) const;
     bool IsTotemCategoryCompatiableWith(ItemTemplate const* pProto, uint32 requiredTotemCategoryId) const;
@@ -1469,7 +1477,6 @@ public:
     void AddItemToBuyBackSlot(Item* pItem, uint32 money);
     Item* GetItemFromBuyBackSlot(uint32 slot);
     void RemoveItemFromBuyBackSlot(uint32 slot, bool del);
-    [[nodiscard]] uint32 GetMaxKeyringSize() const { return KEYRING_SLOT_END - KEYRING_SLOT_START; }
     void SendEquipError(InventoryResult msg, Item* pItem, Item* pItem2 = nullptr, uint32 itemid = 0);
     void SendBuyError(BuyResult msg, Creature* creature, uint32 item, uint32 param);
     void SendSellError(SellResult msg, Creature* creature, ObjectGuid guid, uint32 param);
