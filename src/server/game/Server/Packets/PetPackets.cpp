@@ -55,6 +55,30 @@ WorldPacket const* WorldPackets::Pet::PetSpells::Write()
     return &_worldPacket;
 }
 
+void WorldPackets::Pet::SetPetSlot::Read()
+{
+    _worldPacket >> PetNumber;
+    _worldPacket >> DestSlot;
+    _worldPacket >> StableMaster;
+}
+
+WorldPacket const* WorldPackets::Pet::PetSlotUpdated::Write()
+{
+    _worldPacket << int32(PetNumberA);
+    _worldPacket << int32(PetSlotA);
+    _worldPacket << int32(PetNumberB);
+    _worldPacket << int32(PetSlotB);
+
+    return &_worldPacket;
+}
+
+WorldPacket const* WorldPackets::Pet::PetStableResult::Write()
+{
+    _worldPacket << uint8(Result);
+
+    return &_worldPacket;
+}
+
 WorldPacket const* WorldPackets::Pet::PetStableList::Write()
 {
     _worldPacket << StableMaster;

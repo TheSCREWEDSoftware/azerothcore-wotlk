@@ -74,8 +74,8 @@ namespace Trainer
                 trainerListSpell.ReqLevel = trainerSpell.ReqLevel;
             trainerListSpell.ReqSkillLine = trainerSpell.ReqSkillLine;
             trainerListSpell.ReqSkillRank = trainerSpell.ReqSkillRank;
-            std::copy_n(trainerSpell.ReqAbility.begin(), trainerListSpell.ReqAbility.size(),
-                trainerListSpell.ReqAbility.begin());
+            for (std::size_t i = 0; i < MAX_TRAINERSPELL_ABILITY_REQS && i < trainerSpell.ReqAbility.size(); ++i)
+                trainerListSpell.ReqAbility[i] = int32(trainerSpell.ReqAbility[i]);
         }
 
         sScriptMgr->OnPlayerBeforeReceiveSpellListFromTrainer(player, npc, trainerList);
@@ -256,12 +256,9 @@ namespace Trainer
         player->SendDirectMessage(trainerBuyFailed.Write());
     }
 
-    void Trainer::SendTeachSucceeded(Creature const* npc, Player const* player, uint32 spellId) const
+    void Trainer::SendTeachSucceeded(Creature const* /*npc*/, Player const* /*player*/, uint32 /*spellId*/) const
     {
-        WorldPackets::NPC::TrainerBuySucceeded trainerBuySucceeded;
-        trainerBuySucceeded.TrainerGUID = npc->GetGUID();
-        trainerBuySucceeded.SpellID = spellId;
-        player->SendDirectMessage(trainerBuySucceeded.Write());
+        // 6.x has no SMSG_TRAINER_BUY_SUCCEEDED: the client shows the learned spell from SMSG_LEARNED_SPELLS
     }
 
     std::string const& Trainer::GetGreeting(LocaleConstant locale) const

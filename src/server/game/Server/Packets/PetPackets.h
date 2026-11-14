@@ -126,6 +126,42 @@ namespace WorldPackets
             std::string PetName;
         };
 
+        // 6.x layouts from WowPacketParser V6_0_2_19033 (not implemented by TrinityCore 6.x)
+        class SetPetSlot final : public ClientPacket
+        {
+        public:
+            SetPetSlot(WorldPacket&& packet) : ClientPacket(CMSG_SET_PET_SLOT, std::move(packet)) { }
+
+            void Read() override;
+
+            uint32 PetNumber = 0;
+            uint8 DestSlot = 0;
+            ObjectGuid StableMaster;
+        };
+
+        class PetSlotUpdated final : public ServerPacket
+        {
+        public:
+            PetSlotUpdated() : ServerPacket(SMSG_PET_SLOT_UPDATED, 16) { }
+
+            WorldPacket const* Write() override;
+
+            int32 PetNumberA = 0;
+            int32 PetSlotA = 0;
+            int32 PetNumberB = 0;
+            int32 PetSlotB = 0;
+        };
+
+        class PetStableResult final : public ServerPacket
+        {
+        public:
+            PetStableResult(uint8 result) : ServerPacket(SMSG_PET_STABLE_RESULT, 1), Result(result) { }
+
+            WorldPacket const* Write() override;
+
+            uint8 Result = 0;
+        };
+
         class PetStableList final : public ServerPacket
         {
         public:

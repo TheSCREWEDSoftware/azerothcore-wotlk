@@ -22,6 +22,9 @@
 #include "DatabaseEnv.h"
 #include "GameGraveyard.h"
 #include "NPCPackets.h"
+#include "PetPackets.h"
+#include "MailPackets.h"
+#include "ItemPackets.h"
 #include "ObjectMgr.h"
 #include "Opcodes.h"
 #include "Pet.h"
@@ -51,10 +54,9 @@ enum StablePetFlags : uint8
     PET_STABLE_FLAG_INACTIVE = 0x02
 };
 
-void WorldSession::HandleTabardVendorActivateOpcode(WorldPacket& recvData)
+void WorldSession::HandleTabardVendorActivateOpcode(WorldPackets::NPC::Hello& packet)
 {
-    ObjectGuid guid;
-    recvData >> guid;
+    ObjectGuid guid = packet.Unit;
 
     Creature* unit = GetPlayer()->GetNPCIfCanInteractWith(guid, UNIT_NPC_FLAG_TABARDDESIGNER);
     if (!unit)
@@ -72,19 +74,16 @@ void WorldSession::HandleTabardVendorActivateOpcode(WorldPacket& recvData)
 
 void WorldSession::SendTabardVendorActivate(ObjectGuid guid)
 {
-    // 5.4.8 18414, from Project SkyFire
-    WorldPacket data(SMSG_TABARD_VENDOR_ACTIVATE, 9);
-    data.WriteGuidMask(guid, { 1, 5, 0, 7, 4, 6, 3, 2 });
-    data.FlushBits();
-    data.WriteGuidBytes(guid, { 5, 4, 2, 3, 6, 0, 1, 7 });
-    SendPacket(&data);
+    WorldPackets::NPC::PlayerTabardVendorActivate packet;
+    packet.Vendor = guid;
+    SendPacket(packet.Write());
 }
 
 void WorldSession::SendShowMailBox(ObjectGuid guid)
 {
-    WorldPacket data(SMSG_SHOW_MAILBOX, 8);
-    data << guid;
-    SendPacket(&data);
+    WorldPackets::Mail::ShowMailbox packet;
+    packet.PostmasterGUID = guid;
+    SendPacket(packet.Write());
 }
 
 void WorldSession::HandleTrainerListOpcode(WorldPackets::NPC::Hello& packet)
@@ -155,12 +154,9 @@ void WorldSession::HandleTrainerBuySpellOpcode(WorldPackets::NPC::TrainerBuySpel
     trainer->TeachSpell(npc, _player, packet.SpellID);
 }
 
-void WorldSession::HandleGossipHelloOpcode(WorldPacket& recvData)
+void WorldSession::HandleGossipHelloOpcode(WorldPackets::NPC::Hello& packet)
 {
-    ObjectGuid guid;
-    // 5.4.8 18414, from Project SkyFire
-    recvData.ReadGuidMask(guid, { 2, 4, 0, 3, 6, 7, 5, 1 });
-    recvData.ReadGuidBytes(guid, { 4, 7, 1, 0, 5, 3, 6, 2 });
+    ObjectGuid guid = packet.Unit;
 
     Creature* unit = GetPlayer()->GetNPCIfCanInteractWith(guid, UNIT_NPC_FLAG_NONE);
     if (!unit)
@@ -263,14 +259,9 @@ void WorldSession::HandleGossipHelloOpcode(WorldPacket& recvData)
     }
 }*/
 
-void WorldSession::HandleSpiritHealerActivateOpcode(WorldPacket& recvData)
+void WorldSession::HandleSpiritHealerActivate(WorldPackets::NPC::SpiritHealerActivate& packet)
 {
-    LOG_DEBUG("network", "WORLD: CMSG_SPIRIT_HEALER_ACTIVATE");
-
-    ObjectGuid guid;
-    // 5.4.8 18414, from Project SkyFire
-    recvData.ReadGuidMask(guid, { 2, 7, 6, 0, 5, 4, 1, 3 });
-    recvData.ReadGuidBytes(guid, { 1, 5, 6, 3, 2, 0, 7, 4 });
+    ObjectGuid guid = packet.Healer;
 
     Creature* unit = GetPlayer()->GetNPCIfCanInteractWith(guid, UNIT_NPC_FLAG_SPIRITHEALER);
     if (!unit)
@@ -322,12 +313,9 @@ void WorldSession::SendSpiritResurrect()
     //    _player->UpdateObjectVisibility(); // xinef: not needed, called in ResurrectPlayer
 }
 
-void WorldSession::HandleBinderActivateOpcode(WorldPacket& recvData)
+void WorldSession::HandleBinderActivateOpcode(WorldPackets::NPC::Hello& packet)
 {
-    ObjectGuid npcGUID;
-    // 5.4.8 18414, from Project SkyFire
-    recvData.ReadGuidMask(npcGUID, { 0, 5, 4, 7, 6, 2, 1, 3 });
-    recvData.ReadGuidBytes(npcGUID, { 0, 4, 2, 3, 7, 1, 5, 6 });
+    ObjectGuid npcGUID = packet.Unit;
 
     if (!GetPlayer()->IsInWorld() || !GetPlayer()->IsAlive())
         return;
@@ -357,21 +345,12 @@ void WorldSession::SendBindPoint(Creature* npc)
     // send spell for homebinding (3286)
     npc->CastSpell(_player, bindspell, true);
 
-    WorldPacket data(SMSG_TRAINER_BUY_SUCCEEDED, (8 + 4));
-    data << npc->GetGUID();
-    data << uint32(bindspell);
-    SendPacket(&data);
-
     _player->PlayerTalkClass->SendCloseGossip();
 }
 
-void WorldSession::HandleListStabledPetsOpcode(WorldPacket& recvData)
+void WorldSession::HandleRequestStabledPets(WorldPackets::NPC::RequestStabledPets& packet)
 {
-    LOG_DEBUG("network", "WORLD: Recv CMSG_REQUEST_STABLED_PETS");
-    ObjectGuid npcGUID;
-    // 5.4.8 18414, from Project SkyFire
-    recvData.ReadGuidMask(npcGUID, { 0, 5, 1, 3, 6, 7, 2, 4 });
-    recvData.ReadGuidBytes(npcGUID, { 0, 5, 7, 1, 2, 3, 4, 6 });
+    ObjectGuid npcGUID = packet.StableMaster;
 
     if (!CheckStableMaster(npcGUID))
         return;
@@ -410,12 +389,8 @@ void WorldSession::SendStablePet(ObjectGuid guid)
                 pets.push_back({ &*pet, uint8(PET_STABLE_FIRST_CLIENT_SLOT + stableSlot) });
     }
 
-    WorldPacket data(SMSG_PET_STABLE_LIST, 200);
-    data.WriteGuidMask(guid, { 3, 0, 4, 7, 2, 1, 6, 5 });
-    data.WriteBits(pets.size(), 19);
-    for (StableListEntry const& entry : pets)
-        data.WriteBits(entry.Pet->Name.size(), 8);
-    data.FlushBits();
+    WorldPackets::Pet::PetStableList packet;
+    packet.StableMaster = guid;
 
     for (StableListEntry const& entry : pets)
     {
@@ -425,51 +400,29 @@ void WorldSession::SendStablePet(ObjectGuid guid)
                 if (CreatureModel const* model = creatureTemplate->GetFirstValidModel())
                     displayId = model->CreatureDisplayID;
 
-        data << uint32(entry.Pet->CreatureId);
-        data << uint32(entry.Pet->Level);
-        data << uint8(entry.ClientSlot < PET_STABLE_FIRST_CLIENT_SLOT ? PET_STABLE_FLAG_ACTIVE : PET_STABLE_FLAG_INACTIVE);
-        data << uint32(displayId);
-        data.WriteString(entry.Pet->Name);
-        data << uint32(entry.Pet->PetNumber);
-        data << uint32(entry.ClientSlot);
+        WorldPackets::Pet::PetStableInfo& stableEntry = packet.Pets.emplace_back();
+        stableEntry.PetSlot = entry.ClientSlot;
+        stableEntry.PetNumber = entry.Pet->PetNumber;
+        stableEntry.CreatureID = entry.Pet->CreatureId;
+        stableEntry.DisplayID = displayId;
+        stableEntry.ExperienceLevel = entry.Pet->Level;
+        stableEntry.PetFlags = entry.ClientSlot < PET_STABLE_FIRST_CLIENT_SLOT ? PET_STABLE_FLAG_ACTIVE : PET_STABLE_FLAG_INACTIVE;
+        stableEntry.PetName = entry.Pet->Name;
     }
 
-    data.WriteGuidBytes(guid, { 3, 5, 7, 2, 0, 4, 1, 6 });
-    SendPacket(&data);
+    SendPacket(packet.Write());
 }
 
 void WorldSession::SendStableResult(uint8 res)
 {
-    WorldPacket data(SMSG_STABLE_RESULT, 1);
-    data << uint8(res);
-    SendPacket(&data);
+    SendPacket(WorldPackets::Pet::PetStableResult(res).Write());
 }
 
-void WorldSession::HandleSetPetSlot(WorldPacket& recvData)
+void WorldSession::HandleSetPetSlot(WorldPackets::Pet::SetPetSlot& packet)
 {
-    uint32 petNumber;
-    uint8 newSlot;
-    ObjectGuid npcGuid;
-
-    recvData >> petNumber >> newSlot;
-
-    npcGuid[3] = recvData.ReadBit();
-    npcGuid[2] = recvData.ReadBit();
-    npcGuid[0] = recvData.ReadBit();
-    npcGuid[7] = recvData.ReadBit();
-    npcGuid[5] = recvData.ReadBit();
-    npcGuid[6] = recvData.ReadBit();
-    npcGuid[1] = recvData.ReadBit();
-    npcGuid[4] = recvData.ReadBit();
-
-    recvData.ReadByteSeq(npcGuid[5]);
-    recvData.ReadByteSeq(npcGuid[3]);
-    recvData.ReadByteSeq(npcGuid[1]);
-    recvData.ReadByteSeq(npcGuid[7]);
-    recvData.ReadByteSeq(npcGuid[4]);
-    recvData.ReadByteSeq(npcGuid[0]);
-    recvData.ReadByteSeq(npcGuid[6]);
-    recvData.ReadByteSeq(npcGuid[2]);
+    uint32 petNumber = packet.PetNumber;
+    uint8 newSlot = packet.DestSlot;
+    ObjectGuid npcGuid = packet.StableMaster;
 
     if (!GetPlayer()->IsAlive() || !CheckStableMaster(npcGuid) || newSlot > PET_STABLE_LAST_CLIENT_SLOT)
     {
@@ -626,43 +579,19 @@ void WorldSession::HandleSetPetSlot(WorldPacket& recvData)
 
 void WorldSession::SendPetSlotUpdated(int32 petNumberA, int32 petSlotA, int32 petNumberB, int32 petSlotB)
 {
-    WorldPacket data(SMSG_PET_SLOT_UPDATED, 4 + 4 + 4 + 4);
-    data << int32(petSlotA);
-    data << uint32(petNumberA);
-    data << uint32(petNumberB);
-    data << int32(petSlotB);
-    SendPacket(&data);
+    WorldPackets::Pet::PetSlotUpdated packet;
+    packet.PetNumberA = petNumberA;
+    packet.PetSlotA = petSlotA;
+    packet.PetNumberB = petNumberB;
+    packet.PetSlotB = petSlotB;
+    SendPacket(packet.Write());
 }
 
-void WorldSession::HandleRepairItemOpcode(WorldPacket& recvData)
+void WorldSession::HandleRepairItemOpcode(WorldPackets::Item::RepairItem& packet)
 {
-    LOG_DEBUG("network", "WORLD: CMSG_REPAIR_ITEM");
-
-    ObjectGuid npcGUID, itemGUID;
-    bool guildBank;                                         // new in 2.3.2, bool that means from guild bank money
-
-    // 5.4.8 18414, from Project SkyFire
-    recvData.ReadGuidMask(itemGUID, { 2, 5 });
-    recvData.ReadGuidMask(npcGUID, { 3 });
-    guildBank = recvData.ReadBit();
-    recvData.ReadGuidMask(npcGUID, { 7 });
-    recvData.ReadGuidMask(itemGUID, { 4 });
-    recvData.ReadGuidMask(npcGUID, { 2 });
-    recvData.ReadGuidMask(itemGUID, { 0, 3 });
-    recvData.ReadGuidMask(npcGUID, { 6, 1, 4 });
-    recvData.ReadGuidMask(itemGUID, { 6 });
-    recvData.ReadGuidMask(npcGUID, { 5, 0 });
-    recvData.ReadGuidMask(itemGUID, { 7, 1 });
-
-    recvData.ReadGuidBytes(itemGUID, { 2 });
-    recvData.ReadGuidBytes(npcGUID, { 1 });
-    recvData.ReadGuidBytes(itemGUID, { 1 });
-    recvData.ReadGuidBytes(npcGUID, { 4, 7, 3, 2 });
-    recvData.ReadGuidBytes(itemGUID, { 7 });
-    recvData.ReadGuidBytes(npcGUID, { 5, 0 });
-    recvData.ReadGuidBytes(itemGUID, { 5, 3, 4, 6 });
-    recvData.ReadGuidBytes(npcGUID, { 6 });
-    recvData.ReadGuidBytes(itemGUID, { 0 });
+    ObjectGuid npcGUID = packet.NpcGUID;
+    ObjectGuid itemGUID = packet.ItemGUID;
+    bool guildBank = packet.UseGuildBank;                   // new in 2.3.2, bool that means from guild bank money
 
     Creature* unit = GetPlayer()->GetNPCIfCanInteractWith(npcGUID, UNIT_NPC_FLAG_REPAIR);
     if (!unit)

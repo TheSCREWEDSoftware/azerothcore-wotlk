@@ -513,6 +513,7 @@ namespace WorldPackets
         class PetCancelAura;
         class PetSetAction;
         class LearnPetSpecializationGroup;
+        class SetPetSlot;
     }
 
     namespace Petition
@@ -1432,6 +1433,7 @@ public:                                                 // opcodes handlers
     void HandleNpcTextQueryOpcode(WorldPackets::Query::QueryNPCText& packet);
     void HandleBinderActivateOpcode(WorldPackets::NPC::Hello& packet);
     void HandleRequestStabledPets(WorldPackets::NPC::RequestStabledPets& packet);
+    void HandleSetPetSlot(WorldPackets::Pet::SetPetSlot& packet);
     void HandleStablePet(WorldPacket& recvPacket);
     void HandleStablePetCallback(PreparedQueryResult result);
     void HandleUnstablePet(WorldPacket& recvPacket);
