@@ -281,6 +281,52 @@ namespace WorldPackets
             uint16 SpecID = 0;
         };
 
+        // 6.x 19342: unhandled by TC 6.x, layout from WowPacketParser V6_0_2
+        class PetActionSound final : public ServerPacket
+        {
+        public:
+            PetActionSound(ObjectGuid unitGUID, int32 action) : ServerPacket(SMSG_PET_ACTION_SOUND, 16 + 4), UnitGUID(unitGUID), Action(action) { }
+
+            WorldPacket const* Write() override;
+
+            ObjectGuid UnitGUID;
+            int32 Action = 0;
+        };
+
+        // layout from TrinityCore 7.x (not parsed by WowPacketParser V6_0_2)
+        class PetDismissSound final : public ServerPacket
+        {
+        public:
+            PetDismissSound(int32 modelId, Position const& modelPosition) : ServerPacket(SMSG_PET_DISMISS_SOUND, 4 + 12), ModelID(modelId), ModelPosition(modelPosition) { }
+
+            WorldPacket const* Write() override;
+
+            int32 ModelID = 0;
+            Position ModelPosition;
+        };
+
+        // 6.x 19342: unhandled by TC 6.x, layout from WowPacketParser V6_0_2
+        class PetActionFeedback final : public ServerPacket
+        {
+        public:
+            PetActionFeedback() : ServerPacket(SMSG_PET_ACTION_FEEDBACK, 4 + 1) { }
+
+            WorldPacket const* Write() override;
+
+            int32 SpellID = 0;
+            uint8 Response = 0;
+        };
+
+        // layout from TrinityCore 7.x (not parsed by WowPacketParser V6_0_2)
+        class PetTameFailure final : public ServerPacket
+        {
+        public:
+            PetTameFailure() : ServerPacket(SMSG_PET_TAME_FAILURE, 1) { }
+
+            WorldPacket const* Write() override;
+
+            uint8 Result = 0;
+        };
     }
 }
 

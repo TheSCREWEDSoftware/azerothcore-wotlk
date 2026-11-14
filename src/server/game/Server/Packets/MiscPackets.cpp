@@ -644,3 +644,20 @@ void WorldPackets::Misc::NeutralPlayerSelectFaction::Read()
 {
     _worldPacket >> Faction;
 }
+
+WorldPacket const* WorldPackets::Misc::PlayTimeWarning::Write()
+{
+    _worldPacket << uint32(Flag);
+    _worldPacket << int32(PlayTimeRemaining);
+
+    return &_worldPacket;
+}
+
+WorldPacket const* WorldPackets::Misc::SetAnimTier::Write()
+{
+    _worldPacket << Unit;
+    _worldPacket.WriteBits(Tier, 3);
+    _worldPacket.FlushBits();
+
+    return &_worldPacket;
+}

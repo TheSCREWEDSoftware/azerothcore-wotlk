@@ -649,6 +649,25 @@ namespace WorldPackets
             int32 SpellVisualID = 0;
         };
 
+        // 6.x 19342: unhandled by TC 6.x, layout from WowPacketParser V6_0_2
+        class PlaySpellVisual final : public ServerPacket
+        {
+        public:
+            PlaySpellVisual() : ServerPacket(SMSG_PLAY_SPELL_VISUAL, 16 + 16 + 12 + 4 + 4 + 2 + 2 + 4 + 1) { }
+
+            WorldPacket const* Write() override;
+
+            ObjectGuid Source;
+            ObjectGuid Target;
+            Position TargetPosition;
+            uint32 SpellVisualID = 0;
+            float TravelSpeed = 0.0f;
+            uint16 MissReason = 0;
+            uint16 ReflectStatus = 0;
+            float Orientation = 0.0f;
+            bool SpeedAsTime = false;
+        };
+
         class PlaySpellVisualKit final : public ServerPacket
         {
         public:

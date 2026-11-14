@@ -38,15 +38,17 @@ public:
     explicit UpdateData(uint16 map);
 
     void AddOutOfRangeGUID(ObjectGuid guid);
+    void AddDestroyObject(ObjectGuid guid);
     void AddUpdateBlock(ByteBuffer const& block);
     void AddUpdateBlock(UpdateData const& block);
     bool BuildPacket(WorldPacket& packet);
-    [[nodiscard]] bool HasData() const { return m_blockCount > 0 || !m_outOfRangeGUIDs.empty(); }
+    [[nodiscard]] bool HasData() const { return m_blockCount > 0 || !m_outOfRangeGUIDs.empty() || !m_destroyGUIDs.empty(); }
     void Clear();
 
 protected:
     uint16 m_map{0};
     uint32 m_blockCount;
+    GuidVector m_destroyGUIDs;
     GuidVector m_outOfRangeGUIDs;
     ByteBuffer m_data;
 };

@@ -551,8 +551,8 @@ bool WorldSession::Update(uint32 diff, PacketFilter& updater)
                         break;
 
                     // some auth opcodes can be recieved before STATUS_LOGGEDIN_OR_RECENTLY_LOGGOUT opcodes
-                    // however when we recieve CMSG_CHAR_ENUM we are surely no longer during the logout process.
-                    if (packet->GetOpcode() == CMSG_CHAR_ENUM)
+                    // however when we recieve CMSG_ENUM_CHARACTERS we are surely no longer during the logout process.
+                    if (packet->GetOpcode() == CMSG_ENUM_CHARACTERS)
                         m_playerRecentlyLogout = false;
 
                     if (!sScriptMgr->CanPacketReceive(this, *packet))
@@ -1005,10 +1005,10 @@ std::string const* WorldSession::GetModuleString(std::string module, uint32 id) 
     return sObjectMgr->GetModuleString(module, id, GetSessionDbLocaleIndex());
 }
 
-void WorldSession::Handle_NULL(WorldPacket& null)
+void WorldSession::Handle_NULL(WorldPackets::Null& null)
 {
     LOG_ERROR("network.opcode", "Received unhandled opcode {} from {}",
-        GetOpcodeNameForLogging(static_cast<OpcodeClient>(null.GetOpcode())), GetPlayerInfo());
+        GetOpcodeNameForLogging(null.GetOpcode()), GetPlayerInfo());
 }
 
 void WorldSession::Handle_EarlyProccess(WorldPacket& recvPacket)
@@ -1152,53 +1152,6 @@ void WorldSession::SaveTutorialsData(CharacterDatabaseTransaction trans)
     m_TutorialsChanged = false;
 }
 
-void WorldSession::ReadMovementInfo(WorldPacket& data, MovementInfo* mi,
-    WorldPackets::Movement::ExtraMovementStatusElement* extras)
-{
-    if (data.GetOpcode() == MSG_MOVE_HEARTBEAT)
-        WorldPackets::Movement::ReadHeartbeat(data, *mi);
-    else if (WorldPackets::Movement::MovementStatusElements const* sequence =
-        WorldPackets::Movement::GetMovementSequence(data.GetOpcode()))
-        WorldPackets::Movement::ReadGroundMovement(data, *mi, sequence, nullptr, extras);
-    else
-    {
-        data >> mi->flags;
-        data >> mi->flags2;
-        data >> mi->time;
-        data >> mi->pos.PositionXYZOStream();
-
-        if (mi->HasMovementFlag(MOVEMENTFLAG_ONTRANSPORT))
-        {
-            data >> mi->transport.guid.ReadAsPacked();
-
-            data >> mi->transport.pos.PositionXYZOStream();
-            data >> mi->transport.time;
-            data >> mi->transport.seat;
-
-            if (mi->HasExtraMovementFlag(MOVEMENTFLAG2_INTERPOLATED_MOVEMENT))
-                data >> mi->transport.time2;
-        }
-
-        if (mi->HasMovementFlag(MovementFlags(MOVEMENTFLAG_SWIMMING | MOVEMENTFLAG_FLYING)) || (mi->HasExtraMovementFlag(MOVEMENTFLAG2_ALWAYS_ALLOW_PITCHING)))
-            data >> mi->pitch;
-
-        data >> mi->fallTime;
-
-        if (mi->HasMovementFlag(MOVEMENTFLAG_FALLING))
-        {
-            data >> mi->jump.zspeed;
-            data >> mi->jump.sinAngle;
-            data >> mi->jump.cosAngle;
-            data >> mi->jump.xyspeed;
-        }
-
-        if (mi->HasMovementFlag(MOVEMENTFLAG_SPLINE_ELEVATION))
-            data >> mi->splineElevation;
-    }
-
-    SanitizeMovementFlags(mi);
-}
-
 void WorldSession::SanitizeMovementFlags(MovementInfo* mi)
 {
     //! Anti-cheat checks. Please keep them in seperate if () blocks to maintain a clear overview.
@@ -1278,57 +1231,6 @@ void WorldSession::SanitizeMovementFlags(MovementInfo* mi)
         (!GetPlayer()->movespline->Initialized() || GetPlayer()->movespline->Finalized()), MOVEMENTFLAG_SPLINE_ENABLED);
 
 #undef REMOVE_VIOLATING_FLAGS
-}
-
-void WorldSession::WriteMovementInfo(WorldPacket* data, MovementInfo* mi)
-{
-    if (data->GetOpcode() == SMSG_PLAYER_MOVE)
-    {
-        WorldPackets::Movement::WriteMovementUpdate(*data, *mi);
-        return;
-    }
-
-    if (WorldPackets::Movement::MovementStatusElements const* sequence =
-        WorldPackets::Movement::GetMovementSequence(data->GetOpcode()))
-    {
-        WorldPackets::Movement::WriteGroundMovement(*data, *mi, sequence);
-        return;
-    }
-
-    *data << mi->guid.WriteAsPacked();
-
-    *data << mi->flags;
-    *data << mi->flags2;
-    *data << mi->time;
-    *data << mi->pos.PositionXYZOStream();
-
-    if (mi->HasMovementFlag(MOVEMENTFLAG_ONTRANSPORT))
-    {
-        *data << mi->transport.guid.WriteAsPacked();
-
-        *data << mi->transport.pos.PositionXYZOStream();
-        *data << mi->transport.time;
-        *data << mi->transport.seat;
-
-        if (mi->HasExtraMovementFlag(MOVEMENTFLAG2_INTERPOLATED_MOVEMENT))
-            *data << mi->transport.time2;
-    }
-
-    if (mi->HasMovementFlag(MovementFlags(MOVEMENTFLAG_SWIMMING | MOVEMENTFLAG_FLYING)) || mi->HasExtraMovementFlag(MOVEMENTFLAG2_ALWAYS_ALLOW_PITCHING))
-        *data << mi->pitch;
-
-    *data << mi->fallTime;
-
-    if (mi->HasMovementFlag(MOVEMENTFLAG_FALLING))
-    {
-        *data << mi->jump.zspeed;
-        *data << mi->jump.sinAngle;
-        *data << mi->jump.cosAngle;
-        *data << mi->jump.xyspeed;
-    }
-
-    if (mi->HasMovementFlag(MOVEMENTFLAG_SPLINE_ELEVATION))
-        *data << mi->splineElevation;
 }
 
 void WorldSession::ReadAddonsInfo(ByteBuffer& data)
@@ -1557,9 +1459,9 @@ void WorldSession::ResetTimeSync()
 
 void WorldSession::SendTimeSync()
 {
-    WorldPacket data(SMSG_TIME_SYNC_REQ, 4);
-    data << uint32(_timeSyncNextCounter);
-    SendPacket(&data);
+    WorldPackets::Misc::TimeSyncRequest timeSyncRequest;
+    timeSyncRequest.SequenceIndex = _timeSyncNextCounter;
+    SendPacket(timeSyncRequest.Write());
 
     _pendingTimeSyncRequests[_timeSyncNextCounter] = getMSTime();
 

@@ -16,6 +16,7 @@
  */
 
 #include "Unit.h"
+#include "VehiclePackets.h"
 #include "CombatLogPackets.h"
 #include "AbstractFollower.h"
 #include "AreaDefines.h"
@@ -48,6 +49,7 @@
 #include "MoveSplineInit.h"
 #include "MovementGenerator.h"
 #include "MovementPackets.h"
+#include "LootPackets.h"
 #include "MiscPackets.h"
 #include "ObjectAccessor.h"
 #include "ObjectMgr.h"
@@ -55,6 +57,7 @@
 #include "PassiveAI.h"
 #include "Pet.h"
 #include "PetAI.h"
+#include "PartyPackets.h"
 #include "PetPackets.h"
 #include "Player.h"
 #include "ReputationMgr.h"
@@ -10253,22 +10256,19 @@ void Unit::Mount(uint32 mount, uint32 VehicleId, uint32 creatureEntry)
             if (charm->IsCreature())
                 charm->SetUnitFlag(UNIT_FLAG_STUNNED);
 
-        SendCollisionHeightToController(player->GetCollisionHeight(), UPDATE_COLLISION_HEIGHT_MOUNT);
+        SendCollisionHeightToController(player->GetCollisionHeight(), WorldPackets::Movement::UPDATE_COLLISION_HEIGHT_MOUNT);
     }
 
     RemoveAurasWithInterruptFlags(AURA_INTERRUPT_FLAG_MOUNT);
 }
 
-// 5.4.8 18414, from Project SkyFire
 void Unit::SendSetVehicleRecId(uint32 vehicleId)
 {
-    ObjectGuid guid = GetGUID();
-    WorldPacket data(SMSG_SET_VEHICLE_REC_ID, 1 + 8 + 4);
-    data.WriteGuidMask(guid, { 5, 7, 2, 1, 4, 0, 3, 6 });
-    data.FlushBits();
-    data.WriteGuidBytes(guid, { 5, 7, 4, 6, 2, 1, 3, 0 });
-    data << uint32(vehicleId);
-    SendMessageToSet(&data, true);
+    // 6.x 19342 (TC 6.x)
+    WorldPackets::Vehicle::SetVehicleRecID setVehicleRec;
+    setVehicleRec.VehicleGUID = GetGUID();
+    setVehicleRec.VehicleRecID = vehicleId;
+    SendMessageToSet(setVehicleRec.Write(), true);
 }
 
 void Unit::Dismount()
@@ -10281,16 +10281,12 @@ void Unit::Dismount()
 
     if (Player* player = ToPlayer())
     {
-        SendCollisionHeightToController(player->GetCollisionHeight(), UPDATE_COLLISION_HEIGHT_MOUNT);
+        SendCollisionHeightToController(player->GetCollisionHeight(), WorldPackets::Movement::UPDATE_COLLISION_HEIGHT_MOUNT);
     }
 
-    // 5.4.8 18414, from Project SkyFire
-    ObjectGuid guid = GetGUID();
-    WorldPacket data(SMSG_DISMOUNT, 1 + 8);
-    data.WriteGuidMask(guid, { 6, 3, 0, 7, 1, 2, 5, 4 });
-    data.FlushBits();
-    data.WriteGuidBytes(guid, { 3, 6, 7, 5, 1, 4, 2, 0 });
-    SendMessageToSet(&data, true);
+    WorldPackets::Misc::Dismount data;
+    data.Guid = GetGUID();
+    SendMessageToSet(data.Write(), true);
 
     // dismount as a vehicle
     if (IsPlayer() && GetVehicleKit())
@@ -11018,6 +11014,30 @@ float Unit::GetSpeed(UnitMoveType mtype) const
     return m_speed_rate[mtype] * (IsControlledByPlayer() ? playerBaseMoveSpeed[mtype] : baseMoveSpeed[mtype]);
 }
 
+namespace
+{
+    // 6.x 19342: spline packets are for units not controlled by a client (TC 6.x)
+    struct MoveTypeOpcode
+    {
+        OpcodeServer SplineSet;
+        OpcodeServer MoveSet;
+        OpcodeServer MoveUpdate;
+    };
+
+    MoveTypeOpcode const MoveTypeOpcodes[MAX_MOVE_TYPE] =
+    {
+        { SMSG_MOVE_SPLINE_SET_WALK_SPEED,        SMSG_MOVE_SET_WALK_SPEED,        SMSG_MOVE_UPDATE_WALK_SPEED        },
+        { SMSG_MOVE_SPLINE_SET_RUN_SPEED,         SMSG_MOVE_SET_RUN_SPEED,         SMSG_MOVE_UPDATE_RUN_SPEED         },
+        { SMSG_MOVE_SPLINE_SET_RUN_BACK_SPEED,    SMSG_MOVE_SET_RUN_BACK_SPEED,    SMSG_MOVE_UPDATE_RUN_BACK_SPEED    },
+        { SMSG_MOVE_SPLINE_SET_SWIM_SPEED,        SMSG_MOVE_SET_SWIM_SPEED,        SMSG_MOVE_UPDATE_SWIM_SPEED        },
+        { SMSG_MOVE_SPLINE_SET_SWIM_BACK_SPEED,   SMSG_MOVE_SET_SWIM_BACK_SPEED,   SMSG_MOVE_UPDATE_SWIM_BACK_SPEED   },
+        { SMSG_MOVE_SPLINE_SET_TURN_RATE,         SMSG_MOVE_SET_TURN_RATE,         SMSG_MOVE_UPDATE_TURN_RATE         },
+        { SMSG_MOVE_SPLINE_SET_FLIGHT_SPEED,      SMSG_MOVE_SET_FLIGHT_SPEED,      SMSG_MOVE_UPDATE_FLIGHT_SPEED      },
+        { SMSG_MOVE_SPLINE_SET_FLIGHT_BACK_SPEED, SMSG_MOVE_SET_FLIGHT_BACK_SPEED, SMSG_MOVE_UPDATE_FLIGHT_BACK_SPEED },
+        { SMSG_MOVE_SPLINE_SET_PITCH_RATE,        SMSG_MOVE_SET_PITCH_RATE,        SMSG_MOVE_UPDATE_PITCH_RATE        },
+    };
+}
+
 void Unit::SetSpeed(UnitMoveType mtype, float rate, bool forced)
 {
     if (rate < 0)
@@ -11037,15 +11057,10 @@ void Unit::SetSpeed(UnitMoveType mtype, float rate, bool forced)
     }
     else if (forced)
     {
-        static WorldPackets::Movement::MovementStatusElements const speedElement[] = { WorldPackets::Movement::MSEExtraFloat };
-        WorldPackets::Movement::ExtraMovementStatusElement extra(speedElement);
-        extra.Data.floatData = GetSpeed(mtype);
-
-        MovementInfo info = m_movementInfo;
-        info.guid = GetGUID();
-        WorldPacket data(WorldPackets::Movement::SplineSetSpeedOpcode(mtype), 8 + 4);
-        WorldPackets::Movement::WriteGroundMovement(data, info, WorldPackets::Movement::GetSpeedChangeSequences(mtype).SplineSet, 0, &extra);
-        SendMessageToSet(&data, true);
+        WorldPackets::Movement::MoveSplineSetSpeed packet(MoveTypeOpcodes[mtype].SplineSet);
+        packet.MoverGUID = GetGUID();
+        packet.Speed = GetSpeed(mtype);
+        SendMessageToSet(packet.Write(), true);
     }
 
     if (IsPlayer())
@@ -11075,25 +11090,7 @@ void Unit::SendSpeedToController(UnitMoveType mtype, Player* target) const
 {
     uint32 counter = target->GetSession()->GetOrderCounter();
 
-    if (mtype == MOVE_RUN)
-    {
-        // The map-change guard rejects the boundary counter itself, including zero at login.
-        if (counter == target->GetMapChangeOrderCounter())
-        {
-            target->GetSession()->IncrementOrderCounter();
-            counter = target->GetSession()->GetOrderCounter();
-        }
-        float const speed = GetSpeed(mtype);
-        m_pendingRunSpeedChange = PendingRunSpeedChange{ counter, speed };
-        WorldPacket data(SMSG_MOVE_SET_RUN_SPEED, 17);
-        WorldPackets::Movement::WriteRunSpeedChange(data, GetGUID(), counter, speed);
-        target->GetSession()->SendPacket(&data);
-        target->GetSession()->IncrementOrderCounter();
-        LOG_DEBUG("network", "Sent Cataclysm run-speed change: counter={}, speed={}", counter, speed);
-        return;
-    }
-
-    // Same counter rules as the run speed path
+    // The map-change guard rejects the boundary counter itself, including zero at login.
     if (counter == target->GetMapChangeOrderCounter())
     {
         target->GetSession()->IncrementOrderCounter();
@@ -11101,19 +11098,17 @@ void Unit::SendSpeedToController(UnitMoveType mtype, Player* target) const
     }
 
     float const speed = GetSpeed(mtype);
-    // Turn and pitch rate have no acknowledgement sequence in 4.3.4, nothing to wait for
-    if (WorldPackets::Movement::GetSpeedChangeSequences(mtype).Ack)
+    if (mtype == MOVE_RUN)
+        m_pendingRunSpeedChange = PendingRunSpeedChange{ counter, speed };
+    else
         m_pendingSpeedChanges[mtype] = PendingRunSpeedChange{ counter, speed };
 
-    static WorldPackets::Movement::MovementStatusElements const speedElement[] = { WorldPackets::Movement::MSEExtraFloat };
-    WorldPackets::Movement::ExtraMovementStatusElement extra(speedElement);
-    extra.Data.floatData = speed;
-
-    MovementInfo info;
-    info.guid = GetGUID();
-    WorldPacket data(WorldPackets::Movement::MoveSetSpeedOpcode(mtype), 8 + 4 + 4);
-    WorldPackets::Movement::WriteGroundMovement(data, info, WorldPackets::Movement::GetSpeedChangeSequences(mtype).MoveSet, counter, &extra);
-    target->GetSession()->SendPacket(&data);
+    // 6.x 19342: every move type has a CMSG_MOVE_FORCE_*_CHANGE_ACK (TC 6.x)
+    WorldPackets::Movement::MoveSetSpeed packet(MoveTypeOpcodes[mtype].MoveSet);
+    packet.MoverGUID = GetGUID();
+    packet.SequenceIndex = counter;
+    packet.Speed = speed;
+    target->GetSession()->SendPacket(packet.Write());
     target->GetSession()->IncrementOrderCounter();
 }
 
@@ -11133,20 +11128,14 @@ void Unit::SendCollisionHeightToController(float height, uint8 reason) const
 
     m_pendingCollisionHeightChange = PendingRunSpeedChange{ counter, height };
 
-    static WorldPackets::Movement::MovementStatusElements const extraElements[] =
-    {
-        WorldPackets::Movement::MSEExtraTwoBits,
-        WorldPackets::Movement::MSEExtraFloat
-    };
-    WorldPackets::Movement::ExtraMovementStatusElement extra(extraElements);
-    extra.Data.byteData = int8(reason);
-    extra.Data.floatData = height;
-
-    MovementInfo info;
-    info.guid = GetGUID();
-    WorldPacket data(SMSG_MOVE_SET_COLLISION_HEIGHT, 8 + 1 + 4 + 4);
-    WorldPackets::Movement::WriteGroundMovement(data, info, WorldPackets::Movement::GetCollisionHeightSequence(SMSG_MOVE_SET_COLLISION_HEIGHT), counter, &extra);
-    session->SendPacket(&data);
+    WorldPackets::Movement::MoveSetCollisionHeight packet;
+    packet.MoverGUID = GetGUID();
+    packet.SequenceIndex = counter;
+    packet.Height = height;
+    packet.Scale = GetObjectScale();
+    packet.MountDisplayID = GetUInt32Value(UNIT_FIELD_MOUNTDISPLAYID);
+    packet.Reason = WorldPackets::Movement::UpdateCollisionHeightReason(reason);
+    session->SendPacket(packet.Write());
     session->IncrementOrderCounter();
 }
 
@@ -12144,17 +12133,10 @@ void Unit::SetPower(Powers power, uint32 val, bool withPowerUpdate /*= true*/, b
 
     if (withPowerUpdate)
     {
-        // 5.4.8 18414, from Project SkyFire
-        ObjectGuid guid = GetGUID();
-        WorldPacket data(SMSG_POWER_UPDATE, 1 + 3 + 8 + 1 + 4);
-        data.WriteGuidMask(guid, { 4, 6, 7, 5, 2, 3, 0, 1 });
-        data.WriteBits(1, 21);                              // power count
-        data.FlushBits();
-        data.WriteGuidBytes(guid, { 7, 0, 5, 3, 1, 2, 4 });
-        data << uint8(power);
-        data << int32(val);
-        data.WriteGuidBytes(guid, { 6 });
-        SendMessageToSet(&data, IsPlayer());
+        WorldPackets::Combat::PowerUpdate packet;
+        packet.Guid = GetGUID();
+        packet.Powers.emplace_back(int32(val), uint8(power));
+        SendMessageToSet(packet.Write(), IsPlayer());
     }
 
     // group update
@@ -12228,8 +12210,10 @@ uint32 Unit::GetCreatePowers(Powers power) const
             return (IsPlayer() || !((Creature const*)this)->IsPet() || ((Pet const*)this)->getPetType() != HUNTER_PET ? 0 : 100);
         case POWER_ENERGY:
             return 100;
-        case POWER_HAPPINESS:
-            return (IsPlayer() || !((Creature const*)this)->IsPet() || ((Pet const*)this)->getPetType() != HUNTER_PET ? 0 : 1050000);
+        case POWER_HAPPINESS:                               // 6.x: POWER_COMBO_POINTS, same value
+            if (IsPlayer())
+                return 5;
+            return (!((Creature const*)this)->IsPet() || ((Pet const*)this)->getPetType() != HUNTER_PET ? 0 : 1050000);
         case POWER_RUNIC_POWER:
             return 1000;
         case POWER_RUNE:
@@ -12715,9 +12699,10 @@ void Unit::SendPetActionFeedback(uint8 msg) const
     if (!owner || !owner->IsPlayer())
         return;
 
-    WorldPacket data(SMSG_PET_ACTION_FEEDBACK, 1);
-    data << uint8(msg);
-    owner->ToPlayer()->SendDirectMessage(&data);
+    WorldPackets::Pet::PetActionFeedback packet;
+    packet.SpellID = 0;
+    packet.Response = msg;
+    owner->ToPlayer()->SendDirectMessage(packet.Write());
 }
 
 void Unit::SendPetActionSound(PetAction action) const
@@ -12733,14 +12718,11 @@ void Unit::SendPetDismissSound() const
 
 WorldPacket Unit::BuildAIReactionPacket(ObjectGuid guid, uint32 reaction)
 {
-    // 5.4.8 18414, from Project SkyFire
-    WorldPacket data(SMSG_AI_REACTION, 1 + 8 + 4);
-    data.WriteGuidMask(guid, { 5, 7, 0, 4, 6, 2, 3, 1 });
-    data.FlushBits();
-    data.WriteGuidBytes(guid, { 4, 6, 5 });
-    data << uint32(reaction);
-    data.WriteGuidBytes(guid, { 7, 1, 2, 0, 3 });
-    return data;
+    WorldPackets::Combat::AIReaction packet;
+    packet.UnitGUID = guid;
+    packet.Reaction = reaction;
+    packet.Write();
+    return packet.Move();
 }
 
 void Unit::SendPetAIReaction(ObjectGuid guid) const
@@ -12861,9 +12843,8 @@ void Unit::SetStandState(uint8 state)
 
     if (IsPlayer())
     {
-        WorldPacket data(SMSG_STANDSTATE_UPDATE, 1);
-        data << (uint8)state;
-        ToPlayer()->SendDirectMessage(&data);
+        WorldPackets::Misc::StandStateUpdate packet(UnitStandStateType(state), 0);
+        ToPlayer()->SendDirectMessage(packet.Write());
     }
 }
 
@@ -13015,44 +12996,21 @@ void Unit::SendComboPoints()
         return;
     }
 
-    // 5.4.8 18414, from Project SkyFire
-    ObjectGuid targetGuid = m_comboTarget ? m_comboTarget->GetGUID() : ObjectGuid::Empty;
-    auto writeComboTarget = [&](WorldPacket& data)
-    {
-        data.WriteGuidMask(targetGuid, { 0, 5, 6, 3, 7, 4, 1, 2 });
-        data.FlushBits();
-        data.WriteGuidBytes(targetGuid, { 5, 6, 4, 7, 3, 0 });
-        data << uint8(m_comboPoints);
-        data.WriteGuidBytes(targetGuid, { 2, 1 });
-    };
+    // 6.x 19342: combo points are a power of the player (POWER_COMBO_POINTS, TC 6.x); the 5.4.8
+    // combo point opcodes no longer exist. Vehicles and charmed units show them on their controller.
+    Player* player = ToPlayer();
+    if (!player && m_movedByPlayer)
+        player = m_movedByPlayer->ToPlayer();
 
-    if (Player* playerMe = ToPlayer())
+    if (!player)
     {
-        WorldPacket data(SMSG_UPDATE_COMBO_POINTS, 1 + 8 + 1);
-        writeComboTarget(data);
-        playerMe->SendDirectMessage(&data);
+        ObjectGuid ownerGuid = GetCharmerOrOwnerGUID();
+        if (ownerGuid.IsPlayer())
+            player = ObjectAccessor::GetPlayer(*this, ownerGuid);
     }
 
-    ObjectGuid ownerGuid = GetCharmerOrOwnerGUID();
-    Player* owner = nullptr;
-    if (ownerGuid.IsPlayer())
-    {
-        owner = ObjectAccessor::GetPlayer(*this, ownerGuid);
-    }
-
-    if (m_movedByPlayer || owner)
-    {
-        // SkyFire prefixes the pet's packed guid to the player layout
-        WorldPacket data(SMSG_PET_UPDATE_COMBO_POINTS, GetPackGUID().size() + 1 + 8 + 1);
-        data << GetPackGUID();
-        writeComboTarget(data);
-
-        if (m_movedByPlayer)
-            m_movedByPlayer->ToPlayer()->SendDirectMessage(&data);
-
-        if (owner && owner != m_movedByPlayer)
-            owner->SendDirectMessage(&data);
-    }
+    if (player && player->GetPowerIndex(POWER_COMBO_POINTS) < MAX_UNIT_POWER_FIELDS)
+        player->SetPower(POWER_COMBO_POINTS, m_comboPoints);
 }
 
 void Unit::ClearComboPointHolders()
@@ -13792,28 +13750,12 @@ void Unit::Kill(Unit* killer, Unit* victim, bool durabilityLoss, WeaponAttackTyp
     // call kill spell proc event (before real die and combat stop to triggering auras removed at death/combat stop)
     if (isRewardAllowed && player && player != victim)
     {
-        // 5.4.8 18414, from Project SkyFire
-        ObjectGuid playerGuid = player->GetGUID();          // player with killing blow
-        ObjectGuid victimGuid = victim->GetGUID();
-        WorldPacket data(SMSG_PARTYKILLLOG, (1 + 8 + 8)); // send event PARTY_KILL
-        data.WriteGuidMask(victimGuid, { 7, 2 });
-        data.WriteGuidMask(playerGuid, { 1 });
-        data.WriteGuidMask(victimGuid, { 4 });
-        data.WriteGuidMask(playerGuid, { 2, 5 });
-        data.WriteGuidMask(victimGuid, { 3, 1, 0 });
-        data.WriteGuidMask(playerGuid, { 3, 0, 4 });
-        data.WriteGuidMask(victimGuid, { 6 });
-        data.WriteGuidMask(playerGuid, { 7 });
-        data.WriteGuidMask(victimGuid, { 5 });
-        data.WriteGuidMask(playerGuid, { 6 });
-        data.FlushBits();
-        data.WriteGuidBytes(victimGuid, { 0, 5 });
-        data.WriteGuidBytes(playerGuid, { 0, 2 });
-        data.WriteGuidBytes(victimGuid, { 7, 6, 1, 4 });
-        data.WriteGuidBytes(playerGuid, { 4, 1 });
-        data.WriteGuidBytes(victimGuid, { 2 });
-        data.WriteGuidBytes(playerGuid, { 6, 3, 5, 7 });
-        data.WriteGuidBytes(victimGuid, { 3 });
+        // 6.x 19342 (TC 6.x)
+        WorldPackets::Party::PartyKillLog partyKillLog;
+        partyKillLog.Player = player->GetGUID();             // player with killing blow
+        partyKillLog.Victim = victim->GetGUID();
+        partyKillLog.Write();
+        WorldPacket data = partyKillLog.Move();              // send event PARTY_KILL
 
         Player* looter = player;
         Group* group = player->GetGroup();
@@ -13843,17 +13785,9 @@ void Unit::Kill(Unit* killer, Unit* victim, bool durabilityLoss, WeaponAttackTyp
 
             if (creature)
             {
-                // 5.4.8 18414, from Project SkyFire
-                ObjectGuid creatureGuid = creature->GetGUID();
-                WorldPacket data2(SMSG_LOOT_LIST, 2 + 8);
-                data2.WriteGuidMask(creatureGuid, { 5 });
-                data2.WriteBit(false);                      // has master looter
-                data2.WriteGuidMask(creatureGuid, { 1 });
-                data2.WriteBit(false);                      // has round robin winner
-                data2.WriteGuidMask(creatureGuid, { 4, 3, 2, 7, 0, 6 });
-                data2.FlushBits();
-                data2.WriteGuidBytes(creatureGuid, { 5, 1, 6, 2, 3, 0, 7, 4 });
-                player->SendMessageToSet(&data2, true);
+                WorldPackets::Loot::LootList lootList;
+                lootList.Owner = creature->GetGUID();
+                player->SendMessageToSet(lootList.Write(), true);
             }
         }
 
@@ -14348,12 +14282,13 @@ void Unit::SendMoveRoot(bool apply)
     if (!IsInWorld())
         return;
 
-    PackedGuid const& guid = GetPackGUID();
     // Wrath+ spline root: when unit is currently not controlled by a player
     if (!client)
     {
-        WorldPacket data(apply ? SMSG_SPLINE_MOVE_ROOT : SMSG_SPLINE_MOVE_UNROOT, guid.size());
-        WorldPackets::Movement::WriteMovementFlagChange(data, GetGUID());
+        WorldPackets::Movement::MoveSplineSetFlag splineSetFlag(apply ? SMSG_MOVE_SPLINE_ROOT : SMSG_MOVE_SPLINE_UNROOT);
+        splineSetFlag.MoverGUID = GetGUID();
+        splineSetFlag.Write();
+        WorldPacket data = splineSetFlag.Move();
         SendMessageToSet(&data, true);
     }
     // Wrath+ force root: when unit is controlled by a player
@@ -14361,12 +14296,10 @@ void Unit::SendMoveRoot(bool apply)
     {
         uint32 const counter = client->GetSession()->GetOrderCounter();
 
-        WorldPacket data(apply ? SMSG_MOVE_ROOT : SMSG_MOVE_UNROOT, guid.size() + 4);
-        MovementInfo info;
-        info.guid = GetGUID();
-        WorldPackets::Movement::WriteGroundMovement(data, info,
-            WorldPackets::Movement::GetMovementFlagSequence(data.GetOpcode()), counter);
-        client->GetSession()->SendPacket(&data);
+        WorldPackets::Movement::MoveSetFlag packet(apply ? SMSG_MOVE_ROOT : SMSG_MOVE_UNROOT);
+        packet.MoverGUID = GetGUID();
+        packet.SequenceIndex = counter;
+        client->GetSession()->SendPacket(packet.Write());
         client->GetSession()->IncrementOrderCounter();
     }
 }
@@ -15242,8 +15175,7 @@ void Unit::KnockbackFrom(float x, float y, float speedXY, float speedZ)
         WorldPackets::Movement::MoveKnockBack packet;
         packet.MoverGUID = GetGUID();
         packet.SequenceIndex = player->GetSession()->GetOrderCounter();
-        packet.DirectionX = vcos;
-        packet.DirectionY = vsin;
+        packet.Direction = G3D::Vector2(vcos, vsin);
         packet.HorzSpeed = speedXY;
         packet.VertSpeed = -speedZ;
         player->SendDirectMessage(packet.Write());
@@ -15335,8 +15267,7 @@ void Unit::JumpTo(float speedXY, float speedZ, bool forward)
 
         WorldPackets::Movement::MoveKnockBack packet;
         packet.MoverGUID = GetGUID();
-        packet.DirectionX = vcos;
-        packet.DirectionY = vsin;
+        packet.Direction = G3D::Vector2(vcos, vsin);
         packet.HorzSpeed = speedXY;
         packet.VertSpeed = -speedZ;
         ToPlayer()->SendDirectMessage(packet.Write());
@@ -15811,9 +15742,9 @@ void Unit::NearTeleportTo(float x, float y, float z, float orientation, bool cas
 
 void Unit::SendTameFailure(uint8 result)
 {
-    WorldPacket data(SMSG_PET_TAME_FAILURE, 1);
-    data << uint8(result);
-    ToPlayer()->SendDirectMessage(&data);
+    WorldPackets::Pet::PetTameFailure packet;
+    packet.Result = result;
+    ToPlayer()->SendDirectMessage(packet.Write());
 }
 
 void Unit::SendTeleportPacket(Position& pos)
@@ -15825,17 +15756,21 @@ void Unit::SendTeleportPacket(Position& pos)
     {
         ToPlayer()->SetCanTeleport(true);
     }
-    WorldPacket data2(SMSG_MOVE_UPDATE_TELEPORT, 38);
+
+    // 6.x 19342: SMSG_MOVE_UPDATE_TELEPORT signals the teleport to nearby players (TC 6.x)
     MovementInfo info = m_movementInfo;
     info.guid = GetGUID();
     info.pos.Relocate(GetPosition());
     info.time = GameTime::GetGameTimeMS().count();
-    WorldPackets::Movement::WriteTeleportUpdate(data2, info);
+    WorldPackets::Movement::MoveUpdateTeleport moveUpdateTeleport;
+    moveUpdateTeleport.movementInfo = &info;
+    moveUpdateTeleport.Write();
+
     if (IsCreature())
         Relocate(&oldPos);
     if (IsPlayer())
         Relocate(&pos);
-    SendMessageToSet(&data2, false);
+    SendMessageToSet(moveUpdateTeleport.GetRawPacket(), false);
 }
 
 bool Unit::UpdatePosition(float x, float y, float z, float orientation, bool teleport)
@@ -16111,13 +16046,9 @@ void Unit::CastDelayedSpellWithPeriodicAmount(Unit* caster, uint32 spellId, Aura
 
 void Unit::SendClearTarget()
 {
-    // 5.4.8 18414, from Project SkyFire
-    ObjectGuid guid = GetGUID();
-    WorldPacket data(SMSG_BREAK_TARGET, 1 + 8);
-    data.WriteGuidMask(guid, { 2, 3, 7, 5, 4, 6, 0, 1 });
-    data.FlushBits();
-    data.WriteGuidBytes(guid, { 2, 1, 3, 0, 7, 4, 6, 5 });
-    SendMessageToSet(&data, false);
+    WorldPackets::Combat::BreakTarget breakTarget;
+    breakTarget.UnitGUID = GetGUID();
+    SendMessageToSet(breakTarget.Write(), false);
 }
 
 uint32 Unit::GetResistance(SpellSchoolMask mask) const
@@ -16380,18 +16311,21 @@ void Unit::SetDisableGravity(bool enable)
         {
             uint32 const counter = player->GetSession()->GetOrderCounter();
 
-            WorldPacket data(enable ? SMSG_MOVE_GRAVITY_DISABLE : SMSG_MOVE_GRAVITY_ENABLE, GetPackGUID().size() + 4);
-
-            WorldPackets::Movement::WriteMovementFlagChange(data, GetGUID(), counter);
+            WorldPackets::Movement::MoveSetFlag setFlag(enable ? SMSG_MOVE_DISABLE_GRAVITY : SMSG_MOVE_ENABLE_GRAVITY);
+            setFlag.MoverGUID = GetGUID();
+            setFlag.SequenceIndex = counter;
+            setFlag.Write();
+            WorldPacket data = setFlag.Move();
             player->GetSession()->SendPacket(&data);
             player->GetSession()->IncrementOrderCounter();
             return;
         }
     }
 
-    WorldPacket data(enable ? SMSG_SPLINE_MOVE_GRAVITY_DISABLE : SMSG_SPLINE_MOVE_GRAVITY_ENABLE, 9);
-
-    WorldPackets::Movement::WriteMovementFlagChange(data, GetGUID());
+    WorldPackets::Movement::MoveSplineSetFlag splineSetFlag(enable ? SMSG_MOVE_SPLINE_DISABLE_GRAVITY : SMSG_MOVE_SPLINE_ENABLE_GRAVITY);
+    splineSetFlag.MoverGUID = GetGUID();
+    splineSetFlag.Write();
+    WorldPacket data = splineSetFlag.Move();
     SendMessageToSet(&data, true);
 }
 
@@ -16451,18 +16385,21 @@ void Unit::SetCanFly(bool enable)
             uint32 const counter = player->GetSession()->GetOrderCounter();
             const_cast<Player*>(player)->SetPendingFlightChange(counter);
 
-            WorldPacket data(enable ? SMSG_MOVE_SET_CAN_FLY : SMSG_MOVE_UNSET_CAN_FLY, GetPackGUID().size() + 4);
-
-            WorldPackets::Movement::WriteMovementFlagChange(data, GetGUID(), counter);
+            WorldPackets::Movement::MoveSetFlag setFlag(enable ? SMSG_MOVE_SET_CAN_FLY : SMSG_MOVE_UNSET_CAN_FLY);
+            setFlag.MoverGUID = GetGUID();
+            setFlag.SequenceIndex = counter;
+            setFlag.Write();
+            WorldPacket data = setFlag.Move();
             player->SendDirectMessage(&data);
             player->GetSession()->IncrementOrderCounter();
             return;
         }
     }
 
-    WorldPacket data(enable ? SMSG_SPLINE_MOVE_SET_FLYING : SMSG_SPLINE_MOVE_UNSET_FLYING, 9);
-
-    WorldPackets::Movement::WriteMovementFlagChange(data, GetGUID());
+    WorldPackets::Movement::MoveSplineSetFlag splineSetFlag(enable ? SMSG_MOVE_SPLINE_SET_FLYING : SMSG_MOVE_SPLINE_UNSET_FLYING);
+    splineSetFlag.MoverGUID = GetGUID();
+    splineSetFlag.Write();
+    WorldPacket data = splineSetFlag.Move();
     SendMessageToSet(&data, true);
 }
 
@@ -16487,9 +16424,11 @@ void Unit::SetFeatherFall(bool enable)
         {
             uint32 const counter = player->GetSession()->GetOrderCounter();
 
-            WorldPacket data(enable ? SMSG_MOVE_FEATHER_FALL : SMSG_MOVE_NORMAL_FALL, GetPackGUID().size() + 4);
-
-            WorldPackets::Movement::WriteMovementFlagChange(data, GetGUID(), counter);
+            WorldPackets::Movement::MoveSetFlag setFlag(enable ? SMSG_MOVE_SET_FEATHER_FALL : SMSG_MOVE_SET_NORMAL_FALL);
+            setFlag.MoverGUID = GetGUID();
+            setFlag.SequenceIndex = counter;
+            setFlag.Write();
+            WorldPacket data = setFlag.Move();
             player->SendDirectMessage(&data);
             player->GetSession()->IncrementOrderCounter();
 
@@ -16501,9 +16440,10 @@ void Unit::SetFeatherFall(bool enable)
         }
     }
 
-    WorldPacket data(enable ? SMSG_SPLINE_MOVE_FEATHER_FALL : SMSG_SPLINE_MOVE_NORMAL_FALL);
-
-    WorldPackets::Movement::WriteMovementFlagChange(data, GetGUID());
+    WorldPackets::Movement::MoveSplineSetFlag splineSetFlag(enable ? SMSG_MOVE_SPLINE_SET_FEATHER_FALL : SMSG_MOVE_SPLINE_SET_NORMAL_FALL);
+    splineSetFlag.MoverGUID = GetGUID();
+    splineSetFlag.Write();
+    WorldPacket data = splineSetFlag.Move();
     SendMessageToSet(&data, true);
 }
 
@@ -16559,21 +16499,18 @@ void Unit::SendHoverUpdate(bool enable)
     {
         if (Player const* player = GetClientControlling())
         {
-            WorldPacket data(enable ? SMSG_MOVE_SET_HOVER : SMSG_MOVE_UNSET_HOVER, GetPackGUID().size() + 4);
-
-            uint32 const counter = player->GetSession()->GetOrderCounter();
-
-            WorldPackets::Movement::WriteMovementFlagChange(data, GetGUID(), counter);
-            player->SendDirectMessage(&data);
+            WorldPackets::Movement::MoveSetFlag packet(enable ? SMSG_MOVE_SET_HOVERING : SMSG_MOVE_UNSET_HOVERING);
+            packet.MoverGUID = GetGUID();
+            packet.SequenceIndex = player->GetSession()->GetOrderCounter();
+            player->SendDirectMessage(packet.Write());
             player->GetSession()->IncrementOrderCounter();
         }
         return;
     }
 
-    WorldPacket data(enable ? SMSG_SPLINE_MOVE_SET_HOVER : SMSG_SPLINE_MOVE_UNSET_HOVER, 9);
-
-    WorldPackets::Movement::WriteMovementFlagChange(data, GetGUID());
-    SendMessageToSet(&data, true);
+    WorldPackets::Movement::MoveSplineSetFlag packet(enable ? SMSG_MOVE_SPLINE_SET_HOVER : SMSG_MOVE_SPLINE_UNSET_HOVER);
+    packet.MoverGUID = GetGUID();
+    SendMessageToSet(packet.Write(), true);
 }
 
 void Unit::SetPlayHoverAnim(bool enable, bool sendUpdate)
@@ -16613,20 +16550,21 @@ void Unit::SetWaterWalking(bool enable)
         {
             uint32 const counter = player->GetSession()->GetOrderCounter();
 
-            WorldPacket data(enable ? SMSG_MOVE_WATER_WALK : SMSG_MOVE_LAND_WALK, GetPackGUID().size() + 4);
-            MovementInfo info;
-            info.guid = GetGUID();
-            WorldPackets::Movement::WriteGroundMovement(data, info,
-                WorldPackets::Movement::GetMovementFlagSequence(data.GetOpcode()), counter);
+            WorldPackets::Movement::MoveSetFlag setFlag(enable ? SMSG_MOVE_SET_WATER_WALK : SMSG_MOVE_SET_LAND_WALK);
+            setFlag.MoverGUID = GetGUID();
+            setFlag.SequenceIndex = counter;
+            setFlag.Write();
+            WorldPacket data = setFlag.Move();
             player->SendDirectMessage(&data);
             player->GetSession()->IncrementOrderCounter();
             return;
         }
     }
 
-    WorldPacket data(enable ? SMSG_SPLINE_MOVE_WATER_WALK : SMSG_SPLINE_MOVE_LAND_WALK, 9);
-
-    WorldPackets::Movement::WriteMovementFlagChange(data, GetGUID());
+    WorldPackets::Movement::MoveSplineSetFlag splineSetFlag(enable ? SMSG_MOVE_SPLINE_SET_WATER_WALK : SMSG_MOVE_SPLINE_SET_LAND_WALK);
+    splineSetFlag.MoverGUID = GetGUID();
+    splineSetFlag.Write();
+    WorldPacket data = splineSetFlag.Move();
     SendMessageToSet(&data, true);
 }
 
@@ -16634,8 +16572,10 @@ void Unit::SendMovementWaterWalking(Player* sendTo)
 {
     if (!movespline->Initialized())
         return;
-    WorldPacket data(SMSG_SPLINE_MOVE_WATER_WALK, 9);
-    WorldPackets::Movement::WriteMovementFlagChange(data, GetGUID());
+    WorldPackets::Movement::MoveSplineSetFlag splineSetFlag(SMSG_MOVE_SPLINE_SET_WATER_WALK);
+    splineSetFlag.MoverGUID = GetGUID();
+    splineSetFlag.Write();
+    WorldPacket data = splineSetFlag.Move();
     sendTo->SendDirectMessage(&data);
 }
 
@@ -16643,8 +16583,10 @@ void Unit::SendMovementFeatherFall(Player* sendTo)
 {
     if (!movespline->Initialized())
         return;
-    WorldPacket data(SMSG_SPLINE_MOVE_FEATHER_FALL, 9);
-    WorldPackets::Movement::WriteMovementFlagChange(data, GetGUID());
+    WorldPackets::Movement::MoveSplineSetFlag splineSetFlag(SMSG_MOVE_SPLINE_SET_FEATHER_FALL);
+    splineSetFlag.MoverGUID = GetGUID();
+    splineSetFlag.Write();
+    WorldPacket data = splineSetFlag.Move();
     sendTo->SendDirectMessage(&data);
 }
 
@@ -16652,8 +16594,10 @@ void Unit::SendMovementHover(Player* sendTo)
 {
     if (!movespline->Initialized())
         return;
-    WorldPacket data(SMSG_SPLINE_MOVE_SET_HOVER, 9);
-    WorldPackets::Movement::WriteMovementFlagChange(data, GetGUID());
+    WorldPackets::Movement::MoveSplineSetFlag splineSetFlag(SMSG_MOVE_SPLINE_SET_HOVER);
+    splineSetFlag.MoverGUID = GetGUID();
+    splineSetFlag.Write();
+    WorldPacket data = splineSetFlag.Move();
     sendTo->SendDirectMessage(&data);
 }
 
@@ -16941,64 +16885,45 @@ void Unit::BuildCooldownPacket(WorldPacket& data, uint8 flags, uint32 spellId, u
     BuildCooldownPacket(data, flags, cooldowns);
 }
 
-void Unit::BuildCooldownPacket(WorldPacket& data, uint8 /*flags*/, PacketCooldowns const& cooldowns)
+void Unit::BuildCooldownPacket(WorldPacket& data, uint8 flags, PacketCooldowns const& cooldowns)
 {
-    // 5.4.8 18414, from Project SkyFire. Where the optional flags byte sits is not known, SkyFire
-    // never sends it, so the cooldowns go without it.
-    ObjectGuid guid = GetGUID();
-    data.Initialize(SMSG_SPELL_COOLDOWN, 1 + 8 + 3 + (4 + 4) * cooldowns.size());
-    data.WriteGuidMask(guid, { 0, 6 });
-    data.WriteBit(true);                                    // no flags
-    data.WriteGuidMask(guid, { 7, 3, 1, 5 });
-    data.WriteBits(cooldowns.size(), 21);
-    data.WriteGuidMask(guid, { 2, 4 });
-    data.FlushBits();
+    // 6.x 19342: SMSG_SPELL_COOLDOWN (TC 6.x)
+    WorldPackets::Spells::SpellCooldown packet;
+    packet.Caster = GetGUID();
+    packet.Flags = flags;
     for (auto const& [spellId, cooldown] : cooldowns)
-    {
-        data << uint32(spellId);
-        data << uint32(cooldown);
-    }
-    data.WriteGuidBytes(guid, { 5, 3, 7, 4, 1, 0, 2, 6 });
+        packet.SpellCooldowns.emplace_back(spellId, cooldown);
+
+    packet.Write();
+    data = packet.Move();
 }
 
 WorldPacket Unit::BuildClearCooldownPacket(ObjectGuid guid, uint32 spellId)
 {
-    // 5.4.8 18414, from Project SkyFire
-    WorldPacket data(SMSG_CLEAR_COOLDOWN, 1 + 8 + 4);
-    data.WriteGuidMask(guid, { 3, 6, 2 });
-    data.WriteBit(false);                                   // clear on hold
-    data.WriteGuidMask(guid, { 7, 0, 1, 5, 4 });
-    data.FlushBits();
-    data.WriteGuidBytes(guid, { 0, 1, 2, 7, 3, 6, 5 });
-    data << uint32(spellId);
-    data.WriteGuidBytes(guid, { 4 });
-    return data;
+    // 6.x 19342: the owner's client tells pets from players by a flag instead of the guid (TC 6.x)
+    WorldPackets::Spells::ClearCooldown packet;
+    packet.IsPet = !guid.IsPlayer();
+    packet.SpellID = spellId;
+    packet.ClearOnHold = false;
+    packet.Write();
+    return packet.Move();
 }
 
 WorldPacket Unit::BuildCooldownEventPacket(ObjectGuid guid, uint32 spellId)
 {
-    // 5.4.8 18414, from Project SkyFire
-    WorldPacket data(SMSG_COOLDOWN_EVENT, 1 + 8 + 4);
-    data.WriteGuidMask(guid, { 4, 7, 1, 5, 6, 0, 2, 3 });
-    data.FlushBits();
-    data.WriteGuidBytes(guid, { 5, 7 });
-    data << uint32(spellId);
-    data.WriteGuidBytes(guid, { 3, 1, 2, 4, 6, 0 });
-    return data;
+    WorldPackets::Spells::CooldownEvent packet(!guid.IsPlayer(), int32(spellId));
+    packet.Write();
+    return packet.Move();
 }
 
 WorldPacket Unit::BuildModifyCooldownPacket(ObjectGuid guid, uint32 spellId, int32 delta)
 {
-    // 5.4.8 18414, from Project SkyFire
-    WorldPacket data(SMSG_MODIFY_COOLDOWN, 1 + 8 + 4 + 4);
-    data.WriteGuidMask(guid, { 2, 1, 0, 4, 7, 3, 6, 5 });
-    data.FlushBits();
-    data.WriteGuidBytes(guid, { 4, 1 });
-    data << int32(delta);                                   // cooldown mod in milliseconds
-    data.WriteGuidBytes(guid, { 3, 6, 7, 5, 0 });
-    data << uint32(spellId);
-    data.WriteGuidBytes(guid, { 2 });
-    return data;
+    WorldPackets::Spells::ModifyCooldown packet;
+    packet.IsPet = !guid.IsPlayer();
+    packet.SpellID = spellId;
+    packet.DeltaTime = delta;                               // cooldown mod in milliseconds
+    packet.Write();
+    return packet.Move();
 }
 
 uint8 Unit::getRace(bool original) const

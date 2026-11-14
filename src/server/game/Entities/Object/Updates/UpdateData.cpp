@@ -28,6 +28,11 @@ UpdateData::UpdateData(uint16 map) : m_map(map), m_blockCount(0)
     m_outOfRangeGUIDs.reserve(15);
 }
 
+void UpdateData::AddDestroyObject(ObjectGuid guid)
+{
+    m_destroyGUIDs.push_back(guid);
+}
+
 void UpdateData::AddOutOfRangeGUID(ObjectGuid guid)
 {
     m_outOfRangeGUIDs.push_back(guid);
@@ -49,16 +54,20 @@ bool UpdateData::BuildPacket(WorldPacket& packet)
 {
     ASSERT(packet.empty());
 
-    packet.reserve(4 + 2 + (m_outOfRangeGUIDs.empty() ? 0 : 1 + 2 + 4 + 18 * m_outOfRangeGUIDs.size()) + 4 + m_data.wpos());
+    packet.reserve(4 + 2 + 1 + 2 + 4 + 18 * (m_outOfRangeGUIDs.size() + m_destroyGUIDs.size()) + 4 + m_data.wpos());
 
     // 6.2.4: block count and map first, the out of range guids sit in front of the blocks behind a bit
     packet << uint32(m_blockCount);
     packet << uint16(m_map);
 
-    if (packet.WriteBit(!m_outOfRangeGUIDs.empty()))
+    if (packet.WriteBit(!m_outOfRangeGUIDs.empty() || !m_destroyGUIDs.empty()))
     {
-        packet << uint16(0);                                // DestroyObjectsCount, objects removed on death
-        packet << uint32(m_outOfRangeGUIDs.size());
+        // 6.x: the first DestroyObjectsCount guids are destroyed (the client runs the unit's on death handling), the rest went out of range
+        packet << uint16(m_destroyGUIDs.size());
+        packet << uint32(m_destroyGUIDs.size() + m_outOfRangeGUIDs.size());
+
+        for (ObjectGuid const& guid : m_destroyGUIDs)
+            packet << guid;
 
         for (ObjectGuid const& guid : m_outOfRangeGUIDs)
             packet << guid;
@@ -76,6 +85,7 @@ bool UpdateData::BuildPacket(WorldPacket& packet)
 void UpdateData::Clear()
 {
     m_data.clear();
+    m_destroyGUIDs.clear();
     m_outOfRangeGUIDs.clear();
     m_blockCount = 0;
 }

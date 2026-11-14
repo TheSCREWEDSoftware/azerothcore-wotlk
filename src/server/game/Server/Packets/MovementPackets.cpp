@@ -112,7 +112,10 @@ ByteBuffer& operator>>(ByteBuffer& data, MovementInfo& movementInfo)
     data.ReadBit(); // RemoteTimeValid
 
     if (hasTransport)
+    {
         data >> movementInfo.transport;
+        movementInfo.flags |= MOVEMENTFLAG_ONTRANSPORT; // server side only flag, see MovementFlags
+    }
 
     if (hasFall)
     {

@@ -1007,7 +1007,6 @@ public:
     void SendAddonsInfo();
 
     void SanitizeMovementFlags(MovementInfo* mi);
-    void WriteMovementInfo(WorldPacket* data, MovementInfo* mi);
     void SynchronizeMovement(MovementInfo& movementInfo);
     void HandleMoverRelocation(MovementInfo& movementInfo, Unit* mover);
     bool VerifyMovementInfo(MovementInfo const& movementInfo, Player* plrMover, Unit* mover, OpcodeClient opcode) const;

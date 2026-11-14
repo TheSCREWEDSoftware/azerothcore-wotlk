@@ -18,6 +18,7 @@
 #include "Object.h"
 #include "CombatLogPackets.h"
 #include "MovementPackets.h"
+#include "GameObjectPackets.h"
 #include "Battlefield.h"
 #include "BattlefieldMgr.h"
 #include "CellImpl.h"
@@ -75,7 +76,7 @@ constexpr float VisibilityDistances[AsUnderlyingType(VisibilityDistanceType::Max
     VISIBILITY_DISTANCE_INFINITE
 };
 
-Object::Object() : m_PackGUID(sizeof(uint64) + 1)
+Object::Object()
 {
     m_objectTypeId      = TYPEID_OBJECT;
     m_objectType        = TYPEMASK_OBJECT;
@@ -294,30 +295,17 @@ void Object::DestroyForPlayer(Player* target, bool onDeath) const
 {
     ASSERT(target);
 
-    if (IsUnit() || isType(TYPEMASK_PLAYER))
-    {
-        if (Battleground* bg = target->GetBattleground())
-        {
-            if (bg->isArena())
-            {
-                WorldPacket data(SMSG_ARENA_UNIT_DESTROYED, 8);
-                data << GetGUID();
-                target->SendDirectMessage(&data);
-            }
-        }
-    }
+    // 6.x 19342: objects are destroyed by SMSG_UPDATE_OBJECT (TC 6.x). With onDeath the client calls
+    // CGUnit_C::OnDeath() for this object (death animation, interrupting spells/missiles/auras/sounds...)
+    UpdateData updateData(target->GetMapId());
+    if (onDeath)
+        updateData.AddDestroyObject(GetGUID());
+    else
+        updateData.AddOutOfRangeGUID(GetGUID());
 
-    // 5.4.8 18414, from Project SkyFire
-    ObjectGuid guid = GetGUID();
-    WorldPacket data(SMSG_DESTROY_OBJECT, 1 + 8);
-    data.WriteGuidMask(guid, { 3, 2, 4, 1 });
-    //! If the following bool is true, the client will call "void CGUnit_C::OnDeath()" for this object.
-    //! OnDeath() does for eg trigger death animation and interrupts certain spells/missiles/auras/sounds...
-    data.WriteBit(onDeath);
-    data.WriteGuidMask(guid, { 7, 0, 6, 5 });
-    data.FlushBits();
-    data.WriteGuidBytes(guid, { 0, 4, 7, 2, 6, 3, 1, 5 });
-    target->SendDirectMessage(&data);
+    WorldPacket packet;
+    updateData.BuildPacket(packet);
+    target->SendDirectMessage(&packet);
 }
 
 [[nodiscard]] int32 Object::GetInt32Value(uint16 index) const
@@ -650,6 +638,15 @@ uint32 Object::GetUpdateFieldData(Player const* target, uint32*& flags) const
             flags = CorpseUpdateFieldFlags;
             if (ToCorpse()->GetOwnerGUID() == target->GetGUID())
                 visibleFlag |= UF_FLAG_OWNER;
+            break;
+        case TYPEID_AREATRIGGER:
+            flags = AreaTriggerUpdateFieldFlags;
+            break;
+        case TYPEID_SCENEOBJECT:
+            flags = SceneObjectUpdateFieldFlags;
+            break;
+        case TYPEID_CONVERSATION:
+            flags = ConversationUpdateFieldFlags;
             break;
         case TYPEID_OBJECT:
             break;
@@ -2655,12 +2652,11 @@ bool WorldObject::CanDetectStealthOf(WorldObject const* obj, bool checkAlert) co
 
 void WorldObject::SendPlayMusic(uint32 Music, bool OnlySelf)
 {
-    WorldPacket data(SMSG_PLAY_MUSIC, 4);
-    data << Music;
+    WorldPackets::Misc::PlayMusic playMusic(Music);
     if (OnlySelf && IsPlayer())
-        ToPlayer()->SendDirectMessage(&data);
+        ToPlayer()->SendDirectMessage(playMusic.Write());
     else
-        SendMessageToSet(&data, true); // ToSelf ignored in this case
+        SendMessageToSet(playMusic.Write(), true);
 }
 
 void Object::ForceValuesUpdateAtIndex(uint32 i)
@@ -2671,13 +2667,15 @@ void Object::ForceValuesUpdateAtIndex(uint32 i)
 
 void Unit::BuildHeartBeatMsg(WorldPacket* data) const
 {
-    // 5.4.8 relays movement as SMSG_PLAYER_MOVE
-    data->Initialize(SMSG_PLAYER_MOVE, 64);
+    // 6.x 19342: movement is relayed as SMSG_MOVE_UPDATE (TC 6.x)
     MovementInfo info = m_movementInfo;
     info.guid = GetGUID();
     info.pos.Relocate(GetPositionX(), GetPositionY(), GetPositionZ(), GetOrientation());
     info.time = GameTime::GetGameTimeMS().count();
-    WorldPackets::Movement::WriteMovementUpdate(*data, info);
+    WorldPackets::Movement::MoveUpdate moveUpdate;
+    moveUpdate.movementInfo = &info;
+    moveUpdate.Write();
+    *data = moveUpdate.Move();
 }
 
 void WorldObject::SendMessageToSet(WorldPacket const* data, bool self) const
@@ -2720,12 +2718,9 @@ void WorldObject::SendMessageToSet(WorldPacket const* data, Player const* skippe
 
 void WorldObject::SendObjectDeSpawnAnim(ObjectGuid guid)
 {
-    // 5.4.8 18414, from Project SkyFire
-    WorldPacket data(SMSG_GAMEOBJECT_DESPAWN_ANIM, 1 + 8);
-    data.WriteGuidMask(guid, { 0, 2, 4, 1, 7, 3, 6, 5 });
-    data.FlushBits();
-    data.WriteGuidBytes(guid, { 0, 2, 4, 5, 7, 3, 1, 6 });
-    SendMessageToSet(&data, true);
+    WorldPackets::GameObject::GameObjectDespawn packet;
+    packet.ObjectGUID = guid;
+    SendMessageToSet(packet.Write(), true);
 }
 
 void WorldObject::SetMap(Map* map)
@@ -4361,21 +4356,11 @@ SpellMissInfo WorldObject::SpellHitResult(Unit* victim, Spell const* spell, bool
 
 void WorldObject::SendSpellMiss(Unit* target, uint32 spellID, SpellMissInfo missInfo)
 {
-    // 5.4.8 18414, from Project SkyFire
-    ObjectGuid guid = GetGUID();
-    ObjectGuid targetGuid = target->GetGUID();
-    WorldPacket data(SMSG_SPELLLOGMISS, (1 + 8 + 4 + 3 + 8 + 1));
-    data.WriteGuidMask(guid, { 5, 1, 4, 0, 7, 3, 2, 6 });
-    data.WriteBits(1, 23);                                  // target count
-    data.WriteGuidMask(targetGuid, { 0, 1, 6, 2, 5, 3, 4, 7 });
-    data.WriteBit(false);                                   // debug info
-    data.FlushBits();
-    data << uint8(missInfo);
-    data.WriteGuidBytes(targetGuid, { 7, 5, 0, 6, 3, 2, 1, 4 });
-    data.WriteGuidBytes(guid, { 6, 4, 2, 0, 1 });
-    data << uint32(spellID);
-    data.WriteGuidBytes(guid, { 3, 7, 5 });
-    SendMessageToSet(&data, true);
+    WorldPackets::CombatLog::SpellMissLog spellMissLog;
+    spellMissLog.SpellID = spellID;
+    spellMissLog.Caster = GetGUID();
+    spellMissLog.Entries.emplace_back(target->GetGUID(), uint8(missInfo));
+    SendMessageToSet(spellMissLog.Write(), true);
 }
 
 void WorldObject::SendSpellNonMeleeDamageLog(Unit* target, SpellInfo const* spellInfo, uint32 damage, SpellSchoolMask schoolMask, uint32 absorb, uint32 resist)

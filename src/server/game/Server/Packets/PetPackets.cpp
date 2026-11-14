@@ -222,3 +222,34 @@ WorldPacket const* WorldPackets::Pet::SetPetSpecialization::Write()
 
     return &_worldPacket;
 }
+
+WorldPacket const* WorldPackets::Pet::PetActionSound::Write()
+{
+    _worldPacket << UnitGUID;
+    _worldPacket << int32(Action);
+
+    return &_worldPacket;
+}
+
+WorldPacket const* WorldPackets::Pet::PetDismissSound::Write()
+{
+    _worldPacket << int32(ModelID);
+    _worldPacket << ModelPosition.PositionXYZStream();
+
+    return &_worldPacket;
+}
+
+WorldPacket const* WorldPackets::Pet::PetActionFeedback::Write()
+{
+    _worldPacket << int32(SpellID);
+    _worldPacket << uint8(Response);
+
+    return &_worldPacket;
+}
+
+WorldPacket const* WorldPackets::Pet::PetTameFailure::Write()
+{
+    _worldPacket << uint8(Result);
+
+    return &_worldPacket;
+}

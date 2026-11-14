@@ -870,3 +870,19 @@ WorldPacket const* WorldPackets::Spells::DispelFailed::Write()
 
     return &_worldPacket;
 }
+
+WorldPacket const* WorldPackets::Spells::PlaySpellVisual::Write()
+{
+    _worldPacket << Source;
+    _worldPacket << Target;
+    _worldPacket << TargetPosition.PositionXYZStream();
+    _worldPacket << int32(SpellVisualID);
+    _worldPacket << float(TravelSpeed);
+    _worldPacket << int16(MissReason);
+    _worldPacket << int16(ReflectStatus);
+    _worldPacket << float(Orientation);
+    _worldPacket.WriteBit(SpeedAsTime);
+    _worldPacket.FlushBits();
+
+    return &_worldPacket;
+}

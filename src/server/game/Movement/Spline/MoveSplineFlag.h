@@ -32,19 +32,16 @@ namespace Movement
     class MoveSplineFlag
     {
     public:
-        // Numeric values match Cataclysm build 15595 (see TrinityCore-Cata commit
-        // 0e8605edb84e3eb2e1a18f695f33bbdc6488b4ca, "sync spline code which is relevant for
-        // Cataclysm with master branch"). WotLK stored the animation id in the low flag byte and
-        // the final-facing type as flag bits; build 15595 does neither, so Final_Point/Target/Angle
-        // below are this fork's own bookkeeping only (never sent as part of the flags word, see
-        // Mask_No_Monster_Move) and reuse bit positions the client build doesn't verify.
+        // 6.x 19342: numeric values match the 6.x client (WowPacketParser V6_0_2 SplineFlag). Final_Point,
+        // Final_Target and Final_Angle are this fork's own bookkeeping only (never sent as part of the flags
+        // word, see Mask_No_Monster_Move) and use bit positions the client does not define.
         enum eFlags
         {
             None                = 0x00000000,
-            Unknown1            = 0x00000001,           // NOT VERIFIED
+            Final_Angle         = 0x00000001,           // fork-local only, see comment above
             Unknown2            = 0x00000002,           // NOT VERIFIED
             Unknown4            = 0x00000004,           // NOT VERIFIED
-            OrientationInversed = 0x00000008,           // NOT VERIFIED - related to falling/fixed orientation
+            JumpOrientationFixed = 0x00000008,          // NOT VERIFIED
             FallingSlow         = 0x00000010,
             Done                = 0x00000020,
             Falling             = 0x00000040,           // Affects elevation computation, can't be combined with Parabolic flag
@@ -60,19 +57,19 @@ namespace Movement
             TransportExit       = 0x00010000,
             Unknown20000        = 0x00020000,           // NOT VERIFIED
             Unknown40000        = 0x00040000,           // NOT VERIFIED
-            Backward            = 0x00080000,
+            OrientationInversed = 0x00080000,           // walking backwards
             SmoothGroundPath    = 0x00100000,
             CanSwim             = 0x00200000,
             UncompressedPath    = 0x00400000,
             Unknown800000       = 0x00800000,           // NOT VERIFIED
-            Animation           = 0x01000000,           // Plays animation after some time passed
-            Parabolic           = 0x02000000,           // Affects elevation computation, can't be combined with Falling flag
-            FadeObject          = 0x04000000,
-            Steering            = 0x08000000,
-            UnlimitedSpeed      = 0x10000000,
-            Final_Point         = 0x20000000,           // fork-local only, see comment above
-            Final_Target        = 0x40000000,           // fork-local only, see comment above
-            Final_Angle         = 0x80000000,           // fork-local only, see comment above
+            FastSteering        = 0x01000000,
+            Animation           = 0x02000000,           // Plays animation after some time passed
+            Parabolic           = 0x04000000,           // Affects elevation computation, can't be combined with Falling flag
+            FadeObject          = 0x08000000,
+            Steering            = 0x10000000,
+            UnlimitedSpeed      = 0x20000000,
+            Final_Point         = 0x40000000,           // fork-local only, see comment above
+            Final_Target        = 0x80000000,           // fork-local only, see comment above
 
             // Masks
             Mask_Final_Facing   = Final_Point | Final_Target | Final_Angle,
@@ -81,8 +78,8 @@ namespace Movement
             // CatmullRom interpolation mode used
             Mask_CatmullRom     = Flying | Catmullrom,
             // Unused, not supported flags
-            Mask_Unused         = No_Spline | Enter_Cycle | Frozen | Unknown1 | Unknown2 | Unknown4 | Unknown100 | Unknown20000
-                                | Unknown40000 | Unknown800000 | Backward | SmoothGroundPath | FadeObject
+            Mask_Unused         = No_Spline | Enter_Cycle | Frozen | Unknown2 | Unknown4 | JumpOrientationFixed | Unknown100 | Unknown20000
+                                | Unknown40000 | Unknown800000 | SmoothGroundPath | FastSteering | FadeObject
                                 | Steering | UnlimitedSpeed
         };
 
@@ -125,10 +122,10 @@ namespace Movement
         void EnableTransportEnter() { raw() = (raw() & ~TransportExit) | TransportEnter; }
         void EnableTransportExit() { raw() = (raw() & ~TransportEnter) | TransportExit; }
 
-        bool unknown1            : 1;
+        bool final_angle         : 1;
         bool unknown2            : 1;
         bool unknown4            : 1;
-        bool orientationInversed : 1;
+        bool jumpOrientationFixed : 1;
         bool fallingSlow         : 1;
         bool done                : 1;
         bool falling             : 1;
@@ -144,11 +141,12 @@ namespace Movement
         bool transportExit       : 1;
         bool unknown20000        : 1;
         bool unknown40000        : 1;
-        bool backward            : 1;
+        bool orientationInversed : 1;
         bool smoothGroundPath    : 1;
         bool canSwim             : 1;
         bool uncompressedPath    : 1;
         bool unknown800000       : 1;
+        bool fastSteering        : 1;
         bool animation           : 1;
         bool parabolic           : 1;
         bool fadeObject          : 1;
@@ -156,9 +154,8 @@ namespace Movement
         bool unlimitedSpeed      : 1;
         bool final_point         : 1;
         bool final_target        : 1;
-        bool final_angle         : 1;
 
-        // Not part of the wire flags word in build 15595; SMSG_ON_MONSTER_MOVE sends this separately
+        // Not part of the wire flags word; SMSG_ON_MONSTER_MOVE sends this separately
         // (see WorldPackets::Movement::MonsterMove).
         uint8 animId = 0;
     };

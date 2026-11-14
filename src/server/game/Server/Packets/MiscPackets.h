@@ -627,6 +627,30 @@ namespace WorldPackets
         };
 
         // 6.x 19342: unhandled by TC 6.x, layouts from WowPacketParser V6_0_2
+        // layout from TrinityCore 7.x (MiscPackets PlayTimeWarning)
+        // 6.x 19342: unhandled by TC 6.x, layout from WowPacketParser V6_0_2
+        class SetAnimTier final : public ServerPacket
+        {
+        public:
+            SetAnimTier() : ServerPacket(SMSG_SET_ANIM_TIER, 16 + 1) { }
+
+            WorldPacket const* Write() override;
+
+            ObjectGuid Unit;
+            uint32 Tier = 0;
+        };
+
+        class PlayTimeWarning final : public ServerPacket
+        {
+        public:
+            PlayTimeWarning() : ServerPacket(SMSG_PLAY_TIME_WARNING, 8) { }
+
+            WorldPacket const* Write() override;
+
+            uint32 Flag = 0;
+            int32 PlayTimeRemaining = 0;
+        };
+
         class CompleteMovie final : public ClientPacket
         {
         public:

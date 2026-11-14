@@ -5734,13 +5734,6 @@ enum BanMode
     BAN_IP
 };
 
-enum BanReturn
-{
-    BAN_SUCCESS,
-    BAN_SYNTAX_ERROR,
-    BAN_NOTFOUND
-};
-
 enum BattlegroundTeamId : uint8
 {
     BG_TEAM_HORDE       = 0, // Battleground: Horde,    Arena: Green

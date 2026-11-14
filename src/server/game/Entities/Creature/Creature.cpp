@@ -3427,10 +3427,9 @@ bool Creature::SetWalk(bool enable)
     if (!Unit::SetWalk(enable))
         return false;
 
-    WorldPacket data(enable ? SMSG_SPLINE_MOVE_SET_WALK_MODE : SMSG_SPLINE_MOVE_SET_RUN_MODE, 9);
-
-    WorldPackets::Movement::WriteMovementFlagChange(data, GetGUID());
-    SendMessageToSet(&data, false);
+    WorldPackets::Movement::MoveSplineSetFlag packet(enable ? SMSG_MOVE_SPLINE_SET_WALK_MODE : SMSG_MOVE_SPLINE_SET_RUN_MODE);
+    packet.MoverGUID = GetGUID();
+    SendMessageToSet(packet.Write(), false);
     return true;
 }
 
@@ -3439,10 +3438,9 @@ bool Creature::SetSwim(bool enable)
     if (!Unit::SetSwim(enable))
         return false;
 
-    WorldPacket data(enable ? SMSG_SPLINE_MOVE_START_SWIM : SMSG_SPLINE_MOVE_STOP_SWIM);
-
-    WorldPackets::Movement::WriteMovementFlagChange(data, GetGUID());
-    SendMessageToSet(&data, true);
+    WorldPackets::Movement::MoveSplineSetFlag packet(enable ? SMSG_MOVE_SPLINE_START_SWIM : SMSG_MOVE_SPLINE_STOP_SWIM);
+    packet.MoverGUID = GetGUID();
+    SendMessageToSet(packet.Write(), true);
     return true;
 }
 
@@ -3778,7 +3776,7 @@ void Creature::SetCannotReachTarget(ObjectGuid const& cannotReach)
 
 bool Creature::CanNotReachTarget() const
 {
-    return m_cannotReachTarget;
+    return !m_cannotReachTarget.IsEmpty();
 }
 
 bool Creature::IsNotReachableAndNeedRegen() const
