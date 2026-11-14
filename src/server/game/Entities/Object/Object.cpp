@@ -16,6 +16,7 @@
  */
 
 #include "Object.h"
+#include "CombatLogPackets.h"
 #include "MovementPackets.h"
 #include "Battlefield.h"
 #include "BattlefieldMgr.h"
@@ -2685,6 +2686,26 @@ void WorldObject::SendMessageToSet(WorldPacket const* data, bool self) const
         SendMessageToSetInRange(data, 0.0f, self);
 }
 
+void WorldObject::SendCombatLogMessage(WorldPackets::CombatLog::CombatLogServerPacket* combatLog) const
+{
+    combatLog->Write();
+
+    auto sendTo = [combatLog](Player const* player)
+    {
+        player->SendDirectMessage(player->IsAdvancedCombatLoggingEnabled() ? combatLog->GetFullLogPacket() : combatLog->GetBasicLogPacket());
+    };
+
+    if (Player const* self = ToPlayer())
+        sendTo(self);
+
+    if (!IsInWorld())
+        return;
+
+    for (auto const& [guid, target] : GetObjectVisibilityContainer().GetVisiblePlayersMap())
+        if (target != this)
+            sendTo(target);
+}
+
 void WorldObject::SendMessageToSetInRange(WorldPacket const* data, float dist, bool /*self*/) const
 {
     Acore::MessageDistDeliverer notifier(this, data, dist);
@@ -4367,8 +4388,9 @@ void WorldObject::SendSpellNonMeleeDamageLog(Unit* target, SpellInfo const* spel
     }
 
     int32 overkill = int32(damage) - int32(target->GetHealth());
-    WorldPacket data = Unit::BuildSpellNonMeleeDamageLog(target->GetGUID(), GetGUID(), spellInfo->Id, damage, overkill, uint8(schoolMask), absorb, resist, 0, 0);
-    SendMessageToSet(&data, true);
+    WorldPackets::CombatLog::SpellNonMeleeDamageLog packet;
+    Unit::BuildSpellNonMeleeDamageLog(packet, target->GetGUID(), GetGUID(), spellInfo->Id, damage, overkill, uint8(schoolMask), absorb, resist, 0, 0);
+    SendCombatLogMessage(&packet);
 }
 
 FactionTemplateEntry const* WorldObject::GetFactionTemplateEntry() const

@@ -16,6 +16,7 @@
  */
 
 #include "Unit.h"
+#include "CombatLogPackets.h"
 #include "AbstractFollower.h"
 #include "AreaDefines.h"
 #include "ArenaSpectator.h"
@@ -2126,44 +2127,17 @@ void Unit::DealDamageShieldDamage(Unit* victim)
 
         Unit::DealDamageMods(this, damage, &absorb);
 
-        /// @todo: Move this to a packet handler
-        // 5.4.8 18414, from Project SkyFire; the defender is the shield's owner
-        ObjectGuid defenderGuid = victim->GetGUID();
-        ObjectGuid attackerGuid = GetGUID();
-        int32 overkill = int32(damage) - int32(GetHealth());
-        WorldPacket data(SMSG_SPELLDAMAGESHIELD, (1 + 8 + 8 + 4 * 5 + 2));
-        data.WriteGuidMask(attackerGuid, { 1 });
-        data.WriteGuidMask(defenderGuid, { 2 });
-        data.WriteBit(false);                               // power data
-        data.WriteGuidMask(defenderGuid, { 6 });
-        data.WriteGuidMask(attackerGuid, { 3 });
-        data.WriteGuidMask(defenderGuid, { 4 });
-        data.WriteGuidMask(attackerGuid, { 2, 5, 6 });
-        data.WriteGuidMask(defenderGuid, { 3 });
-        data.WriteGuidMask(attackerGuid, { 0 });
-        data.WriteGuidMask(defenderGuid, { 5, 1, 0 });
-        data.WriteGuidMask(attackerGuid, { 7, 4 });
-        data.WriteGuidMask(defenderGuid, { 7 });
-        data.FlushBits();
-        data.WriteGuidBytes(attackerGuid, { 2 });
-        data.WriteGuidBytes(defenderGuid, { 6 });
-        data.WriteGuidBytes(attackerGuid, { 6, 4 });
-        data.WriteGuidBytes(defenderGuid, { 3 });
-        data.WriteGuidBytes(attackerGuid, { 7 });
-        data << uint32(absorb);                             // absorbed by the shield target
-        data.WriteGuidBytes(defenderGuid, { 4 });
-        data.WriteGuidBytes(attackerGuid, { 1 });
-        data << uint32(damage);
-        data.WriteGuidBytes(defenderGuid, { 7 });
-        data << uint32(i_spellProto->Id);
-        data << uint32(overkill > 0 ? overkill : 0);
-        data.WriteGuidBytes(attackerGuid, { 5 });
-        data.WriteGuidBytes(defenderGuid, { 5 });
-        data.WriteGuidBytes(attackerGuid, { 0 });
-        data.WriteGuidBytes(defenderGuid, { 1, 0, 2 });
-        data << uint32(i_spellProto->GetSchoolMask());
-        data.WriteGuidBytes(attackerGuid, { 3 });
-        victim->SendMessageToSet(&data, true);
+        // 6.x 19342: SMSG_SPELL_DAMAGE_SHIELD (TC 6.x); the defender is the shield's owner
+        WorldPackets::CombatLog::SpellDamageShield damageShield;
+        damageShield.Attacker = GetGUID();
+        damageShield.Defender = victim->GetGUID();
+        damageShield.SpellID = i_spellProto->Id;
+        damageShield.TotalDamage = damage;
+        damageShield.OverKill = std::max(int32(damage) - int32(GetHealth()), 0);
+        damageShield.SchoolMask = i_spellProto->GetSchoolMask();
+        damageShield.LogAbsorbed = absorb;
+        damageShield.LogData.Initialize(this);
+        victim->SendCombatLogMessage(&damageShield);
 
         Unit::DealDamage(victim, this, damage, 0, SPELL_DIRECT_DAMAGE, i_spellProto->GetSchoolMask(), i_spellProto, true);
     }
@@ -2172,8 +2146,8 @@ void Unit::DealDamageShieldDamage(Unit* victim)
 void Unit::HandleEmoteCommand(uint32 emoteId)
 {
     WorldPackets::Chat::Emote packet;
-    packet.EmoteID = emoteId;
     packet.Guid = GetGUID();
+    packet.EmoteID = emoteId;
     SendMessageToSet(packet.Write(), true);
 }
 
@@ -3256,40 +3230,17 @@ float Unit::CalculateLevelPenalty(SpellInfo const* spellProto) const
 
 void Unit::SendMeleeAttackStart(Unit* victim, Player* sendTo)
 {
-    // 5.4.8 18414, from Project SkyFire
-    ObjectGuid victimGuid = victim->GetGUID();
-    ObjectGuid attackerGuid = GetGUID();
-    WorldPacket data(SMSG_ATTACKSTART, 1 + 8 + 8);
-    data.WriteGuidMask(attackerGuid, { 7 });
-    data.WriteGuidMask(victimGuid, { 7, 3 });
-    data.WriteGuidMask(attackerGuid, { 3, 5 });
-    data.WriteGuidMask(victimGuid, { 4, 1 });
-    data.WriteGuidMask(attackerGuid, { 4 });
-    data.WriteGuidMask(victimGuid, { 0 });
-    data.WriteGuidMask(attackerGuid, { 6 });
-    data.WriteGuidMask(victimGuid, { 5 });
-    data.WriteGuidMask(attackerGuid, { 2 });
-    data.WriteGuidMask(victimGuid, { 6 });
-    data.WriteGuidMask(attackerGuid, { 1 });
-    data.WriteGuidMask(victimGuid, { 2 });
-    data.WriteGuidMask(attackerGuid, { 0 });
-    data.FlushBits();
-
-    data.WriteGuidBytes(victimGuid, { 5, 0 });
-    data.WriteGuidBytes(attackerGuid, { 5 });
-    data.WriteGuidBytes(victimGuid, { 4, 6 });
-    data.WriteGuidBytes(attackerGuid, { 6, 1, 0 });
-    data.WriteGuidBytes(victimGuid, { 7 });
-    data.WriteGuidBytes(attackerGuid, { 4 });
-    data.WriteGuidBytes(victimGuid, { 2 });
-    data.WriteGuidBytes(attackerGuid, { 3, 7, 2 });
-    data.WriteGuidBytes(victimGuid, { 3, 1 });
+    WorldPackets::Combat::AttackStart packet;
+    packet.Attacker = GetGUID();
+    packet.Victim = victim->GetGUID();
+    packet.Write();
 
     if (sendTo)
-        sendTo->SendDirectMessage(&data);
+        sendTo->SendDirectMessage(packet.GetRawPacket());
     else
-        SendMessageToSet(&data, true);
-    LOG_DEBUG("entities.unit", "WORLD: Sent SMSG_ATTACKSTART");
+        SendMessageToSet(packet.GetRawPacket(), true);
+
+    LOG_DEBUG("entities.unit", "WORLD: Sent SMSG_ATTACK_START");
 }
 
 /**
@@ -6489,50 +6440,21 @@ void Unit::RemoveAllGameObjects()
     }
 }
 
-WorldPacket Unit::BuildSpellNonMeleeDamageLog(ObjectGuid targetGuid, ObjectGuid attackerGuid, uint32 spellId, uint32 damage, int32 overkill,
+void Unit::BuildSpellNonMeleeDamageLog(WorldPackets::CombatLog::SpellNonMeleeDamageLog& packet, ObjectGuid targetGuid, ObjectGuid attackerGuid, uint32 spellId, uint32 damage, int32 overkill,
     uint8 schoolMask, uint32 absorb, uint32 resist, uint32 blocked, uint32 hitInfo)
 {
-    // 5.4.8 18414, from Project SkyFire; no power data or debug rolls
-    WorldPacket data(SMSG_SPELLNONMELEEDAMAGELOG, (16 + 4 * 8 + 3));
-    data.WriteGuidMask(targetGuid, { 2 });
-    data.WriteGuidMask(attackerGuid, { 7, 6, 1, 5 });
-    data.WriteBit(false);
-    data.WriteGuidMask(attackerGuid, { 0 });
-    data.WriteGuidMask(targetGuid, { 0, 7 });
-    data.WriteGuidMask(attackerGuid, { 3 });
-    data.WriteGuidMask(targetGuid, { 6 });
-    data.WriteBit(false);
-    data.WriteBit(false);                                   // power data
-    data.WriteGuidMask(targetGuid, { 1 });
-    data.WriteBit(false);                                   // debug floats
-    data.WriteGuidMask(targetGuid, { 5 });
-    data.WriteGuidMask(attackerGuid, { 2, 4 });
-    data.WriteGuidMask(targetGuid, { 3, 4 });
-    data.FlushBits();
-
-    data << uint32(blocked);
-    data.WriteGuidBytes(attackerGuid, { 1 });
-    data << uint32(overkill > 0 ? overkill : 0);
-    data.WriteGuidBytes(targetGuid, { 3 });
-    data.WriteGuidBytes(attackerGuid, { 0 });
-    data.WriteGuidBytes(targetGuid, { 6, 4 });
-    data.WriteGuidBytes(attackerGuid, { 7 });
-    data << uint32(resist);
-    data << uint32(absorb);
-    data.WriteGuidBytes(attackerGuid, { 5 });
-    data.WriteGuidBytes(targetGuid, { 5 });
-    data.WriteGuidBytes(attackerGuid, { 3, 2 });
-    data.WriteGuidBytes(targetGuid, { 2 });
-    data.WriteGuidBytes(attackerGuid, { 6 });
-    data.WriteGuidBytes(targetGuid, { 0 });
-    data.WriteGuidBytes(attackerGuid, { 4 });
-    data << uint32(damage);
-    data << uint8(schoolMask);
-    data.WriteGuidBytes(targetGuid, { 7 });
-    data << uint32(hitInfo);
-    data.WriteGuidBytes(targetGuid, { 1 });
-    data << uint32(spellId);
-    return data;
+    // 6.x 19342: SMSG_SPELL_NON_MELEE_DAMAGE_LOG (TC 6.x)
+    packet.Me = targetGuid;
+    packet.CasterGUID = attackerGuid;
+    packet.SpellID = spellId;
+    packet.Damage = damage;
+    packet.Overkill = overkill > 0 ? overkill : 0;
+    packet.SchoolMask = schoolMask;
+    packet.ShieldBlock = blocked;
+    packet.Resisted = resist;
+    packet.Absorbed = absorb;
+    packet.Periodic = false;
+    packet.Flags = hitInfo;
 }
 
 void Unit::SendSpellNonMeleeReflectLog(SpellNonMeleeDamage* log, Unit* attacker)
@@ -6541,7 +6463,6 @@ void Unit::SendSpellNonMeleeReflectLog(SpellNonMeleeDamage* log, Unit* attacker)
     if (!IsPlayer())
         return;
 
-    WorldPacket data;
     // If we are in cheat mode we swap absorb with damage and set damage to 0, this way we can still debug damage but our HP bar will not drop
     uint32 damage = log->damage;
     uint32 absorb = log->absorb;
@@ -6551,14 +6472,15 @@ void Unit::SendSpellNonMeleeReflectLog(SpellNonMeleeDamage* log, Unit* attacker)
         damage = 0;
     }
     int32 overkill = damage - log->target->GetHealth();
-    data = BuildSpellNonMeleeDamageLog(log->target->GetGUID(), attacker->GetGUID(), log->spellInfo->Id, damage, overkill,
+    WorldPackets::CombatLog::SpellNonMeleeDamageLog packet;
+    BuildSpellNonMeleeDamageLog(packet, log->target->GetGUID(), attacker->GetGUID(), log->spellInfo->Id, damage, overkill,
         log->schoolMask, absorb, log->resist, log->blocked, log->HitInfo);
-    ToPlayer()->SendDirectMessage(&data);
+    packet.Write();
+    ToPlayer()->SendDirectMessage(ToPlayer()->IsAdvancedCombatLoggingEnabled() ? packet.GetFullLogPacket() : packet.GetBasicLogPacket());
 }
 
 void Unit::SendSpellNonMeleeDamageLog(SpellNonMeleeDamage* log)
 {
-    WorldPacket data;
     //IF we are in cheat mode we swap absorb with damage and set damage to 0, this way we can still debug damage but our hp bar will not drop
     uint32 damage = log->damage;
     uint32 absorb = log->absorb;
@@ -6568,9 +6490,10 @@ void Unit::SendSpellNonMeleeDamageLog(SpellNonMeleeDamage* log)
         damage = 0;
     }
     int32 overkill = damage - log->target->GetHealth();
-    data = BuildSpellNonMeleeDamageLog(log->target->GetGUID(), log->attacker->GetGUID(), log->spellInfo->Id, damage, overkill,
+    WorldPackets::CombatLog::SpellNonMeleeDamageLog packet;
+    BuildSpellNonMeleeDamageLog(packet, log->target->GetGUID(), log->attacker->GetGUID(), log->spellInfo->Id, damage, overkill,
         log->schoolMask, absorb, log->resist, log->blocked, log->HitInfo);
-    SendMessageToSet(&data, true);
+    SendCombatLogMessage(&packet);
 }
 
 void Unit::SendSpellNonMeleeDamageLog(Unit* target, SpellInfo const* spellInfo, uint32 Damage, SpellSchoolMask damageSchoolMask, uint32 AbsorbedDamage, uint32 Resist, bool PhysicalDamage, uint32 Blocked, bool CriticalHit /*= false*/, bool Split /*= false*/)
@@ -6658,96 +6581,44 @@ void Unit::SendPeriodicAuraLog(SpellPeriodicAuraLogInfo* pInfo)
             return;
     }
 
-    // 5.4.8 18414, from Project SkyFire: one effect, its optional values flagged by bits
-    ObjectGuid casterGuid = aura->GetCasterGUID();
-    ObjectGuid targetGuid = GetGUID();
-    WorldPacket data(SMSG_PERIODICAURALOG, 50);
-    data.WriteGuidMask(targetGuid, { 7 });
-    data.WriteGuidMask(casterGuid, { 0, 7 });
-    data.WriteGuidMask(targetGuid, { 1 });
-    data.WriteBits(1, 21);                                  // effect count
-    data.WriteGuidMask(targetGuid, { 0 });
-    data.WriteBit(!pInfo->overDamage);
-    data.WriteBit(!absorb);
-    data.WriteBit(pInfo->critical);
-    data.WriteBit(!pInfo->resist);
-    data.WriteBit(!power);
-    data.WriteGuidMask(targetGuid, { 5, 3 });
-    data.WriteGuidMask(casterGuid, { 1 });
-    data.WriteGuidMask(targetGuid, { 2 });
-    data.WriteGuidMask(casterGuid, { 6, 3, 4 });
-    data.WriteBit(false);                                   // power data
-    data.WriteGuidMask(casterGuid, { 2 });
-    data.WriteGuidMask(targetGuid, { 6 });
-    data.WriteGuidMask(casterGuid, { 5 });
-    data.WriteGuidMask(targetGuid, { 4 });
-    data.FlushBits();
+    // 6.x 19342: SMSG_SPELL_PERIODIC_AURA_LOG (TC 6.x)
+    WorldPackets::CombatLog::SpellPeriodicAuraLog data;
+    data.TargetGUID = GetGUID();
+    data.CasterGUID = aura->GetCasterGUID();
+    data.SpellID = aura->GetId();
+    data.LogData.Initialize(this);
 
-    if (pInfo->overDamage)
-        data << uint32(pInfo->overDamage);                  // overkill or overheal
-    data << uint32(damage);
-    data << uint32(aura->GetAuraType());
-    if (pInfo->resist)
-        data << uint32(pInfo->resist);
-    if (absorb)
-        data << uint32(absorb);
-    if (power)
-        data << uint32(power);
+    WorldPackets::CombatLog::SpellPeriodicAuraLog::SpellLogEffect spellLogEffect;
+    spellLogEffect.Effect = aura->GetAuraType();
+    spellLogEffect.Amount = damage;
+    spellLogEffect.OverHealOrKill = pInfo->overDamage;
+    spellLogEffect.SchoolMaskOrPower = power ? int32(power) : int32(aura->GetSpellInfo()->GetSchoolMask());
+    spellLogEffect.AbsorbedOrAmplitude = absorb;
+    spellLogEffect.Resisted = pInfo->resist;
+    spellLogEffect.Crit = pInfo->critical;
+    spellLogEffect.Multistrike = false;
+    data.Effects.push_back(spellLogEffect);
 
-    data.WriteGuidBytes(casterGuid, { 5, 3 });
-    data.WriteGuidBytes(targetGuid, { 4 });
-    data << int32(aura->GetId());
-    data.WriteGuidBytes(targetGuid, { 6 });
-    data.WriteGuidBytes(casterGuid, { 7, 1 });
-    data.WriteGuidBytes(targetGuid, { 5 });
-    data.WriteGuidBytes(casterGuid, { 0 });
-    data.WriteGuidBytes(targetGuid, { 1, 7 });
-    data.WriteGuidBytes(casterGuid, { 4 });
-    data.WriteGuidBytes(targetGuid, { 3 });
-    data.WriteGuidBytes(casterGuid, { 2 });
-    data.WriteGuidBytes(targetGuid, { 0, 2 });
-    data.WriteGuidBytes(casterGuid, { 6 });
-    SendMessageToSet(&data, true);
+    SendCombatLogMessage(&data);
 }
 
 void Unit::SendSpellDamageResist(Unit* target, uint32 spellId)
 {
-    WorldPacket data(SMSG_PROCRESIST, 8 + 8 + 4 + 1);
-    data << GetGUID();
-    data << target->GetGUID();
-    data << uint32(spellId);
-    data << uint8(0); // bool - log format: 0-default, 1-debug
-    SendMessageToSet(&data, true);
+    WorldPackets::CombatLog::ProcResist procResist;
+    procResist.Caster = GetGUID();
+    procResist.SpellID = spellId;
+    procResist.Target = target->GetGUID();
+    SendMessageToSet(procResist.Write(), true);
 }
 
 void Unit::SendSpellDamageImmune(Unit* target, uint32 spellId)
 {
-    // 5.4.8 18414, from Project SkyFire
-    ObjectGuid guid = GetGUID();
-    ObjectGuid targetGuid = target->GetGUID();
-    WorldPacket data(SMSG_SPELLORDAMAGE_IMMUNE, 1 + 8 + 8 + 4 + 1);
-    data.WriteGuidMask(guid, { 5, 0 });
-    data.WriteGuidMask(targetGuid, { 6 });
-    data.WriteBit(false);                                   // log format: 0-default, 1-debug
-    data.WriteGuidMask(guid, { 7 });
-    data.WriteGuidMask(targetGuid, { 5, 2 });
-    data.WriteGuidMask(guid, { 2, 1, 3 });
-    data.WriteGuidMask(targetGuid, { 4 });
-    data.WriteGuidMask(guid, { 4 });
-    data.WriteGuidMask(targetGuid, { 7 });
-    data.WriteGuidMask(guid, { 6 });
-    data.WriteGuidMask(targetGuid, { 3, 1, 0 });
-    data.FlushBits();
-    data.WriteGuidBytes(targetGuid, { 4, 3 });
-    data.WriteGuidBytes(guid, { 2 });
-    data.WriteGuidBytes(targetGuid, { 6, 5 });
-    data.WriteGuidBytes(guid, { 3 });
-    data.WriteGuidBytes(targetGuid, { 7, 2, 0 });
-    data.WriteGuidBytes(guid, { 7, 5, 0, 1, 4 });
-    data << uint32(spellId);
-    data.WriteGuidBytes(targetGuid, { 1 });
-    data.WriteGuidBytes(guid, { 6 });
-    SendMessageToSet(&data, true);
+    WorldPackets::CombatLog::SpellOrDamageImmune spellOrDamageImmune;
+    spellOrDamageImmune.CasterGUID = GetGUID();
+    spellOrDamageImmune.VictimGUID = target->GetGUID();
+    spellOrDamageImmune.SpellID = spellId;
+    spellOrDamageImmune.IsPeriodic = false;
+    SendMessageToSet(spellOrDamageImmune.Write(), true);
 }
 
 void Unit::SendAttackStateUpdate(CalcDamageInfo* damageInfo)
@@ -6768,79 +6639,29 @@ void Unit::SendAttackStateUpdate(CalcDamageInfo* damageInfo)
         }
     }
 
-    uint32 count = 1;
-    if (tmpDamage[1] || tmpAbsorb[1] || damageInfo->damages[1].resist)
-    {
-        ++count;
-    }
+    // 6.x 19342: SMSG_ATTACKER_STATE_UPDATE (TC 6.x); the client takes a single sub damage
+    WorldPackets::CombatLog::AttackerStateUpdate packet;
+    packet.HitInfo = damageInfo->HitInfo;
+    packet.AttackerGUID = damageInfo->attacker->GetGUID();
+    packet.VictimGUID = damageInfo->target->GetGUID();
+    packet.Damage = tmpDamage[0] + tmpDamage[1];
+    int32 overkill = int32(tmpDamage[0] + tmpDamage[1]) - int32(damageInfo->target->GetHealth());
+    packet.OverDamage = overkill < 0 ? -1 : overkill;
 
-    std::size_t const maxsize = 4 + 5 + 5 + 4 + 4 + 1 + count * (4 + 4 + 4 + 4 + 4) + 1 + 4 + 4 + 4 + 4 + 4 * 12;
-    ByteBuffer data(maxsize);
-    data << uint32(damageInfo->HitInfo);
-    data << damageInfo->attacker->GetPackGUID();
-    data << damageInfo->target->GetPackGUID();
-    data << uint32(tmpDamage[0] + tmpDamage[1]);                    // Full damage
-    int32 overkill = tmpDamage[0] + tmpDamage[1] - damageInfo->target->GetHealth();
-    data << uint32(overkill < 0 ? 0 : overkill);                    // Overkill
-    data << uint8(count);                                           // Sub damage count
+    packet.SubDmg.emplace();
+    packet.SubDmg->SchoolMask = damageInfo->damages[0].damageSchoolMask;
+    packet.SubDmg->FDamage = float(tmpDamage[0] + tmpDamage[1]);
+    packet.SubDmg->Damage = tmpDamage[0] + tmpDamage[1];
+    packet.SubDmg->Absorbed = tmpAbsorb[0] + tmpAbsorb[1];
+    packet.SubDmg->Resisted = damageInfo->damages[0].resist + damageInfo->damages[1].resist;
 
-    for (uint32 i = 0; i < count; ++i)
-    {
-        data << uint32(damageInfo->damages[i].damageSchoolMask);    // School of sub damage
-        data << float(tmpDamage[i]);                                // sub damage
-        data << uint32(tmpDamage[i]);                               // Sub Damage
-    }
+    packet.VictimState = damageInfo->TargetState;
+    packet.AttackerState = 0;
+    packet.MeleeSpellID = 0;
+    packet.BlockAmount = damageInfo->blocked_amount;
+    packet.LogData.Initialize(damageInfo->attacker);
 
-    if (damageInfo->HitInfo & (HITINFO_FULL_ABSORB | HITINFO_PARTIAL_ABSORB))
-    {
-        for (uint32 i = 0; i < count; ++i)
-        {
-            data << uint32(tmpAbsorb[i]);                           // Absorb
-        }
-    }
-
-    if (damageInfo->HitInfo & (HITINFO_FULL_RESIST | HITINFO_PARTIAL_RESIST))
-    {
-        for (uint32 i = 0; i < count; ++i)
-        {
-            data << uint32(damageInfo->damages[i].resist);          // Resist
-        }
-    }
-
-    data << uint8(damageInfo->TargetState);
-    data << uint32(0);  // Unknown attackerstate
-    data << uint32(0);  // Melee spellid
-
-    if (damageInfo->HitInfo & HITINFO_BLOCK)
-        data << uint32(damageInfo->blocked_amount);
-
-    if (damageInfo->HitInfo & HITINFO_RAGE_GAIN)
-        data << uint32(0);
-
-    //! Probably used for debugging purposes, as it is not known to appear on retail servers
-    if (damageInfo->HitInfo & HITINFO_DEBUG)
-    {
-        data << uint32(0);
-        data << float(0);
-        data << float(0);
-        data << float(0);
-        data << float(0);
-        data << float(0);
-        data << float(0);
-        data << float(0);
-        data << float(0);
-        data << float(0);       // Found in a loop with 1 iteration
-        data << float(0);       // ditto ^
-        data << uint32(0);
-    }
-
-    // 5.4.8 18414, from Project SkyFire: the 4.x body behind a size, no power data
-    WorldPacket packet(SMSG_ATTACKERSTATEUPDATE, 1 + 4 + data.size());
-    packet.WriteBit(false);                                 // power data
-    packet.FlushBits();
-    packet << uint32(data.size());
-    packet.append(data);
-    SendMessageToSet(&packet, true);
+    SendCombatLogMessage(&packet);
 }
 
 void Unit::SendAttackStateUpdate(uint32 HitInfo, Unit* target, uint8 /*SwingType*/, SpellSchoolMask damageSchoolMask, uint32 Damage, uint32 AbsorbDamage, uint32 Resist, VictimState TargetState, uint32 BlockedAmount)
@@ -8211,41 +8032,17 @@ void Unit::UnsummonAllTotems(bool onDeath /*= false*/)
 
 void Unit::SendHealSpellLog(HealInfo const& healInfo, bool critical)
 {
-    uint32 overheal = healInfo.GetHeal() - healInfo.GetEffectiveHeal();
-
-    // 5.4.8 18414, from Project SkyFire
-    ObjectGuid casterGuid = GetGUID();
-    ObjectGuid targetGuid = healInfo.GetTarget()->GetGUID();
-    WorldPacket data(SMSG_SPELLHEALLOG, (8 + 8 + 4 * 4 + 3));
-    data << uint32(healInfo.GetSpellInfo()->Id);
-    data << uint32(healInfo.GetAbsorb());
-    data << uint32(healInfo.GetHeal());
-    data << uint32(overheal);
-    data.WriteGuidMask(targetGuid, { 0 });
-    data.WriteGuidMask(casterGuid, { 2, 6 });
-    data.WriteGuidMask(targetGuid, { 2 });
-    data.WriteBit(critical);
-    data.WriteGuidMask(casterGuid, { 3, 0, 5 });
-    data.WriteGuidMask(targetGuid, { 3 });
-    data.WriteBit(false);                                   // power data
-    data.WriteGuidMask(targetGuid, { 7, 5 });
-    data.WriteGuidMask(casterGuid, { 7 });
-    data.WriteGuidMask(targetGuid, { 4 });
-    data.WriteBit(false);                                   // crit roll made
-    data.WriteBit(false);                                   // crit roll needed
-    data.WriteGuidMask(casterGuid, { 4, 1 });
-    data.WriteGuidMask(targetGuid, { 1, 6 });
-    data.FlushBits();
-    data.WriteGuidBytes(casterGuid, { 2 });
-    data.WriteGuidBytes(targetGuid, { 6 });
-    data.WriteGuidBytes(casterGuid, { 5, 3 });
-    data.WriteGuidBytes(targetGuid, { 7 });
-    data.WriteGuidBytes(casterGuid, { 7, 6, 1 });
-    data.WriteGuidBytes(targetGuid, { 2, 4, 3, 0, 5 });
-    data.WriteGuidBytes(casterGuid, { 0 });
-    data.WriteGuidBytes(targetGuid, { 1 });
-    data.WriteGuidBytes(casterGuid, { 4 });
-    SendMessageToSet(&data, true);
+    // 6.x 19342: SMSG_SPELL_HEAL_LOG (TC 6.x)
+    WorldPackets::CombatLog::SpellHealLog spellHealLog;
+    spellHealLog.TargetGUID = healInfo.GetTarget()->GetGUID();
+    spellHealLog.CasterGUID = GetGUID();
+    spellHealLog.SpellID = healInfo.GetSpellInfo()->Id;
+    spellHealLog.Health = healInfo.GetHeal();
+    spellHealLog.OverHeal = healInfo.GetHeal() - healInfo.GetEffectiveHeal();
+    spellHealLog.Absorbed = healInfo.GetAbsorb();
+    spellHealLog.Crit = critical;
+    spellHealLog.LogData.Initialize(healInfo.GetTarget());
+    SendCombatLogMessage(&spellHealLog);
 }
 
 int32 Unit::HealBySpell(HealInfo& healInfo, bool critical)
@@ -8266,38 +8063,15 @@ int32 Unit::HealBySpell(HealInfo& healInfo, bool critical)
 
 void Unit::SendEnergizeSpellLog(Unit* victim, uint32 spellID, uint32 damage, Powers powerType)
 {
-    // 5.4.8 18414, from Project SkyFire
-    ObjectGuid victimGuid = victim->GetGUID();
-    ObjectGuid casterGuid = GetGUID();
-    WorldPacket data(SMSG_SPELLENERGIZELOG, (1 + 8 + 8 + 4 + 4 + 4 + 1));
-    data.WriteGuidMask(victimGuid, { 7, 3 });
-    data.WriteGuidMask(casterGuid, { 1 });
-    data.WriteGuidMask(victimGuid, { 4, 2 });
-    data.WriteGuidMask(casterGuid, { 3 });
-    data.WriteGuidMask(victimGuid, { 5 });
-    data.WriteBit(false);                                   // power data
-    data.WriteGuidMask(casterGuid, { 7, 0, 2, 4, 6 });
-    data.WriteGuidMask(victimGuid, { 6, 1, 0 });
-    data.WriteGuidMask(casterGuid, { 5 });
-    data.FlushBits();
-    data.WriteGuidBytes(victimGuid, { 0 });
-    data.WriteGuidBytes(casterGuid, { 5 });
-    data.WriteGuidBytes(victimGuid, { 6 });
-    data.WriteGuidBytes(casterGuid, { 6 });
-    data.WriteGuidBytes(victimGuid, { 2 });
-    data.WriteGuidBytes(casterGuid, { 0 });
-    data.WriteGuidBytes(victimGuid, { 1 });
-    data << int32(damage);
-    data.WriteGuidBytes(victimGuid, { 4 });
-    data.WriteGuidBytes(casterGuid, { 1, 7 });
-    data.WriteGuidBytes(victimGuid, { 5 });
-    data.WriteGuidBytes(casterGuid, { 2, 3 });
-    data.WriteGuidBytes(victimGuid, { 7 });
-    data.WriteGuidBytes(casterGuid, { 4 });
-    data.WriteGuidBytes(victimGuid, { 3 });
-    data << uint32(spellID);
-    data << uint32(powerType);
-    SendMessageToSet(&data, true);
+    // 6.x 19342: SMSG_SPELL_ENERGIZE_LOG (TC 6.x)
+    WorldPackets::CombatLog::SpellEnergizeLog data;
+    data.CasterGUID = GetGUID();
+    data.TargetGUID = victim->GetGUID();
+    data.SpellID = spellID;
+    data.Type = powerType;
+    data.Amount = damage;
+    data.LogData.Initialize(victim);
+    SendCombatLogMessage(&data);
 }
 
 void Unit::EnergizeBySpell(Unit* victim, uint32 spellID, uint32 damage, Powers powerType)

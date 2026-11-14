@@ -84,6 +84,13 @@ enum GOSummonType
 
 class WorldPacket;
 class UpdateData;
+
+namespace WorldPackets::CombatLog
+{
+    class CombatLogServerPacket;
+    class SpellNonMeleeDamageLog;
+}
+
 class ByteBuffer;
 class WorldSession;
 class Creature;
@@ -644,6 +651,8 @@ public:
     virtual void CleanupsBeforeDelete(bool finalCleanup = true);  // used in destructor or explicitly before mass creature delete to remove cross-references to already deleted units
 
     virtual void SendMessageToSet(WorldPacket const* data, bool self) const;
+    // 6.x: combat log packets carry extra log data for players with advanced combat logging (TC 6.x)
+    void SendCombatLogMessage(WorldPackets::CombatLog::CombatLogServerPacket* combatLog) const;
     virtual void SendMessageToSetInRange(WorldPacket const* data, float dist, bool self) const;
     virtual void SendMessageToSet(WorldPacket const* data, Player const* skipped_rcvr) const;
 
