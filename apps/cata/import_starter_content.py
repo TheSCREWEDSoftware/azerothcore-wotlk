@@ -122,9 +122,11 @@ def mysql_command(container, user, password, *args, program="mysql", stdin=False
 
 
 def run(container, user, password, sql):
+    # the statement goes through stdin: zone-sized IN lists exceed the kernel's argument length limit
     result = subprocess.run(
-        mysql_command(container, user, password, "--default-character-set=utf8mb4", "-N", "-B", "-e", sql),
-        capture_output=True, text=True, encoding="utf-8", check=False,
+        mysql_command(container, user, password, "--database=mysql", "--default-character-set=utf8mb4", "-N", "-B",
+                      stdin=True),
+        input=sql, capture_output=True, text=True, encoding="utf-8", check=False,
     )
     if result.returncode:
         raise RuntimeError(f"query failed: {sql}\n{result.stderr.strip()}")
@@ -1116,17 +1118,24 @@ def import_closure(container, user, password, target, source, zone, map_id, ques
                 f"(SELECT g.guid FROM {target}.gameobject g WHERE g.id=t.entry))))")
 
     if not dry_run:  # fill-only: a native giver the source flags as QUESTGIVER (2) needs the bit for its quests
-        givers = (f"(SELECT id FROM {target}.creature_queststarter WHERE quest IN ({quest_ids}) "
-                  f"UNION SELECT id FROM {target}.creature_questender WHERE quest IN ({quest_ids}))")
-        run(container, user, password,
-            f"UPDATE {target}.creature_template t JOIN {source}.creature_template s ON s.entry=t.entry "
-            f"SET t.npcflag=t.npcflag|2 WHERE (s.npcflag&2)<>0 AND (t.npcflag&2)=0 AND t.entry IN {givers}")
-        # difficulty rows are separate templates; mirror the bit or the loader reports a npcflag mismatch
-        run(container, user, password,
-            f"UPDATE {target}.creature_template d "
-            f"JOIN {target}.creature_template t ON d.entry IN (t.difficulty_entry_1,t.difficulty_entry_2,"
-            f"t.difficulty_entry_3) "
-            f"SET d.npcflag=d.npcflag|2 WHERE (t.npcflag&2)<>0 AND (d.npcflag&2)=0 AND t.entry IN {givers}")
+        # resolve the givers once: an IN (subquery UNION ...) is re-evaluated per template row
+        givers = sorted({row[0] for row in run(
+            container, user, password,
+            f"SELECT id FROM {target}.creature_queststarter WHERE quest IN ({quest_ids}) "
+            f"UNION SELECT id FROM {target}.creature_questender WHERE quest IN ({quest_ids})")})
+        if givers:
+            giver_ids = ",".join(givers)
+            run(container, user, password,
+                f"UPDATE {target}.creature_template t JOIN {source}.creature_template s ON s.entry=t.entry "
+                f"SET t.npcflag=t.npcflag|2 WHERE (s.npcflag&2)<>0 AND (t.npcflag&2)=0 "
+                f"AND t.entry IN ({giver_ids})")
+            # difficulty rows are separate templates; mirror the bit or the loader reports a npcflag mismatch.
+            # One equi-join per column: a join on d.entry IN (t.a, t.b, t.c) scans every template pair.
+            for column in ("difficulty_entry_1", "difficulty_entry_2", "difficulty_entry_3"):
+                run(container, user, password,
+                    f"UPDATE {target}.creature_template d JOIN {target}.creature_template t ON d.entry=t.{column} "
+                    f"SET d.npcflag=d.npcflag|2 WHERE (t.npcflag&2)<>0 AND (d.npcflag&2)=0 "
+                    f"AND t.entry IN ({giver_ids})")
 
     def timed_references(where, owners=None):
         found: set[str] = set()

@@ -214,7 +214,6 @@ DBCStorage <SpellRadiusEntry> sSpellRadiusStore(SpellRadiusfmt);
 DBCStorage <SpellRangeEntry> sSpellRangeStore(SpellRangefmt);
 DBCStorage <SpellRuneCostEntry> sSpellRuneCostStore(SpellRuneCostfmt);
 DBCStorage <SpellShapeshiftFormEntry> sSpellShapeshiftFormStore(SpellShapeshiftFormEntryfmt);
-DBCStorage <SpellVisualEntry> sSpellVisualStore(SpellVisualfmt);
 DBCStorage <StableSlotPricesEntry> sStableSlotPricesStore(StableSlotPricesfmt);
 DBCStorage <SummonPropertiesEntry> sSummonPropertiesStore(SummonPropertiesfmt);
 DBCStorage <TalentEntry> sTalentStore(TalentEntryfmt);
@@ -592,7 +591,7 @@ void LoadDBCStores(std::string const& dataPath)
     LOAD_DBC(sAreaPOIStore,                         "AreaPOI.dbc",                          "areapoi_dbc");
     LOAD_DBC(sAuctionHouseStore,                    "AuctionHouse.dbc",                     "auctionhouse_dbc");
     LOAD_DBC(sBankBagSlotPricesStore,               "BankBagSlotPrices.dbc",                "bankbagslotprices_dbc");
-    LOAD_DBC(sBattlemasterListStore,                "BattlemasterList.dbc",                 "battlemasterlist_dbc");
+    LOAD_DBC(sBattlemasterListStore,                "BattleMasterList.dbc",                 "battlemasterlist_dbc");
     LOAD_DBC(sBarberShopStyleStore,                 "BarberShopStyle.dbc",                  "barbershopstyle_dbc");
     LOAD_DBC(sCharStartOutfitStore,                 "CharStartOutfit.dbc",                  "charstartoutfit_dbc");
     LOAD_DBC(sCharSectionsStore,                    "CharSections.dbc",                     "charsections_dbc");
@@ -656,7 +655,7 @@ void LoadDBCStores(std::string const& dataPath)
     LOAD_DBC(sItemRandomPropertiesStore,            "ItemRandomProperties.dbc",             "itemrandomproperties_dbc");
     LOAD_DBC(sItemRandomSuffixStore,                "ItemRandomSuffix.dbc",                 "itemrandomsuffix_dbc");
     LOAD_DBC(sItemSetStore,                         "ItemSet.dbc",                          "itemset_dbc");
-    LOAD_DBC(sLFGDungeonStore,                      "LFGDungeons.dbc",                      "lfgdungeons_dbc");
+    LOAD_DBC(sLFGDungeonStore,                      "LfgDungeons.dbc",                      "lfgdungeons_dbc");
     LOAD_DBC(sLightStore,                           "Light.dbc",                            "light_dbc");
     LOAD_DBC(sLiquidTypeStore,                      "LiquidType.dbc",                       "liquidtype_dbc");
     LOAD_DBC(sLockStore,                            "Lock.dbc",                             "lock_dbc");
@@ -732,7 +731,7 @@ void LoadDBCStores(std::string const& dataPath)
     LOAD_DBC(sSpellRangeStore,                      "SpellRange.dbc",                       nullptr);
     LOAD_DBC(sSpellRuneCostStore,                   "SpellRuneCost.dbc",                    nullptr);
     LOAD_DBC(sSpellShapeshiftFormStore,             "SpellShapeshiftForm.dbc",              nullptr);
-    LOAD_DBC(sSpellVisualStore,                     "SpellVisual.dbc",                      "spellvisual_dbc");
+    // 5.4.8: SpellVisual is a DB2 without the HasMissile/MissileModel columns; not loaded
     //LOAD_DBC(sStableSlotPricesStore,              "StableSlotPrices.dbc",                 "stableslotprices_dbc"); -- removed in real Cata client (matches upstream TC, which also drops this load and its only consumer, buying additional stable slots); HandleBuyStableSlot is disabled below to match
     LOAD_DBC(sSummonPropertiesStore,                "SummonProperties.dbc",                 "summonproperties_dbc");
     LOAD_DBC(sTalentStore,                          "Talent.dbc",                           "talent_dbc");
