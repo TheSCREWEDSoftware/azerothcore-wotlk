@@ -1135,9 +1135,9 @@ void GameEventMgr::LoadHolidayDates()
             if (!entry->Duration[0])
                 entry->Duration[0] = 168; // 7 days in hours
 
-            auto itr = std::lower_bound(ModifiedHolidays.begin(), ModifiedHolidays.end(), entry->Id);
-            if (itr == ModifiedHolidays.end() || *itr != entry->Id)
-                ModifiedHolidays.insert(itr, entry->Id);
+            auto itr = std::lower_bound(ModifiedHolidays.begin(), ModifiedHolidays.end(), entry->ID);
+            if (itr == ModifiedHolidays.end() || *itr != entry->ID)
+                ModifiedHolidays.insert(itr, entry->ID);
 
             continue;
         }
@@ -1164,9 +1164,9 @@ void GameEventMgr::LoadHolidayDates()
             ++dynamicCount;
         }
 
-        auto itr = std::lower_bound(ModifiedHolidays.begin(), ModifiedHolidays.end(), entry->Id);
-        if (itr == ModifiedHolidays.end() || *itr != entry->Id)
-            ModifiedHolidays.insert(itr, entry->Id);
+        auto itr = std::lower_bound(ModifiedHolidays.begin(), ModifiedHolidays.end(), entry->ID);
+        if (itr == ModifiedHolidays.end() || *itr != entry->ID)
+            ModifiedHolidays.insert(itr, entry->ID);
     }
 
     // Step 2: Check game_event.start_time for overrides (allows custom servers to override calculated dates)
@@ -1780,10 +1780,10 @@ void GameEventMgr::UpdateWorldStates(uint16 eventId, bool Activate)
         if (bgTypeId != BATTLEGROUND_TYPE_NONE)
         {
             BattlemasterListEntry const* bl = sBattlemasterListStore.LookupEntry(bgTypeId);
-            if (bl && bl->HolidayWorldStateId)
+            if (bl && bl->HolidayWorldState)
             {
                 WorldPackets::WorldState::UpdateWorldState worldstate;
-                worldstate.VariableID = bl->HolidayWorldStateId;
+                worldstate.VariableID = bl->HolidayWorldState;
                 worldstate.Value = Activate ? 1 : 0;
                 sWorldSessionMgr->SendGlobalMessage(worldstate.Write());
             }

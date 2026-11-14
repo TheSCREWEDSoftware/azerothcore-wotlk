@@ -355,6 +355,19 @@ enum NPCFlags : uint32
 };
 DEFINE_ENUM_FLAG(NPCFlags);
 
+// 6.x: second UNIT_NPC_FLAGS field (bits 32-63 of the 64-bit npc flags)
+enum NPCFlags2 : uint32
+{
+    UNIT_NPC_FLAG_2_NONE                    = 0x00000000,
+    UNIT_NPC_FLAG_2_ITEM_UPGRADE_MASTER     = 0x00000001,
+    UNIT_NPC_FLAG_2_GARRISON_ARCHITECT      = 0x00000002,
+    UNIT_NPC_FLAG_2_SHIPMENT_CRAFTER        = 0x00000010,
+    UNIT_NPC_FLAG_2_GARRISON_MISSION_NPC    = 0x00000020,
+    UNIT_NPC_FLAG_2_TRADESKILL_NPC          = 0x00000040,
+    UNIT_NPC_FLAG_2_BLACK_MARKET_VIEW       = 0x00000080
+};
+DEFINE_ENUM_FLAG(NPCFlags2);
+
 enum UnitMoveType
 {
     MOVE_WALK           = 0,

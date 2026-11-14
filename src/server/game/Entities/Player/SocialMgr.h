@@ -46,6 +46,7 @@ enum SocialFlag
 
 struct FriendInfo
 {
+    ObjectGuid WowAccountGuid;                              // 6.x: the friend's account, sent in the contact list
     FriendStatus Status;
     uint8 Flags;
     uint32 Area;
@@ -56,7 +57,7 @@ struct FriendInfo
     FriendInfo() : Status(FRIEND_STATUS_OFFLINE), Flags(0), Area(0), Level(0), Class(0), Note()
     { }
 
-    FriendInfo(uint8 flags, std::string const& note) : Status(FRIEND_STATUS_OFFLINE), Flags(flags), Area(0), Level(0), Class(0), Note(note)
+    FriendInfo(ObjectGuid const& accountGuid, uint8 flags, std::string const& note) : WowAccountGuid(accountGuid), Status(FRIEND_STATUS_OFFLINE), Flags(flags), Area(0), Level(0), Class(0), Note(note)
     { }
 };
 
@@ -104,7 +105,7 @@ class PlayerSocial
     public:
         PlayerSocial();
         // adding/removing
-        bool AddToSocialList(ObjectGuid const& friend_guid, SocialFlag flag);
+        bool AddToSocialList(ObjectGuid const& friend_guid, ObjectGuid const& accountGuid, SocialFlag flag);
         void RemoveFromSocialList(ObjectGuid const& friend_guid, SocialFlag flag);
         void SetFriendNote(ObjectGuid const& friendGuid, std::string note);
         // Packet send's

@@ -721,7 +721,7 @@ void OutdoorPvP::SetMapFromZone(uint32 zone)
     AreaTableEntry const* areaTable = sAreaTableStore.LookupEntry(zone);
     ASSERT(areaTable);
 
-    Map* map = sMapMgr->CreateBaseMap(areaTable->mapid);
+    Map* map = sMapMgr->CreateBaseMap(areaTable->MapID);
     ASSERT(!map->Instanceable());
     _map = map;
 }

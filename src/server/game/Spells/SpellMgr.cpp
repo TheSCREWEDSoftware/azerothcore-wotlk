@@ -41,7 +41,7 @@ bool IsPrimaryProfessionSkill(uint32 skill)
     if (!pSkill)
         return false;
 
-    if (pSkill->categoryId != SKILL_CATEGORY_PROFESSION)
+    if (pSkill->CategoryID != SKILL_CATEGORY_PROFESSION)
         return false;
 
     return true;
@@ -1106,7 +1106,7 @@ bool SpellArea::IsFitToRequirements(Player const* player, uint32 newZone, uint32
                     return false;
 
                 AreaTableEntry const* pArea = sAreaTableStore.LookupEntry(player->GetAreaId());
-                if (!(pArea && pArea->flags & AREA_FLAG_NO_FLY_ZONE))
+                if (!(pArea && pArea->Flags[0] & AREA_FLAG_NO_FLY_ZONE))
                     return false;
                 if (!player->HasIncreaseMountedFlightSpeedAura() && !player->HasFlyAura())
                     return false;
@@ -2428,7 +2428,7 @@ void SpellMgr::LoadSkillLineAbilityMap()
         if (!SkillInfo)
             continue;
 
-        mSkillLineAbilityMap.insert(SkillLineAbilityMap::value_type(SkillInfo->Spell, SkillInfo));
+        mSkillLineAbilityMap.insert(SkillLineAbilityMap::value_type(SkillInfo->SpellID, SkillInfo));
         ++count;
     }
 
@@ -2655,15 +2655,15 @@ void SpellMgr::LoadPetLevelupSpellMap()
 
         for (uint8 j = 0; j < 2; ++j)
         {
-            if (!creatureFamily->skillLine[j])
+            if (!creatureFamily->SkillLine[j])
                 continue;
 
-            for (SkillLineAbilityEntry const* skillLine : GetSkillLineAbilitiesBySkillLine(creatureFamily->skillLine[j]))
+            for (SkillLineAbilityEntry const* skillLine : GetSkillLineAbilitiesBySkillLine(creatureFamily->SkillLine[j]))
             {
                 if (skillLine->AcquireMethod != SKILL_LINE_ABILITY_LEARNED_ON_SKILL_LEARN)
                     continue;
 
-                SpellInfo const* spell = GetSpellInfo(skillLine->Spell);
+                SpellInfo const* spell = GetSpellInfo(skillLine->SpellID);
                 if (!spell) // not exist or triggered or talent
                     continue;
 
@@ -3290,7 +3290,7 @@ void SpellMgr::LoadSpellInfoCustomAttributes()
         if (!talentInfo)
             continue;
 
-        if (SpellInfo const* spellInfo = GetSpellInfo(talentInfo->SpellId))
+        if (SpellInfo const* spellInfo = GetSpellInfo(talentInfo->SpellID))
             for (uint8 k = 0; k < MAX_SPELL_EFFECTS; ++k)
                 if (spellInfo->Effects[k].Effect == SPELL_EFFECT_LEARN_SPELL)
                     if (SpellInfo const* learnSpell = GetSpellInfo(spellInfo->Effects[k].TriggerSpell))
@@ -3409,12 +3409,12 @@ void SpellMgr::LoadSpellInfoCustomAttributes()
                             if (!enchant)
                                 break;
 
-                            for (uint8 s = 0; s < MAX_SPELL_ITEM_ENCHANTMENT_EFFECTS; ++s)
+                            for (uint8 s = 0; s < MAX_ITEM_ENCHANTMENT_EFFECTS; ++s)
                             {
-                                if (enchant->type[s] != ITEM_ENCHANTMENT_TYPE_COMBAT_SPELL)
+                                if (enchant->Effect[s] != ITEM_ENCHANTMENT_TYPE_COMBAT_SPELL)
                                     continue;
 
-                                SpellInfo* procInfo = _GetSpellInfo(enchant->spellid[s]);
+                                SpellInfo* procInfo = _GetSpellInfo(enchant->EffectSpellID[s]);
                                 if (!procInfo)
                                     continue;
 

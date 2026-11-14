@@ -26,14 +26,13 @@
 
 #include <map>
 
-
 struct WMOAreaTableTripple
 {
     WMOAreaTableTripple(int32 r, int32 a, int32 g) :  groupId(g), rootId(r), adtId(a)
     {
     }
 
-    bool operator <(const WMOAreaTableTripple& b) const
+    bool operator <(WMOAreaTableTripple const& b) const
     {
         return memcmp(this, &b, sizeof(WMOAreaTableTripple))<0;
     }
@@ -302,7 +301,7 @@ inline void LoadGameTable(StoreProblemList& errors, std::string const& tableName
     }
 }
 
-void LoadDBCStores(const std::string& dataPath, uint32 defaultLocale)
+void LoadDBCStores(std::string const& dataPath, uint32 defaultLocale)
 {
     uint32 oldMSTime = getMSTime();
 
@@ -536,7 +535,7 @@ void LoadDBCStores(const std::string& dataPath, uint32 defaultLocale)
     LOG_INFO("server.loading", ">> Initialized {} DBC data stores in {} ms", DBCFileCount, GetMSTimeDiffToNow(oldMSTime));
 }
 
-void LoadGameTables(const std::string& dataPath, uint32 defaultLocale)
+void LoadGameTables(std::string const& dataPath, uint32 defaultLocale)
 {
     uint32 oldMSTime = getMSTime();
 

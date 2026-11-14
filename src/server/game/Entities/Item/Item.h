@@ -20,6 +20,7 @@
 
 #include "Common.h"
 #include "DatabaseEnv.h"
+#include <unordered_set>
 #include "ItemTemplate.h"
 #include "LootMgr.h"
 #include "Object.h"
@@ -28,11 +29,14 @@ class SpellInfo;
 class Bag;
 class Unit;
 
+struct ItemSetSpellEntry;
+
+// 6.x item set bonuses come from ItemSetSpell.db2 (threshold and spec per spell), from TrinityCore 6.x
 struct ItemSetEffect
 {
-    uint32 setid;
-    uint32 item_count;
-    SpellInfo const* spells[8];
+    uint32 ItemSetID;
+    uint32 EquippedItemCount;
+    std::unordered_set<ItemSetSpellEntry const*> SetBonuses;
 };
 
 enum InventorySlot
@@ -222,7 +226,47 @@ enum ItemUpdateState
 
 #define MAX_ITEM_SPELLS 5
 
+// 6.x item modifiers (ITEM_DYNAMIC_FIELD_MODIFIERS), from TrinityCore 6.x
+enum ItemModifier
+{
+    ITEM_MODIFIER_TRANSMOG_APPEARANCE_MOD   = 0,
+    ITEM_MODIFIER_TRANSMOG_ITEM_ID          = 1,
+    ITEM_MODIFIER_UPGRADE_ID                = 2,
+    ITEM_MODIFIER_BATTLE_PET_SPECIES_ID     = 3,
+    ITEM_MODIFIER_BATTLE_PET_BREED_DATA     = 4, // (breedId) | (breedQuality << 24)
+    ITEM_MODIFIER_BATTLE_PET_LEVEL          = 5,
+    ITEM_MODIFIER_BATTLE_PET_DISPLAY_ID     = 6,
+    ITEM_MODIFIER_ENCHANT_ILLUSION          = 7,
+
+    MAX_ITEM_MODIFIERS
+};
+
 bool ItemCanGoIntoBag(ItemTemplate const* proto, ItemTemplate const* pBagProto);
+
+namespace WorldPackets::Item
+{
+    struct ItemInstance;
+}
+
+// The item template values item bonuses (ItemBonus.db2) change, from TrinityCore 6.x
+struct BonusData
+{
+    uint32 Quality;
+    int32 ItemLevel;
+    int32 RequiredLevel;
+    int32 ItemStatType[MAX_ITEM_PROTO_STATS];
+    int32 ItemStatValue[MAX_ITEM_PROTO_STATS];
+    int32 ItemStatAllocation[MAX_ITEM_PROTO_STATS];
+    float ItemStatSocketCostMultiplier[MAX_ITEM_PROTO_STATS];
+    uint32 SocketColor[MAX_ITEM_PROTO_SOCKETS];
+    uint32 AppearanceModID;
+    float RepairCostMultiplier;
+    uint32 ScalingStatDistribution;
+
+    void Initialize(ItemTemplate const* proto);
+    void Initialize(WorldPackets::Item::ItemInstance const& itemInstance);
+    void AddBonus(uint32 type, int32 const (&values)[2]);
+};
 
 class Item : public Object
 {
@@ -235,6 +279,27 @@ public:
     virtual bool Create(ObjectGuid::LowType guidlow, uint32 itemid, Player const* owner);
 
     [[nodiscard]] ItemTemplate const* GetTemplate() const;
+    [[nodiscard]] BonusData const* GetBonus() const { return &_bonusData; }
+
+    // 6.x item level, stats, bonuses and modifiers
+    [[nodiscard]] uint32 GetItemLevel(Player const* owner) const;
+    [[nodiscard]] int32 GetItemStatType(uint32 index) const { return _bonusData.ItemStatType[index]; }
+    [[nodiscard]] int32 GetItemStatValue(uint32 index, Player const* owner) const;
+    [[nodiscard]] uint32 GetQuality() const { return _bonusData.Quality; }
+    [[nodiscard]] float GetRepairCostMultiplier() const { return _bonusData.RepairCostMultiplier; }
+    // 6.x armor/damage scale with the (possibly level-scaled) item level; item_template-only items keep stored values
+    [[nodiscard]] uint32 GetArmor(Player const* owner) const;
+    void GetDamage(Player const* owner, float& minDamage, float& maxDamage) const;
+    [[nodiscard]] uint32 GetAppearanceModId() const { return _bonusData.AppearanceModID; }
+    [[nodiscard]] uint32 GetScalingStatDistribution() const { return _bonusData.ScalingStatDistribution; }
+    [[nodiscard]] uint32 GetDisplayId() const;
+    [[nodiscard]] uint32 GetModifier(ItemModifier modifier) const;
+    void SetModifier(ItemModifier modifier, uint32 value);
+    [[nodiscard]] uint16 GetVisibleAppearanceModId() const;
+    [[nodiscard]] uint32 GetVisibleEnchantmentId() const;
+    [[nodiscard]] uint16 GetVisibleItemVisual() const;
+    void AddBonuses(uint32 bonusListID);
+    [[nodiscard]] std::vector<uint32> const& GetDynamicBonusListIDs() const { return GetDynamicValues(ITEM_DYNAMIC_FIELD_BONUSLIST_IDS); }
 
     [[nodiscard]] ObjectGuid GetOwnerGUID() const { return GetGuidValue(ITEM_FIELD_OWNER); }
     void SetOwnerGUID(ObjectGuid guid) { SetGuidValue(ITEM_FIELD_OWNER, guid); }
@@ -247,7 +312,8 @@ public:
     [[nodiscard]] bool IsBoundByEnchant() const;
     [[nodiscard]] bool IsBoundByTempEnchant() const;
     virtual void SaveToDB(CharacterDatabaseTransaction trans);
-    virtual bool LoadFromDB(ObjectGuid::LowType guid, ObjectGuid owner_guid, Field* fields, uint32 entry);
+    // fields: the item_instance columns of the query, the 8 columns 6.x added start at extraFields
+    virtual bool LoadFromDB(ObjectGuid::LowType guid, ObjectGuid owner_guid, Field* fields, uint32 entry, uint32 extraFields);
     static void DeleteFromDB(CharacterDatabaseTransaction trans, ObjectGuid::LowType itemGuid);
     virtual void DeleteFromDB(CharacterDatabaseTransaction trans);
     static void DeleteFromInventoryDB(CharacterDatabaseTransaction trans, ObjectGuid::LowType itemGuid);
@@ -409,5 +475,6 @@ private:
     std::array<uint32, MAX_ENCHANTMENT_SLOT * MAX_ENCHANTMENT_OFFSET> _enchantments{};
     uint32 m_paidExtendedCost;
     AllowedLooterSet allowedGUIDs;
+    BonusData _bonusData;
 };
 #endif

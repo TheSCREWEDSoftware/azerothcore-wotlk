@@ -21,6 +21,7 @@
 #include "AreaDefines.h"
 #include "Common.h"
 #include "DBCEnums.h"
+#include "SharedDefines.h"
 #include "Define.h"
 #include "Util.h"
 #include <array>
@@ -32,7 +33,6 @@
 // DBC records of the 6.2.3/6.2.4 client, from TrinityCore 6.x (src/server/game/DataStores/DBCStructure.h).
 // The db2 records are in DB2Structure.h. Structures using to access raw DBC data and required packing to portability
 #pragma pack(push, 1)
-
 
 struct AnimKitEntry
 {
@@ -77,6 +77,8 @@ struct AreaTableEntry
             return true;
         return (Flags[0] & AREA_FLAG_SANCTUARY) != 0;
     }
+    // AC helper: flying is allowed (0x400 is set on every zone that permits flying mounts)
+    bool IsFlyable() const { return (Flags[0] & AREA_FLAG_OUTLAND) != 0; }
 };
 
 struct AreaTriggerEntry
@@ -166,7 +168,6 @@ struct CharSectionsEntry
     uint32 Color;
 };
 
-
 struct CharTitlesEntry
 {
     uint32      ID;                                         // 0, title ids, for example in Quest::GetCharTitleId()
@@ -246,6 +247,8 @@ struct ChrRacesEntry
     //uint32    HighResFemaleDisplayID;                     // 37
     //uint32    CharComponentTexLayoutHiResID;              // 38
     //uint32    Unk;                                        // 39
+    // AC helper
+    bool HasFlag(ChrRacesFlags flag) const { return (Flags & flag) != 0; }
 };
 
 #define MAX_MASTERY_SPELLS 2
@@ -305,7 +308,7 @@ struct CreatureModelDataEntry
     uint32      Flags;                                      // 1
     uint32      FileDataID;                                 // 2
     //uint32    SizeClass;                                  // 3
-    //float     ModelScale;                                 // 4
+    float       ModelScale;                                 // 4
     //uint32    BloodID;                                    // 5
     //uint32    FootprintTextureID;                         // 6
     //float     FootprintTextureLength;                     // 7
@@ -315,7 +318,7 @@ struct CreatureModelDataEntry
     //uint32    FootstepShakeSize;                          // 11
     //uint32    DeathThudShakeSize;                         // 12
     //uint32    SoundID;                                    // 13
-    //float     CollisionWidth;                             // 14
+    float       CollisionWidth;                             // 14
     float       CollisionHeight;                            // 15
     float       MountHeight;                                // 16
     //float     GeoBoxMin[3];                               // 17-19
@@ -331,6 +334,8 @@ struct CreatureModelDataEntry
     //float     TamedPetBaseScale;                          // 31
     //uint32    CreatureGeosetDataID;                       // 32
     //float     HoverHeight;                                // 33
+    // AC helper
+    bool HasFlag(CreatureModelDataFlags flag) const { return (Flags & flag) != 0; }
 };
 
 /* not used
@@ -433,6 +438,11 @@ struct FactionEntry
     bool CanHaveReputation() const
     {
         return ReputationIndex >= 0;
+    }
+    // AC helper: factions whose reputation is shared by every playable race can be set at war
+    bool CanBeSetAtWar() const
+    {
+        return ReputationIndex >= 0 && ReputationRaceMask[0] == RACEMASK_ALL_PLAYABLE;
     }
 };
 
@@ -778,14 +788,14 @@ struct LFGDungeonEntry
     uint32      GroupID;                                    // 15
     //char*     Description_lang;                           // 16
     //uint32    RandomID;                                   // 17
-    //uint32    CountTank;                                  // 18
-    //uint32    CountHealer;                                // 19
-    //uint32    CountDamage;                                // 20
+    uint32      CountTank;                                  // 18
+    uint32      CountHealer;                                // 19
+    uint32      CountDamage;                                // 20
     //uint32    MinCountTank;                               // 21
     //uint32    MinCountHealer;                             // 22
     //uint32    MinCountDamage;                             // 23
     //uint32    ScenarioID;                                 // 24
-    //uint32    SubType;                                    // 25
+    uint32      SubType;                                    // 25 LfgQueueType: 1 dungeon, 2 raid finder, 3 scenario, 4 flex
     //uint32    LastBossJournalEncounterID;                 // 26
     //uint32    BonusReputationAmount;                      // 27
     //uint32    MentorCharLevel;                            // 28
@@ -1397,6 +1407,8 @@ struct VehicleSeatEntry
                                     || (FlagsB & (VEHICLE_SEAT_FLAG_B_USABLE_FORCED | VEHICLE_SEAT_FLAG_B_USABLE_FORCED_2 |
                                         VEHICLE_SEAT_FLAG_B_USABLE_FORCED_3 | VEHICLE_SEAT_FLAG_B_USABLE_FORCED_4))); }
     bool IsEjectable() const { return (FlagsB & VEHICLE_SEAT_FLAG_B_EJECTABLE) != 0; }
+    // AC helper
+    bool CanControl() const { return (Flags & VEHICLE_SEAT_FLAG_CAN_CONTROL) != 0; }
 };
 
 struct WMOAreaTableEntry

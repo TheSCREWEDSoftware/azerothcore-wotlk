@@ -168,12 +168,12 @@ static void LogCommandUsage(WorldSession const& session, std::string_view cmdStr
 
     if (AreaTableEntry const* area = sAreaTableStore.LookupEntry(areaId))
     {
-        areaName = area->area_name[locale];
+        areaName = area->AreaName_lang;
     }
 
     if (AreaTableEntry const* zone = sAreaTableStore.LookupEntry(zoneId))
     {
-        zoneName = zone->area_name[locale];
+        zoneName = zone->AreaName_lang;
     }
 
     std::string logMessage = Acore::StringFormat("Command: {} [Player: {} ({}) (Account: {}) X: {} Y: {} Z: {} Map: {} ({}) Area: {} ({}) Zone: {} ({}) Selected: {} ({})]",

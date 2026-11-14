@@ -3736,15 +3736,8 @@ uint32 Unit::GetWeaponSkillValue (WeaponAttackType attType, Unit const* target) 
                 ? player->GetMaxSkillValue(skill)
                 : player->GetSkillValue(skill);
         // Modify value from ratings
-        value += uint32(player->GetRatingBonusValue(CR_WEAPON_SKILL));
         switch (attType)
         {
-            case BASE_ATTACK:
-                value += uint32(player->GetRatingBonusValue(CR_WEAPON_SKILL_MAINHAND));
-                break;
-            case OFF_ATTACK:
-                value += uint32(player->GetRatingBonusValue(CR_WEAPON_SKILL_OFFHAND));
-                break;
             case RANGED_ATTACK:
                 value += uint32(player->GetRatingBonusValue(CR_WEAPON_SKILL_RANGED));
                 break;
@@ -4267,15 +4260,15 @@ void Unit::ProcessTerrainStatusUpdate()
 
     if (curLiquid != _lastLiquid)
     {
-        if (_lastLiquid && _lastLiquid->SpellId)
-            RemoveAurasDueToSpell(_lastLiquid->SpellId);
+        if (_lastLiquid && _lastLiquid->SpellID)
+            RemoveAurasDueToSpell(_lastLiquid->SpellID);
 
         // Set _lastLiquid before casting liquid spell to avoid infinite loops
         _lastLiquid = curLiquid;
 
         Player* player = GetCharmerOrOwnerPlayerOrPlayerItself();
-        if (curLiquid && curLiquid->SpellId && (!player || !player->IsGameMaster()))
-            CastSpell(this, curLiquid->SpellId, true);
+        if (curLiquid && curLiquid->SpellID && (!player || !player->IsGameMaster()))
+            CastSpell(this, curLiquid->SpellID, true);
     }
 }
 
@@ -5703,7 +5696,7 @@ void Unit::GetDispellableAuraList(Unit* caster, uint32 dispelMask, DispelCharges
         {
             if (FactionTemplateEntry const* factionTemplateEntry = GetFactionTemplateEntry())
             {
-                if (FactionEntry const* factionEntry = sFactionStore.LookupEntry(factionTemplateEntry->faction))
+                if (FactionEntry const* factionEntry = sFactionStore.LookupEntry(factionTemplateEntry->Faction))
                 {
                     if (factionEntry->CanBeSetAtWar())
                     {
@@ -7017,12 +7010,12 @@ ReputationRank Unit::GetReactionTo(Unit const* target, bool checkOriginalFaction
                         return *repRank;
                     if (!selfPlayerOwner->HasUnitFlag2(UNIT_FLAG2_IGNORE_REPUTATION))
                     {
-                        if (FactionEntry const* targetFactionEntry = sFactionStore.LookupEntry(targetFactionTemplateEntry->faction))
+                        if (FactionEntry const* targetFactionEntry = sFactionStore.LookupEntry(targetFactionTemplateEntry->Faction))
                         {
                             if (targetFactionEntry->CanHaveReputation())
                             {
                                 // check contested flags
-                                if (targetFactionTemplateEntry->factionFlags & FACTION_TEMPLATE_FLAG_ATTACK_PVP_ACTIVE_PLAYERS
+                                if (targetFactionTemplateEntry->Flags & FACTION_TEMPLATE_FLAG_ATTACK_PVP_ACTIVE_PLAYERS
                                         && selfPlayerOwner->HasPlayerFlag(PLAYER_FLAGS_CONTESTED_PVP))
                                     return REP_HOSTILE;
 
@@ -7095,14 +7088,14 @@ ReputationRank Unit::GetFactionReactionTo(FactionTemplateEntry const* factionTem
     if (Player const* targetPlayerOwner = target->GetAffectingPlayer())
     {
         // check contested flags
-        if (factionTemplateEntry->factionFlags & FACTION_TEMPLATE_FLAG_ATTACK_PVP_ACTIVE_PLAYERS
+        if (factionTemplateEntry->Flags & FACTION_TEMPLATE_FLAG_ATTACK_PVP_ACTIVE_PLAYERS
                 && targetPlayerOwner->HasPlayerFlag(PLAYER_FLAGS_CONTESTED_PVP))
             return REP_HOSTILE;
         if (ReputationRank const* repRank = targetPlayerOwner->GetReputationMgr().GetForcedRankIfAny(factionTemplateEntry))
             return *repRank;
         if (!target->HasUnitFlag2(UNIT_FLAG2_IGNORE_REPUTATION))
         {
-            if (FactionEntry const* factionEntry = sFactionStore.LookupEntry(factionTemplateEntry->faction))
+            if (FactionEntry const* factionEntry = sFactionStore.LookupEntry(factionTemplateEntry->Faction))
             {
                 if (factionEntry->CanHaveReputation())
                 {
@@ -7130,7 +7123,7 @@ ReputationRank Unit::GetFactionReactionTo(FactionTemplateEntry const* factionTem
         return REP_FRIENDLY;
     if (targetFactionTemplateEntry->IsFriendlyTo(*factionTemplateEntry))
         return REP_FRIENDLY;
-    if (factionTemplateEntry->factionFlags & FACTION_TEMPLATE_FLAG_HATES_ALL_EXCEPT_FRIENDS)
+    if (factionTemplateEntry->Flags & FACTION_TEMPLATE_FLAG_HATES_ALL_EXCEPT_FRIENDS)
         return REP_HOSTILE;
 
     // neutral by default
@@ -7150,11 +7143,11 @@ bool Unit::IsFriendlyTo(Unit const* unit) const
 bool Unit::IsHostileToPlayers() const
 {
     FactionTemplateEntry const* my_faction = GetFactionTemplateEntry();
-    if (!my_faction || !my_faction->faction)
+    if (!my_faction || !my_faction->Faction)
         return false;
 
-    FactionEntry const* raw_faction = sFactionStore.LookupEntry(my_faction->faction);
-    if (raw_faction && raw_faction->reputationListID >= 0)
+    FactionEntry const* raw_faction = sFactionStore.LookupEntry(my_faction->Faction);
+    if (raw_faction && raw_faction->ReputationIndex >= 0)
         return false;
 
     return my_faction->IsHostileToPlayers();
@@ -7163,11 +7156,11 @@ bool Unit::IsHostileToPlayers() const
 bool Unit::IsNeutralToAll() const
 {
     FactionTemplateEntry const* my_faction = GetFactionTemplateEntry();
-    if (!my_faction || !my_faction->faction)
+    if (!my_faction || !my_faction->Faction)
         return true;
 
-    FactionEntry const* raw_faction = sFactionStore.LookupEntry(my_faction->faction);
-    if (raw_faction && raw_faction->reputationListID >= 0)
+    FactionEntry const* raw_faction = sFactionStore.LookupEntry(my_faction->Faction);
+    if (raw_faction && raw_faction->ReputationIndex >= 0)
         return false;
 
     return my_faction->IsNeutralToAll();
@@ -10757,7 +10750,7 @@ bool Unit::_IsValidAttackTarget(Unit const* target, SpellInfo const* bySpell, Wo
 
         bool isContestedGuard = false;
         if (FactionTemplateEntry const* entry = GetFactionTemplateEntry())
-            isContestedGuard = entry->factionFlags & FACTION_TEMPLATE_FLAG_ATTACK_PVP_ACTIVE_PLAYERS;
+            isContestedGuard = entry->Flags & FACTION_TEMPLATE_FLAG_ATTACK_PVP_ACTIVE_PLAYERS;
 
         bool isContestedPvp = false;
         if (Player const* player = target->GetCharmerOrOwnerPlayerOrPlayerItself())
@@ -10782,7 +10775,7 @@ bool Unit::_IsValidAttackTarget(Unit const* target, SpellInfo const* bySpell, Wo
             if (FactionTemplateEntry const* factionTemplate = creature->GetFactionTemplateEntry())
             {
                 if (!(player->GetReputationMgr().GetForcedRankIfAny(factionTemplate)))
-                    if (FactionEntry const* factionEntry = sFactionStore.LookupEntry(factionTemplate->faction))
+                    if (FactionEntry const* factionEntry = sFactionStore.LookupEntry(factionTemplate->Faction))
                         if (FactionState const* repState = player->GetReputationMgr().GetState(factionEntry))
                             if (!(repState->Flags & FACTION_FLAG_AT_WAR))
                                 return false;
@@ -11767,7 +11760,7 @@ float Unit::GetSpellMaxRangeForTarget(Unit const* target, SpellInfo const* spell
         return 0;
     }
 
-    if (spellInfo->RangeEntry->RangeMax[1] == spellInfo->RangeEntry->RangeMax[0])
+    if (spellInfo->RangeEntry->MaxRangeFriend == spellInfo->RangeEntry->MaxRangeHostile)
     {
         return spellInfo->GetMaxRange();
     }
@@ -11787,7 +11780,7 @@ float Unit::GetSpellMinRangeForTarget(Unit const* target, SpellInfo const* spell
         return 0;
     }
 
-    if (spellInfo->RangeEntry->RangeMin[1] == spellInfo->RangeEntry->RangeMin[0])
+    if (spellInfo->RangeEntry->MinRangeFriend == spellInfo->RangeEntry->MinRangeHostile)
     {
         return spellInfo->GetMinRange();
     }
@@ -11814,8 +11807,8 @@ uint32 Unit::GetCreatureType() const
     {
         ShapeshiftForm form = GetShapeshiftForm();
         SpellShapeshiftFormEntry const* ssEntry = sSpellShapeshiftFormStore.LookupEntry(form);
-        if (ssEntry && ssEntry->creatureType > 0)
-            return ssEntry->creatureType;
+        if (ssEntry && ssEntry->CreatureType > 0)
+            return ssEntry->CreatureType;
         else
             return CREATURE_TYPE_HUMANOID;
     }
@@ -12961,7 +12954,7 @@ void Unit::SendPetActionSound(PetAction action) const
 void Unit::SendPetDismissSound() const
 {
     if (CreatureDisplayInfoEntry const* displayInfo = sCreatureDisplayInfoStore.LookupEntry(GetNativeDisplayId()))
-        SendMessageToSet(WorldPackets::Pet::PetDismissSound(static_cast<int32>(displayInfo->ModelId), GetPosition()).Write(), false);
+        SendMessageToSet(WorldPackets::Pet::PetDismissSound(static_cast<int32>(displayInfo->ModelID), GetPosition()).Write(), false);
 }
 
 WorldPacket Unit::BuildAIReactionPacket(ObjectGuid guid, uint32 reaction)
@@ -15525,21 +15518,21 @@ uint32 Unit::GetModelForForm(ShapeshiftForm form, uint32 spellId)
 
     uint32 modelid = 0;
     SpellShapeshiftFormEntry const* formEntry = sSpellShapeshiftFormStore.LookupEntry(form);
-    if (formEntry && formEntry->modelID_A)
+    if (formEntry && formEntry->CreatureDisplayID[0])
     {
         // Take the alliance modelid as default
         if (!IsPlayer())
-            return formEntry->modelID_A;
+            return formEntry->CreatureDisplayID[0];
         else
         {
             if (Player::TeamIdForRace(getRace()) == TEAM_ALLIANCE)
-                modelid = formEntry->modelID_A;
+                modelid = formEntry->CreatureDisplayID[0];
             else
-                modelid = formEntry->modelID_H;
+                modelid = formEntry->CreatureDisplayID[1];
 
             // If the player is horde but there are no values for the horde modelid - take the alliance modelid
             if (!modelid && Player::TeamIdForRace(getRace()) == TEAM_HORDE)
-                modelid = formEntry->modelID_A;
+                modelid = formEntry->CreatureDisplayID[0];
         }
     }
 
@@ -15551,7 +15544,7 @@ bool Unit::IsAttackSpeedOverridenShapeShift() const
     // Mirroring clientside gameplay logic
     if (ShapeshiftForm form = GetShapeshiftForm())
         if (SpellShapeshiftFormEntry const* entry = sSpellShapeshiftFormStore.LookupEntry(form))
-            return entry->attackSpeed > 0;
+            return entry->CombatRoundTime > 0;
 
     return false;
 }
@@ -15874,7 +15867,7 @@ void Unit::_ExitVehicle(Position const* exitPosition)
 
     // xinef: hack for flameleviathan seat vehicle
     VehicleEntry const* vehicleInfo = vehicle->GetVehicleInfo();
-    if (!vehicleInfo || vehicleInfo->m_ID != 341)
+    if (!vehicleInfo || vehicleInfo->ID != 341)
     {
         Movement::MoveSplineInit init(this);
         init.MoveTo(pos.GetPositionX(), pos.GetPositionY(), pos.GetPositionZ());
@@ -15897,8 +15890,8 @@ void Unit::_ExitVehicle(Position const* exitPosition)
     // xinef: move fall for air-exit quest vehicles:
     // Quest Drag and Drop, Air Assault, and Shoot 'em Up.
     if (IsCreature() && !CanFly() && vehicleInfo &&
-        (vehicleInfo->m_ID == 8 || vehicleInfo->m_ID == 113 || vehicleInfo->m_ID == 228 ||
-         vehicleInfo->m_ID == 290 || vehicleInfo->m_ID == 298))
+        (vehicleInfo->ID == 8 || vehicleInfo->ID == 113 || vehicleInfo->ID == 228 ||
+         vehicleInfo->ID == 290 || vehicleInfo->ID == 298))
     {
         GetMotionMaster()->MoveFall();
     }
@@ -15906,7 +15899,7 @@ void Unit::_ExitVehicle(Position const* exitPosition)
     if ((!player || !(player->GetDelayedOperations() & DELAYED_VEHICLE_TELEPORT)) && vehicle->GetBase()->HasUnitTypeMask(UNIT_MASK_MINION))
         if (((Minion*)vehicleBase)->GetOwner() == this)
         {
-            if (!vehicleInfo || (vehicleInfo->m_ID != 349 && vehicleBase->GetEntry() != 28192))
+            if (!vehicleInfo || (vehicleInfo->ID != 349 && vehicleBase->GetEntry() != 28192))
             {
                 vehicle->Dismiss();
             }
@@ -16166,7 +16159,7 @@ void Unit::StopAttackFaction(uint32 faction_id)
 {
     if (Unit* victim = GetVictim())
     {
-        if (victim->GetFactionTemplateEntry()->faction == faction_id)
+        if (victim->GetFactionTemplateEntry()->Faction == faction_id)
         {
             AttackStop();
             if (IsNonMeleeSpellCast(false))
@@ -16181,7 +16174,7 @@ void Unit::StopAttackFaction(uint32 faction_id)
     AttackerSet const& attackers = getAttackers();
     for (AttackerSet::const_iterator itr = attackers.begin(); itr != attackers.end();)
     {
-        if ((*itr)->GetFactionTemplateEntry()->faction == faction_id)
+        if ((*itr)->GetFactionTemplateEntry()->Faction == faction_id)
         {
             (*itr)->AttackStop();
             itr = attackers.begin();
@@ -16194,7 +16187,7 @@ void Unit::StopAttackFaction(uint32 faction_id)
     // (formation MemberEvaded -> CombatStop) and free other refs in the list.
     std::vector<ObjectGuid> guidsToEnd;
     for (auto const& pair : m_combatManager.GetPvECombatRefs())
-        if (pair.second->GetOther(this)->GetFactionTemplateEntry()->faction == faction_id)
+        if (pair.second->GetOther(this)->GetFactionTemplateEntry()->Faction == faction_id)
             guidsToEnd.push_back(pair.first);
     for (ObjectGuid const& guid : guidsToEnd)
     {
@@ -16450,7 +16443,7 @@ void Unit::ExecuteDelayedUnitRelocationEvent()
                     float dy = active->m_last_notify_position.GetPositionY() - active->GetPositionY();
                     float dz = active->m_last_notify_position.GetPositionZ() - active->GetPositionZ();
                     float distsq = dx * dx + dy * dy + dz * dz;
-                    float mindistsq = DynamicVisibilityMgr::GetReqMoveDistSq(active->FindMap()->GetEntry()->map_type);
+                    float mindistsq = DynamicVisibilityMgr::GetReqMoveDistSq(active->FindMap()->GetEntry()->InstanceType);
                     if (distsq < mindistsq)
                         continue;
 
@@ -16485,7 +16478,7 @@ void Unit::ExecuteDelayedUnitRelocationEvent()
                 float dz     = active->m_last_notify_position.GetPositionZ() - active->GetPositionZ();
                 float distsq = dx * dx + dy * dy + dz * dz;
 
-                float mindistsq = DynamicVisibilityMgr::GetReqMoveDistSq(active->FindMap()->GetEntry()->map_type);
+                float mindistsq = DynamicVisibilityMgr::GetReqMoveDistSq(active->FindMap()->GetEntry()->InstanceType);
                 if (distsq < mindistsq)
                     return;
 
@@ -16511,7 +16504,7 @@ void Unit::ExecuteDelayedUnitRelocationEvent()
         float dy = unit->m_last_notify_position.GetPositionY() - unit->GetPositionY();
         float dz = unit->m_last_notify_position.GetPositionZ() - unit->GetPositionZ();
         float distsq = dx * dx + dy * dy + dz * dz;
-        float mindistsq = DynamicVisibilityMgr::GetReqMoveDistSq(unit->FindMap()->GetEntry()->map_type);
+        float mindistsq = DynamicVisibilityMgr::GetReqMoveDistSq(unit->FindMap()->GetEntry()->InstanceType);
         if (distsq < mindistsq)
             return;
 
@@ -17296,13 +17289,13 @@ float Unit::GetCollisionWidth() const
 
     //! Dismounting case - use basic default model data
     CreatureDisplayInfoEntry const* displayInfo = sCreatureDisplayInfoStore.AssertEntry(GetNativeDisplayId());
-    CreatureModelDataEntry const* modelData = sCreatureModelDataStore.AssertEntry(displayInfo->ModelId);
+    CreatureModelDataEntry const* modelData = sCreatureModelDataStore.AssertEntry(displayInfo->ModelID);
 
     if (IsMounted())
     {
         if (CreatureDisplayInfoEntry const* mountDisplayInfo = sCreatureDisplayInfoStore.LookupEntry(GetUInt32Value(UNIT_FIELD_MOUNTDISPLAYID)))
         {
-            if (CreatureModelDataEntry const* mountModelData = sCreatureModelDataStore.LookupEntry(mountDisplayInfo->ModelId))
+            if (CreatureModelDataEntry const* mountModelData = sCreatureModelDataStore.LookupEntry(mountDisplayInfo->ModelID))
             {
                 if (G3D::fuzzyGt(mountModelData->CollisionWidth, modelData->CollisionWidth))
                     modelData = mountModelData;
@@ -17310,7 +17303,7 @@ float Unit::GetCollisionWidth() const
         }
     }
 
-    float collisionWidth = scaleMod * modelData->CollisionWidth * modelData->Scale * displayInfo->scale * 2;
+    float collisionWidth = scaleMod * modelData->CollisionWidth * modelData->ModelScale * displayInfo->CreatureModelScale * 2;
     // if the objectSize is the default value or the creature is mounted and we have a DBC value, then we can retrieve DBC value instead
     return G3D::fuzzyGt(collisionWidth, 0.0f) && (G3D::fuzzyEq(objectSize,defaultSize) || IsMounted())  ? collisionWidth : objectSize;
 }
@@ -17334,21 +17327,21 @@ float Unit::GetCollisionHeight() const
     float defaultHeight = DEFAULT_COLLISION_HEIGHT * scaleMod;
 
     CreatureDisplayInfoEntry const* displayInfo = sCreatureDisplayInfoStore.AssertEntry(GetNativeDisplayId());
-    CreatureModelDataEntry const* modelData = sCreatureModelDataStore.AssertEntry(displayInfo->ModelId);
+    CreatureModelDataEntry const* modelData = sCreatureModelDataStore.AssertEntry(displayInfo->ModelID);
     float collisionHeight = 0.0f;
 
     if (IsMounted())
     {
         if (CreatureDisplayInfoEntry const* mountDisplayInfo = sCreatureDisplayInfoStore.LookupEntry(GetUInt32Value(UNIT_FIELD_MOUNTDISPLAYID)))
         {
-            if (CreatureModelDataEntry const* mountModelData = sCreatureModelDataStore.LookupEntry(mountDisplayInfo->ModelId))
+            if (CreatureModelDataEntry const* mountModelData = sCreatureModelDataStore.LookupEntry(mountDisplayInfo->ModelID))
             {
-                collisionHeight = scaleMod * (mountModelData->MountHeight + modelData->CollisionHeight * modelData->Scale * displayInfo->scale * 0.5f);
+                collisionHeight = scaleMod * (mountModelData->MountHeight + modelData->CollisionHeight * modelData->ModelScale * displayInfo->CreatureModelScale * 0.5f);
             }
         }
     }
     else
-        collisionHeight = scaleMod * modelData->CollisionHeight * modelData->Scale * displayInfo->scale;
+        collisionHeight = scaleMod * modelData->CollisionHeight * modelData->ModelScale * displayInfo->CreatureModelScale;
 
     return collisionHeight == 0.0f ? defaultHeight : collisionHeight;
 }
@@ -17389,20 +17382,31 @@ void Unit::Whisper(std::string_view text, Language language, Player* target, boo
     target->SendDirectMessage(&data);
 }
 
+// 6.x: each virtual item slot is two fields, the item id and (appearance mod, item visual)
 uint32 Unit::GetVirtualItemId(uint32 slot) const
 {
     if (slot >= MAX_EQUIPMENT_ITEMS)
         return 0;
 
-    return GetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID + slot);
+    return GetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID + slot * 2);
 }
 
-void Unit::SetVirtualItem(uint32 slot, uint32 itemId)
+uint16 Unit::GetVirtualItemAppearanceMod(uint32 slot) const
+{
+    if (slot >= MAX_EQUIPMENT_ITEMS)
+        return 0;
+
+    return GetUInt16Value(UNIT_VIRTUAL_ITEM_SLOT_ID + slot * 2 + 1, 0);
+}
+
+void Unit::SetVirtualItem(uint32 slot, uint32 itemId, uint16 appearanceModId /*= 0*/, uint16 itemVisual /*= 0*/)
 {
     if (slot >= MAX_EQUIPMENT_ITEMS)
         return;
 
-    SetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID + slot, itemId);
+    SetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID + slot * 2, itemId);
+    SetUInt16Value(UNIT_VIRTUAL_ITEM_SLOT_ID + slot * 2 + 1, 0, appearanceModId);
+    SetUInt16Value(UNIT_VIRTUAL_ITEM_SLOT_ID + slot * 2 + 1, 1, itemVisual);
 }
 
 void Unit::Talk(uint32 textId, ChatMsg msgType, float textRange, WorldObject const* target)
@@ -17507,7 +17511,7 @@ bool Unit::IsInDisallowedMountForm() const
             return true;
         }
 
-        if (!(shapeshift->flags1 & SHAPESHIFT_FLAG_STANCE))
+        if (!(shapeshift->Flags & SHAPESHIFT_FLAG_STANCE))
         {
             return true;
         }
@@ -17530,7 +17534,7 @@ bool Unit::IsInDisallowedMountForm() const
         return true;
     }
 
-    CreatureModelDataEntry const* model = sCreatureModelDataStore.LookupEntry(display->ModelId);
+    CreatureModelDataEntry const* model = sCreatureModelDataStore.LookupEntry(display->ModelID);
     ChrRacesEntry const* race = sChrRacesStore.LookupEntry(displayExtra->DisplayRaceID);
 
     if (model && !(model->HasFlag(CREATURE_MODEL_DATA_FLAGS_CAN_MOUNT)))

@@ -39,7 +39,7 @@ Vehicle::Vehicle(Unit* unit, VehicleEntry const* vehInfo, uint32 creatureEntry) 
 {
     for (uint32 i = 0; i < MAX_VEHICLE_SEATS; ++i)
     {
-        if (uint32 seatId = _vehicleInfo->m_seatID[i])
+        if (uint32 seatId = _vehicleInfo->SeatID[i])
             if (VehicleSeatEntry const* veSeat = sVehicleSeatStore.LookupEntry(seatId))
             {
                 VehicleSeatAddon const* addon = sObjectMgr->GetVehicleSeatAddon(seatId);
@@ -80,13 +80,13 @@ void Vehicle::Install()
 {
     if (_me->IsCreature())
     {
-        if (PowerDisplayEntry const* powerDisplay = sPowerDisplayStore.LookupEntry(_vehicleInfo->m_powerDisplayId))
+        if (PowerDisplayEntry const* powerDisplay = sPowerDisplayStore.LookupEntry(_vehicleInfo->PowerDisplayID[0]))
         {
             _me->setPowerType(Powers(powerDisplay->PowerType));
 
             // Pyrite does not regenerate and is only refilled by scripted energizes,
             // so the Salvaged Demolisher and its Mechanic Seat spawn with a full bar
-            if (_vehicleInfo->m_powerDisplayId == POWER_DISPLAY_PYRITE)
+            if (_vehicleInfo->PowerDisplayID[0] == POWER_DISPLAY_PYRITE)
                 _me->SetPower(_me->getPowerType(), _me->GetMaxPower(_me->getPowerType()));
         }
         else if (_me->IsClass(CLASS_ROGUE, CLASS_CONTEXT_ABILITY))
@@ -213,7 +213,7 @@ void Vehicle::ApplyAllImmunities()
     }
 
     // Different immunities for vehicles goes below
-    switch (GetVehicleInfo()->m_ID)
+    switch (GetVehicleInfo()->ID)
     {
         case 160: //Isle of conquest turret
         case 244: //Wintergrasp turret
@@ -395,7 +395,7 @@ bool Vehicle::AddPassenger(Unit* unit, int8 seatId)
         return false;
 
     LOG_DEBUG("vehicles", "Unit {} enter vehicle entry {} id {} ({}) seat {}",
-        unit->GetName(), _me->GetEntry(), _vehicleInfo->m_ID, _me->GetGUID().ToString(), (int32)seat->first);
+        unit->GetName(), _me->GetEntry(), _vehicleInfo->ID, _me->GetGUID().ToString(), (int32)seat->first);
 
     seat->second.Passenger.Guid = unit->GetGUID();
     seat->second.Passenger.IsUnselectable = unit->HasUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
@@ -414,10 +414,10 @@ bool Vehicle::AddPassenger(Unit* unit, int8 seatId)
         return false;
 
     // Xinef: moved from unit.cpp, if aura passes seatId == -1 (choose automaticly) we wont get appropriate flags
-    if (unit->IsPlayer() && !(seat->second.SeatInfo->m_flagsB & VEHICLE_SEAT_FLAG_B_KEEP_PET))
+    if (unit->IsPlayer() && !(seat->second.SeatInfo->FlagsB & VEHICLE_SEAT_FLAG_B_KEEP_PET))
         unit->ToPlayer()->UnsummonPetTemporaryIfAny();
 
-    if (seat->second.SeatInfo->m_flags & VEHICLE_SEAT_FLAG_PASSENGER_NOT_SELECTABLE)
+    if (seat->second.SeatInfo->Flags & VEHICLE_SEAT_FLAG_PASSENGER_NOT_SELECTABLE)
         unit->SetUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
 
     unit->AddUnitMovementFlag(MOVEMENTFLAG_ONTRANSPORT);
@@ -425,9 +425,9 @@ bool Vehicle::AddPassenger(Unit* unit, int8 seatId)
     VehicleSeatAddon const* veSeatAddon = seat->second.SeatAddon;
 
     float o = veSeatAddon ? veSeatAddon->SeatOrientationOffset : 0.f;
-    float x = veSeat->m_attachmentOffsetX;
-    float y = veSeat->m_attachmentOffsetY;
-    float z = veSeat->m_attachmentOffsetZ;
+    float x = veSeat->AttachmentOffset.X;
+    float y = veSeat->AttachmentOffset.Y;
+    float z = veSeat->AttachmentOffset.Z;
 
     unit->m_movementInfo.transport.pos.Relocate(x, y, z, o);
     unit->m_movementInfo.transport.time = 0;
@@ -437,7 +437,7 @@ bool Vehicle::AddPassenger(Unit* unit, int8 seatId)
     // xinef: removed seat->first == 0 check...
     if (_me->IsCreature()
             && unit->IsPlayer()
-            && seat->second.SeatInfo->m_flags & VEHICLE_SEAT_FLAG_CAN_CONTROL)
+            && seat->second.SeatInfo->Flags & VEHICLE_SEAT_FLAG_CAN_CONTROL)
     {
         // Removed try catch + ABORT() here, and make it as simple condition check.
         if (!_me->SetCharmedBy(unit, CHARM_TYPE_VEHICLE))
@@ -467,7 +467,7 @@ bool Vehicle::AddPassenger(Unit* unit, int8 seatId)
         init.DisableTransportPathTransformations();
         init.MoveTo(x, y, z, false, true);
         // Xinef: did not found anything unique in dbc, maybe missed something
-        if (veSeat->m_ID == 3566 || veSeat->m_ID == 3567 || veSeat->m_ID == 3568 || veSeat->m_ID == 3570)
+        if (veSeat->ID == 3566 || veSeat->ID == 3567 || veSeat->ID == 3568 || veSeat->ID == 3570)
         {
             CalculatePassengerPosition(x, y, z, &o);
             init.SetFacing(_me->GetAngle(x, y));
@@ -512,19 +512,19 @@ void Vehicle::RemovePassenger(Unit* unit)
     if (seat == Seats.end())
     {
         LOG_ERROR("vehicles", "Vehicle::RemovePassenger: Vehicle entry ({}) id ({}) is dissmised and removed all existing passangers, but the unit ({}) was not on the vehicle!",
-            _me->GetEntry(), _vehicleInfo->m_ID, unit->GetName());
+            _me->GetEntry(), _vehicleInfo->ID, unit->GetName());
         return;
     }
 
     LOG_DEBUG("vehicles", "Unit {} exit vehicle entry {} id {} ({}) seat {}",
-        unit->GetName(), _me->GetEntry(), _vehicleInfo->m_ID, _me->GetGUID().ToString(), (int32)seat->first);
+        unit->GetName(), _me->GetEntry(), _vehicleInfo->ID, _me->GetGUID().ToString(), (int32)seat->first);
 
     if (seat->second.SeatInfo->CanEnterOrExit() && ++_usableSeatNum &&
         (!_me->IsPlayer() || _boardableByPlayers))
         _me->SetNpcFlag((_me->IsPlayer() ? UNIT_NPC_FLAG_PLAYER_VEHICLE : UNIT_NPC_FLAG_SPELLCLICK));
 
     // Remove UNIT_FLAG_NOT_SELECTABLE if passenger did not have it before entering vehicle
-    if (seat->second.SeatInfo->m_flags & VEHICLE_SEAT_FLAG_PASSENGER_NOT_SELECTABLE && !seat->second.Passenger.IsUnselectable)
+    if (seat->second.SeatInfo->Flags & VEHICLE_SEAT_FLAG_PASSENGER_NOT_SELECTABLE && !seat->second.Passenger.IsUnselectable)
         unit->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
 
     seat->second.Passenger.Reset();
@@ -532,7 +532,7 @@ void Vehicle::RemovePassenger(Unit* unit)
     // RemoveCharmedBy() clears flying movement state, so cache this before uncharm.
     bool canFly = _me->IsFlying() || _me->HasUnitMovementFlag(MOVEMENTFLAG_CAN_FLY) || _me->HasAuraType(SPELL_AURA_FLY);
 
-    if (_me->IsCreature() && unit->IsPlayer() && seat->second.SeatInfo->m_flags & VEHICLE_SEAT_FLAG_CAN_CONTROL)
+    if (_me->IsCreature() && unit->IsPlayer() && seat->second.SeatInfo->Flags & VEHICLE_SEAT_FLAG_CAN_CONTROL)
         _me->RemoveCharmedBy(unit);
 
     if (_me->IsInWorld())
@@ -653,7 +653,7 @@ void Vehicle::TeleportVehicle(float x, float y, float z, float ang)
 
 void Vehicle::InitMovementInfoForBase()
 {
-    uint32 vehicleFlags = GetVehicleInfo()->m_flags;
+    uint32 vehicleFlags = GetVehicleInfo()->Flags;
 
     if (vehicleFlags & VEHICLE_FLAG_NO_STRAFE)
         _me->AddExtraUnitMovementFlag(MOVEMENTFLAG2_NO_STRAFE);

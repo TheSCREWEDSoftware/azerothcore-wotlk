@@ -4801,18 +4801,11 @@ BlackMarket.Open = 0
 BlackMarket.MaxAuctions = 12
 
 #
-#    BlackMarket.AuctionDelay
-#        Description: Time in seconds between the creation of an auction and its start.
-#        Default:     120
+#    BlackMarket.UpdatePeriod
+#        Description: Hours between two refreshes of the Black Market auctions.
+#        Default:     24
 
-BlackMarket.AuctionDelay = 120
-
-#
-#    BlackMarket.AuctionDelayMod
-#        Description: Random variation in seconds added to BlackMarket.AuctionDelay.
-#        Default:     120
-
-BlackMarket.AuctionDelayMod = 120
+BlackMarket.UpdatePeriod = 24
 
 #
 ###################################################################################################

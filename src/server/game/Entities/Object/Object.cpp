@@ -1386,8 +1386,8 @@ void WorldObject::ProcessPositionDataChanged(PositionFullTerrainStatus const& da
     _zoneId = _areaId = data.areaId;
 
     if (AreaTableEntry const* area = sAreaTableStore.LookupEntry(_areaId))
-        if (area->zone)
-            _zoneId = area->zone;
+        if (area->ParentAreaID)
+            _zoneId = area->ParentAreaID;
 
     _outdoors   = data.outdoors;
     _floorZ     = data.floorZ;
@@ -3597,7 +3597,7 @@ void WorldObject::AddToNotify(uint16 f)
         {
             if (f & NOTIFY_VISIBILITY_CHANGED)
             {
-                uint32 EVENT_VISIBILITY_DELAY = u->FindMap() ? DynamicVisibilityMgr::GetVisibilityNotifyDelay(u->FindMap()->GetEntry()->map_type) : 1000;
+                uint32 EVENT_VISIBILITY_DELAY = u->FindMap() ? DynamicVisibilityMgr::GetVisibilityNotifyDelay(u->FindMap()->GetEntry()->InstanceType) : 1000;
 
                 uint32 diff = getMSTimeDiff(u->m_last_notify_mstime, GameTime::GetGameTimeMS().count());
                 if (diff >= EVENT_VISIBILITY_DELAY / 2)
@@ -3609,7 +3609,7 @@ void WorldObject::AddToNotify(uint16 f)
             }
             else if (f & NOTIFY_AI_RELOCATION)
             {
-                u->m_delayed_unit_ai_notify_timer = u->FindMap() ? DynamicVisibilityMgr::GetAINotifyDelay(u->FindMap()->GetEntry()->map_type) : 500;
+                u->m_delayed_unit_ai_notify_timer = u->FindMap() ? DynamicVisibilityMgr::GetAINotifyDelay(u->FindMap()->GetEntry()->InstanceType) : 500;
             }
 
             m_notifyflags |= f;
@@ -4110,9 +4110,6 @@ SpellMissInfo WorldObject::MagicSpellHitResult(Unit* victim, SpellInfo const* sp
         if (spellInfo->IsAffectingArea())
             modHitChance -= victim->GetTotalAuraModifier(SPELL_AURA_MOD_AOE_AVOIDANCE);
 
-        // Decrease hit chance from victim rating bonus
-        if (victim->IsPlayer())
-            modHitChance -= int32(victim->ToPlayer()->GetRatingBonusValue(CR_HIT_TAKEN_SPELL));
     }
 
     int32 HitChance = modHitChance * 100;
@@ -4436,14 +4433,14 @@ ReputationRank WorldObject::GetReactionTo(WorldObject const* target) const
     if (Player const* targetPlayerOwner = target->GetAffectingPlayer())
     {
         // check contested flags
-        if (factionTemplateEntry->factionFlags & FACTION_TEMPLATE_FLAG_ATTACK_PVP_ACTIVE_PLAYERS
+        if (factionTemplateEntry->Flags & FACTION_TEMPLATE_FLAG_ATTACK_PVP_ACTIVE_PLAYERS
                 && targetPlayerOwner->HasPlayerFlag(PLAYER_FLAGS_CONTESTED_PVP))
             return REP_HOSTILE;
         if (ReputationRank const* repRank = targetPlayerOwner->GetReputationMgr().GetForcedRankIfAny(factionTemplateEntry))
             return *repRank;
         if (Unit const* targetUnit = target->ToUnit(); !targetUnit || !targetUnit->HasUnitFlag2(UNIT_FLAG2_IGNORE_REPUTATION))
         {
-            if (FactionEntry const* factionEntry = sFactionStore.LookupEntry(factionTemplateEntry->faction))
+            if (FactionEntry const* factionEntry = sFactionStore.LookupEntry(factionTemplateEntry->Faction))
             {
                 if (factionEntry->CanHaveReputation())
                 {
@@ -4464,7 +4461,7 @@ ReputationRank WorldObject::GetReactionTo(WorldObject const* target) const
         return REP_FRIENDLY;
     if (targetFactionTemplateEntry->IsFriendlyTo(*factionTemplateEntry))
         return REP_FRIENDLY;
-    if (factionTemplateEntry->factionFlags & FACTION_TEMPLATE_FLAG_HATES_ALL_EXCEPT_FRIENDS)
+    if (factionTemplateEntry->Flags & FACTION_TEMPLATE_FLAG_HATES_ALL_EXCEPT_FRIENDS)
         return REP_HOSTILE;
     // neutral by default
     return REP_NEUTRAL;
@@ -4475,7 +4472,7 @@ float WorldObject::GetSpellMaxRangeForTarget(Unit const* target, SpellInfo const
     if (!spellInfo->RangeEntry)
         return 0;
 
-    if (spellInfo->RangeEntry->RangeMax[1] == spellInfo->RangeEntry->RangeMax[0])
+    if (spellInfo->RangeEntry->MaxRangeFriend == spellInfo->RangeEntry->MaxRangeHostile)
         return spellInfo->GetMaxRange();
 
     if (!target)
@@ -4489,7 +4486,7 @@ float WorldObject::GetSpellMinRangeForTarget(Unit const* target, SpellInfo const
     if (!spellInfo->RangeEntry)
         return 0;
 
-    if (spellInfo->RangeEntry->RangeMin[1] == spellInfo->RangeEntry->RangeMin[0])
+    if (spellInfo->RangeEntry->MinRangeFriend == spellInfo->RangeEntry->MinRangeHostile)
         return spellInfo->GetMinRange();
 
     return spellInfo->GetMinRange(!IsHostileTo(target));

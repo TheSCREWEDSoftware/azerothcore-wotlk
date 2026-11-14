@@ -405,7 +405,7 @@ void GuildMgr::LoadGuilds()
         //          0            1                2      3         4        5      6             7                 8           9           10
         QueryResult result = CharacterDatabase.Query("SELECT creatorGuid, giftCreatorGuid, count, duration, charges, flags, enchantments, randomPropertyId, durability, playedTime, text, "
                              //   11       12     13      14         15
-                             "guildid, TabId, SlotId, item_guid, itemEntry FROM guild_bank_item gbi INNER JOIN item_instance ii ON gbi.item_guid = ii.guid");
+                             "guildid, TabId, SlotId, item_guid, itemEntry, ii.transmogrification, ii.upgradeId, ii.enchantIllusion, ii.battlePetSpeciesId, ii.battlePetBreedData, ii.battlePetLevel, ii.battlePetDisplayId, ii.bonusListIDs FROM guild_bank_item gbi INNER JOIN item_instance ii ON gbi.item_guid = ii.guid");
 
         if (!result)
         {
@@ -673,13 +673,13 @@ void GuildMgr::LoadGuildProfessionData()
             continue;
 
         SkillLineEntry const* skillLine = sSkillLineStore.LookupEntry(entry->SkillLine);
-        if (!skillLine || skillLine->categoryId != SKILL_CATEGORY_PROFESSION)
+        if (!skillLine || skillLine->CategoryID != SKILL_CATEGORY_PROFESSION)
             continue;
 
         GuildProfession prof;
-        prof.SpellId = entry->Spell;
+        prof.SpellId = entry->SpellID;
         prof.UniqueBits = entry->UniqueBit;
-        GuildProfessionStore[skillLine->id].push_back(prof);
+        GuildProfessionStore[skillLine->ID].push_back(prof);
         ++count;
     }
 

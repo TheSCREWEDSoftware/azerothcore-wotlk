@@ -117,7 +117,6 @@ struct MapEntry;
 struct MovementInfo;
 struct PvPDifficultyEntry;
 struct QuestStatusData;
-struct ScalingStatValuesEntry;
 struct SpellModifier;
 struct TargetInfo;
 struct VendorItem;

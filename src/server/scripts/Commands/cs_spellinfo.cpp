@@ -881,8 +881,8 @@ public:
 
         if (spell->RangeEntry)
             handler->PSendSysMessage("Range: {:.1f}-{:.1f} (hostile), {:.1f}-{:.1f} (friendly)",
-                spell->RangeEntry->RangeMin[0], spell->RangeEntry->RangeMax[0],
-                spell->RangeEntry->RangeMin[1], spell->RangeEntry->RangeMax[1]);
+                spell->RangeEntry->MinRangeHostile, spell->RangeEntry->MaxRangeHostile,
+                spell->RangeEntry->MinRangeFriend, spell->RangeEntry->MaxRangeFriend);
 
         handler->PSendSysMessage("RecoveryTime: {} ms", spell->RecoveryTime);
         handler->PSendSysMessage("CategoryRecoveryTime: {} ms", spell->CategoryRecoveryTime);

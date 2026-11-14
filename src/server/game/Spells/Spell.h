@@ -117,6 +117,43 @@ struct SpellDestination
     Position _transportOffset;
 };
 
+// 6.x SMSG_SPELL_EXECUTE_LOG per-effect target data (from TrinityCore 6.x)
+struct SpellLogEffectPowerDrainParams
+{
+    ObjectGuid Victim;
+    uint32 Points       = 0;
+    uint32 PowerType    = 0;
+    float Amplitude     = 0;
+};
+
+struct SpellLogEffectExtraAttacksParams
+{
+    ObjectGuid Victim;
+    uint32 NumAttacks   = 0;
+};
+
+struct SpellLogEffectDurabilityDamageParams
+{
+    ObjectGuid Victim;
+    int32 ItemID        = 0;
+    int32 Amount        = 0;
+};
+
+struct SpellLogEffectGenericVictimParams
+{
+    ObjectGuid Victim;
+};
+
+struct SpellLogEffectTradeSkillItemParams
+{
+    int32 ItemID        = 0;
+};
+
+struct SpellLogEffectFeedPetParams
+{
+    int32 ItemID        = 0;
+};
+
 class SpellCastTargets
 {
 public:

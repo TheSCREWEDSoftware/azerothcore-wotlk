@@ -20,7 +20,7 @@
 namespace lfg
 {
 
-    LfgPlayerData::LfgPlayerData(): m_State(LFG_STATE_NONE), m_OldState(LFG_STATE_NONE), m_canOverrideRBState(false),
+    LfgPlayerData::LfgPlayerData(): m_State(LFG_STATE_NONE), m_OldState(LFG_STATE_NONE),
         m_TeamId(TEAM_ALLIANCE), m_Roles(0), m_Comment("")
     {}
 
@@ -30,9 +30,6 @@ namespace lfg
 
     void LfgPlayerData::SetState(LfgState state)
     {
-        if (m_State == LFG_STATE_RAIDBROWSER && state != LFG_STATE_RAIDBROWSER && !CanOverrideRBState())
-            return;
-
         switch (state)
         {
             case LFG_STATE_NONE:
@@ -51,9 +48,6 @@ namespace lfg
 
     void LfgPlayerData::RestoreState()
     {
-        if (m_State == LFG_STATE_RAIDBROWSER && m_OldState != LFG_STATE_RAIDBROWSER && !CanOverrideRBState())
-            return;
-
         if (m_OldState == LFG_STATE_NONE)
         {
             m_SelectedDungeons.clear();

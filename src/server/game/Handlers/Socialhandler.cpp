@@ -78,7 +78,7 @@ void WorldSession::HandleAddFriendOpcode(WorldPacket& recv_data)
                     friendResult = FRIEND_ADDED_ONLINE;
                 else
                     friendResult = FRIEND_ADDED_OFFLINE;
-                if (GetPlayer()->GetSocial()->AddToSocialList(friendGuid, SOCIAL_FLAG_FRIEND))
+                if (GetPlayer()->GetSocial()->AddToSocialList(friendGuid, ObjectGuid::Create<HighGuid::WowAccount>(friendAccountId), SOCIAL_FLAG_FRIEND))
                     GetPlayer()->GetSocial()->SetFriendNote(friendGuid, friendNote);
                 else
                 friendResult = FRIEND_LIST_FULL;
@@ -130,7 +130,7 @@ void WorldSession::HandleAddIgnoreOpcode(WorldPacket& recv_data)
         ignoreResult = FRIEND_IGNORE_ADDED;
 
         // ignore list full
-        if (!GetPlayer()->GetSocial()->AddToSocialList(ignoreGuid, SOCIAL_FLAG_IGNORED))
+        if (!GetPlayer()->GetSocial()->AddToSocialList(ignoreGuid, ObjectGuid::Create<HighGuid::WowAccount>(sCharacterCache->GetCharacterAccountIdByGuid(ignoreGuid)), SOCIAL_FLAG_IGNORED))
             ignoreResult = FRIEND_IGNORE_FULL;
     }
 

@@ -44,7 +44,7 @@ DB2FileLoader::DB2FileLoader()
     unk5 = 0;
 }
 
-bool DB2FileLoader::Load(const char *filename, const char *fmt)
+bool DB2FileLoader::Load(char const*filename, char const*fmt)
 {
     if (data)
     {
@@ -207,7 +207,7 @@ DB2FileLoader::Record DB2FileLoader::getRecord(size_t id)
     return Record(*this, data + id*recordSize);
 }
 
-uint32 DB2FileLoader::GetFormatRecordSize(const char * format, int32* index_pos)
+uint32 DB2FileLoader::GetFormatRecordSize(char const* format, int32* index_pos)
 {
     uint32 recordsize = 0;
     int32 i = -1;
@@ -245,7 +245,7 @@ uint32 DB2FileLoader::GetFormatRecordSize(const char * format, int32* index_pos)
     return recordsize;
 }
 
-uint32 DB2FileLoader::GetFormatStringFieldCount(const char* format)
+uint32 DB2FileLoader::GetFormatStringFieldCount(char const* format)
 {
     uint32 stringfields = 0;
     for (uint32 x = 0; format[x]; ++x)
@@ -265,7 +265,7 @@ uint32 DB2FileLoader::GetFormatLocalizedStringFieldCount(char const* format)
     return stringfields;
 }
 
-char* DB2FileLoader::AutoProduceData(const char* format, uint32& records, char**& indexTable)
+char* DB2FileLoader::AutoProduceData(char const* format, uint32& records, char**& indexTable)
 {
     typedef char * ptr;
     if (strlen(format) != fieldCount)
@@ -343,7 +343,7 @@ char* DB2FileLoader::AutoProduceData(const char* format, uint32& records, char**
 
 static char const* const nullStr = "";
 
-char* DB2FileLoader::AutoProduceStringsArrayHolders(const char* format, char* dataTable)
+char* DB2FileLoader::AutoProduceStringsArrayHolders(char const* format, char* dataTable)
 {
     if (strlen(format) != fieldCount)
         return nullptr;
@@ -411,7 +411,7 @@ char* DB2FileLoader::AutoProduceStringsArrayHolders(const char* format, char* da
     return stringHoldersPool;
 }
 
-char* DB2FileLoader::AutoProduceStrings(const char* format, char* dataTable, uint32 locale)
+char* DB2FileLoader::AutoProduceStrings(char const* format, char* dataTable, uint32 locale)
 {
     if (strlen(format) != fieldCount)
         return nullptr;
@@ -483,7 +483,7 @@ char* DB2FileLoader::AutoProduceStrings(const char* format, char* dataTable, uin
     return stringPool;
 }
 
-char* DB2DatabaseLoader::Load(const char* format, HotfixDatabaseStatements preparedStatement, uint32& records, char**& indexTable, char*& stringHolders, std::list<char*>& stringPool)
+char* DB2DatabaseLoader::Load(char const* format, HotfixDatabaseStatements preparedStatement, uint32& records, char**& indexTable, char*& stringHolders, std::list<char*>& stringPool)
 {
     // Even though this query is executed only once, prepared statement is used to send data from mysql server in binary format
     PreparedQueryResult result = HotfixDatabase.Query(HotfixDatabase.GetPreparedStatement(preparedStatement));
@@ -642,7 +642,7 @@ char* DB2DatabaseLoader::Load(const char* format, HotfixDatabaseStatements prepa
     return dataTable;
 }
 
-void DB2DatabaseLoader::LoadStrings(const char* format, HotfixDatabaseStatements preparedStatement, uint32 locale, char**& indexTable, std::list<char*>& stringPool)
+void DB2DatabaseLoader::LoadStrings(char const* format, HotfixDatabaseStatements preparedStatement, uint32 locale, char**& indexTable, std::list<char*>& stringPool)
 {
     HotfixDatabasePreparedStatement* stmt = HotfixDatabase.GetPreparedStatement(preparedStatement);
     stmt->SetData(0, localeNames[locale]);

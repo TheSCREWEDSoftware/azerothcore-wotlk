@@ -285,13 +285,13 @@ void MotionTransport::Update(uint32 diff)
 
         MoveToNextWaypoint();
 
-        sScriptMgr->OnRelocate(this, _currentFrame->Node->index, _currentFrame->Node->mapid, _currentFrame->Node->x, _currentFrame->Node->y, _currentFrame->Node->z);
+        sScriptMgr->OnRelocate(this, _currentFrame->Node->NodeIndex, _currentFrame->Node->MapID, _currentFrame->Node->Loc.X, _currentFrame->Node->Loc.Y, _currentFrame->Node->Loc.Z);
 
         //LOG_DEBUG("entities.transport", "Transport {} ({}) moved to node {} {} {} {} {}", GetEntry(), GetName(), _currentFrame->Node->index, _currentFrame->Node->mapid, _currentFrame->Node->x, _currentFrame->Node->y, _currentFrame->Node->z);
 
         // Departure event
         if (_currentFrame->IsTeleportFrame())
-            if (TeleportTransport(_nextFrame->Node->mapid, _nextFrame->Node->x, _nextFrame->Node->y, _nextFrame->Node->z, _nextFrame->InitialOrientation))
+            if (TeleportTransport(_nextFrame->Node->MapID, _nextFrame->Node->Loc.X, _nextFrame->Node->Loc.Y, _nextFrame->Node->Loc.Z, _nextFrame->InitialOrientation))
                 return; // Update more in new map thread
     }
 
@@ -648,8 +648,8 @@ void MotionTransport::DelayedTeleportTransport()
 
     _delayedTeleport = false;
 
-    uint32 newMapId = _nextFrame->Node->mapid;
-    float x = _nextFrame->Node->x,
+    uint32 newMapId = _nextFrame->Node->MapID;
+    float x = _nextFrame->Node->Loc.X,
           y = _nextFrame->Node->y,
           z = _nextFrame->Node->z,
           o = _nextFrame->InitialOrientation;
@@ -778,7 +778,7 @@ void MotionTransport::UpdatePassengerPositions(PassengerSet& passengers)
 
 void MotionTransport::DoEventIfAny(KeyFrame const& node, bool departure)
 {
-    if (uint32 eventid = departure ? node.Node->departureEventID : node.Node->arrivalEventID)
+    if (uint32 eventid = departure ? node.Node->DepartureEventID : node.Node->ArrivalEventID)
     {
         //LOG_DEBUG("maps.script", "Taxi {} event {} of node {} of {} path", departure ? "departure" : "arrival", eventid, node.Node->index, GetName());
         GetMap()->ScriptsStart(sEventScripts, eventid, this, this);
@@ -1029,10 +1029,10 @@ void StaticTransport::RelocateToProgress(uint32 progress)
     if (m_goValue.Transport.AnimationInfo->GetAnimNode(progress, curr, next, percPos))
     {
         // curr node offset
-        G3D::Vector3 pos = G3D::Vector3(curr->X, curr->Y, curr->Z);
+        G3D::Vector3 pos = G3D::Vector3(curr->Pos.X, curr->Pos.Y, curr->Pos.Z);
 
         // move by percentage of segment already passed
-        pos += G3D::Vector3(percPos * (next->X - curr->X), percPos * (next->Y - curr->Y), percPos * (next->Z - curr->Z));
+        pos += G3D::Vector3(percPos * (next->Pos.X - curr->Pos.X), percPos * (next->Pos.Y - curr->Pos.Y), percPos * (next->Pos.Z - curr->Pos.Z));
 
         // rotate path by PathRotation
         // pussywizard: PathRotation in db is only simple orientation rotation, so don't use sophisticated and not working code

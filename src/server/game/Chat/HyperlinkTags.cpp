@@ -229,7 +229,7 @@ bool Acore::Hyperlinks::LinkTags::talent::StoreTo(TalentLinkData& val, std::stri
 
     if (val.Rank > 0)
     {
-        uint32 const spellId = val.Rank == 1 ? val.Talent->SpellId : 0; // 5.4.8 talents have a single rank
+        uint32 const spellId = val.Rank == 1 ? val.Talent->SpellID : 0; // 5.4.8 talents have a single rank
         if (!spellId)
             return false;
 

@@ -23,6 +23,8 @@
 #include "Battlefield.h"
 #include "Battleground.h"
 #include "BattlegroundMgr.h"
+#include "CollectionMgr.h"
+#include "DB2Stores.h"
 #include "CharacterDatabaseCleaner.h"
 #include "Chat.h"
 #include "Common.h"
@@ -841,13 +843,13 @@ InventoryResult Player::CanTakeMoreSimilarItems(uint32 entry, uint32 count, Item
             return EQUIP_ERR_ITEM_CANT_BE_EQUIPPED;
         }
 
-        if (limitEntry->mode == ITEM_LIMIT_CATEGORY_MODE_HAVE)
+        if (limitEntry->Flags == ITEM_LIMIT_CATEGORY_MODE_HAVE)
         {
             uint32 curcount = GetItemCountWithLimitCategory(pProto->ItemLimitCategory, item);
-            if (curcount + count > uint32(limitEntry->maxCount))
+            if (curcount + count > uint32(limitEntry->Quantity))
             {
                 if (no_space_count)
-                    *no_space_count = count + curcount - limitEntry->maxCount;
+                    *no_space_count = count + curcount - limitEntry->Quantity;
                 if (itemLimitedByLimitCategory)
                     *itemLimitedByLimitCategory = pProto->ItemId;
                 return EQUIP_ERR_ITEM_MAX_LIMIT_CATEGORY_COUNT_EXCEEDED;
@@ -902,10 +904,10 @@ bool Player::IsTotemCategoryCompatiableWith(ItemTemplate const* pProto, uint32 r
     if (!reqEntry)
         return false;
 
-    if (itemEntry->categoryType != reqEntry->categoryType)
+    if (itemEntry->CategoryType != reqEntry->CategoryType)
         return false;
 
-    if ((itemEntry->categoryMask & reqEntry->categoryMask) != reqEntry->categoryMask)
+    if ((itemEntry->CategoryMask & reqEntry->CategoryMask) != reqEntry->CategoryMask)
         return false;
 
     // xinef: check skill requirements, needed for enchants!
@@ -2640,7 +2642,7 @@ Item* Player::StoreNewItem(ItemPosCountVec const& dest, uint32 item, bool update
 }
 
 // Return stored item (if stored to stack, it can diff. from pItem). And pItem ca be deleted in this case.
-Item* Player::StoreNewItem(ItemPosCountVec const& dest, uint32 item, bool update, int32 randomPropertyId, AllowedLooterSet& allowedLooters, bool refund)
+Item* Player::StoreNewItem(ItemPosCountVec const& dest, uint32 item, bool update, int32 randomPropertyId, AllowedLooterSet& allowedLooters, bool refund, std::vector<int32> const& bonusListIDs /*= std::vector<int32>()*/)
 {
     uint32 count = 0;
     for (ItemPosCountVec::const_iterator itr = dest.begin(); itr != dest.end(); ++itr)
@@ -2655,6 +2657,16 @@ Item* Player::StoreNewItem(ItemPosCountVec const& dest, uint32 item, bool update
                 AdditionalSavingAddMask(ADDITIONAL_SAVING_INVENTORY_AND_GOLD);
 
         ItemAddedQuestCheck(item, count);
+
+        // 6.x: heirlooms go to the collection, item upgrades and bonuses come from DB2 data
+        if (sDB2Manager.GetHeirloomByItemId(item))
+            GetSession()->GetCollectionMgr()->AddHeirloom(item, 0);
+
+        if (uint32 upgradeID = sDB2Manager.GetRulesetItemUpgrade(item))
+            pItem->SetModifier(ITEM_MODIFIER_UPGRADE_ID, upgradeID);
+
+        for (int32 bonusListID : bonusListIDs)
+            pItem->AddBonuses(bonusListID);
 
         if (!refund)
         { // Don't update counter criteria for refunded items (primarily currencies)
@@ -2751,10 +2763,6 @@ Item* Player::_StoreItem(uint16 pos, Item* pItem, uint32 count, bool clone, bool
 
             pItem->SetSlot(slot);
             pItem->SetContainer(nullptr);
-
-            // need update known currency
-            if (slot >= CURRENCYTOKEN_SLOT_START && slot < CURRENCYTOKEN_SLOT_END)
-                AddKnownCurrency(pItem->GetEntry());
         }
         else
             pBag->StoreItem(slot, pItem, update);
@@ -4470,13 +4478,13 @@ void Player::ApplyEnchantment(Item* item, EnchantmentSlot slot, bool apply, bool
     if (!pEnchant)
         return;
 
-    if (!ignore_condition && pEnchant->EnchantmentCondition && !EnchantmentFitsRequirements(pEnchant->EnchantmentCondition, -1))
+    if (!ignore_condition && pEnchant->ConditionID && !EnchantmentFitsRequirements(pEnchant->ConditionID, -1))
         return;
 
-    if (pEnchant->requiredLevel > GetLevel())
+    if (pEnchant->MinLevel > GetLevel())
         return;
 
-    if (pEnchant->requiredSkill > 0 && pEnchant->requiredSkillValue > GetSkillValue(pEnchant->requiredSkill))
+    if (pEnchant->RequiredSkillID > 0 && pEnchant->RequiredSkillRank > GetSkillValue(pEnchant->RequiredSkillID))
         return;
 
     if (!sScriptMgr->OnPlayerCanApplyEnchantment(this, item, slot, apply, apply_dur, ignore_condition))
@@ -4489,17 +4497,17 @@ void Player::ApplyEnchantment(Item* item, EnchantmentSlot slot, bool apply, bool
     {
         // Check if the requirements for the prismatic socket are met before applying the gem stats
         SpellItemEnchantmentEntry const* pPrismaticEnchant = sSpellItemEnchantmentStore.LookupEntry(item->GetEnchantmentId(PRISMATIC_ENCHANTMENT_SLOT));
-        if (!pPrismaticEnchant || (pPrismaticEnchant->requiredSkill > 0 && pPrismaticEnchant->requiredSkillValue > GetSkillValue(pPrismaticEnchant->requiredSkill)))
+        if (!pPrismaticEnchant || (pPrismaticEnchant->RequiredSkillID > 0 && pPrismaticEnchant->RequiredSkillRank > GetSkillValue(pPrismaticEnchant->RequiredSkillID)))
             return;
     }
 
     if (!item->IsBroken())
     {
-        for (int s = 0; s < MAX_SPELL_ITEM_ENCHANTMENT_EFFECTS; ++s)
+        for (int s = 0; s < MAX_ITEM_ENCHANTMENT_EFFECTS; ++s)
         {
-            uint32 enchant_display_type = pEnchant->type[s];
-            uint32 enchant_amount = pEnchant->amount[s];
-            uint32 enchant_spell_id = pEnchant->spellid[s];
+            uint32 enchant_display_type = pEnchant->Effect[s];
+            uint32 enchant_amount = pEnchant->EffectPointsMin[s];
+            uint32 enchant_spell_id = pEnchant->EffectSpellID[s];
 
             switch (enchant_display_type)
             {
@@ -4991,12 +4999,12 @@ void Player::UpdateSkillEnchantments(uint16 skill_id, uint16 curr_value, uint16 
                 if (!Enchant)
                     return;
 
-                if (Enchant->requiredSkill == skill_id)
+                if (Enchant->RequiredSkillID == skill_id)
                 {
                     // Checks if the enchantment needs to be applied or removed
-                    if (curr_value < Enchant->requiredSkillValue && new_value >= Enchant->requiredSkillValue)
+                    if (curr_value < Enchant->RequiredSkillRank && new_value >= Enchant->RequiredSkillRank)
                         ApplyEnchantment(m_items[i], EnchantmentSlot(slot), true);
-                    else if (new_value < Enchant->requiredSkillValue && curr_value >= Enchant->requiredSkillValue)
+                    else if (new_value < Enchant->RequiredSkillRank && curr_value >= Enchant->RequiredSkillRank)
                         ApplyEnchantment(m_items[i], EnchantmentSlot(slot), false);
                 }
 
@@ -5007,11 +5015,11 @@ void Player::UpdateSkillEnchantments(uint16 skill_id, uint16 curr_value, uint16 
                 {
                     SpellItemEnchantmentEntry const* pPrismaticEnchant = sSpellItemEnchantmentStore.LookupEntry(m_items[i]->GetEnchantmentId(PRISMATIC_ENCHANTMENT_SLOT));
 
-                    if (pPrismaticEnchant && pPrismaticEnchant->requiredSkill == skill_id)
+                    if (pPrismaticEnchant && pPrismaticEnchant->RequiredSkillID == skill_id)
                     {
-                        if (curr_value < pPrismaticEnchant->requiredSkillValue && new_value >= pPrismaticEnchant->requiredSkillValue)
+                        if (curr_value < pPrismaticEnchant->RequiredSkillRank && new_value >= pPrismaticEnchant->RequiredSkillRank)
                             ApplyEnchantment(m_items[i], EnchantmentSlot(slot), true);
-                        else if (new_value < pPrismaticEnchant->requiredSkillValue && curr_value >= pPrismaticEnchant->requiredSkillValue)
+                        else if (new_value < pPrismaticEnchant->RequiredSkillRank && curr_value >= pPrismaticEnchant->RequiredSkillRank)
                             ApplyEnchantment(m_items[i], EnchantmentSlot(slot), false);
                     }
                 }
@@ -6191,15 +6199,15 @@ void Player::_LoadGlyphAuras()
             {
                 if (GlyphSlotEntry const* glyphSlotEntry = sGlyphSlotStore.LookupEntry(GetGlyphSlot(i)))
                 {
-                    SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(glyphEntry->SpellId);
-                    if (glyphEntry->TypeFlags == glyphSlotEntry->TypeFlags)
+                    SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(glyphEntry->SpellID);
+                    if (glyphEntry->Type == glyphSlotEntry->Type)
                     {
                         if (!spellInfo->Stances)
-                            CastSpell(this, glyphEntry->SpellId, TriggerCastFlags(TRIGGERED_FULL_MASK & ~(TRIGGERED_IGNORE_SHAPESHIFT | TRIGGERED_IGNORE_CASTER_AURASTATE)));
+                            CastSpell(this, glyphEntry->SpellID, TriggerCastFlags(TRIGGERED_FULL_MASK & ~(TRIGGERED_IGNORE_SHAPESHIFT | TRIGGERED_IGNORE_CASTER_AURASTATE)));
                         continue;
                     }
                     else
-                        LOG_ERROR("entities.player", "Player {} has glyph with typeflags {} in slot with typeflags {}, removing.", m_name, glyphEntry->TypeFlags, glyphSlotEntry->TypeFlags);
+                        LOG_ERROR("entities.player", "Player {} has glyph with typeflags {} in slot with typeflags {}, removing.", m_name, glyphEntry->Type, glyphSlotEntry->Type);
                 }
                 else
                     LOG_ERROR("entities.player", "Player {} has not existing glyph slot entry {} on index {}", m_name, GetGlyphSlot(i), i);
@@ -6374,7 +6382,7 @@ Item* Player::_LoadItem(CharacterDatabaseTransaction trans, uint32 zoneId, uint3
     {
         bool remove = false;
         item = NewItemOrBag(proto);
-        if (item->LoadFromDB(itemGuid, GetGUID(), fields, itemEntry))
+        if (item->LoadFromDB(itemGuid, GetGUID(), fields, itemEntry, 15))
         {
             CharacterDatabasePreparedStatement* stmt = nullptr;
 
@@ -6527,7 +6535,7 @@ Item* Player::_LoadMailedItem(ObjectGuid const& playerGuid, Player* player, uint
     Item* item = NewItemOrBag(proto);
 
     ObjectGuid ownerGuid = fields[13].Get<uint32>() ? ObjectGuid::Create<HighGuid::Player>(fields[13].Get<uint32>()) : ObjectGuid::Empty;
-    if (!item->LoadFromDB(itemGuid, ownerGuid, fields, itemEntry))
+    if (!item->LoadFromDB(itemGuid, ownerGuid, fields, itemEntry, 15))
     {
         LOG_ERROR("entities.player", "Player::_LoadMailedItems: Item (GUID: {}) in mail ({}) doesn't exist, deleted from mail.", itemGuid, mailId);
 
@@ -7110,7 +7118,7 @@ void Player::PrettyPrintRequirementsAchievementsList(std::vector<ProgressionRequ
             continue;
         }
 
-        std::string name = achievementEntry->name[sObjectMgr->GetDBCLocaleIndex()];
+        std::string name = achievementEntry->Title->Str[sObjectMgr->GetDBCLocaleIndex()];
 
         std::stringstream stream;
         stream << "|cffff7c0a|Hachievement:";
@@ -8311,6 +8319,11 @@ void Player::_LoadVoidStorage(PreparedQueryResult result)
         ObjectGuid creatorGuid = ObjectGuid::Create<HighGuid::Player>(fields[3].Get<uint32>());
         int32 randomPropertyId = fields[4].Get<int32>();
         uint32 suffixFactor = fields[5].Get<uint32>();
+        uint32 upgradeId = fields[6].Get<uint32>();
+        std::vector<int32> bonusListIDs;
+        for (std::string_view token : Acore::Tokenize(fields[7].Get<std::string_view>(), ' ', false))
+            if (Optional<int32> bonusListID = Acore::StringTo<int32>(token))
+                bonusListIDs.push_back(*bonusListID);
 
         if (!itemId)
         {
@@ -8346,7 +8359,7 @@ void Player::_LoadVoidStorage(PreparedQueryResult result)
         }
 
         _voidStorageItems[slot] = std::make_unique<VoidStorageItem>(itemId, itemEntry, creatorGuid, randomPropertyId,
-            suffixFactor);
+            suffixFactor, upgradeId, std::move(bonusListIDs));
     } while (result->NextRow());
 }
 
@@ -8367,7 +8380,7 @@ void Player::_SaveVoidStorage(CharacterDatabaseTransaction trans)
         else
         {
             // REPLACE INTO character_void_storage (itemId, playerGuid, itemEntry, slot, creatorGuid, randomPropertyId,
-            //     suffixFactor)
+            //     suffixFactor, upgradeId, bonusListIDs)
             stmt = CharacterDatabase.GetPreparedStatement(CHAR_REP_CHAR_VOID_STORAGE_ITEM);
             stmt->SetData(0, _voidStorageItems[i]->ItemId);
             stmt->SetData(1, lowGuid);
@@ -8376,6 +8389,11 @@ void Player::_SaveVoidStorage(CharacterDatabaseTransaction trans)
             stmt->SetData(4, _voidStorageItems[i]->CreatorGuid.GetCounter());
             stmt->SetData(5, _voidStorageItems[i]->ItemRandomPropertyId);
             stmt->SetData(6, _voidStorageItems[i]->ItemSuffixFactor);
+            stmt->SetData(7, _voidStorageItems[i]->ItemUpgradeId);
+            std::ostringstream bonusListIDs;
+            for (int32 bonusListID : _voidStorageItems[i]->BonusListIDs)
+                bonusListIDs << bonusListID << ' ';
+            stmt->SetData(8, bonusListIDs.str());
         }
 
         trans->Append(stmt);

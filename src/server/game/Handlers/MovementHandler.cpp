@@ -264,7 +264,7 @@ void WorldSession::HandleMoveWorldportAck()
     if (!corpse && mEntry->IsDungeon())
     {
         // resurrect character upon entering instance when the corpse is not available anymore
-        if (GetPlayer()->GetCorpseLocation().GetMapId() == mEntry->MapID)
+        if (GetPlayer()->GetCorpseLocation().GetMapId() == mEntry->ID)
         {
             GetPlayer()->ResurrectPlayer(0.5f);
             GetPlayer()->RemoveCorpse();
@@ -275,12 +275,12 @@ void WorldSession::HandleMoveWorldportAck()
     if (mInstance)
     {
         Difficulty diff = GetPlayer()->GetDifficulty(mEntry->IsRaid());
-        if (MapDifficulty const* mapDiff = GetMapDifficultyData(mEntry->MapID, diff))
+        if (MapDifficulty const* mapDiff = GetMapDifficultyData(mEntry->ID, diff))
             if (mapDiff->resetTime)
-                if (time_t timeReset = sInstanceSaveMgr->GetResetTimeFor(mEntry->MapID, diff))
+                if (time_t timeReset = sInstanceSaveMgr->GetResetTimeFor(mEntry->ID, diff))
                 {
                     uint32 timeleft = uint32(timeReset - GameTime::GetGameTime().count());
-                    GetPlayer()->SendInstanceResetWarning(mEntry->MapID, diff, timeleft, true);
+                    GetPlayer()->SendInstanceResetWarning(mEntry->ID, diff, timeleft, true);
                 }
         allowMount = mInstance->AllowMount;
     }
@@ -527,7 +527,7 @@ void WorldSession::HandleMoverRelocation(MovementInfo& movementInfo, Unit* mover
     {
         if (VehicleSeatEntry const* seat = vehicle->GetSeatForPassenger(mover))
         {
-            if (seat->m_flags & VEHICLE_SEAT_FLAG_ALLOW_TURNING && movementInfo.pos.GetOrientation() != mover->GetOrientation())
+            if (seat->Flags & VEHICLE_SEAT_FLAG_ALLOW_TURNING && movementInfo.pos.GetOrientation() != mover->GetOrientation())
             {
                 mover->SetOrientation(movementInfo.pos.GetOrientation());
                 mover->RemoveAurasWithInterruptFlags(AURA_INTERRUPT_FLAG_TURNING);

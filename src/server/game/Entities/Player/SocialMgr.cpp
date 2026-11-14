@@ -38,7 +38,7 @@ uint32 PlayerSocial::GetNumberOfSocialsWithFlag(SocialFlag flag) const
     return counter;
 }
 
-bool PlayerSocial::AddToSocialList(ObjectGuid const& friendGuid, SocialFlag flag)
+bool PlayerSocial::AddToSocialList(ObjectGuid const& friendGuid, ObjectGuid const& accountGuid, SocialFlag flag)
 {
     // check client limits
     if (GetNumberOfSocialsWithFlag(flag) >= (((flag & SOCIAL_FLAG_FRIEND) != 0) ? SOCIALMGR_FRIEND_LIMIT : SOCIALMGR_IGNORE_LIMIT))
@@ -59,7 +59,9 @@ bool PlayerSocial::AddToSocialList(ObjectGuid const& friendGuid, SocialFlag flag
     }
     else
     {
-        m_playerSocialMap[friendGuid].Flags |= flag;
+        FriendInfo& friendInfo = m_playerSocialMap[friendGuid];
+        friendInfo.Flags |= flag;
+        friendInfo.WowAccountGuid = accountGuid;
 
         CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_INS_CHARACTER_SOCIAL);
 
@@ -344,10 +346,11 @@ PlayerSocial* SocialMgr::LoadFromDB(PreparedQueryResult result, ObjectGuid const
         Field* fields = result->Fetch();
 
         auto friendGuid = ObjectGuid::Create<HighGuid::Player>(fields[0].Get<uint32>());
-        auto flags = fields[1].Get<uint8>();
-        auto note = fields[2].Get<std::string>();
+        auto accountGuid = ObjectGuid::Create<HighGuid::WowAccount>(fields[1].Get<uint32>());
+        auto flags = fields[2].Get<uint8>();
+        auto note = fields[3].Get<std::string>();
 
-        social->m_playerSocialMap[friendGuid] = FriendInfo(flags, note);
+        social->m_playerSocialMap[friendGuid] = FriendInfo(accountGuid, flags, note);
     } while (result->NextRow());
 
     return social;

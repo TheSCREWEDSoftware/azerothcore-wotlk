@@ -35,7 +35,7 @@ void GuildAchievementMgr::LoadAchievementFromDB(Field* fields)
     // achievement, date, guids
     uint32 achievementId = fields[1].Get<uint16>();
     AchievementEntry const* achievement = sAchievementMgr->GetAchievement(achievementId);
-    if (!achievement || !(achievement->flags & ACHIEVEMENT_FLAG_GUILD))
+    if (!achievement || !(achievement->Flags & ACHIEVEMENT_FLAG_GUILD))
         return;
 
     CompletedAchievement& completed = _completed[achievementId];
@@ -44,7 +44,7 @@ void GuildAchievementMgr::LoadAchievementFromDB(Field* fields)
         if (Optional<ObjectGuid::LowType> lowGuid = Acore::StringTo<ObjectGuid::LowType>(guid))
             completed.Guids.insert(ObjectGuid::Create<HighGuid::Player>(*lowGuid));
 
-    _achievementPoints += achievement->points;
+    _achievementPoints += achievement->Points;
 }
 
 void GuildAchievementMgr::LoadCriteriaFromDB(Field* fields)
@@ -82,7 +82,7 @@ void GuildAchievementMgr::UpdateCriteria(AchievementCriteriaTypes type, uint64 m
     for (AchievementCriteriaEntry const* criteria : *criteriaList)
     {
         AchievementEntry const* achievement = sAchievementMgr->GetAchievement(criteria->referredAchievement);
-        if (!achievement || !(achievement->flags & ACHIEVEMENT_FLAG_GUILD) || HasAchieved(achievement->ID))
+        if (!achievement || !(achievement->Flags & ACHIEVEMENT_FLAG_GUILD) || HasAchieved(achievement->ID))
             continue;
 
         if (sDisableMgr->IsDisabledFor(DISABLE_TYPE_ACHIEVEMENT_CRITERIA, criteria->ID, nullptr))
@@ -207,7 +207,7 @@ bool GuildAchievementMgr::IsCompletedAchievement(AchievementEntry const* achieve
             completedAll = false;
 
         // some achievements only need a number of their criteria
-        if (achievement->count && completedCount >= achievement->count)
+        if (achievement->MinimumCriteria && completedCount >= achievement->MinimumCriteria)
             return true;
     }
 
@@ -244,7 +244,7 @@ void GuildAchievementMgr::CompleteAchievement(AchievementEntry const* achievemen
     stmt->SetData(3, guids);
     CharacterDatabase.Execute(stmt);
 
-    _achievementPoints += achievement->points;
+    _achievementPoints += achievement->Points;
 
     // SMSG_GUILD_ACHIEVEMENT_EARNED to every member
     ObjectGuid guildGuid = _owner->GetGUID();
@@ -270,15 +270,15 @@ void GuildAchievementMgr::CompleteAchievement(AchievementEntry const* achievemen
     data.WriteByteSeq(guildGuid[6]);
     _owner->BroadcastPacket(&data);
 
-    if (achievement->flags & ACHIEVEMENT_FLAG_SHOW_IN_GUILD_NEWS)
-        _owner->AddGuildNews(GUILD_NEWS_GUILD_ACHIEVEMENT, ObjectGuid::Empty, achievement->flags & ACHIEVEMENT_FLAG_SHOW_IN_GUILD_HEADER, achievement->ID);
+    if (achievement->Flags & ACHIEVEMENT_FLAG_SHOW_IN_GUILD_NEWS)
+        _owner->AddGuildNews(GUILD_NEWS_GUILD_ACHIEVEMENT, ObjectGuid::Empty, achievement->Flags & ACHIEVEMENT_FLAG_SHOW_IN_GUILD_HEADER, achievement->ID);
 
-    UpdateCriteria(ACHIEVEMENT_CRITERIA_TYPE_EARN_GUILD_ACHIEVEMENT_POINTS, achievement->points, 0, nullptr, source);
+    UpdateCriteria(ACHIEVEMENT_CRITERIA_TYPE_EARN_GUILD_ACHIEVEMENT_POINTS, achievement->Points, 0, nullptr, source);
 
     // achievements that count this one
     if (AchievementEntryList const* refList = sAchievementMgr->GetAchievementByReferencedId(achievement->ID))
         for (AchievementEntry const* refAchievement : *refList)
-            if ((refAchievement->flags & ACHIEVEMENT_FLAG_GUILD) && IsCompletedAchievement(refAchievement))
+            if ((refAchievement->Flags & ACHIEVEMENT_FLAG_GUILD) && IsCompletedAchievement(refAchievement))
                 CompleteAchievement(refAchievement, source);
 }
 
@@ -298,7 +298,7 @@ void GuildAchievementMgr::SendAllData(Player* receiver) const
     uint32 count = 0;
     for (auto const& [achievementId, completed] : _completed)
         if (AchievementEntry const* achievement = sAchievementMgr->GetAchievement(achievementId))
-            if (!(achievement->flags & ACHIEVEMENT_FLAG_HIDDEN))
+            if (!(achievement->Flags & ACHIEVEMENT_FLAG_HIDDEN))
                 ++count;
 
     WorldPacket data(SMSG_GUILD_ACHIEVEMENT_DATA, 3 + count * (4 + 4));
@@ -307,7 +307,7 @@ void GuildAchievementMgr::SendAllData(Player* receiver) const
     for (auto const& [achievementId, completed] : _completed)
     {
         AchievementEntry const* achievement = sAchievementMgr->GetAchievement(achievementId);
-        if (!achievement || (achievement->flags & ACHIEVEMENT_FLAG_HIDDEN))
+        if (!achievement || (achievement->Flags & ACHIEVEMENT_FLAG_HIDDEN))
             continue;
 
         data.AppendPackedTime(completed.Date);

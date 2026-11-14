@@ -36,7 +36,7 @@ char constexpr ChrRacesfmt[] = "niixiixxxxxxiisxxxxxxxxxxxxxxxxxxxxxxxxx";
 char constexpr ChrSpecializationfmt[] = "nxiiiiiiiiixxxii";
 char constexpr CreatureDisplayInfoExtrafmt[] = "dixxxxxxxxxxxxxxxxxxxx";
 char constexpr CreatureFamilyfmt[] = "nfifiiiiixsx";
-char constexpr CreatureModelDatafmt[] = "niixxxxxxxxxxxxffxxxxxxxxxxxxxxxxx";
+char constexpr CreatureModelDatafmt[] = "niixfxxxxxxxxxfffxxxxxxxxxxxxxxxxx";
 char constexpr DifficultyFmt[] = "niiiixiixxxxix";
 char constexpr DungeonEncounterfmt[] = "niiixsxxx";
 char constexpr DurabilityCostsfmt[] = "niiiiiiiiiiiiiiiiiiiiiiiiiiiii";
@@ -79,7 +79,7 @@ char constexpr ItemArmorTotalfmt[] = "niffff";
 char constexpr ItemDamagefmt[] = "nfffffffi";
 char constexpr ItemSetfmt[] = "nsiiiiiiiiiiiiiiiiiii";
 char constexpr ItemSetSpellfmt[] = "niiii";
-char constexpr LFGDungeonfmt[] = "nsiiixxiiiixxixixxxxxxxxxxxxxx";
+char constexpr LFGDungeonfmt[] = "nsiiixxiiiixxixixxiiixxxxixxxx";
 char constexpr Lightfmt[] = "nifffxxxxxxxxxx";
 char constexpr LiquidTypefmt[] = "nxxixixxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
 char constexpr Lockfmt[] = "niiiiiiiiiiiiiiiiiiiiiiiixxxxxxxx";
@@ -119,7 +119,6 @@ char constexpr WMOAreaTablefmt[] = "niiixxxxxiixxxx";
 char constexpr WorldMapAreafmt[] = "xinxffffixxxxx";
 char constexpr WorldMapTransformsfmt[] = "diffffffiffxxxf";
 char constexpr WorldSafeLocsfmt[] = "niffffx";
-
 
 // AzerothCore / 5.4.8 formats of files the 6.x client still ships that TrinityCore 6.x does not load
 char constexpr AchievementCategoryfmt[] = "nixx";

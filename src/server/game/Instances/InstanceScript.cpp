@@ -42,7 +42,7 @@ BossBoundaryData::~BossBoundaryData()
 
 void InstanceScript::SaveToDB()
 {
-    if (sToCloud9Sidecar->ClusterModeEnabled() && !sToCloud9Sidecar->IsMapAssigned(instance->GetEntry()->MapID))
+    if (sToCloud9Sidecar->ClusterModeEnabled() && !sToCloud9Sidecar->IsMapAssigned(instance->GetEntry()->ID))
         return;
 
     std::string data = GetSaveData();

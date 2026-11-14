@@ -1540,7 +1540,7 @@ public:
                     {
                         theLichKing->AI()->Talk(SAY_LK_OUTRO_6);
                         me->SetFacingToObject(theLichKing);
-                        theLichKing->SetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID, EQUIP_UNEQUIP);
+                        theLichKing->SetVirtualItem(0, EQUIP_UNEQUIP);
                         theLichKing->CastSpell((Unit*)nullptr, SPELL_SUMMON_BROKEN_FROSTMOURNE_3, true);
                         me->GetMap()->SetZoneOverrideLight(AREA_THE_FROZEN_THRONE, LIGHT_SOULSTORM, 10s);
                         me->GetMap()->SetZoneWeather(AREA_THE_FROZEN_THRONE, WEATHER_STATE_BLACKSNOW, 0.5f);

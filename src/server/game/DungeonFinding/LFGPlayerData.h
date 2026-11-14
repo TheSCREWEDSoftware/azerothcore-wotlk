@@ -19,6 +19,7 @@
 #define _LFGPLAYERDATA_H
 
 #include "LFG.h"
+#include "LFGPackets.h"
 #include "SharedDefines.h"
 
 namespace lfg
@@ -46,6 +47,7 @@ namespace lfg
         void SetRoles(uint8 roles);
         void SetComment(std::string const& comment);
         void SetSelectedDungeons(LfgDungeonSet const& dungeons);
+        void SetTicket(WorldPackets::LFG::RideTicket const& ticket) { m_Ticket = ticket; }
 
         // General
         [[nodiscard]] LfgState GetState() const;
@@ -54,19 +56,17 @@ namespace lfg
         [[nodiscard]] TeamId GetTeam() const;
         [[nodiscard]] ObjectGuid GetGroup() const;
         [[nodiscard]] uint8 GetRandomPlayersCount() const;
-        void SetCanOverrideRBState(bool val) { m_canOverrideRBState = val; }
-        [[nodiscard]] bool CanOverrideRBState() const { return m_canOverrideRBState; }
 
         // Queue
         [[nodiscard]] uint8 GetRoles() const;
         [[nodiscard]] std::string const& GetComment() const;
         [[nodiscard]] LfgDungeonSet const& GetSelectedDungeons() const;
+        [[nodiscard]] WorldPackets::LFG::RideTicket const& GetTicket() const { return m_Ticket; }
 
     private:
         // General
         LfgState m_State;                                  ///< State if group in LFG
         LfgState m_OldState;                               ///< Old State - Used to restore state after failed Rolecheck/Proposal
-        bool m_canOverrideRBState;                         ///< pussywizard
         // Player
         LfgLockMap m_LockedDungeons;                       ///< Dungeons player can't do and reason
         TeamId m_TeamId;                                   ///< Player team - determines the queue to join
@@ -76,6 +76,7 @@ namespace lfg
         // Queue
         uint8 m_Roles;                                     ///< Roles the player selected when joined LFG
         std::string m_Comment;                             ///< Player comment used when joined LFG
+        WorldPackets::LFG::RideTicket m_Ticket;            ///< 6.x queue ticket the client echoes back in every queue packet
         LfgDungeonSet m_SelectedDungeons;                  ///< Selected Dungeons when joined LFG
     };
 

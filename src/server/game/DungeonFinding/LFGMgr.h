@@ -41,7 +41,7 @@ namespace lfg
     enum LfgOptions
     {
         LFG_OPTION_ENABLE_DUNGEON_FINDER             = 0x01,
-        LFG_OPTION_ENABLE_RAID_BROWSER               = 0x02,
+        // 0x02 was the raid browser, removed in 6.0 (replaced by premade groups)
         LFG_OPTION_ENABLE_SEASONAL_BOSSES            = 0x04
     };
 
@@ -151,121 +151,6 @@ namespace lfg
         LFG_DUNGEON_FROST_LORD_AHUNE    = 286,
         LFG_DUNGEON_COREN_DIREBREW      = 287,
         LFG_DUNGEON_CROWN_CHEMICAL_CO   = 288
-    };
-
-    struct RBEntryInfo
-    {
-        RBEntryInfo() = default;
-        RBEntryInfo(uint8 _roles, std::string  _comment) : roles(_roles), comment(std::move(_comment)) {}
-        uint8 roles;
-        std::string comment;
-    };
-
-    // raid browser list for one dungeon, sent as SMSG_LFG_SEARCH_RESULT
-    struct RBSearchList
-    {
-        bool Incremental = false;
-        std::vector<ObjectGuid> Removes;
-        uint32 SlotID = 0;
-        uint32 SlotType = 0;
-        uint32 CountTotalParties = 0;
-        uint32 CountTotalPlayers = 0;
-        std::vector<WorldPackets::LFG::ClientLFGSearchResultParty> Parties;
-        std::vector<WorldPackets::LFG::ClientLFGSearchResultPlayer> Players;
-    };
-
-    struct RBInternalInfo
-    {
-        ObjectGuid guid;
-        std::string comment;
-        bool isGroupLeader;
-        ObjectGuid groupGuid;
-        uint8 roles;
-        uint32 encounterMask;
-        ObjectGuid instanceGuid;
-
-        // additional character info parameters:
-        uint8 _online;
-        uint8 _level;
-        uint8 _class;
-        uint8 _race;
-        float _avgItemLevel;
-        // --
-        uint8 _talents0;
-        uint8 _talents1;
-        uint8 _talents2;
-        uint32 _area;
-        uint32 _armor;
-        uint32 _spellDamage;
-        uint32 _spellHeal;
-        // --
-        uint32 _critRatingMelee;
-        uint32 _critRatingRanged;
-        uint32 _critRatingSpell;
-        float _mp5;
-        float _mp5combat;
-        // --
-        uint32 _attackPower;
-        uint32 _agility;
-        uint32 _health;
-        uint32 _mana;
-        uint32 _defenseRating;
-        // --
-        uint32 _dodgeRating;
-        uint32 _blockRating;
-        uint32 _parryRating;
-        uint32 _hasteRating;
-        uint32 _expertiseRating;
-
-        RBInternalInfo() = default;
-        RBInternalInfo(ObjectGuid guid, std::string  comment, bool isGroupLeader, ObjectGuid groupGuid, uint8 roles, uint32 encounterMask, ObjectGuid instanceGuid,
-                       uint8 _online, uint8 _level, uint8 _class, uint8 _race, float _avgItemLevel,
-                       uint8 (&_talents)[3], uint32 _area, uint32 _armor, uint32 _spellDamage, uint32 _spellHeal,
-                       uint32 _critRatingMelee, uint32 _critRatingRanged, uint32 _critRatingSpell, float _mp5, float _mp5combat,
-                       uint32 _attackPower, uint32 _agility, uint32 _health, uint32 _mana, uint32 _defenseRating,
-                       uint32 _dodgeRating, uint32 _blockRating, uint32 _parryRating, uint32 _hasteRating, uint32 _expertiseRating)
-            : guid(guid), comment(std::move(comment)), isGroupLeader(isGroupLeader), groupGuid(groupGuid), roles(roles), encounterMask(encounterMask), instanceGuid(instanceGuid),
-              _online(_online), _level(_level), _class(_class), _race(_race), _avgItemLevel(_avgItemLevel),
-              _talents0(_talents[0]), _talents1(_talents[1]), _talents2(_talents[2]), _area(_area), _armor(_armor), _spellDamage(_spellDamage), _spellHeal(_spellHeal),
-              _critRatingMelee(_critRatingMelee), _critRatingRanged(_critRatingRanged), _critRatingSpell(_critRatingSpell), _mp5(_mp5), _mp5combat(_mp5combat),
-              _attackPower(_attackPower), _agility(_agility), _health(_health), _mana(_mana), _defenseRating(_defenseRating),
-              _dodgeRating(_dodgeRating), _blockRating(_blockRating), _parryRating(_parryRating), _hasteRating(_hasteRating), _expertiseRating(_expertiseRating)
-        {}
-        [[nodiscard]] bool PlayerSameAs(RBInternalInfo const& i) const
-        {
-            return isGroupLeader == i.isGroupLeader && groupGuid == i.groupGuid && roles == i.roles && (isGroupLeader || (comment == i.comment && encounterMask == i.encounterMask && instanceGuid == i.instanceGuid))
-                   && _level == i._level && _class == i._class && _race == i._race && std::fabs(_avgItemLevel - i._avgItemLevel) < 0.01f
-                   && _talents0 == i._talents0 && _talents1 == i._talents1 && _talents2 == i._talents2 && _area == i._area && _armor == i._armor && _spellDamage == i._spellDamage && _spellHeal == i._spellHeal
-                   && _critRatingMelee == i._critRatingMelee && _critRatingRanged == i._critRatingRanged && _critRatingSpell == i._critRatingSpell && std::fabs(_mp5 - i._mp5) < 0.01f && std::fabs(_mp5combat - i._mp5combat) < 0.01f
-                   && _attackPower == i._attackPower && _agility == i._agility && _health == i._health && _mana == i._mana && _defenseRating == i._defenseRating
-                   && _dodgeRating == i._dodgeRating && _blockRating == i._blockRating && _parryRating == i._parryRating && _hasteRating == i._hasteRating && _expertiseRating == i._expertiseRating;
-        }
-        void CopyStats(RBInternalInfo const& i)
-        {
-            _avgItemLevel = i._avgItemLevel;
-            _talents0 = i._talents0;
-            _talents1 = i._talents1;
-            _talents2 = i._talents2;
-            _area = i._area;
-            _armor = i._armor;
-            _spellDamage = i._spellDamage;
-            _spellHeal = i._spellHeal;
-            _critRatingMelee = i._critRatingMelee;
-            _critRatingRanged = i._critRatingRanged;
-            _critRatingSpell = i._critRatingSpell;
-            _mp5 = i._mp5;
-            _mp5combat = i._mp5combat;
-            _attackPower = i._attackPower;
-            _agility = i._agility;
-            _health = i._health;
-            _mana = i._mana;
-            _defenseRating = i._defenseRating;
-            _dodgeRating = i._dodgeRating;
-            _blockRating = i._blockRating;
-            _parryRating = i._parryRating;
-            _hasteRating = i._hasteRating;
-            _expertiseRating = i._expertiseRating;
-        }
     };
 
     // Forward declaration (just to have all typedef together)
@@ -409,9 +294,9 @@ namespace lfg
     {
         LFGDungeonData():  name("")
         { }
-        LFGDungeonData(LFGDungeonEntry const* dbc) : id(dbc->ID), name(dbc->Name[0]), map(dbc->MapID),
-            type(dbc->TypeID), expansion(uint8(dbc->ExpansionLevel)), group(uint8(dbc->GroupID)),
-            minlevel(uint8(dbc->MinLevel)), maxlevel(uint8(dbc->MaxLevel)), difficulty(GetDifficultyFromDbc(dbc->Difficulty)),
+        LFGDungeonData(LFGDungeonEntry const* dbc) : id(dbc->ID), name(dbc->Name_lang), map(dbc->MapID),
+            type(uint8(dbc->Type)), expansion(uint8(dbc->Expansion)), group(uint8(dbc->GroupID)),
+            minlevel(uint8(dbc->MinLevel)), maxlevel(uint8(dbc->MaxLevel)), difficulty(Difficulty(dbc->DifficultyID)),
             seasonal((dbc->Flags & LFG_FLAG_SEASONAL) != 0), requiredTanks(uint8(dbc->CountTank)),
             requiredHealers(uint8(dbc->CountHealer)), requiredDamageDealers(uint8(dbc->CountDamage)), x(0.0f), y(0.0f), z(0.0f), o(0.0f)
         {
@@ -450,21 +335,6 @@ namespace lfg
     private:
         LFGMgr();
         ~LFGMgr();
-
-        // pussywizard: RAIDBROWSER
-        typedef std::unordered_map<ObjectGuid /*playerGuid*/, RBEntryInfo> RBEntryInfoMap;
-        typedef std::unordered_map<uint32 /*dungeonId*/, RBEntryInfoMap> RBStoreMap;
-        RBStoreMap RaidBrowserStore[2]; // for 2 factions
-        typedef std::unordered_map<ObjectGuid /*playerGuid*/, uint32 /*dungeonId*/> RBSearchersMap;
-        RBSearchersMap RBSearchersStore[2]; // for 2 factions
-        typedef std::unordered_map<uint32 /*dungeonId*/, RBSearchList> RBCacheMap;
-        RBCacheMap RBCacheStore[2]; // for 2 factions
-        typedef std::unordered_map<ObjectGuid /*guid*/, RBInternalInfo> RBInternalInfoMap;
-        typedef std::unordered_map<uint32 /*dungeonId*/, RBInternalInfoMap> RBInternalInfoMapMap;
-        RBInternalInfoMapMap RBInternalInfoStorePrev[2]; // for 2 factions
-        RBInternalInfoMapMap RBInternalInfoStoreCurr[2]; // for 2 factions
-        typedef std::set<uint32 /*dungeonId*/> RBUsedDungeonsSet; // needs to be ordered
-        RBUsedDungeonsSet RBUsedDungeonsStore[2]; // for 2 factions
 
     public:
         static LFGMgr* instance();
@@ -576,23 +446,12 @@ namespace lfg
         void SetComment(ObjectGuid guid, std::string const& comment);
         /// Join Lfg with selected roles, dungeons and comment
         void JoinLfg(Player* player, uint8 roles, LfgDungeonSet& dungeons, std::string const& comment);
+        /// 6.x queue ticket of the player, set when the queue (or role check) begins
+        WorldPackets::LFG::RideTicket const* GetTicket(ObjectGuid guid) const;
         /// Leaves lfg
         void LeaveLfg(ObjectGuid guid);
         /// pussywizard: cleans all queues' data
         void LeaveAllLfgQueues(ObjectGuid guid, bool allowgroup, ObjectGuid groupguid = ObjectGuid::Empty);
-        /// pussywizard: Raid Browser
-        void JoinRaidBrowser(Player* player, uint8 roles, LfgDungeonSet& dungeons, std::string comment);
-        void LeaveRaidBrowser(ObjectGuid guid);
-        void LfrSearchAdd(Player* p, uint32 dungeonId);
-        void LfrSearchRemove(Player* p);
-        void SendRaidBrowserCachedList(Player* player, uint32 dungeonId);
-        void UpdateRaidBrowser(uint32 diff);
-        void LfrSetComment(Player* p, std::string comment);
-        void SendRaidBrowserJoinedPacket(Player* p, LfgDungeonSet& dungeons, std::string comment);
-        void RBPacketAppendGroup(RBInternalInfo const& info, std::vector<WorldPackets::LFG::ClientLFGSearchResultParty>& parties);
-        void RBPacketAppendPlayer(RBInternalInfo const& info, std::vector<WorldPackets::LFG::ClientLFGSearchResultPlayer>& players);
-        void RBPacketBuildFull(RBSearchList& fullPacket, uint32 dungeonId, RBInternalInfoMap const& infoMap);
-        void RBSendSearchResults(Player* player, RBSearchList const& results);
 
         // LfgQueue
         /// Get last lfg state (NONE, DUNGEON or FINISHED_DUNGEON)
@@ -630,7 +489,7 @@ namespace lfg
         void SetLockedDungeons(ObjectGuid guid, LfgLockMap const& lock);
         void DecreaseKicksLeft(ObjectGuid guid);
         void SetState(ObjectGuid guid, LfgState state);
-        void SetCanOverrideRBState(ObjectGuid guid, bool val);
+        void SetTicket(ObjectGuid guid, WorldPackets::LFG::RideTicket const& ticket);
         void GetCompatibleDungeons(LfgDungeonSet& dungeons, LfgGuidSet const& players, LfgLockPartyMap& lockMap, uint32 randomDungeonId = 0);
         void _SaveToDB(ObjectGuid guid);
 
@@ -657,12 +516,6 @@ namespace lfg
         uint32 m_lfgProposalId;                            ///< used as internal counter for proposals
         uint32 m_options;                                  ///< Stores config options
         uint32 lastProposalId;                             ///< pussywizard, store it here because of splitting LFGMgr update into tasks
-        uint32 m_raidBrowserUpdateTimer[2];                ///< pussywizard
-        uint32 m_raidBrowserLastUpdatedDungeonId[2];       ///< pussywizard: for 2 factions
-        RBSearchList _rbDifference;
-        GuidSet _rbPrevGroups;
-        GuidSet _rbDroppedGroups;
-        RBInternalInfoMap _rbCopy;
 
         LfgQueueContainer QueuesStore;                     ///< Queues
         LfgCachedDungeonContainer CachedDungeonMapStore;   ///< Stores all dungeons by groupType

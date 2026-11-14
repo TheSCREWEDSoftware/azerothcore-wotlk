@@ -219,9 +219,9 @@ GraveyardStruct const* Graveyard::GetClosestGraveyard(uint32 mapId, float x, flo
         {
             // if find graveyard at different map from where entrance placed (or no entrance data), use any first
             if (!mapEntry
-                    || mapEntry->entrance_map < 0
-                    || uint32(mapEntry->entrance_map) != entry->Map
-                    || (mapEntry->entrance_x == 0 && mapEntry->entrance_y == 0))
+                    || mapEntry->CorpseMapID < 0
+                    || uint32(mapEntry->CorpseMapID) != entry->Map
+                    || (mapEntry->CorpsePos.X == 0 && mapEntry->CorpsePos.Y == 0))
             {
                 // not have any corrdinates for check distance anyway
                 entryFar = entry;
@@ -229,8 +229,8 @@ GraveyardStruct const* Graveyard::GetClosestGraveyard(uint32 mapId, float x, flo
             }
 
             // at entrance map calculate distance (2D);
-            float dist2 = (entry->x - mapEntry->entrance_x) * (entry->x - mapEntry->entrance_x)
-                          + (entry->y - mapEntry->entrance_y) * (entry->y - mapEntry->entrance_y);
+            float dist2 = (entry->x - mapEntry->CorpsePos.X) * (entry->x - mapEntry->CorpsePos.X)
+                          + (entry->y - mapEntry->CorpsePos.Y) * (entry->y - mapEntry->CorpsePos.Y);
             if (foundEntr)
             {
                 if (dist2 < distEntr)

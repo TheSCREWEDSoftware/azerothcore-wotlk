@@ -3205,9 +3205,9 @@ void Spell::EffectEnchantItemPrismatic(SpellEffIndex effIndex)
     // support only enchantings with add socket in this slot
     {
         bool add_socket = false;
-        for (uint8 i = 0; i < MAX_SPELL_ITEM_ENCHANTMENT_EFFECTS; ++i)
+        for (uint8 i = 0; i < MAX_ITEM_ENCHANTMENT_EFFECTS; ++i)
         {
-            if (pEnchant->type[i] == ITEM_ENCHANTMENT_TYPE_PRISMATIC_SOCKET)
+            if (pEnchant->Effect[i] == ITEM_ENCHANTMENT_TYPE_PRISMATIC_SOCKET)
             {
                 add_socket = true;
                 break;
@@ -3397,7 +3397,7 @@ void Spell::EffectEnchantItemTmp(SpellEffIndex effIndex)
     // remove old enchanting before applying new if equipped
     item_owner->ApplyEnchantment(itemTarget, TEMP_ENCHANTMENT_SLOT, false);
 
-    itemTarget->SetEnchantment(TEMP_ENCHANTMENT_SLOT, enchant_id, duration * 1000, pEnchant->charges, unitCaster->GetGUID());
+    itemTarget->SetEnchantment(TEMP_ENCHANTMENT_SLOT, enchant_id, duration * 1000, pEnchant->Charges, unitCaster->GetGUID());
 
     // add new enchanting if equipped
     item_owner->ApplyEnchantment(itemTarget, TEMP_ENCHANTMENT_SLOT, true);
@@ -4446,14 +4446,14 @@ void Spell::EffectDuel(SpellEffIndex effIndex)
 
     // Players can only fight a duel in zones with this flag
     AreaTableEntry const* casterAreaEntry = sAreaTableStore.LookupEntry(caster->GetAreaId());
-    if (casterAreaEntry && !(casterAreaEntry->flags & AREA_FLAG_ALLOW_DUELS))
+    if (casterAreaEntry && !(casterAreaEntry->Flags[0] & AREA_FLAG_ALLOW_DUELS))
     {
         SendCastResult(SPELL_FAILED_NO_DUELING);            // Dueling isn't allowed here
         return;
     }
 
     AreaTableEntry const* targetAreaEntry = sAreaTableStore.LookupEntry(target->GetAreaId());
-    if (targetAreaEntry && !(targetAreaEntry->flags & AREA_FLAG_ALLOW_DUELS))
+    if (targetAreaEntry && !(targetAreaEntry->Flags[0] & AREA_FLAG_ALLOW_DUELS))
     {
         SendCastResult(SPELL_FAILED_NO_DUELING);            // Dueling isn't allowed here
         return;
@@ -4725,7 +4725,7 @@ void Spell::EffectApplyGlyph(SpellEffIndex effIndex)
         {
             if (GlyphSlotEntry const* glyphSlotEntry = sGlyphSlotStore.LookupEntry(player->GetGlyphSlot(m_glyphIndex)))
             {
-                if (glyphEntry->TypeFlags != glyphSlotEntry->TypeFlags)
+                if (glyphEntry->Type != glyphSlotEntry->Type)
                 {
                     SendCastResult(SPELL_FAILED_INVALID_GLYPH);
                     return;                                 // glyph slot mismatch
@@ -4736,7 +4736,7 @@ void Spell::EffectApplyGlyph(SpellEffIndex effIndex)
             if (uint32 oldGlyph = player->GetGlyph(m_glyphIndex))
                 if (GlyphPropertiesEntry const* oldGlyphEntry = sGlyphPropertiesStore.LookupEntry(oldGlyph))
                 {
-                    player->RemoveAurasDueToSpell(oldGlyphEntry->SpellId);
+                    player->RemoveAurasDueToSpell(oldGlyphEntry->SpellID);
 
                     // Removed any triggered auras
                     Unit::AuraMap& ownedAuras = player->GetOwnedAuras();
@@ -4745,7 +4745,7 @@ void Spell::EffectApplyGlyph(SpellEffIndex effIndex)
                         Aura* aura = iter->second;
                         if (SpellInfo const* triggeredByAuraSpellInfo = aura->GetTriggeredByAuraSpellInfo())
                         {
-                            if (triggeredByAuraSpellInfo->Id == oldGlyphEntry->SpellId)
+                            if (triggeredByAuraSpellInfo->Id == oldGlyphEntry->SpellID)
                             {
                                 player->RemoveOwnedAura(iter);
                                 continue;
@@ -4754,11 +4754,11 @@ void Spell::EffectApplyGlyph(SpellEffIndex effIndex)
                         ++iter;
                     }
 
-                    player->SendLearnPacket(oldGlyphEntry->SpellId, false); // Send packet to properly handle client-side spell tooltips
+                    player->SendLearnPacket(oldGlyphEntry->SpellID, false); // Send packet to properly handle client-side spell tooltips
                 }
 
-            player->SendLearnPacket(glyphEntry->SpellId, true); // Send packet to properly handle client-side spell tooltips
-            player->CastSpell(unitCaster, glyphEntry->SpellId, TriggerCastFlags(TRIGGERED_FULL_MASK & ~(TRIGGERED_IGNORE_SHAPESHIFT | TRIGGERED_IGNORE_CASTER_AURASTATE)));
+            player->SendLearnPacket(glyphEntry->SpellID, true); // Send packet to properly handle client-side spell tooltips
+            player->CastSpell(unitCaster, glyphEntry->SpellID, TriggerCastFlags(TRIGGERED_FULL_MASK & ~(TRIGGERED_IGNORE_SHAPESHIFT | TRIGGERED_IGNORE_CASTER_AURASTATE)));
             player->SetGlyph(m_glyphIndex, glyph, !player->GetSession()->PlayerLoading());
             player->SendTalentsInfoData(false);
         }
@@ -4817,7 +4817,7 @@ void Spell::EffectEnchantHeldItem(SpellEffIndex effIndex)
             return;
 
         // Apply the temporary enchantment
-        item->SetEnchantment(slot, enchant_id, duration, pEnchant->charges, unitCaster->GetGUID());
+        item->SetEnchantment(slot, enchant_id, duration, pEnchant->Charges, unitCaster->GetGUID());
         item_owner->ApplyEnchantment(item, slot, true);
     }
 }

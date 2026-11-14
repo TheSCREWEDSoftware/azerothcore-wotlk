@@ -2483,7 +2483,7 @@ struct npc_highlord_darion_mograine : public ScriptedAI
                 events.ScheduleEvent(EVENT_OUTRO_SCENE_53, 84s);
                 break;
             case EVENT_OUTRO_SCENE_37:
-                me->SetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID + 0, uint32(EQUIP_UNEQUIP));
+                me->SetVirtualItem(0, uint32(EQUIP_UNEQUIP));
                 me->CastSpell(me, SPELL_THROW_ASHBRINGER, true);
                 break;
             case EVENT_OUTRO_SCENE_38:

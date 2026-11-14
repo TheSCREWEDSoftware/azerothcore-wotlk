@@ -17,6 +17,7 @@
 
 #include "LootMgr.h"
 #include "Containers.h"
+#include "DB2Stores.h"
 #include "DisableMgr.h"
 #include "Group.h"
 #include "ItemEnchantmentMgr.h"
@@ -404,6 +405,7 @@ LootItem::LootItem(LootStoreItem const& li)
 
     randomSuffix = GenerateEnchSuffixFactor(itemid);
     randomPropertyId = Item::GenerateItemRandomPropertyId(itemid);
+    upgradeId = sDB2Manager.GetRulesetItemUpgrade(itemid);
     count = 0;
     is_looted = false;
     is_blocked = false;
@@ -495,6 +497,12 @@ void Loot::AddItem(LootStoreItem const& item)
         LootItem generatedLoot(item);
         generatedLoot.count = std::min(count, proto->GetMaxStackSize());
         generatedLoot.itemIndex = lootItems.size();
+        if (_difficultyBonusTreeMod)
+        {
+            std::set<uint32> bonusListIDs = sDB2Manager.GetItemBonusTree(generatedLoot.itemid, _difficultyBonusTreeMod);
+            generatedLoot.BonusListIDs.insert(generatedLoot.BonusListIDs.end(), bonusListIDs.begin(), bonusListIDs.end());
+        }
+
         lootItems.push_back(generatedLoot);
         count -= proto->GetMaxStackSize();
 
@@ -544,6 +552,7 @@ bool Loot::FillLoot(uint32 lootId, LootStore const& store, Player* lootOwner, bo
         return false;
 
     lootOwnerGUID = lootOwner->GetGUID();
+    _difficultyBonusTreeMod = lootOwner->GetMap()->GetDifficultyLootBonusTreeMod();
 
     LootTemplate const* tab = store.GetLootFor(lootId);
 

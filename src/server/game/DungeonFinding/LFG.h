@@ -76,8 +76,7 @@ namespace lfg
         LFG_STATE_PROPOSAL,                                    // Proposal active
         LFG_STATE_BOOT,                                        // Vote kick active
         LFG_STATE_DUNGEON,                                     // In LFG Group, in a Dungeon
-        LFG_STATE_FINISHED_DUNGEON,                            // In LFG Group, in a finished Dungeon
-        LFG_STATE_RAIDBROWSER                                  // Using Raid finder
+        LFG_STATE_FINISHED_DUNGEON                             // In LFG Group, in a finished Dungeon
     };
 
     /// Instance lock types

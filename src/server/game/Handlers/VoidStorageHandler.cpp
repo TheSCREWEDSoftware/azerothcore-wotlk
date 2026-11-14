@@ -347,8 +347,10 @@ void WorldSession::HandleVoidStorageTransfer(WorldPacket& recvData)
             }
         }
 
+        std::vector<uint32> const& bonuses = item->GetDynamicValues(ITEM_DYNAMIC_FIELD_BONUSLIST_IDS);
         VoidStorageItem itemVS(sObjectMgr->GenerateVoidStorageItemId(), item->GetEntry(),
-            item->GetGuidValue(ITEM_FIELD_CREATOR), item->GetItemRandomPropertyId(), item->GetItemSuffixFactor());
+            item->GetGuidValue(ITEM_FIELD_CREATOR), item->GetItemRandomPropertyId(), item->GetItemSuffixFactor(),
+            item->GetModifier(ITEM_MODIFIER_UPGRADE_ID), std::vector<int32>(bonuses.begin(), bonuses.end()));
 
         uint8 slot = player->AddVoidStorageItem(itemVS);
         if (slot >= VOID_STORAGE_MAX_SLOT)
@@ -386,7 +388,9 @@ void WorldSession::HandleVoidStorageTransfer(WorldPacket& recvData)
             return;
         }
 
-        Item* item = player->StoreNewItem(dest, itemVS->ItemEntry, true, itemVS->ItemRandomPropertyId);
+        AllowedLooterSet noLooters;
+        Item* item = player->StoreNewItem(dest, itemVS->ItemEntry, true, itemVS->ItemRandomPropertyId, noLooters, false, itemVS->BonusListIDs);
+        item->SetModifier(ITEM_MODIFIER_UPGRADE_ID, itemVS->ItemUpgradeId);
         item->SetGuidValue(ITEM_FIELD_CREATOR, itemVS->CreatorGuid);
         item->SetBinding(true);
         player->SendNewItem(item, 1, false, false, false);

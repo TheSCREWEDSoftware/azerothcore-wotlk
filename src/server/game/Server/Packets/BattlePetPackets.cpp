@@ -92,7 +92,6 @@ WorldPacket const* WorldPackets::BattlePet::BattlePetUpdates::Write()
     return &_worldPacket;
 }
 
-
 WorldPacket const* WorldPackets::BattlePet::PetBattleSlotUpdates::Write()
 {
     _worldPacket << uint32(Slots.size());

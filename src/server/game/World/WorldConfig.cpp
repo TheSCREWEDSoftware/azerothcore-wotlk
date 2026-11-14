@@ -397,8 +397,7 @@ void WorldConfig::BuildConfigCache()
     // Black Market
     SetConfigValue<bool>(CONFIG_BLACK_MARKET_OPEN, "BlackMarket.Open", false);
     SetConfigValue<uint32>(CONFIG_BLACK_MARKET_MAX_AUCTIONS, "BlackMarket.MaxAuctions", 12);
-    SetConfigValue<uint32>(CONFIG_BLACK_MARKET_AUCTION_DELAY, "BlackMarket.AuctionDelay", 120);
-    SetConfigValue<uint32>(CONFIG_BLACK_MARKET_AUCTION_DELAY_MOD, "BlackMarket.AuctionDelayMod", 120);
+    SetConfigValue<uint32>(CONFIG_BLACK_MARKET_UPDATE_PERIOD, "BlackMarket.UpdatePeriod", 24);
     SetConfigValue<uint32>(CONFIG_GUILD_RESET_HOUR, "Guild.ResetHour", 6, ConfigValueCache::Reloadable::Yes, [](uint32 const& value) { return value <= 23; }, "<= 23");
 
     SetConfigValue<uint32>(CONFIG_GUILD_BANK_INITIAL_TABS, "Guild.BankInitialTabs", 0);

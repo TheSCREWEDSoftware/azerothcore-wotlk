@@ -662,7 +662,7 @@ bool Creature::UpdateEntry(uint32 Entry, CreatureData const* data, bool changele
     // checked and error show at loading templates
     if (FactionTemplateEntry const* factionTemplate = sFactionTemplateStore.LookupEntry(cInfo->faction))
     {
-        if (factionTemplate->factionFlags & FACTION_TEMPLATE_FLAG_ASSIST_PLAYERS)
+        if (factionTemplate->Flags & FACTION_TEMPLATE_FLAG_ASSIST_PLAYERS)
             SetPvP(true);
         else
             SetPvP(false);
@@ -1820,7 +1820,7 @@ void Creature::LoadEquipment(int8 id, bool force /*= false*/)
         if (force)
         {
             for (uint8 i = 0; i < MAX_EQUIPMENT_ITEMS; ++i)
-                SetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID + i, 0);
+                SetVirtualItem(i, 0);
             m_equipmentId = 0;
         }
         return;
@@ -1832,7 +1832,7 @@ void Creature::LoadEquipment(int8 id, bool force /*= false*/)
 
     m_equipmentId = id;
     for (uint8 i = 0; i < 3; ++i)
-        SetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID + i, einfo->ItemEntry[i]);
+        SetVirtualItem(i, einfo->ItemEntry[i]);
 }
 
 bool Creature::hasQuest(uint32 quest_id) const
@@ -2682,7 +2682,7 @@ void Creature::UpdateMoveInLineOfSightState()
 
     bool nonHostile = true;
     if (FactionTemplateEntry const* factionTemplate = sFactionTemplateStore.LookupEntry(GetFaction()))
-        if (factionTemplate->hostileMask || factionTemplate->enemyFaction[0] || factionTemplate->enemyFaction[1] || factionTemplate->enemyFaction[2] || factionTemplate->enemyFaction[3])
+        if (factionTemplate->EnemyMask || factionTemplate->Enemies[0] || factionTemplate->Enemies[1] || factionTemplate->Enemies[2] || factionTemplate->Enemies[3])
             nonHostile = false;
 
     if (nonHostile)
@@ -3415,8 +3415,8 @@ bool Creature::HasWeapon(WeaponAttackType type) const
     }
 
     const uint8 slot = uint8(type);
-    ItemEntry const* item = sItemStore.LookupEntry(GetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID + slot));
-    return (item && item->ClassID == ITEM_CLASS_WEAPON);
+    ItemEntry const* item = sItemStore.LookupEntry(GetVirtualItemId(slot));
+    return (item && item->Class == ITEM_CLASS_WEAPON);
 }
 
 /**

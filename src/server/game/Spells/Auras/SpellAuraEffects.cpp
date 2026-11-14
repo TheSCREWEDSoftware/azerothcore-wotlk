@@ -524,8 +524,8 @@ int32 AuraEffect::CalculateAmount(Unit* caster)
                                 SpellItemEnchantmentEntry const* pEnchant = sSpellItemEnchantmentStore.LookupEntry(item_rand_suffix->Enchantment[k]);
                                 if (pEnchant)
                                 {
-                                    for (uint8 t = 0; t < MAX_SPELL_ITEM_ENCHANTMENT_EFFECTS; t++)
-                                        if (pEnchant->spellid[t] == m_spellInfo->Id)
+                                    for (uint8 t = 0; t < MAX_ITEM_ENCHANTMENT_EFFECTS; t++)
+                                        if (pEnchant->EffectSpellID[t] == m_spellInfo->Id)
                                         {
                                             amount = uint32((item_rand_suffix->AllocationPct[k] * castItem->GetItemSuffixFactor()) / 10000);
                                             break;
@@ -1549,11 +1549,11 @@ void AuraEffect::HandleShapeshiftBoosts(Unit* target, bool apply) const
                 {
                     if (GlyphPropertiesEntry const* glyph = sGlyphPropertiesStore.LookupEntry(glyphId))
                     {
-                        SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(glyph->SpellId);
+                        SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(glyph->SpellID);
                         if (!spellInfo || !spellInfo->HasAttribute(SpellAttr0(SPELL_ATTR0_PASSIVE | SPELL_ATTR0_DO_NOT_DISPLAY)))
                             continue;
                         if (spellInfo->Stances & (1 << (GetMiscValue() - 1)))
-                            target->CastSpell(target, glyph->SpellId, TriggerCastFlags(TRIGGERED_FULL_MASK & ~(TRIGGERED_IGNORE_SHAPESHIFT | TRIGGERED_IGNORE_CASTER_AURASTATE)), nullptr, this, target->GetGUID());
+                            target->CastSpell(target, glyph->SpellID, TriggerCastFlags(TRIGGERED_FULL_MASK & ~(TRIGGERED_IGNORE_SHAPESHIFT | TRIGGERED_IGNORE_CASTER_AURASTATE)), nullptr, this, target->GetGUID());
                     }
                 }
             }
@@ -2294,7 +2294,7 @@ void AuraEffect::HandleAuraModShapeshift(AuraApplication const* aurApp, uint8 mo
         {
             if (Item* pItem = target->ToPlayer()->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_MAINHAND))
             {
-                target->ToPlayer()->_ApplyWeaponDamage(EQUIPMENT_SLOT_MAINHAND, pItem->GetTemplate(), nullptr, apply);
+                target->ToPlayer()->_ApplyWeaponDamage(EQUIPMENT_SLOT_MAINHAND, pItem, apply);
             }
         }
 
@@ -2324,13 +2324,13 @@ void AuraEffect::HandleAuraModShapeshift(AuraApplication const* aurApp, uint8 mo
         // (and no chat message) is sent
         for (uint8 i = 0; i < MAX_SHAPESHIFT_SPELLS; ++i)
         {
-            if (!shapeInfo->stanceSpell[i])
+            if (!shapeInfo->PresetSpellID[i])
                 continue;
             if (apply)
-                target->ToPlayer()->_addSpell(shapeInfo->stanceSpell[i], SPEC_MASK_ALL, true, false,
+                target->ToPlayer()->_addSpell(shapeInfo->PresetSpellID[i], SPEC_MASK_ALL, true, false,
                     /*sendPacket*/ false);
             else
-                target->ToPlayer()->removeSpell(shapeInfo->stanceSpell[i], SPEC_MASK_ALL, true, /*sendPacket*/ false);
+                target->ToPlayer()->removeSpell(shapeInfo->PresetSpellID[i], SPEC_MASK_ALL, true, /*sendPacket*/ false);
         }
     }
 }
@@ -2557,7 +2557,7 @@ void AuraEffect::HandleAuraTransform(AuraApplication const* aurApp, uint8 mode, 
                                 33963  // NPC Equip 33963
                             };
                             if (target->ToCreature())
-                                target->SetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID + 0, itemIds[urand(0, 4)]);
+                                target->SetVirtualItem(0, itemIds[urand(0, 4)]);
 
                             break;
                         }
@@ -3176,7 +3176,7 @@ void AuraEffect::HandleAuraModDisarm(AuraApplication const* aurApp, uint8 mode, 
             player->ApplyItemDependentAuras(pItem, !apply);
             if (attackType < MAX_ATTACK)
             {
-                player->_ApplyWeaponDamage(slot, pItem->GetTemplate(), nullptr, !apply);
+                player->_ApplyWeaponDamage(slot, pItem, !apply);
                 if (!apply) // apply case already handled on item dependent aura removal (if any)
                     player->UpdateWeaponDependentAuras(attackType);
             }
@@ -5962,7 +5962,7 @@ void AuraEffect::HandleAuraOverrideSpells(AuraApplication const* aurApp, uint8 m
         target->SetUInt32Value(PLAYER_FIELD_OVERRIDE_SPELLS_ID, overrideId);
         if (OverrideSpellDataEntry const* overrideSpells = sOverrideSpellDataStore.LookupEntry(overrideId))
             for (uint8 i = 0; i < MAX_OVERRIDE_SPELL; ++i)
-                if (uint32 spellId = overrideSpells->spellId[i])
+                if (uint32 spellId = overrideSpells->SpellID[i])
                     target->_addSpell(spellId, SPEC_MASK_ALL, true);
     }
     else
@@ -5970,7 +5970,7 @@ void AuraEffect::HandleAuraOverrideSpells(AuraApplication const* aurApp, uint8 m
         target->SetUInt32Value(PLAYER_FIELD_OVERRIDE_SPELLS_ID, 0);
         if (OverrideSpellDataEntry const* overrideSpells = sOverrideSpellDataStore.LookupEntry(overrideId))
             for (uint8 i = 0; i < MAX_OVERRIDE_SPELL; ++i)
-                if (uint32 spellId = overrideSpells->spellId[i])
+                if (uint32 spellId = overrideSpells->SpellID[i])
                     target->removeSpell(spellId, SPEC_MASK_ALL, true);
     }
 }

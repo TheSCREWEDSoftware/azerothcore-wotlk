@@ -557,10 +557,10 @@ uint32 FlightPathMovementGenerator::GetPathAtMapEnd() const
         return i_path.size();
     }
 
-    uint32 curMapId = i_path[i_currentNode]->mapid;
+    uint32 curMapId = i_path[i_currentNode]->MapID;
     for (uint32 i = i_currentNode; i < i_path.size(); ++i)
     {
-        if (i_path[i]->mapid != curMapId)
+        if (i_path[i]->MapID != curMapId)
         {
             return i;
         }
@@ -573,7 +573,7 @@ uint32 FlightPathMovementGenerator::GetPathAtMapEnd() const
 
 bool IsNodeIncludedInShortenedPath(TaxiPathNodeEntry const* p1, TaxiPathNodeEntry const* p2)
 {
-    return p1->mapid != p2->mapid || std::pow(p1->x - p2->x, 2) + std::pow(p1->y - p2->y, 2) > SKIP_SPLINE_POINT_DISTANCE_SQ;
+    return p1->MapID != p2->MapID || std::pow(p1->Loc.X - p2->Loc.X, 2) + std::pow(p1->Loc.Y - p2->Loc.Y, 2) > SKIP_SPLINE_POINT_DISTANCE_SQ;
 }
 
 bool FlightPathMovementGenerator::LoadPath(Player* player)
@@ -708,7 +708,7 @@ void FlightPathMovementGenerator::DoReset(Player* player)
     init.Path().push_back(G3D::Vector3(player->GetPositionX(), player->GetPositionY(), player->GetPositionZ()));
     for (uint32 i = currentNodeId; i != end; ++i)
     {
-        G3D::Vector3 vertice(i_path[i]->x, i_path[i]->y, i_path[i]->z);
+        G3D::Vector3 vertice(i_path[i]->Loc.X, i_path[i]->Loc.Y, i_path[i]->Loc.Z);
         init.Path().push_back(vertice);
     }
     init.SetFirstPointId(GetCurrentNode());
@@ -765,10 +765,10 @@ void FlightPathMovementGenerator::SetCurrentNodeAfterTeleport()
         return;
     }
 
-    uint32 map0 = i_path[i_currentNode]->mapid;
+    uint32 map0 = i_path[i_currentNode]->MapID;
     for (std::size_t i = i_currentNode + 1; i < i_path.size(); ++i)
     {
-        if (i_path[i]->mapid != map0)
+        if (i_path[i]->MapID != map0)
         {
             i_currentNode = i;
             return;
@@ -778,9 +778,9 @@ void FlightPathMovementGenerator::SetCurrentNodeAfterTeleport()
 
 void FlightPathMovementGenerator::DoEventIfAny(Player* player, TaxiPathNodeEntry const* node, bool departure)
 {
-    if (uint32 eventid = departure ? node->departureEventID : node->arrivalEventID)
+    if (uint32 eventid = departure ? node->DepartureEventID : node->ArrivalEventID)
     {
-        LOG_DEBUG("maps.script", "Taxi {} event {} of node {} of path {} for player {}", departure ? "departure" : "arrival", eventid, node->index, node->path, player->GetName());
+        LOG_DEBUG("maps.script", "Taxi {} event {} of node {} of path {} for player {}", departure ? "departure" : "arrival", eventid, node->NodeIndex, node->PathID, player->GetName());
         player->GetMap()->ScriptsStart(sEventScripts, eventid, player, player);
     }
 }
@@ -788,9 +788,9 @@ void FlightPathMovementGenerator::DoEventIfAny(Player* player, TaxiPathNodeEntry
 bool FlightPathMovementGenerator::GetResetPos(Player*, float& x, float& y, float& z)
 {
     TaxiPathNodeEntry const* node = i_path[i_currentNode];
-    x = node->x;
-    y = node->y;
-    z = node->z;
+    x = node->Loc.X;
+    y = node->Loc.Y;
+    z = node->Loc.Z;
     return true;
 }
 
@@ -799,13 +799,13 @@ void FlightPathMovementGenerator::InitEndGridInfo()
     /*! Storage to preload flightmaster grid at end of flight. For multi-stop flights, this will
        be reinitialized for each flightmaster at the end of each spline (or stop) in the flight. */
     uint32 nodeCount = i_path.size();        //! Number of nodes in path.
-    _endMapId = i_path[nodeCount - 1]->mapid; //! MapId of last node
+    _endMapId = i_path[nodeCount - 1]->MapID; //! MapId of last node
 
     // pussywizard:
     {
         _preloadTargetNode = nodeCount - 1;
         for (uint8 i = 3; i > 0; --i)
-            if (nodeCount >= i && _endMapId == i_path[nodeCount - i]->mapid)
+            if (nodeCount >= i && _endMapId == i_path[nodeCount - i]->MapID)
             {
                 _preloadTargetNode = nodeCount - i;
                 break;
@@ -813,8 +813,8 @@ void FlightPathMovementGenerator::InitEndGridInfo()
         //_preloadTargetNode = nodeCount - 3; // pussywizard: this can be on other map
     }
 
-    _endGridX = i_path[nodeCount - 1]->x;
-    _endGridY = i_path[nodeCount - 1]->y;
+    _endGridX = i_path[nodeCount - 1]->Loc.X;
+    _endGridY = i_path[nodeCount - 1]->Loc.Y;
 }
 
 void FlightPathMovementGenerator::PreloadEndGrid()

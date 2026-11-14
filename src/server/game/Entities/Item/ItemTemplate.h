@@ -18,9 +18,12 @@
 #ifndef _ITEMPROTOTYPE_H
 #define _ITEMPROTOTYPE_H
 
+#include "DBCStructure.h"
 #include "SharedDefines.h"
 #include "WorldPacket.h"
+#include <bitset>
 #include <unordered_map>
+#include <vector>
 
 enum ItemModType
 {
@@ -59,9 +62,9 @@ enum ItemModType
     ITEM_MOD_EXPERTISE_RATING         = 37,
     ITEM_MOD_ATTACK_POWER             = 38,
     ITEM_MOD_RANGED_ATTACK_POWER      = 39,
-    //ITEM_MOD_FERAL_ATTACK_POWER     = 40, not in 3.3
-    ITEM_MOD_SPELL_HEALING_DONE       = 41, // deprecated
-    ITEM_MOD_SPELL_DAMAGE_DONE        = 42, // deprecated
+    ITEM_MOD_VERSATILITY              = 40,
+    ITEM_MOD_SPELL_HEALING_DONE       = 41,
+    ITEM_MOD_SPELL_DAMAGE_DONE        = 42,
     ITEM_MOD_MANA_REGENERATION        = 43,
     ITEM_MOD_ARMOR_PENETRATION_RATING = 44,
     ITEM_MOD_SPELL_POWER              = 45,
@@ -69,10 +72,34 @@ enum ItemModType
     ITEM_MOD_SPELL_PENETRATION        = 47,
     ITEM_MOD_BLOCK_VALUE              = 48,
     ITEM_MOD_MASTERY_RATING           = 49,
-    ITEM_MOD_EXTRA_ARMOR              = 50
+    ITEM_MOD_EXTRA_ARMOR              = 50,
+    ITEM_MOD_FIRE_RESISTANCE          = 51,
+    ITEM_MOD_FROST_RESISTANCE         = 52,
+    ITEM_MOD_HOLY_RESISTANCE          = 53,
+    ITEM_MOD_SHADOW_RESISTANCE        = 54,
+    ITEM_MOD_NATURE_RESISTANCE        = 55,
+    ITEM_MOD_ARCANE_RESISTANCE        = 56,
+    ITEM_MOD_PVP_POWER                = 57,
+    ITEM_MOD_CR_AMPLIFY               = 58,
+    ITEM_MOD_CR_MULTISTRIKE           = 59,
+    ITEM_MOD_CR_READINESS             = 60,
+    ITEM_MOD_CR_SPEED                 = 61,
+    ITEM_MOD_CR_LIFESTEAL             = 62,
+    ITEM_MOD_CR_AVOIDANCE             = 63,
+    ITEM_MOD_CR_STURDINESS            = 64,
+    ITEM_MOD_CR_UNUSED_7              = 65,
+    ITEM_MOD_CR_CLEAVE                = 66,
+    ITEM_MOD_CR_UNUSED_9              = 67,
+    ITEM_MOD_CR_UNUSED_10             = 68,
+    ITEM_MOD_CR_UNUSED_11             = 69,
+    ITEM_MOD_CR_UNUSED_12             = 70,
+    ITEM_MOD_AGI_STR_INT              = 71,
+    ITEM_MOD_AGI_STR                  = 72,
+    ITEM_MOD_AGI_INT                  = 73,
+    ITEM_MOD_STR_INT                  = 74
 };
 
-#define MAX_ITEM_MOD                    51
+#define MAX_ITEM_MOD                    75
 
 enum ItemSpelltriggerType
 {
@@ -225,6 +252,7 @@ enum ItemFlagsCustom : uint32
 
 enum ItemVendorType
 {
+    ITEM_VENDOR_TYPE_NONE     = 0,
     ITEM_VENDOR_TYPE_ITEM     = 1,
     ITEM_VENDOR_TYPE_CURRENCY = 2,
 };
@@ -562,14 +590,15 @@ const uint32 MaxItemSubclassValues[MAX_ITEM_CLASS] =
     MAX_ITEM_SUBCLASS_GLYPH
 };
 
-inline uint8 ItemSubClassToDurabilityMultiplierId(uint32 ItemClass, uint32 ItemSubClass)
+// DurabilityCosts.dbc: 6.x splits the 3.3.5 29-column array into weapon (21) and armor (8) costs
+inline uint32 GetDurabilityCostMultiplier(DurabilityCostsEntry const* cost, uint32 itemClass, uint32 itemSubClass)
 {
-    switch (ItemClass)
+    switch (itemClass)
     {
         case ITEM_CLASS_WEAPON:
-            return ItemSubClass;
+            return itemSubClass < std::size(cost->WeaponSubClassCost) ? cost->WeaponSubClassCost[itemSubClass] : 0;
         case ITEM_CLASS_ARMOR:
-            return ItemSubClass + 21;
+            return itemSubClass < std::size(cost->ArmorSubClassCost) ? cost->ArmorSubClassCost[itemSubClass] : 0;
         default:
             return 0;
     }
@@ -593,6 +622,8 @@ struct _ItemStat
 {
     uint32  ItemStatType;
     int32   ItemStatValue;
+    int32   ItemStatAllocation;                             // 6.x: share of the item level budget (RandPropPoints), 1/10000
+    float   ItemStatSocketCostMultiplier;                   // 6.x
 };
 struct _Spell
 {
@@ -622,6 +653,9 @@ struct _Socket
 #define MAX_ITEM_PROTO_SOCKETS 3
 #define MAX_ITEM_PROTO_SPELLS  5
 #define MAX_ITEM_PROTO_STATS  10
+
+#define MIN_ITEM_LEVEL 1
+#define MAX_ITEM_LEVEL 1000
 
 struct ItemTemplate
 {
@@ -702,6 +736,22 @@ struct ItemTemplate
     uint32 MinMoneyLoot;
     uint32 MaxMoneyLoot;
     ItemFlagsCustom FlagsCu;
+
+    // 6.x data: source DB2 rows (null for items that exist only in item_template)
+    ItemEntry const* BasicData = nullptr;
+    ItemSparseEntry const* ExtendedData = nullptr;
+    uint32 Flags3 = 0;
+    float  StatScalingFactor = 0.0f;                        // Item-sparse.db2, weapon min/max damage spread
+    float  SpellPPMRate = 0.0f;
+    std::vector<ItemEffectEntry const*> Effects;            // ItemEffect.db2 rows of this item
+    std::bitset<MAX_CLASSES * MAX_SPECIALIZATIONS> Specializations[2]; // 1-40 and 41+ level ranges
+
+    // 6.x armor and weapon damage are not stored per item: they derive from the item level
+    [[nodiscard]] uint32 GetArmor(uint32 itemLevel) const;
+    void GetDamage(uint32 itemLevel, float& minDamage, float& maxDamage) const;
+    [[nodiscard]] uint32 GetBaseArmor() const { return GetArmor(ItemLevel); }
+    void GetBaseDamage(float& minDamage, float& maxDamage) const { GetDamage(ItemLevel, minDamage, maxDamage); }
+    static std::size_t CalculateItemSpecBit(ChrSpecializationEntry const* spec);
 
     // helpers
     [[nodiscard]] bool HasSignature() const

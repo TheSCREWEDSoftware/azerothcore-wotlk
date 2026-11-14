@@ -340,6 +340,10 @@ struct CurrencyTypesEntry
     uint32 Flags;                                                   // 9
     uint32 Quality;                                                 // 10
     LocalizedString* Description;                                   // 11
+
+    // helpers
+    bool HasFlag(CurrencyTypeFlags flag) const { return (Flags & flag) != 0; }
+    bool UsesPrecision() const { return HasFlag(CURRENCY_FLAG_USES_1_TO_100_SCALAR); }
 };
 
 struct CurvePointEntry

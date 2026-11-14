@@ -168,6 +168,8 @@ struct LootItem
     bool    needs_quest       : 1;                          // quest drop
     bool    follow_loot_rules : 1;
     uint8   groupid           : 7;
+    int32   upgradeId = 0;                                  // 6.x ruleset item upgrade (ItemUpgrade.db2)
+    std::vector<int32> BonusListIDs;                        // 6.x item bonuses from the map difficulty bonus tree
 
     // Constructor, copies most fields from LootStoreItem, generates random count and random suffixes/properties
     // Should be called for non-reference LootStoreItem entries only (reference = 0)
@@ -320,6 +322,7 @@ struct Loot
     uint8 unlootedCount{0};
     ObjectGuid roundRobinPlayer;        // GUID of the player having the Round-Robin ownership for the loot. If 0, round robin owner has released.
     ObjectGuid lootOwnerGUID;
+    uint32 _difficultyBonusTreeMod = 0;                     // 6.x MapDifficulty.dbc ItemBonusTreeModID of the loot owner map
     LootType loot_type{LOOT_NONE};      // required for achievement system
 
     // GUID of container that holds this loot (item_instance.entry), set for items that can be looted

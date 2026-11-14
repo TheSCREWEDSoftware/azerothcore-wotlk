@@ -274,7 +274,7 @@ enum FactionTemplates
 #define MIN_REPUTATION_RANK (REP_HATED)
 #define MAX_REPUTATION_RANK 8
 
-#define MAX_SPILLOVER_FACTIONS 5 
+#define MAX_SPILLOVER_FACTIONS 5
 
 enum MoneyConstants
 {
@@ -1256,7 +1256,7 @@ enum Language
     LANG_RIKKITUN          = 168,
 };
 
-#define LANGUAGES_COUNT   25 
+#define LANGUAGES_COUNT   25
 
 enum TeamId : uint8
 {
@@ -4692,7 +4692,7 @@ enum SkillType
     SKILL_TRADING_POST                   = 2000,
 };
 
-#define MAX_SKILL_TYPE               2000 
+#define MAX_SKILL_TYPE               2000
 
 inline SkillType SkillByLockType(LockType locktype)
 {
@@ -5227,7 +5227,7 @@ enum BattlegroundTypeId : uint32
     BATTLEGROUND_SS_VS_TM       = 789, // Southshore vs. Tarren Mill
 };
 
-#define MAX_BATTLEGROUND_TYPE_ID 758 
+#define MAX_BATTLEGROUND_TYPE_ID 758
 
 enum MailResponseType
 {
@@ -5529,7 +5529,7 @@ namespace Acore::Impl
 #define VOID_STORAGE_STORE_ITEM   25*GOLD
 #define VOID_STORAGE_MAX_DEPOSIT  9
 #define VOID_STORAGE_MAX_WITHDRAW 9
-#define VOID_STORAGE_MAX_SLOT     160 
+#define VOID_STORAGE_MAX_SLOT     160
 
 enum VoidTransferError
 {

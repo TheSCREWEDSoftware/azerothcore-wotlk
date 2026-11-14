@@ -495,11 +495,13 @@ public:
             throw ByteBufferPositionException(false, _rpos, skip, size());
         }
 
+        ResetBitPos();
         _rpos += skip;
     }
 
     template <typename T> T read()
     {
+        ResetBitPos();
         T r = read<T>(_rpos);
         _rpos += sizeof(T);
         return r;
@@ -524,6 +526,7 @@ public:
             throw ByteBufferPositionException(false, _rpos, len, size());
         }
 
+        ResetBitPos();
         std::memcpy(dest, &_storage[_rpos], len);
         _rpos += len;
     }

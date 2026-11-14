@@ -265,14 +265,14 @@ class spell_rog_deadly_poison : public SpellScript
 
                 for (uint8 s = 0; s < 3; ++s)
                 {
-                    if (enchant->type[s] != ITEM_ENCHANTMENT_TYPE_COMBAT_SPELL)
+                    if (enchant->Effect[s] != ITEM_ENCHANTMENT_TYPE_COMBAT_SPELL)
                         continue;
 
-                    SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(enchant->spellid[s]);
+                    SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(enchant->EffectSpellID[s]);
                     if (!spellInfo)
                     {
                         LOG_ERROR("misc", "Player::CastItemCombatSpell Enchant {}, player (Name: {}, {}) cast unknown spell {}",
-                            enchant->ID, player->GetName(), player->GetGUID().ToString(), enchant->spellid[s]);
+                            enchant->ID, player->GetName(), player->GetGUID().ToString(), enchant->EffectSpellID[s]);
                         continue;
                     }
 
@@ -285,9 +285,9 @@ class spell_rog_deadly_poison : public SpellScript
                         continue;
 
                     if (spellInfo->IsPositive())
-                        player->CastSpell(player, enchant->spellid[s], true, item);
+                        player->CastSpell(player, enchant->EffectSpellID[s], true, item);
                     else
-                        player->CastSpell(target, enchant->spellid[s], true, item);
+                        player->CastSpell(target, enchant->EffectSpellID[s], true, item);
                 }
             }
         }

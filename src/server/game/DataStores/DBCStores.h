@@ -229,8 +229,8 @@ extern GameTable<GtRegenMPPerSptEntry>              sGtRegenMPPerSptStore;
 extern GameTable<GtSpellScalingEntry>               sGtSpellScalingStore;
 extern GameTable<GtOCTHpPerStaminaEntry>            sGtOCTHpPerStaminaStore;
 
-void LoadDBCStores(const std::string& dataPath, uint32 defaultLocale);
-void LoadGameTables(const std::string& dataPath, uint32 defaultLocale);
+void LoadDBCStores(std::string const& dataPath, uint32 defaultLocale);
+void LoadGameTables(std::string const& dataPath, uint32 defaultLocale);
 // AzerothCore lookups over the dbc and db2 stores, call after both are loaded
 void LoadDBCStoresAzerothCore();
 

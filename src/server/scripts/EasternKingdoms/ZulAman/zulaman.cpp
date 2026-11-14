@@ -447,7 +447,7 @@ struct npc_harrison_jones : public ScriptedAI
             me->GetMap()->ToInstanceMap()->PermBindAllPlayers();
             _phase = PHASE_GATE_CLOSED;
             me->RemoveAura(SPELL_BANGING_THE_GONG);
-            me->SetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID + 0, uint32(0));
+            me->SetVirtualItem(0, uint32(0));
             if (GameObject* gong = _instance->GetGameObject(DATA_STRANGE_GONG))
                 gong->SetGameObjectFlag(GO_FLAG_NOT_SELECTABLE);
             // Players are Now Saved to instance at SPECIAL (Player should be notified?)
@@ -478,7 +478,7 @@ struct npc_harrison_jones : public ScriptedAI
 
                     if (creature->GetPositionX() > 120)
                     {
-                        creature->SetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID + 0, uint32(WEAPON_SPEAR));
+                        creature->SetVirtualItem(0, uint32(WEAPON_SPEAR));
                         creature->AI()->SetData(0, 1);
                     }
                     else
@@ -501,7 +501,7 @@ struct npc_harrison_jones : public ScriptedAI
             }).Schedule(7s, [this](TaskContext /*task*/)
             {
                 DoCastSelf(SPELL_BANGING_THE_GONG);
-                me->SetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID + 0, uint32(WEAPON_MACE));
+                me->SetVirtualItem(0, uint32(WEAPON_MACE));
                 me->SetFacingTo(5.9696f);
                 if (GameObject* gong = _instance->GetGameObject(DATA_STRANGE_GONG))
                     gong->RemoveGameObjectFlag(GO_FLAG_NOT_SELECTABLE);

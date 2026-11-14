@@ -129,7 +129,7 @@ struct LinkValidator<LinkTags::achievement>
             return false;
 
         for (uint8 i = 0; i < TOTAL_LOCALES; ++i)
-            if (text == data.Achievement->name[i])
+            if (text == data.Achievement->Title->Str[i])
                 return true;
 
         return false;
@@ -271,7 +271,7 @@ struct LinkValidator<LinkTags::enchant>
 
             for (uint8 i = 0; i < TOTAL_LOCALES; ++i)
             {
-                std::string_view skillName = skill->name[i];
+                std::string_view skillName = skill->DisplayName_lang;
                 std::string_view spellName = info->SpellName[i];
                 // alternate form [Skill Name: Spell Name]
                 if ((text.length() == (skillName.length() + 2 + spellName.length())) &&
@@ -295,7 +295,7 @@ struct LinkValidator<LinkTags::glyph>
 {
     static bool IsTextValid(GlyphLinkData const& data, std::string_view text)
     {
-        if (SpellInfo const* info = sSpellMgr->GetSpellInfo(data.Glyph->SpellId))
+        if (SpellInfo const* info = sSpellMgr->GetSpellInfo(data.Glyph->SpellID))
             return LinkValidator<LinkTags::spell>::IsTextValid(info, text);
 
         return false;
@@ -314,7 +314,7 @@ struct LinkValidator<LinkTags::talent>
     {
         SpellInfo const* info = data.Spell;
         if (!info)
-            info = sSpellMgr->GetSpellInfo(data.Talent->SpellId);
+            info = sSpellMgr->GetSpellInfo(data.Talent->SpellID);
 
         if (!info)
             return false;

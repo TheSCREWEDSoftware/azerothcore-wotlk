@@ -407,7 +407,7 @@ void WorldSession::HandleCharEnum(PreparedQueryResult result)
 
                 charInfo.VisualItems[slot].InvType = proto->InventoryType;
                 charInfo.VisualItems[slot].DisplayID = proto->DisplayInfoID;
-                charInfo.VisualItems[slot].DisplayEnchantID = enchant ? enchant->aura_id : 0;
+                charInfo.VisualItems[slot].DisplayEnchantID = enchant ? enchant->ItemVisual : 0;
             }
 
             _legitCharacters.insert(charInfo.Guid);
@@ -1113,10 +1113,10 @@ void WorldSession::HandlePlayerLoginFromDB(LoginQueryHolder const& holder)
 
         if (ChrClassesEntry const* cEntry = sChrClassesStore.LookupEntry(pCurrChar->getClass()))
         {
-            if (cEntry->CinematicSequence)
-                pCurrChar->GetCinematicMgr().StartCinematic(cEntry->CinematicSequence);
+            if (cEntry->CinematicSequenceID)
+                pCurrChar->GetCinematicMgr().StartCinematic(cEntry->CinematicSequenceID);
             else if (ChrRacesEntry const* rEntry = sChrRacesStore.LookupEntry(pCurrChar->getRace()))
-                pCurrChar->GetCinematicMgr().StartCinematic(rEntry->CinematicSequence);
+                pCurrChar->GetCinematicMgr().StartCinematic(rEntry->CinematicSequenceID);
 
             // send new char string if not empty
             std::string_view newCharString = sWorld->getStringConfig(CONFIG_NEW_CHAR_STRING);
@@ -1837,7 +1837,7 @@ void WorldSession::HandleRemoveGlyph(WorldPacket& recvData)
     {
         if (GlyphPropertiesEntry const* glyphEntry = sGlyphPropertiesStore.LookupEntry(glyph))
         {
-            _player->RemoveAurasDueToSpell(glyphEntry->SpellId);
+            _player->RemoveAurasDueToSpell(glyphEntry->SpellID);
 
             // Removed any triggered auras
             Unit::AuraMap& ownedAuras = _player->GetOwnedAuras();
@@ -1846,7 +1846,7 @@ void WorldSession::HandleRemoveGlyph(WorldPacket& recvData)
                 Aura* aura = iter->second;
                 if (SpellInfo const* triggeredByAuraSpellInfo = aura->GetTriggeredByAuraSpellInfo())
                 {
-                    if (triggeredByAuraSpellInfo->Id == glyphEntry->SpellId)
+                    if (triggeredByAuraSpellInfo->Id == glyphEntry->SpellID)
                     {
                         _player->RemoveOwnedAura(iter);
                         continue;
@@ -1855,7 +1855,7 @@ void WorldSession::HandleRemoveGlyph(WorldPacket& recvData)
                 ++iter;
             }
 
-            _player->SendLearnPacket(glyphEntry->SpellId, false); // Send packet to properly handle client-side spell tooltips
+            _player->SendLearnPacket(glyphEntry->SpellID, false); // Send packet to properly handle client-side spell tooltips
             _player->SetGlyph(slot, 0, true);
             _player->SendTalentsInfoData(false);
         }
@@ -2584,7 +2584,7 @@ void WorldSession::HandleCharFactionOrRaceChangeCallback(std::shared_ptr<Charact
                         continue;
                     }
 
-                    AreaTableEntry const* zone = sAreaTableStore.LookupEntry(sMapMgr->GetZoneId(PHASEMASK_NORMAL, pathNode->mapid, pathNode->x, pathNode->y, pathNode->z));
+                    AreaTableEntry const* zone = sAreaTableStore.LookupEntry(sMapMgr->GetZoneId(PHASEMASK_NORMAL, pathNode->MapID, pathNode->Loc.X, pathNode->Loc.Y, pathNode->Loc.Z));
                     if (!zone)
                     {
                         FillTaxiMask(field, 0);
@@ -2592,7 +2592,7 @@ void WorldSession::HandleCharFactionOrRaceChangeCallback(std::shared_ptr<Charact
                     }
 
                     LocaleConstant dbcLocale = GetSessionDbcLocale();
-                    LFGDungeonEntry const* lfgDungeon = GetZoneLFGDungeonEntry(zone->area_name[dbcLocale], dbcLocale);
+                    LFGDungeonEntry const* lfgDungeon = GetZoneLFGDungeonEntry(zone->AreaName_lang, dbcLocale);
                     if (!lfgDungeon)
                     {
                         FillTaxiMask(field, 0);

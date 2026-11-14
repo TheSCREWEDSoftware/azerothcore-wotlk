@@ -652,16 +652,6 @@ void ScriptMgr::OnPlayerVictimRewardAfter(Player* player, Player* victim, uint32
     CALL_ENABLED_HOOKS(PlayerScript, PLAYERHOOK_ON_VICTIM_REWARD_AFTER, script->OnPlayerVictimRewardAfter(player, victim, killer_title, victim_rank, honor_f));
 }
 
-void ScriptMgr::OnPlayerCustomScalingStatValueBefore(Player* player, ItemTemplate const* proto, uint8 slot, bool apply, uint32& CustomScalingStatValue)
-{
-    CALL_ENABLED_HOOKS(PlayerScript, PLAYERHOOK_ON_CUSTOM_SCALING_STAT_VALUE_BEFORE, script->OnPlayerCustomScalingStatValueBefore(player, proto, slot, apply, CustomScalingStatValue));
-}
-
-void ScriptMgr::OnPlayerCustomScalingStatValue(Player* player, ItemTemplate const* proto, uint32& statType, int32& val, uint8 itemProtoStatNumber, uint32 ScalingStatValue, ScalingStatValuesEntry const* ssv)
-{
-    CALL_ENABLED_HOOKS(PlayerScript, PLAYERHOOK_ON_CUSTOM_SCALING_STAT_VALUE, script->OnPlayerCustomScalingStatValue(player, proto, statType, val, itemProtoStatNumber, ScalingStatValue, ssv));
-}
-
 void ScriptMgr::OnPlayerApplyItemModsBefore(Player* player, uint8 slot, bool apply, uint8 itemProtoStatNumber, uint32 statType, int32& val)
 {
     CALL_ENABLED_HOOKS(PlayerScript, PLAYERHOOK_ON_APPLY_ITEM_MODS_BEFORE, script->OnPlayerApplyItemModsBefore(player, slot, apply, itemProtoStatNumber, statType, val));
@@ -680,11 +670,6 @@ void ScriptMgr::OnPlayerApplyWeaponDamage(Player* player, uint8 slot, ItemTempla
 bool ScriptMgr::OnPlayerCanArmorDamageModifier(Player* player)
 {
     CALL_ENABLED_BOOLEAN_HOOKS(PlayerScript, PLAYERHOOK_CAN_ARMOR_DAMAGE_MODIFIER, !script->OnPlayerCanArmorDamageModifier(player));
-}
-
-void ScriptMgr::OnPlayerGetFeralApBonus(Player* player, int32& feral_bonus, int32 dpsMod, ItemTemplate const* proto, ScalingStatValuesEntry const* ssv)
-{
-    CALL_ENABLED_HOOKS(PlayerScript, PLAYERHOOK_ON_GET_FERAL_AP_BONUS, script->OnPlayerGetFeralApBonus(player, feral_bonus, dpsMod, proto, ssv));
 }
 
 bool ScriptMgr::OnPlayerCanApplyWeaponDependentAuraDamageMod(Player* player, Item* item, WeaponAttackType attackType, AuraEffect const* aura, bool apply)

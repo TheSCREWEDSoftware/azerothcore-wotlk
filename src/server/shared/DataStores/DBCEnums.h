@@ -1043,8 +1043,18 @@ enum FactionFlags
 
 #define MAX_CRITERIA_REQUIREMENTS 3 // Cata's AdditionalConditionType/Value columns, was 2 pre-Cata
 
+// ChrRaces.dbc flags (AC)
+enum ChrRacesFlags
+{
+    CHRRACES_FLAGS_NOT_PLAYABLE = 0x01,
+    CHRRACES_FLAGS_BARE_FEET    = 0x02,
+    CHRRACES_FLAGS_CAN_MOUNT    = 0x04
+};
 
-
-
+// CreatureModelData.dbc flags (AC)
+enum CreatureModelDataFlags
+{
+    CREATURE_MODEL_DATA_FLAGS_CAN_MOUNT     = 0x00000080
+};
 
 #endif

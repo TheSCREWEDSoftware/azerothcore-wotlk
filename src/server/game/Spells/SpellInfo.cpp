@@ -1668,7 +1668,7 @@ SpellCastResult SpellInfo::CheckShapeshift(uint32 form) const
             LOG_ERROR("spells", "GetErrorAtShapeshiftedCast: unknown shapeshift {}", form);
             return SPELL_CAST_OK;
         }
-        actAsShifted = !(shapeInfo->flags1 & SHAPESHIFT_FLAG_STANCE);            // shapeshift acts as normal form for spells
+        actAsShifted = !(shapeInfo->Flags & SHAPESHIFT_FLAG_STANCE);            // shapeshift acts as normal form for spells
     }
 
     if (actAsShifted)
@@ -1688,7 +1688,7 @@ SpellCastResult SpellInfo::CheckShapeshift(uint32 form) const
     // Check if stance disables cast of not-stance spells
     // Example: cannot cast any other spells in zombie or ghoul form
     /// @todo: Find a way to disable use of these spells clientside
-    if (shapeInfo && (shapeInfo->flags1 & SHAPESHIFT_FLAG_CAN_ONLY_CAST_SHAPESHIFT_SPELLS))
+    if (shapeInfo && (shapeInfo->Flags & SHAPESHIFT_FLAG_CAN_ONLY_CAST_SHAPESHIFT_SPELLS))
     {
         if (!(stanceMask & Stances))
             return SPELL_FAILED_ONLY_SHAPESHIFT;
@@ -1728,7 +1728,7 @@ SpellCastResult SpellInfo::CheckLocation(uint32 map_id, uint32 zone_id, uint32 a
             areaEntry = sAreaTableStore.LookupEntry(zone_id);
         }
 
-        if (!areaEntry || !areaEntry->IsFlyable() || (strict && (areaEntry->flags & AREA_FLAG_NO_FLY_ZONE) != 0) || !player->canFlyInZone(map_id, zone_id, this))
+        if (!areaEntry || !areaEntry->IsFlyable() || (strict && (areaEntry->Flags[0] & AREA_FLAG_NO_FLY_ZONE) != 0) || !player->canFlyInZone(map_id, zone_id, this))
         {
             return SPELL_FAILED_INCORRECT_AREA;
         }
@@ -1947,7 +1947,7 @@ SpellCastResult SpellInfo::CheckTarget(WorldObject const* caster, WorldObject co
                                     break;
                                 }
                             }
-                            else if (unitTarget->GetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID + i))
+                            else if (unitTarget->GetVirtualItemId(i))
                             {
                                 valid = true;
                                 break;
@@ -2934,8 +2934,8 @@ float SpellInfo::GetMinRange(bool positive) const
     if (!RangeEntry)
         return 0.0f;
     if (positive)
-        return RangeEntry->RangeMin[1];
-    return RangeEntry->RangeMin[0];
+        return RangeEntry->MinRangeFriend;
+    return RangeEntry->MinRangeHostile;
 }
 
 float SpellInfo::GetMaxRange(bool positive, WorldObject* caster, Spell* spell) const
@@ -2944,9 +2944,9 @@ float SpellInfo::GetMaxRange(bool positive, WorldObject* caster, Spell* spell) c
         return 0.0f;
     float range;
     if (positive)
-        range = RangeEntry->RangeMax[1];
+        range = RangeEntry->MaxRangeFriend;
     else
-        range = RangeEntry->RangeMax[0];
+        range = RangeEntry->MaxRangeHostile;
     if (Player* modOwner = caster ? caster->GetSpellModOwner() : nullptr)
         modOwner->ApplySpellMod(Id, SPELLMOD_RANGE, range, spell);
     return range;
@@ -3141,7 +3141,7 @@ int32 SpellInfo::CalcPowerCost(WorldObject const* caster, SpellSchoolMask school
     {
         uint32 speed = 0;
         if (SpellShapeshiftFormEntry const* ss = sSpellShapeshiftFormStore.LookupEntry(unitCaster->GetShapeshiftForm()))
-            speed = ss->attackSpeed;
+            speed = ss->CombatRoundTime;
         else
         {
             WeaponAttackType slot = BASE_ATTACK;

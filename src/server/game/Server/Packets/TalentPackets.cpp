@@ -42,7 +42,6 @@ void WorldPackets::Talent::SetSpecialization::Read()
     _worldPacket >> SpecGroupIndex;
 }
 
-
 void WorldPackets::Talent::LearnTalents::Read()
 {
     uint32 count;

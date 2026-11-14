@@ -16,6 +16,7 @@
  */
 
 #include "Mail.h"
+#include "BlackMarketMgr.h"
 #include "AuctionHouseMgr.h"
 #include "BattlegroundMgr.h"
 #include "CalendarMgr.h"
@@ -68,6 +69,9 @@ MailSender::MailSender(AuctionEntry* sender)
     : m_messageType(MAIL_AUCTION), m_senderId(uint32(sender->GetHouseId())), m_stationery(MAIL_STATIONERY_AUCTION)
 {
 }
+
+MailSender::MailSender(BlackMarketEntry* sender)
+    : m_messageType(MAIL_BLACKMARKET), m_senderId(sender->GetTemplate()->SellerNPC), m_stationery(MAIL_STATIONERY_AUCTION) { }
 
 MailSender::MailSender(Player* sender)
 {

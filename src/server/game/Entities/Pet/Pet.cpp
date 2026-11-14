@@ -672,7 +672,7 @@ void Pet::setDeathState(DeathState s, bool /*despawn = false*/)                 
 
             //lose happiness when died and not in BG/Arena
             MapEntry const* mapEntry = sMapStore.LookupEntry(GetMapId());
-            if (!mapEntry || (mapEntry->map_type != MAP_ARENA && mapEntry->map_type != MAP_BATTLEGROUND))
+            if (!mapEntry || (mapEntry->InstanceType != MAP_ARENA && mapEntry->InstanceType != MAP_BATTLEGROUND))
                 ModifyPower(POWER_HAPPINESS, -HAPPINESS_LEVEL_SIZE);
 
             //SetUnitFlag(UNIT_FLAG_STUNNED);
@@ -1025,7 +1025,7 @@ bool Pet::CreateBaseAtCreature(Creature* creature)
     UpdatePositionData();
 
     if (CreatureFamilyEntry const* cFamily = sCreatureFamilyStore.LookupEntry(cinfo->family))
-        SetName(cFamily->Name[sWorld->GetDefaultDbcLocale()]);
+        SetName(cFamily->Name_lang);
     else
         SetName(creature->GetNameForLocaleIdx(sObjectMgr->GetDBCLocaleIndex()));
 
@@ -1038,7 +1038,7 @@ bool Pet::CreateBaseAtCreatureInfo(CreatureTemplate const* cinfo, Unit* owner)
         return false;
 
     if (CreatureFamilyEntry const* cFamily = sCreatureFamilyStore.LookupEntry(cinfo->family))
-        SetName(cFamily->Name[sWorld->GetDefaultDbcLocale()]);
+        SetName(cFamily->Name_lang);
 
     Relocate(owner->GetPositionX(), owner->GetPositionY(), owner->GetPositionZ(), owner->GetOrientation());
 
@@ -1494,7 +1494,7 @@ bool Pet::HaveInDiet(ItemTemplate const* item) const
     if (!cFamily)
         return false;
 
-    uint32 diet = cFamily->petFoodMask;
+    uint32 diet = cFamily->PetFoodMask;
     uint32 FoodMask = 1 << (item->FoodType - 1);
     return diet & FoodMask;
 }
@@ -2086,7 +2086,7 @@ bool Pet::resetTalents()
         return false;
     // Check pet talent type
     CreatureFamilyEntry const* pet_family = sCreatureFamilyStore.LookupEntry(ci->family);
-    if (!pet_family || pet_family->petTalentType < 0)
+    if (!pet_family || pet_family->PetTalentType < 0)
         return false;
 
     Player* player = owner->ToPlayer();
@@ -2454,20 +2454,20 @@ float Pet::GetNativeObjectScale() const
     uint8 ctFamily = GetCreatureTemplate()->family;
 
     CreatureFamilyEntry const* creatureFamily = sCreatureFamilyStore.LookupEntry(ctFamily);
-    if (creatureFamily && creatureFamily->minScale > 0.0f && getPetType() & HUNTER_PET)
+    if (creatureFamily && creatureFamily->MinScale > 0.0f && getPetType() & HUNTER_PET)
     {
-        float minScaleLevel = creatureFamily->minScaleLevel;
+        float minScaleLevel = creatureFamily->MinScaleLevel;
         uint8 level = GetLevel();
 
         float minLevelScaleMod = level >= minScaleLevel ? (level / minScaleLevel) : 0.0f;
-        float maxScaleMod = creatureFamily->maxScaleLevel - minScaleLevel;
+        float maxScaleMod = creatureFamily->MaxScaleLevel - minScaleLevel;
 
         if (minLevelScaleMod > maxScaleMod)
             minLevelScaleMod = maxScaleMod;
 
-        float scaleMod = creatureFamily->maxScaleLevel != minScaleLevel ? minLevelScaleMod / maxScaleMod : 0.f;
+        float scaleMod = creatureFamily->MaxScaleLevel != minScaleLevel ? minLevelScaleMod / maxScaleMod : 0.f;
 
-        float maxScale = creatureFamily->maxScale;
+        float maxScale = creatureFamily->MaxScale;
 
         // override maxScale
         switch (ctFamily)
@@ -2489,7 +2489,7 @@ float Pet::GetNativeObjectScale() const
                 break;
         }
 
-        float scale = (maxScale - creatureFamily->minScale) * scaleMod + creatureFamily->minScale;
+        float scale = (maxScale - creatureFamily->MinScale) * scaleMod + creatureFamily->MinScale;
 
         scale = std::min(scale, maxScale);
 

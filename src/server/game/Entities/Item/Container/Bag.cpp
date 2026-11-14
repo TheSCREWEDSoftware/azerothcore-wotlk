@@ -104,9 +104,9 @@ void Bag::SaveToDB(CharacterDatabaseTransaction trans)
     Item::SaveToDB(trans);
 }
 
-bool Bag::LoadFromDB(ObjectGuid::LowType guid, ObjectGuid owner_guid, Field* fields, uint32 entry)
+bool Bag::LoadFromDB(ObjectGuid::LowType guid, ObjectGuid owner_guid, Field* fields, uint32 entry, uint32 extraFields)
 {
-    if (!Item::LoadFromDB(guid, owner_guid, fields, entry))
+    if (!Item::LoadFromDB(guid, owner_guid, fields, entry, extraFields))
         return false;
 
     ItemTemplate const* itemProto = GetTemplate(); // checked in Item::LoadFromDB

@@ -49,7 +49,7 @@ class AC_SHARED_API DB2FileLoader
     DB2FileLoader();
     ~DB2FileLoader();
 
-    bool Load(const char *filename, const char *fmt);
+    bool Load(char const*filename, char const*fmt);
 
     class Record
     {
@@ -80,7 +80,7 @@ class AC_SHARED_API DB2FileLoader
             EndianConvert(val);
             return val;
         }
-        const char *getString(size_t field) const
+        char const*getString(size_t field) const
         {
             assert(field < file.fieldCount);
             size_t stringOffset = getUInt(field);
@@ -105,12 +105,12 @@ class AC_SHARED_API DB2FileLoader
     uint32 GetOffset(size_t id) const { return (fieldsOffset != NULL && id < fieldCount) ? fieldsOffset[id] : 0; }
     uint32 GetHash() const { return tableHash; }
     bool IsLoaded() const { return (data != NULL); }
-    char* AutoProduceData(const char* fmt, uint32& count, char**& indexTable);
-    char* AutoProduceStringsArrayHolders(const char* fmt, char* dataTable);
-    char* AutoProduceStrings(const char* fmt, char* dataTable, uint32 locale);
-    static uint32 GetFormatRecordSize(const char * format, int32 * index_pos = NULL);
-    static uint32 GetFormatStringFieldCount(const char * format);
-    static uint32 GetFormatLocalizedStringFieldCount(const char * format);
+    char* AutoProduceData(char const* fmt, uint32& count, char**& indexTable);
+    char* AutoProduceStringsArrayHolders(char const* fmt, char* dataTable);
+    char* AutoProduceStrings(char const* fmt, char* dataTable, uint32 locale);
+    static uint32 GetFormatRecordSize(char const* format, int32 * index_pos = NULL);
+    static uint32 GetFormatStringFieldCount(char const* format);
+    static uint32 GetFormatLocalizedStringFieldCount(char const* format);
 private:
     char const* fileName;
 
@@ -138,8 +138,8 @@ class AC_SHARED_API DB2DatabaseLoader
 public:
     explicit DB2DatabaseLoader(std::string const& storageName) : _storageName(storageName) { }
 
-    char* Load(const char* format, HotfixDatabaseStatements preparedStatement, uint32& records, char**& indexTable, char*& stringHolders, std::list<char*>& stringPool);
-    void LoadStrings(const char* format, HotfixDatabaseStatements preparedStatement, uint32 locale, char**& indexTable, std::list<char*>& stringPool);
+    char* Load(char const* format, HotfixDatabaseStatements preparedStatement, uint32& records, char**& indexTable, char*& stringHolders, std::list<char*>& stringPool);
+    void LoadStrings(char const* format, HotfixDatabaseStatements preparedStatement, uint32 locale, char**& indexTable, std::list<char*>& stringPool);
     static char* AddString(char const** holder, std::string const& value);
 
 private:

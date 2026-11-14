@@ -744,7 +744,7 @@ uint32 ChatHandler::extractSpellIdFromLink(char* text)
                     return 0;
 
                 // 5.4.8 talents have a single rank
-                return talentEntry->SpellId;
+                return talentEntry->SpellID;
             }
         case SPELL_LINK_ENCHANT:
         case SPELL_LINK_TRADE:
@@ -757,7 +757,7 @@ uint32 ChatHandler::extractSpellIdFromLink(char* text)
                 if (!glyphPropEntry)
                     return 0;
 
-                return glyphPropEntry->SpellId;
+                return glyphPropEntry->SpellID;
             }
     }
 

@@ -56,8 +56,8 @@ void RaceMgr::LoadRaces()
         if (!raceEntry)
             continue;
 
-        uint8 alliance = raceEntry->alliance;
-        uint8 raceId = raceEntry->RaceID;
+        uint8 alliance = raceEntry->TeamID;
+        uint8 raceId = raceEntry->ID;
 
         if (raceEntry->Flags & CHRRACES_FLAGS_NOT_PLAYABLE)
             continue;

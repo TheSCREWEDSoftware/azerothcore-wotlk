@@ -471,7 +471,7 @@ public:
         part[3] = p4;
     }
 
-    inline bool operator <(const flag128 &right) const
+    inline bool operator <(flag128 const&right) const
     {
         for (uint8 i = 4; i > 0; --i)
         {
@@ -483,7 +483,7 @@ public:
         return false;
     }
 
-    inline bool operator ==(const flag128 &right) const
+    inline bool operator ==(flag128 const&right) const
     {
         return
             (
@@ -494,12 +494,12 @@ public:
             );
     }
 
-    inline bool operator !=(const flag128 &right) const
+    inline bool operator !=(flag128 const&right) const
     {
         return !this->operator ==(right);
     }
 
-    inline flag128 & operator =(const flag128 &right)
+    inline flag128 & operator =(flag128 const&right)
     {
         part[0] = right.part[0];
         part[1] = right.part[1];
@@ -508,13 +508,13 @@ public:
         return *this;
     }
 
-    inline flag128 operator &(const flag128 &right) const
+    inline flag128 operator &(flag128 const&right) const
     {
         return flag128(part[0] & right.part[0], part[1] & right.part[1],
             part[2] & right.part[2], part[3] & right.part[3]);
     }
 
-    inline flag128 & operator &=(const flag128 &right)
+    inline flag128 & operator &=(flag128 const&right)
     {
         part[0] &= right.part[0];
         part[1] &= right.part[1];
@@ -523,13 +523,13 @@ public:
         return *this;
     }
 
-    inline flag128 operator |(const flag128 &right) const
+    inline flag128 operator |(flag128 const&right) const
     {
         return flag128(part[0] | right.part[0], part[1] | right.part[1],
             part[2] | right.part[2], part[3] | right.part[3]);
     }
 
-    inline flag128 & operator |=(const flag128 &right)
+    inline flag128 & operator |=(flag128 const&right)
     {
         part[0] |= right.part[0];
         part[1] |= right.part[1];
@@ -543,13 +543,13 @@ public:
         return flag128(~part[0], ~part[1], ~part[2], ~part[3]);
     }
 
-    inline flag128 operator ^(const flag128 &right) const
+    inline flag128 operator ^(flag128 const&right) const
     {
         return flag128(part[0] ^ right.part[0], part[1] ^ right.part[1],
             part[2] ^ right.part[2], part[3] ^ right.part[3]);
     }
 
-    inline flag128 & operator ^=(const flag128 &right)
+    inline flag128 & operator ^=(flag128 const&right)
     {
         part[0] ^= right.part[0];
         part[1] ^= right.part[1];
@@ -573,7 +573,7 @@ public:
         return part[el];
     }
 
-    inline const uint32 & operator [](uint8 el) const
+    inline uint32 const& operator [](uint8 el) const
     {
         return part[el];
     }

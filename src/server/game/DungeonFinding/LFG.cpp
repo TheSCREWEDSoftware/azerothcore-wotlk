@@ -96,9 +96,6 @@ namespace lfg
             case LFG_STATE_FINISHED_DUNGEON:
                 entry = LANG_LFG_STATE_FINISHED_DUNGEON;
                 break;
-            case LFG_STATE_RAIDBROWSER:
-                entry = LANG_LFG_STATE_RAIDBROWSER;
-                break;
         }
 
         return std::string(sObjectMgr->GetAcoreStringForDBCLocale(entry));

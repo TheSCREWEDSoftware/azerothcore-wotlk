@@ -294,6 +294,7 @@ private:
 
     IntervalTimer _timers[WUPDATE_COUNT];
     Seconds _mail_expire_check_timer;
+    uint32 _blackMarketTimer = 0;                       // Black Market update ticks since its last refresh
 
     AccountTypes _allowedSecurityLevel;
     LocaleConstant _defaultDbcLocale;                     // from config for one from loaded DBC locales

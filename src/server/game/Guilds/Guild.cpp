@@ -440,7 +440,7 @@ bool Guild::BankTab::LoadItemFromDB(Field* fields)
     }
 
     Item* pItem = NewItemOrBag(proto);
-    if (!pItem->LoadFromDB(itemGuid, ObjectGuid::Empty, fields, itemEntry))
+    if (!pItem->LoadFromDB(itemGuid, ObjectGuid::Empty, fields, itemEntry, 16))
     {
         LOG_ERROR("guild", "Item (GUID {}, id: {}) not found in item_instance, deleting from guild bank!", itemGuid, itemEntry);
 
@@ -771,7 +771,7 @@ void Guild::Member::UpdateProfessionData()
             continue;
 
         SkillLineEntry const* skillLine = sSkillLineStore.LookupEntry(skillId);
-        if (!skillLine || skillLine->categoryId != SKILL_CATEGORY_PROFESSION)
+        if (!skillLine || skillLine->CategoryID != SKILL_CATEGORY_PROFESSION)
             continue;
 
         professions.emplace_back(skillId, player->GetSkillValue(skillId));

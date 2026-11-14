@@ -382,18 +382,18 @@ void Player::UpdateAttackPowerAndDamage(bool ranged)
     {
         if (!ranged)
         {
-            float strengthValue = std::max((GetStat(STAT_STRENGTH) - 10.0f) * float(classEntry->APPerStrength), 0.0f);
-            float agilityValue = std::max((GetStat(STAT_AGILITY) - 10.0f) * float(classEntry->APPerAgility), 0.0f);
+            float strengthValue = std::max((GetStat(STAT_STRENGTH) - 10.0f) * float(classEntry->AttackPowerPerStrength), 0.0f);
+            float agilityValue = std::max((GetStat(STAT_AGILITY) - 10.0f) * float(classEntry->AttackPowerPerAgility), 0.0f);
 
             // forms that turn agility into attack power (cat and bear form)
             SpellShapeshiftFormEntry const* form = sSpellShapeshiftFormStore.LookupEntry(GetShapeshiftForm());
-            if (form && form->flags1 & 0x20)
-                agilityValue += std::max((GetStat(STAT_AGILITY) - 10.0f) * float(classEntry->APPerStrength), 0.0f);
+            if (form && form->Flags & 0x20)
+                agilityValue += std::max((GetStat(STAT_AGILITY) - 10.0f) * float(classEntry->AttackPowerPerStrength), 0.0f);
 
             val2 = strengthValue + agilityValue;
         }
         else
-            val2 = (level + std::max(GetStat(STAT_AGILITY) - 10.0f, 0.0f)) * float(classEntry->RAPPerAgility);
+            val2 = (level + std::max(GetStat(STAT_AGILITY) - 10.0f, 0.0f)) * float(classEntry->RangedAttackPowerPerAgility);
     }
 
     SetStatFlatModifier(unitMod, BASE_VALUE, val2);

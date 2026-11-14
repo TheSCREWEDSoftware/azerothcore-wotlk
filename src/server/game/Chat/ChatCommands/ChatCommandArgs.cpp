@@ -91,11 +91,11 @@ struct SpellInfoVisitor
 {
     using value_type = SpellInfo const*;
     value_type operator()(Hyperlink<enchant> enchant) const { return enchant; };
-    value_type operator()(Hyperlink<glyph> glyph) const { return operator()(glyph->Glyph->SpellId); };
+    value_type operator()(Hyperlink<glyph> glyph) const { return operator()(glyph->Glyph->SpellID); };
     value_type operator()(Hyperlink<spell> spell) const { return *spell; }
     value_type operator()(Hyperlink<talent> talent) const
     {
-        return operator()(talent->Talent->SpellId); // 5.4.8 talents have a single rank
+        return operator()(talent->Talent->SpellID); // 5.4.8 talents have a single rank
     };
     value_type operator()(Hyperlink<trade> trade) const { return trade->Spell; };
 

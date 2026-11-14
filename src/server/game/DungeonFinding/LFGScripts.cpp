@@ -43,7 +43,7 @@ namespace lfg
 
     void LFGPlayerScript::OnPlayerLevelChanged(Player* player, uint8 /*oldLevel*/)
     {
-        if (!sLFGMgr->isOptionEnabled(LFG_OPTION_ENABLE_DUNGEON_FINDER | LFG_OPTION_ENABLE_RAID_BROWSER | LFG_OPTION_ENABLE_SEASONAL_BOSSES))
+        if (!sLFGMgr->isOptionEnabled(LFG_OPTION_ENABLE_DUNGEON_FINDER | LFG_OPTION_ENABLE_SEASONAL_BOSSES))
             return;
 
         sLFGMgr->InitializeLockedDungeons(player, player->GetGroup());
@@ -51,27 +51,19 @@ namespace lfg
 
     void LFGPlayerScript::OnPlayerLogout(Player* player)
     {
-        if (!sLFGMgr->isOptionEnabled(LFG_OPTION_ENABLE_DUNGEON_FINDER | LFG_OPTION_ENABLE_RAID_BROWSER | LFG_OPTION_ENABLE_SEASONAL_BOSSES))
+        if (!sLFGMgr->isOptionEnabled(LFG_OPTION_ENABLE_DUNGEON_FINDER | LFG_OPTION_ENABLE_SEASONAL_BOSSES))
             return;
 
         if (!player->GetGroup() || !player->GetGroup()->isLFGGroup())
         {
-            player->GetSession()->SendLfgLfrList(false);
             sLFGMgr->LeaveLfg(player->GetGUID());
             sLFGMgr->LeaveAllLfgQueues(player->GetGUID(), true, player->GetGroup() ? player->GetGroup()->GetGUID() : ObjectGuid::Empty);
-
-            // pussywizard: after all necessary actions handle raid browser
-            // pussywizard: already done above
-            //if (sLFGMgr->GetState(player->GetGUID()) == LFG_STATE_RAIDBROWSER)
-            //  sLFGMgr->LeaveLfg(player->GetGUID());
         }
-
-        sLFGMgr->LfrSearchRemove(player);
     }
 
     void LFGPlayerScript::OnPlayerLogin(Player* player)
     {
-        if (!sLFGMgr->isOptionEnabled(LFG_OPTION_ENABLE_DUNGEON_FINDER | LFG_OPTION_ENABLE_RAID_BROWSER | LFG_OPTION_ENABLE_SEASONAL_BOSSES))
+        if (!sLFGMgr->isOptionEnabled(LFG_OPTION_ENABLE_DUNGEON_FINDER | LFG_OPTION_ENABLE_SEASONAL_BOSSES))
             return;
 
         // Temporal: Trying to determine when group data and LFG data gets desynched
@@ -154,7 +146,7 @@ namespace lfg
 
     void LFGGroupScript::OnAddMember(Group* group, ObjectGuid guid)
     {
-        if (!sLFGMgr->isOptionEnabled(LFG_OPTION_ENABLE_DUNGEON_FINDER | LFG_OPTION_ENABLE_RAID_BROWSER | LFG_OPTION_ENABLE_SEASONAL_BOSSES))
+        if (!sLFGMgr->isOptionEnabled(LFG_OPTION_ENABLE_DUNGEON_FINDER | LFG_OPTION_ENABLE_SEASONAL_BOSSES))
             return;
 
         ObjectGuid gguid = group->GetGUID();
@@ -188,10 +180,6 @@ namespace lfg
         sLFGMgr->SetGroup(guid, gguid);
         sLFGMgr->AddPlayerToGroup(gguid, guid);
         sLFGMgr->AddPlayerQueuedForRandomDungeonToGroup(gguid, guid);
-
-        // pussywizard: after all necessary actions handle raid browser
-        if (sLFGMgr->GetState(guid) == LFG_STATE_RAIDBROWSER)
-            sLFGMgr->LeaveLfg(guid);
     }
 
     void LFGGroupScript::OnRemoveMember(Group* group, ObjectGuid guid, RemoveMethod method, ObjectGuid kicker, char const* reason)
@@ -200,7 +188,7 @@ namespace lfg
         (void)kicker;
         (void)reason;
 
-        if (!sLFGMgr->isOptionEnabled(LFG_OPTION_ENABLE_DUNGEON_FINDER | LFG_OPTION_ENABLE_RAID_BROWSER | LFG_OPTION_ENABLE_SEASONAL_BOSSES))
+        if (!sLFGMgr->isOptionEnabled(LFG_OPTION_ENABLE_DUNGEON_FINDER | LFG_OPTION_ENABLE_SEASONAL_BOSSES))
             return;
 
         ObjectGuid gguid = group->GetGUID();
@@ -224,11 +212,6 @@ namespace lfg
         sLFGMgr->LeaveAllLfgQueues(guid, true, gguid);
         sLFGMgr->SetGroup(guid, ObjectGuid::Empty);
         uint8 players = sLFGMgr->RemovePlayerFromGroup(gguid, guid);
-
-        // pussywizard: after all necessary actions handle raid browser
-        // pussywizard: already done above
-        //if (sLFGMgr->GetState(guid) == LFG_STATE_RAIDBROWSER)
-        //  sLFGMgr->LeaveLfg(guid);
 
         // Xinef: only LFG groups can go below
         if (!isLFG)
@@ -267,22 +250,18 @@ namespace lfg
 
     void LFGGroupScript::OnDisband(Group* group)
     {
-        if (!sLFGMgr->isOptionEnabled(LFG_OPTION_ENABLE_DUNGEON_FINDER | LFG_OPTION_ENABLE_RAID_BROWSER | LFG_OPTION_ENABLE_SEASONAL_BOSSES))
+        if (!sLFGMgr->isOptionEnabled(LFG_OPTION_ENABLE_DUNGEON_FINDER | LFG_OPTION_ENABLE_SEASONAL_BOSSES))
             return;
 
         ObjectGuid gguid = group->GetGUID();
         LOG_DEBUG("lfg", "LFGScripts::OnDisband [{}]", gguid.ToString());
-
-        // pussywizard: after all necessary actions handle raid browser
-        if (sLFGMgr->GetState(group->GetLeaderGUID()) == LFG_STATE_RAIDBROWSER)
-            sLFGMgr->LeaveLfg(group->GetLeaderGUID());
 
         sLFGMgr->RemoveGroupData(gguid);
     }
 
     void LFGGroupScript::OnChangeLeader(Group* group, ObjectGuid newLeaderGuid, ObjectGuid oldLeaderGuid)
     {
-        if (!sLFGMgr->isOptionEnabled(LFG_OPTION_ENABLE_DUNGEON_FINDER | LFG_OPTION_ENABLE_RAID_BROWSER | LFG_OPTION_ENABLE_SEASONAL_BOSSES))
+        if (!sLFGMgr->isOptionEnabled(LFG_OPTION_ENABLE_DUNGEON_FINDER | LFG_OPTION_ENABLE_SEASONAL_BOSSES))
             return;
 
         ObjectGuid gguid = group->GetGUID();
@@ -290,10 +269,6 @@ namespace lfg
         LOG_DEBUG("lfg", "LFGScripts::OnChangeLeader [{}]: old [{}] new [{}]",
             gguid.ToString(), newLeaderGuid.ToString(), oldLeaderGuid.ToString());
         sLFGMgr->SetLeader(gguid, newLeaderGuid);
-
-        // pussywizard: after all necessary actions handle raid browser
-        if (sLFGMgr->GetState(oldLeaderGuid) == LFG_STATE_RAIDBROWSER)
-            sLFGMgr->LeaveLfg(oldLeaderGuid);
     }
 
     void LFGGroupScript::OnInviteMember(Group* group, ObjectGuid guid)
@@ -301,7 +276,7 @@ namespace lfg
         // used only with EXTRA_LOGS
         (void)guid;
 
-        if (!sLFGMgr->isOptionEnabled(LFG_OPTION_ENABLE_DUNGEON_FINDER | LFG_OPTION_ENABLE_RAID_BROWSER | LFG_OPTION_ENABLE_SEASONAL_BOSSES))
+        if (!sLFGMgr->isOptionEnabled(LFG_OPTION_ENABLE_DUNGEON_FINDER | LFG_OPTION_ENABLE_SEASONAL_BOSSES))
             return;
 
         ObjectGuid gguid = group->GetGUID();

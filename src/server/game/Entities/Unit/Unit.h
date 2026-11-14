@@ -239,36 +239,40 @@ enum WeaponAttackType : uint8
 
 enum CombatRating : uint8
 {
-    CR_WEAPON_SKILL             = 0,
-    CR_DEFENSE_SKILL            = 1,
-    CR_DODGE                    = 2,
-    CR_PARRY                    = 3,
-    CR_BLOCK                    = 4,
-    CR_HIT_MELEE                = 5,
-    CR_HIT_RANGED               = 6,
-    CR_HIT_SPELL                = 7,
-    CR_CRIT_MELEE               = 8,
-    CR_CRIT_RANGED              = 9,
-    CR_CRIT_SPELL               = 10,
-    CR_HIT_TAKEN_MELEE                  = 11, // Deprecated since Cataclysm
-    CR_HIT_TAKEN_RANGED                 = 12, // Deprecated since Cataclysm
-    CR_HIT_TAKEN_SPELL                  = 13, // Deprecated since Cataclysm
+    CR_UNUSED_1                         = 0,
+    CR_DEFENSE_SKILL                    = 1, // Removed in 4.0.1
+    CR_DODGE                            = 2,
+    CR_PARRY                            = 3,
+    CR_BLOCK                            = 4,
+    CR_HIT_MELEE                        = 5,
+    CR_HIT_RANGED                       = 6,
+    CR_HIT_SPELL                        = 7,
+    CR_CRIT_MELEE                       = 8,
+    CR_CRIT_RANGED                      = 9,
+    CR_CRIT_SPELL                       = 10,
+    CR_MULTISTRIKE                      = 11,
+    CR_READINESS                        = 12,
+    CR_SPEED                            = 13,
     CR_RESILIENCE_CRIT_TAKEN            = 14,
     CR_RESILIENCE_PLAYER_DAMAGE_TAKEN   = 15,
-    CR_CRIT_TAKEN_SPELL                 = 16, // Deprecated since Cataclysm
-    CR_HASTE_MELEE              = 17,
-    CR_HASTE_RANGED             = 18,
-    CR_HASTE_SPELL              = 19,
-    CR_WEAPON_SKILL_MAINHAND    = 20,
-    CR_WEAPON_SKILL_OFFHAND     = 21,
-    CR_WEAPON_SKILL_RANGED      = 22,
-    CR_EXPERTISE                = 23,
-    CR_ARMOR_PENETRATION        = 24,
-    CR_MASTERY                  = 25,
-    CR_PVP_POWER                = 26
+    CR_LIFESTEAL                        = 16,
+    CR_HASTE_MELEE                      = 17,
+    CR_HASTE_RANGED                     = 18,
+    CR_HASTE_SPELL                      = 19,
+    CR_AVOIDANCE                        = 20,
+    CR_UNUSED_2                         = 21,
+    CR_WEAPON_SKILL_RANGED              = 22,
+    CR_EXPERTISE                        = 23,
+    CR_ARMOR_PENETRATION                = 24,
+    CR_MASTERY                          = 25,
+    CR_UNUSED_3                         = 26,
+    CR_UNUSED_4                         = 27,
+    CR_VERSATILITY_DAMAGE_DONE          = 28,
+    // placeholder                      = 29,
+    CR_VERSATILITY_DAMAGE_TAKEN         = 30
 };
 
-#define MAX_COMBAT_RATING         27
+#define MAX_COMBAT_RATING         31
 
 enum DamageEffectType : uint8
 {
@@ -761,6 +765,11 @@ public:
     void SetNpcFlag(NPCFlags flags) { SetFlag(UNIT_NPC_FLAGS, flags); }
     void RemoveNpcFlag(NPCFlags flags) { RemoveFlag(UNIT_NPC_FLAGS, flags); }
     void ReplaceAllNpcFlags(NPCFlags flags) { SetUInt32Value(UNIT_NPC_FLAGS, flags); }
+    NPCFlags2 GetNpcFlags2() const { return NPCFlags2(GetUInt32Value(UNIT_NPC_FLAGS + 1)); }
+    bool HasNpcFlag2(NPCFlags2 flags) const { return HasFlag(UNIT_NPC_FLAGS + 1, flags) != 0; }
+    void SetNpcFlag2(NPCFlags2 flags) { SetFlag(UNIT_NPC_FLAGS + 1, flags); }
+    void RemoveNpcFlag2(NPCFlags2 flags) { RemoveFlag(UNIT_NPC_FLAGS + 1, flags); }
+    void ReplaceAllNpcFlags2(NPCFlags2 flags) { SetUInt32Value(UNIT_NPC_FLAGS + 1, flags); }
 
     uint32 GetDynamicFlags() const override { return GetUInt32Value(UNIT_DYNAMIC_FLAGS); }
     void ReplaceAllDynamicFlags(uint32 flag) override { SetUInt32Value(UNIT_DYNAMIC_FLAGS, flag); }
@@ -1907,7 +1916,8 @@ public:
 
     // Virtual items
     uint32 GetVirtualItemId(uint32 slot) const;
-    void SetVirtualItem(uint32 slot, uint32 itemId);
+    uint16 GetVirtualItemAppearanceMod(uint32 slot) const;
+    void SetVirtualItem(uint32 slot, uint32 itemId, uint16 appearanceModId = 0, uint16 itemVisual = 0);
 
     // Mount methods
     [[nodiscard]] bool IsMounted() const { return HasUnitFlag(UNIT_FLAG_MOUNT); }

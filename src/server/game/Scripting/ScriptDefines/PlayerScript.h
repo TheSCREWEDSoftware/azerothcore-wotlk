@@ -161,13 +161,10 @@ enum PlayerHook
     PLAYERHOOK_CAN_AREA_EXPLORE_AND_OUTDOOR,
     PLAYERHOOK_ON_VICTIM_REWARD_BEFORE,
     PLAYERHOOK_ON_VICTIM_REWARD_AFTER,
-    PLAYERHOOK_ON_CUSTOM_SCALING_STAT_VALUE_BEFORE,
-    PLAYERHOOK_ON_CUSTOM_SCALING_STAT_VALUE,
     PLAYERHOOK_ON_APPLY_ITEM_MODS_BEFORE,
     PLAYERHOOK_ON_APPLY_ENCHANTMENT_ITEM_MODS_BEFORE,
     PLAYERHOOK_ON_APPLY_WEAPON_DAMAGE,
     PLAYERHOOK_CAN_ARMOR_DAMAGE_MODIFIER,
-    PLAYERHOOK_ON_GET_FERAL_AP_BONUS,
     PLAYERHOOK_CAN_APPLY_WEAPON_DEPENDENT_AURA_DAMAGE_MOD,
     PLAYERHOOK_CAN_APPLY_EQUIP_SPELL,
     PLAYERHOOK_CAN_APPLY_EQUIP_SPELLS_ITEM_SET,
@@ -594,10 +591,6 @@ public:
 
     virtual void OnPlayerVictimRewardAfter(Player* /*player*/, Player* /*victim*/, uint32& /*killer_title*/, int32& /*victim_rank*/, float& /*honor_f*/) { }
 
-    virtual void OnPlayerCustomScalingStatValueBefore(Player* /*player*/, ItemTemplate const* /*proto*/, uint8 /*slot*/, bool /*apply*/, uint32& /*CustomScalingStatValue*/) { }
-
-    virtual void OnPlayerCustomScalingStatValue(Player* /*player*/, ItemTemplate const* /*proto*/, uint32& /*statType*/, int32& /*val*/, uint8 /*itemProtoStatNumber*/, uint32 /*ScalingStatValue*/, ScalingStatValuesEntry const* /*ssv*/) { }
-
     virtual void OnPlayerApplyItemModsBefore(Player* /*player*/, uint8 /*slot*/, bool /*apply*/, uint8 /*itemProtoStatNumber*/, uint32 /*statType*/, int32& /*val*/) { }
 
     virtual void OnPlayerApplyEnchantmentItemModsBefore(Player* /*player*/, Item* /*item*/, EnchantmentSlot /*slot*/, bool /*apply*/, uint32 /*enchant_spell_id*/, uint32& /*enchant_amount*/) { }
@@ -605,8 +598,6 @@ public:
     virtual void OnPlayerApplyWeaponDamage(Player* /*player*/, uint8 /*slot*/, ItemTemplate const* /*proto*/, float& /*minDamage*/, float& /*maxDamage*/, uint8 /*damageIndex*/) { }
 
     [[nodiscard]] virtual bool OnPlayerCanArmorDamageModifier(Player* /*player*/) { return true; }
-
-    virtual void OnPlayerGetFeralApBonus(Player* /*player*/, int32& /*feral_bonus*/, int32 /*dpsMod*/, ItemTemplate const* /*proto*/, ScalingStatValuesEntry const* /*ssv*/) { }
 
     [[nodiscard]] virtual bool OnPlayerCanApplyWeaponDependentAuraDamageMod(Player* /*player*/, Item* /*item*/, WeaponAttackType /*attackType*/, AuraEffect const* /*aura*/, bool /*apply*/) { return true; }
 

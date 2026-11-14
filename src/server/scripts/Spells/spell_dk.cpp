@@ -759,8 +759,8 @@ class spell_dk_dancing_rune_weapon_visual : public AuraScript
         PreventDefaultAction();
         if (Unit* owner = GetUnitOwner()->ToTempSummon()->GetSummonerUnit())
         {
-            GetUnitOwner()->SetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID, owner->GetUInt32Value(PLAYER_VISIBLE_ITEM_16_ENTRYID));
-            GetUnitOwner()->SetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID + 1, owner->GetUInt32Value(PLAYER_VISIBLE_ITEM_17_ENTRYID));
+            GetUnitOwner()->SetVirtualItem(0, owner->GetUInt32Value(PLAYER_VISIBLE_ITEM_16_ENTRYID));
+            GetUnitOwner()->SetVirtualItem(1, owner->GetUInt32Value(PLAYER_VISIBLE_ITEM_17_ENTRYID));
             GetUnitOwner()->SetFloatValue(UNIT_FIELD_COMBATREACH, 0.01f);
         }
     }

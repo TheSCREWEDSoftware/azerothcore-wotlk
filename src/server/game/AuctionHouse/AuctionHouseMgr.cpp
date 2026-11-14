@@ -62,9 +62,9 @@ AuctionHouseObject* AuctionHouseMgr::GetAuctionsMap(uint32 factionTemplateId)
     FactionTemplateEntry const* u_entry = sFactionTemplateStore.LookupEntry(factionTemplateId);
     if (!u_entry)
         return &_neutralAuctions;
-    else if (u_entry->ourMask & FACTION_MASK_ALLIANCE)
+    else if (u_entry->Mask & FACTION_MASK_ALLIANCE)
         return &_allianceAuctions;
-    else if (u_entry->ourMask & FACTION_MASK_HORDE)
+    else if (u_entry->Mask & FACTION_MASK_HORDE)
         return &_hordeAuctions;
 
     return &_neutralAuctions;
@@ -96,7 +96,7 @@ uint32 AuctionHouseMgr::GetAuctionDeposit(AuctionHouseEntry const* entry, uint32
     if (MSV <= 0)
         return AH_MINIMUM_DEPOSIT * sWorld->getRate(RATE_AUCTION_DEPOSIT);
 
-    float multiplier = CalculatePct(float(entry->depositPercent), 3);
+    float multiplier = CalculatePct(float(entry->DepositRate), 3);
     uint32 timeHr = (((time / 60) / 60) / 12);
     uint32 deposit = uint32(((multiplier * MSV * count / 3) * timeHr * 3) * sWorld->getRate(RATE_AUCTION_DEPOSIT));
 
@@ -361,7 +361,7 @@ void AuctionHouseMgr::LoadAuctionItems()
         }
 
         Item* item = NewItemOrBag(proto);
-        if (!item->LoadFromDB(item_guid, ObjectGuid::Empty, fields, item_template))
+        if (!item->LoadFromDB(item_guid, ObjectGuid::Empty, fields, item_template, 13))
         {
             delete item;
             continue;
@@ -476,9 +476,9 @@ AuctionHouseEntry const* AuctionHouseMgr::GetAuctionHouseEntryFromFactionTemplat
 
     if (!uEntry || sWorld->getBoolConfig(CONFIG_ALLOW_TWO_SIDE_INTERACTION_AUCTION))
         houseid = AuctionHouseId::Neutral;
-    else if (uEntry->ourMask & FACTION_MASK_ALLIANCE)
+    else if (uEntry->Mask & FACTION_MASK_ALLIANCE)
         houseid = AuctionHouseId::Alliance;
-    else if (uEntry->ourMask & FACTION_MASK_HORDE)
+    else if (uEntry->Mask & FACTION_MASK_HORDE)
         houseid = AuctionHouseId::Horde;
     else
         houseid = AuctionHouseId::Neutral;
@@ -567,7 +567,7 @@ AuctionHouseFaction AuctionEntry::GetFactionId() const
 
 uint32 AuctionEntry::GetAuctionCut() const
 {
-    int32 cut = int32(CalculatePct(bid, auctionHouseEntry->cutPercent) * sWorld->getRate(RATE_AUCTION_CUT));
+    int32 cut = int32(CalculatePct(bid, auctionHouseEntry->ConsignmentRate) * sWorld->getRate(RATE_AUCTION_CUT));
     return std::max(cut, 0);
 }
 

@@ -1508,7 +1508,7 @@ uint32 Map::GetAreaId(uint32 phaseMask, float x, float y, float z, std::vector<u
     {
         // wmo found
         if (WMOAreaTableEntry const* wmoEntry = GetWMOAreaTableEntryByTripple(rootId, adtId, groupId))
-            areaId = wmoEntry->areaId;
+            areaId = wmoEntry->AreaTableID;
 
         if (!areaId)
             areaId = gridAreaId;
@@ -1517,7 +1517,7 @@ uint32 Map::GetAreaId(uint32 phaseMask, float x, float y, float z, std::vector<u
         areaId = gridAreaId;
 
     if (!areaId)
-        areaId = i_mapEntry->linked_zone;
+        areaId = i_mapEntry->AreaTableID;
 
     return areaId;
 }
@@ -1526,8 +1526,8 @@ uint32 Map::GetZoneId(uint32 phaseMask, float x, float y, float z, std::vector<u
 {
     uint32 areaId = GetAreaId(phaseMask, x, y, z, visibleMapIds);
     if (AreaTableEntry const* area = sAreaTableStore.LookupEntry(areaId))
-        if (area->zone)
-            return area->zone;
+        if (area->ParentAreaID)
+            return area->ParentAreaID;
 
     return areaId;
 }
@@ -1536,8 +1536,8 @@ void Map::GetZoneAndAreaId(uint32 phaseMask, uint32& zoneid, uint32& areaid, flo
 {
     areaid = zoneid = GetAreaId(phaseMask, x, y, z, visibleMapIds);
     if (AreaTableEntry const* area = sAreaTableStore.LookupEntry(areaid))
-        if (area->zone)
-            zoneid = area->zone;
+        if (area->ParentAreaID)
+            zoneid = area->ParentAreaID;
 }
 
 LiquidData const Map::GetLiquidData(uint32 phaseMask, float x, float y, float z, float collisionHeight, Optional<uint8> ReqLiquidType, std::vector<uint32> const* visibleMapIds /*= nullptr*/)
@@ -1569,12 +1569,12 @@ LiquidData const Map::GetLiquidData(uint32 phaseMask, float x, float y, float z,
             {
                 if (AreaTableEntry const* area = sAreaTableStore.LookupEntry(GetAreaId(phaseMask, x, y, z, visibleMapIds)))
                 {
-                    uint32 overrideLiquid = area->LiquidTypeOverride[liquidFlagType];
-                    if (!overrideLiquid && area->zone)
+                    uint32 overrideLiquid = area->LiquidTypeID[liquidFlagType];
+                    if (!overrideLiquid && area->ParentAreaID)
                     {
-                        area = sAreaTableStore.LookupEntry(area->zone);
+                        area = sAreaTableStore.LookupEntry(area->ParentAreaID);
                         if (area)
-                            overrideLiquid = area->LiquidTypeOverride[liquidFlagType];
+                            overrideLiquid = area->LiquidTypeID[liquidFlagType];
                     }
 
                     if (LiquidTypeEntry const* liq = sLiquidTypeStore.LookupEntry(overrideLiquid))
@@ -1681,7 +1681,7 @@ void Map::GetFullTerrainStatusForPosition(uint32 phaseMask, float x, float y, fl
             data.outdoors = (wmoData->areaInfo->mogpFlags & 0x8) != 0;
             if (wmoEntry)
             {
-                data.areaId = wmoEntry->areaId;
+                data.areaId = wmoEntry->AreaTableID;
                 if (wmoEntry->Flags & 4)
                     data.outdoors = true;
                 else if (wmoEntry->Flags & 2)
@@ -1699,11 +1699,11 @@ void Map::GetFullTerrainStatusForPosition(uint32 phaseMask, float x, float y, fl
         data.outdoors = true;
         data.areaId = gridAreaId;
         if (AreaTableEntry const* areaEntry = sAreaTableStore.LookupEntry(data.areaId))
-            data.outdoors = (areaEntry->flags & (AREA_FLAG_INSIDE | AREA_FLAG_OUTSIDE)) != AREA_FLAG_INSIDE;
+            data.outdoors = (areaEntry->Flags[0] & (AREA_FLAG_INSIDE | AREA_FLAG_OUTSIDE)) != AREA_FLAG_INSIDE;
     }
 
     if (!data.areaId)
-        data.areaId = i_mapEntry->linked_zone;
+        data.areaId = i_mapEntry->AreaTableID;
 
     AreaTableEntry const* areaEntry = sAreaTableStore.LookupEntry(data.areaId);
 
@@ -1720,12 +1720,12 @@ void Map::GetFullTerrainStatusForPosition(uint32 phaseMask, float x, float y, fl
 
         if (liquidType && liquidType < 21 && areaEntry)
         {
-            uint32 overrideLiquid = areaEntry->LiquidTypeOverride[liquidFlagType];
-            if (!overrideLiquid && areaEntry->zone)
+            uint32 overrideLiquid = areaEntry->LiquidTypeID[liquidFlagType];
+            if (!overrideLiquid && areaEntry->ParentAreaID)
             {
-                AreaTableEntry const* zoneEntry = sAreaTableStore.LookupEntry(areaEntry->zone);
+                AreaTableEntry const* zoneEntry = sAreaTableStore.LookupEntry(areaEntry->ParentAreaID);
                 if (zoneEntry)
-                    overrideLiquid = zoneEntry->LiquidTypeOverride[liquidFlagType];
+                    overrideLiquid = zoneEntry->LiquidTypeID[liquidFlagType];
             }
 
             if (LiquidTypeEntry const* overrideData = sLiquidTypeStore.LookupEntry(overrideLiquid))
@@ -1885,7 +1885,7 @@ bool Map::HasEnoughWater(WorldObject const* searcher, float x, float y, float z)
 
 char const* Map::GetMapName() const
 {
-    return i_mapEntry ? i_mapEntry->name[sWorld->GetDefaultDbcLocale()] : "UNNAMEDMAP\x0";
+    return i_mapEntry ? i_mapEntry->MapName_lang : "UNNAMEDMAP\x0";
 }
 
 void Map::SendInitSelf(Player* player)
@@ -3281,7 +3281,7 @@ void Map::UpdateEncounterState(EncounterCreditType type, uint32 creditEntry, Uni
                 if (InstanceScript* instanceScript = source->GetInstanceScript())
                 {
                     uint32 prevMask = instanceScript->GetCompletedEncounterMask();
-                    instanceScript->SetCompletedEncountersMask((1 << encounter->dbcEntry->encounterIndex) | instanceScript->GetCompletedEncounterMask(), true);
+                    instanceScript->SetCompletedEncountersMask((1 << encounter->dbcEntry->OrderIndex) | instanceScript->GetCompletedEncounterMask(), true);
                     if (prevMask != instanceScript->GetCompletedEncounterMask())
                         updated = true;
                 }
@@ -3289,7 +3289,7 @@ void Map::UpdateEncounterState(EncounterCreditType type, uint32 creditEntry, Uni
             if (encounter->lastEncounterDungeon)
             {
                 dungeonId = encounter->lastEncounterDungeon;
-                lastEncounterId = encounter->dbcEntry->id;
+                lastEncounterId = encounter->dbcEntry->ID;
                 break;
             }
         }

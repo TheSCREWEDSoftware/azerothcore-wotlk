@@ -24,6 +24,7 @@
 #include <map>
 
 struct AuctionEntry;
+class BlackMarketEntry;
 struct CalendarEvent;
 class Item;
 class Object;
@@ -90,6 +91,7 @@ public:                                                 // Constructors
     MailSender(Object* sender, MailStationery stationery = MAIL_STATIONERY_DEFAULT);
     MailSender(CalendarEvent* sender);
     MailSender(AuctionEntry* sender);
+    MailSender(BlackMarketEntry* sender);
     MailSender(Player* sender);
     MailSender(uint32 senderEntry);
 public:                                                 // Accessors

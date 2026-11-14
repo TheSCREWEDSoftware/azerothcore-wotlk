@@ -24,7 +24,7 @@
 
 DBCFileLoader::DBCFileLoader() : recordSize(0), recordCount(0), fieldCount(0), stringSize(0), fieldsOffset(NULL), data(NULL), stringTable(NULL) { }
 
-bool DBCFileLoader::Load(const char* filename, const char* fmt)
+bool DBCFileLoader::Load(char const* filename, char const* fmt)
 {
     uint32 header;
     if (data)
@@ -42,7 +42,6 @@ bool DBCFileLoader::Load(const char* filename, const char* fmt)
         fclose(f);
         return false;
     }
-
 
     EndianConvert(header);
 
@@ -124,7 +123,7 @@ DBCFileLoader::Record DBCFileLoader::getRecord(size_t id)
     return Record(*this, data + id * recordSize);
 }
 
-uint32 DBCFileLoader::GetFormatRecordSize(const char* format, int32* index_pos)
+uint32 DBCFileLoader::GetFormatRecordSize(char const* format, int32* index_pos)
 {
     uint32 recordsize = 0;
     int32 i = -1;
@@ -169,7 +168,7 @@ uint32 DBCFileLoader::GetFormatRecordSize(const char* format, int32* index_pos)
     return recordsize;
 }
 
-char* DBCFileLoader::AutoProduceData(const char* format, uint32& records, char**& indexTable, uint32 sqlRecordCount, uint32 sqlHighestIndex, char*& sqlDataTable)
+char* DBCFileLoader::AutoProduceData(char const* format, uint32& records, char**& indexTable, uint32 sqlRecordCount, uint32 sqlHighestIndex, char*& sqlDataTable)
 {
     /*
     format STRING, NA, FLOAT, NA, INT <=>
@@ -268,7 +267,7 @@ char* DBCFileLoader::AutoProduceData(const char* format, uint32& records, char**
     return dataTable;
 }
 
-char* DBCFileLoader::AutoProduceStrings(const char* format, char* dataTable)
+char* DBCFileLoader::AutoProduceStrings(char const* format, char* dataTable)
 {
     if (strlen(format) != fieldCount)
         return NULL;
@@ -303,8 +302,8 @@ char* DBCFileLoader::AutoProduceStrings(const char* format, char* dataTable)
                     char** slot = (char**)(&dataTable[offset]);
                     if (!*slot || !**slot)
                     {
-                        const char * st = getRecord(y).getString(x);
-                        *slot=stringPool+(st-(const char*)stringTable);
+                        char const* st = getRecord(y).getString(x);
+                        *slot=stringPool+(st-(char const*)stringTable);
                     }
                     offset += sizeof(char*);
                     break;

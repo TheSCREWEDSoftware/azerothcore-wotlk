@@ -114,6 +114,9 @@ void ByteBuffer::append(uint8 const* src, std::size_t cnt)
     ASSERT(cnt, "Attempted to put a zero-sized value in ByteBuffer (pos: {} size: {})", _wpos, size());
     ASSERT(size() < 10000000);
 
+    // 6.x packets mix bit fields and byte fields: pending bits always end at the next byte write
+    FlushBits();
+
     std::size_t const newSize = _wpos + cnt;
 
     if (_storage.capacity() < newSize) // custom memory allocation rules

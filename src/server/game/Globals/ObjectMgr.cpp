@@ -1782,11 +1782,11 @@ void ObjectMgr::LoadCreatureModelInfo()
         if (modelInfo.combat_reach < 0.1f)
             modelInfo.combat_reach = DEFAULT_COMBAT_REACH;
 
-        if (CreatureModelDataEntry const* modelData = creatureDisplay ? sCreatureModelDataStore.LookupEntry(creatureDisplay->ModelId) : nullptr)
+        if (CreatureModelDataEntry const* modelData = creatureDisplay ? sCreatureModelDataStore.LookupEntry(creatureDisplay->ModelID) : nullptr)
         {
             for (uint32 i = 0; i < 14; i++)
             {
-                if (modelData->Id == triggerCreatureModelDataID[i])
+                if (modelData->ID == triggerCreatureModelDataID[i])
                 {
                     modelInfo.is_trigger = true;
                     break;
@@ -3577,20 +3577,20 @@ void ObjectMgr::LoadItemTemplates()
 
         if (enforceDBCAttributes)
         {
-            if (itemTemplate.Class != dbcitem->ClassID)
+            if (itemTemplate.Class != dbcitem->Class)
             {
-                LOG_ERROR("sql.sql", "Item (Entry: {}) has wrong Class value ({}), must be ({}).", entry, itemTemplate.Class, dbcitem->ClassID);
-                itemTemplate.Class = dbcitem->ClassID;
+                LOG_ERROR("sql.sql", "Item (Entry: {}) has wrong Class value ({}), must be ({}).", entry, itemTemplate.Class, dbcitem->Class);
+                itemTemplate.Class = dbcitem->Class;
             }
-            if (itemTemplate.SubClass != dbcitem->SubclassID)
+            if (itemTemplate.SubClass != dbcitem->SubClass)
             {
-                LOG_ERROR("sql.sql", "Item (Entry: {}) has wrong Subclass value ({}) for class {}, must be ({}).", entry, itemTemplate.SubClass, itemTemplate.Class, dbcitem->SubclassID);
-                itemTemplate.SubClass = dbcitem->SubclassID;
+                LOG_ERROR("sql.sql", "Item (Entry: {}) has wrong Subclass value ({}) for class {}, must be ({}).", entry, itemTemplate.SubClass, itemTemplate.Class, dbcitem->SubClass);
+                itemTemplate.SubClass = dbcitem->SubClass;
             }
-            if (itemTemplate.SoundOverrideSubclass != dbcitem->SoundOverrideSubclassID)
+            if (itemTemplate.SoundOverrideSubclass != dbcitem->SoundOverrideSubclass)
             {
-                LOG_ERROR("sql.sql", "Item (Entry: {}) does not have a correct SoundOverrideSubclass ({}), must be {}.", entry, itemTemplate.SoundOverrideSubclass, dbcitem->SoundOverrideSubclassID);
-                itemTemplate.SoundOverrideSubclass = dbcitem->SoundOverrideSubclassID;
+                LOG_ERROR("sql.sql", "Item (Entry: {}) does not have a correct SoundOverrideSubclass ({}), must be {}.", entry, itemTemplate.SoundOverrideSubclass, dbcitem->SoundOverrideSubclass);
+                itemTemplate.SoundOverrideSubclass = dbcitem->SoundOverrideSubclass;
             }
             if (itemTemplate.Material != dbcitem->Material)
             {
@@ -3607,10 +3607,10 @@ void ObjectMgr::LoadItemTemplates()
                 LOG_ERROR("sql.sql", "Item (Entry: {}) does not have a correct display id ({}), must be {}.", entry, itemTemplate.DisplayInfoID, dbcitem->DisplayInfoID);
                 itemTemplate.DisplayInfoID = dbcitem->DisplayInfoID;
             }
-            if (itemTemplate.Sheath != dbcitem->SheatheType)
+            if (itemTemplate.Sheath != dbcitem->Sheath)
             {
-                LOG_ERROR("sql.sql", "Item (Entry: {}) has wrong Sheath ({}), must be {}.", entry, itemTemplate.Sheath, dbcitem->SheatheType);
-                itemTemplate.Sheath = dbcitem->SheatheType;
+                LOG_ERROR("sql.sql", "Item (Entry: {}) has wrong Sheath ({}), must be {}.", entry, itemTemplate.Sheath, dbcitem->Sheath);
+                itemTemplate.Sheath = dbcitem->Sheath;
             }
         }
 
@@ -3623,7 +3623,7 @@ void ObjectMgr::LoadItemTemplates()
         if (itemTemplate.HasFlag2(ITEM_FLAG2_FACTION_HORDE))
         {
             if (FactionEntry const* faction = sFactionStore.LookupEntry(HORDE))
-                if ((itemTemplate.AllowableRace & faction->BaseRepRaceMask[0]) == 0)
+                if ((itemTemplate.AllowableRace & faction->ReputationRaceMask[0]) == 0)
                     LOG_ERROR("sql.sql", "Item (Entry: {}) has value ({}) in `AllowableRace` races, not compatible with ITEM_FLAG2_FACTION_HORDE ({}) in Flags field, item cannot be equipped or used by these races.",
                                      entry, itemTemplate.AllowableRace, ITEM_FLAG2_FACTION_HORDE);
 
@@ -3634,7 +3634,7 @@ void ObjectMgr::LoadItemTemplates()
         else if (itemTemplate.HasFlag2(ITEM_FLAG2_FACTION_ALLIANCE))
         {
             if (FactionEntry const* faction = sFactionStore.LookupEntry(ALLIANCE))
-                if ((itemTemplate.AllowableRace & faction->BaseRepRaceMask[0]) == 0)
+                if ((itemTemplate.AllowableRace & faction->ReputationRaceMask[0]) == 0)
                     LOG_ERROR("sql.sql", "Item (Entry: {}) has value ({}) in `AllowableRace` races, not compatible with ITEM_FLAG2_FACTION_ALLIANCE ({}) in Flags field, item cannot be equipped or used by these races.",
                                      entry, itemTemplate.AllowableRace, ITEM_FLAG2_FACTION_ALLIANCE);
         }
@@ -3996,10 +3996,10 @@ void ObjectMgr::LoadItemTemplates()
 
         for (int j = 0; j < MAX_OUTFIT_ITEMS; ++j)
         {
-            if (entry->ItemId[j] <= 0)
+            if (entry->ItemID[j] <= 0)
                 continue;
 
-            uint32 item_id = entry->ItemId[j];
+            uint32 item_id = entry->ItemID[j];
 
             if (!GetItemTemplate(item_id))
                 notFoundOutfit.insert(item_id);
@@ -4062,8 +4062,8 @@ void ObjectMgr::LoadItemSetNames()
             continue;
 
         for (uint32 i = 0; i < MAX_ITEM_SET_ITEMS; ++i)
-            if (setEntry->itemId[i])
-                itemSetItems.insert(setEntry->itemId[i]);
+            if (setEntry->ItemID[i])
+                itemSetItems.insert(setEntry->ItemID[i]);
     }
 
     //                                                  0        1            2
@@ -4410,10 +4410,10 @@ void ObjectMgr::PlayerCreateInfoAddItemHelper(uint32 race_, uint32 class_, uint3
                 bool found = false;
                 for (uint8 x = 0; x < MAX_OUTFIT_ITEMS; ++x)
                 {
-                    if (entry->ItemId[x] > 0 && uint32(entry->ItemId[x]) == itemId)
+                    if (entry->ItemID[x] > 0 && uint32(entry->ItemID[x]) == itemId)
                     {
                         found = true;
-                        const_cast<CharStartOutfitEntry*>(entry)->ItemId[x] = 0;
+                        const_cast<CharStartOutfitEntry*>(entry)->ItemID[x] = 0;
                         break;
                     }
                 }
@@ -4509,8 +4509,8 @@ void ObjectMgr::LoadPlayerInfo()
                 info->positionY = positionY;
                 info->positionZ = positionZ;
                 info->orientation = orientation;
-                info->displayId_m = rEntry->model_m;
-                info->displayId_f = rEntry->model_f;
+                info->displayId_m = rEntry->MaleDisplayID;
+                info->displayId_f = rEntry->FemaleDisplayID;
                 _playerInfo[current_race][current_class] = info;
 
                 ++count;
@@ -6346,11 +6346,11 @@ void ObjectMgr::LoadEventScripts()
         {
             TaxiPathNodeEntry const* node = sTaxiPathNodesByPath[path_idx][node_idx];
 
-            if (node->arrivalEventID)
-                evt_scripts.insert(node->arrivalEventID);
+            if (node->ArrivalEventID)
+                evt_scripts.insert(node->ArrivalEventID);
 
-            if (node->departureEventID)
-                evt_scripts.insert(node->departureEventID);
+            if (node->DepartureEventID)
+                evt_scripts.insert(node->DepartureEventID);
         }
     }
 
@@ -6687,7 +6687,7 @@ void ObjectMgr::LoadInstanceEncounters()
 
         if (lastEncounterDungeon && !sLFGMgr->GetLFGDungeonEntry(lastEncounterDungeon))
         {
-            LOG_ERROR("sql.sql", "Table `instance_encounters` has an encounter {} ({}) marked as final for invalid dungeon id {}, skipped!", entry, dungeonEncounter->encounterName[0], lastEncounterDungeon);
+            LOG_ERROR("sql.sql", "Table `instance_encounters` has an encounter {} ({}) marked as final for invalid dungeon id {}, skipped!", entry, dungeonEncounter->Name_lang, lastEncounterDungeon);
             continue;
         }
 
@@ -6696,7 +6696,7 @@ void ObjectMgr::LoadInstanceEncounters()
         {
             if (itr != dungeonLastBosses.end())
             {
-                LOG_ERROR("sql.sql", "Table `instance_encounters` specified encounter {} ({}) as last encounter but {} ({}) is already marked as one, skipped!", entry, dungeonEncounter->encounterName[0], itr->second->id, itr->second->encounterName[0]);
+                LOG_ERROR("sql.sql", "Table `instance_encounters` specified encounter {} ({}) as last encounter but {} ({}) is already marked as one, skipped!", entry, dungeonEncounter->Name_lang, itr->second->ID, itr->second->Name_lang);
                 continue;
             }
 
@@ -6710,7 +6710,7 @@ void ObjectMgr::LoadInstanceEncounters()
                     CreatureTemplate const* creatureInfo = GetCreatureTemplate(creditEntry);
                     if (!creatureInfo)
                     {
-                        LOG_ERROR("sql.sql", "Table `instance_encounters` has an invalid creature (entry {}) linked to the encounter {} ({}), skipped!", creditEntry, entry, dungeonEncounter->encounterName[0]);
+                        LOG_ERROR("sql.sql", "Table `instance_encounters` has an invalid creature (entry {}) linked to the encounter {} ({}), skipped!", creditEntry, entry, dungeonEncounter->Name_lang);
                         continue;
                     }
                     const_cast<CreatureTemplate*>(creatureInfo)->flags_extra |= CREATURE_FLAG_EXTRA_DUNGEON_BOSS;
@@ -6721,25 +6721,25 @@ void ObjectMgr::LoadInstanceEncounters()
                     SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(creditEntry);
                     if (!spellInfo)
                     {
-                        LOG_ERROR("sql.sql", "Table `instance_encounters` has an invalid spell (entry {}) linked to the encounter {} ({}), skipped!", creditEntry, entry, dungeonEncounter->encounterName[0]);
+                        LOG_ERROR("sql.sql", "Table `instance_encounters` has an invalid spell (entry {}) linked to the encounter {} ({}), skipped!", creditEntry, entry, dungeonEncounter->Name_lang);
                         continue;
                     }
                     const_cast<SpellInfo*>(spellInfo)->AttributesCu |= SPELL_ATTR0_CU_ENCOUNTER_REWARD;
                     break;
                 }
             default:
-                LOG_ERROR("sql.sql", "Table `instance_encounters` has an invalid credit type ({}) for encounter {} ({}), skipped!", creditType, entry, dungeonEncounter->encounterName[0]);
+                LOG_ERROR("sql.sql", "Table `instance_encounters` has an invalid credit type ({}) for encounter {} ({}), skipped!", creditType, entry, dungeonEncounter->Name_lang);
                 continue;
         }
 
         // 5.4.8: Difficulty.dbc id, -1 for every difficulty of the map
-        if (int32(dungeonEncounter->difficulty) < 0)
+        if (int32(dungeonEncounter->DifficultyID) < 0)
         {
             for (uint8 difficulty = 0; difficulty < MAX_DIFFICULTY; ++difficulty)
-                _dungeonEncounterStore[MAKE_PAIR32(dungeonEncounter->mapId, difficulty)].push_back(new DungeonEncounter(dungeonEncounter, EncounterCreditType(creditType), creditEntry, lastEncounterDungeon));
+                _dungeonEncounterStore[MAKE_PAIR32(dungeonEncounter->MapID, difficulty)].push_back(new DungeonEncounter(dungeonEncounter, EncounterCreditType(creditType), creditEntry, lastEncounterDungeon));
         }
         else
-            _dungeonEncounterStore[MAKE_PAIR32(dungeonEncounter->mapId, GetDifficultyFromDbc(dungeonEncounter->difficulty))].push_back(new DungeonEncounter(dungeonEncounter, EncounterCreditType(creditType), creditEntry, lastEncounterDungeon));
+            _dungeonEncounterStore[MAKE_PAIR32(dungeonEncounter->MapID, dungeonEncounter->DifficultyID)].push_back(new DungeonEncounter(dungeonEncounter, EncounterCreditType(creditType), creditEntry, lastEncounterDungeon));
         ++count;
     } while (result->NextRow());
 
@@ -7209,7 +7209,7 @@ uint32 ObjectMgr::GetNearestTaxiNode(float x, float y, float z, uint32 mapid, ui
     {
         TaxiNodesEntry const* node = sTaxiNodesStore.LookupEntry(i);
 
-        if (!node || node->map_id != mapid || (!node->MountCreatureID[teamId == TEAM_ALLIANCE ? 1 : 0] && node->MountCreatureID[0] != 32981)) // dk flight
+        if (!node || node->MapID != mapid || (!node->MountCreatureID[teamId == TEAM_ALLIANCE ? 1 : 0] && node->MountCreatureID[0] != 32981)) // dk flight
             continue;
 
         uint8  field   = (uint8)((i - 1) / 32);
@@ -7221,7 +7221,7 @@ uint32 ObjectMgr::GetNearestTaxiNode(float x, float y, float z, uint32 mapid, ui
             continue;
         }
 
-        float dist2 = (node->x - x) * (node->x - x) + (node->y - y) * (node->y - y) + (node->z - z) * (node->z - z);
+        float dist2 = (node->Pos.X - x) * (node->Pos.X - x) + (node->Pos.Y - y) * (node->Pos.Y - y) + (node->Pos.Z - z) * (node->Pos.Z - z);
         if (found)
         {
             if (dist2 < dist)
@@ -7701,7 +7701,7 @@ AreaTriggerTeleport const* ObjectMgr::GetGoBackTrigger(uint32 Map) const
     bool useParentDbValue = false;
     uint32 parentId = 0;
     MapEntry const* mapEntry = sMapStore.LookupEntry(Map);
-    if (!mapEntry || mapEntry->entrance_map < 0)
+    if (!mapEntry || mapEntry->CorpseMapID < 0)
         return nullptr;
 
     if (mapEntry->IsDungeon())
@@ -7715,7 +7715,7 @@ AreaTriggerTeleport const* ObjectMgr::GetGoBackTrigger(uint32 Map) const
         useParentDbValue = true;
     }
 
-    uint32 entrance_map = uint32(mapEntry->entrance_map);
+    uint32 entrance_map = uint32(mapEntry->CorpseMapID);
     for (AreaTriggerTeleportContainer::const_iterator itr = _areaTriggerTeleportStore.begin(); itr != _areaTriggerTeleportStore.end(); ++itr)
         if ((!useParentDbValue && itr->second.target_mapId == entrance_map) || (useParentDbValue && itr->second.target_mapId == parentId))
         {
@@ -8565,7 +8565,7 @@ void ObjectMgr::LoadReputationSpilloverTemplate()
             continue;
         }
 
-        if (factionEntry->team == 0)
+        if (factionEntry->ParentFactionID == 0)
         {
             LOG_ERROR("sql.sql", "Faction (faction.dbc) {} in `reputation_spillover_template` does not belong to any team, skipping", factionId);
             continue;
@@ -8583,7 +8583,7 @@ void ObjectMgr::LoadReputationSpilloverTemplate()
                     continue;
                 }
 
-                if (factionSpillover->reputationListID < 0)
+                if (factionSpillover->ReputationIndex < 0)
                 {
                     LOG_ERROR("sql.sql", "Spillover faction (faction.dbc) {} for faction {} in `reputation_spillover_template` can not be listed for client, and then useless, skipping", repTemplate.faction[i], factionId);
                     continue;
@@ -9184,7 +9184,7 @@ void ObjectMgr::LoadReservedPlayerNamesDBC()
     {
         std::wstring wstr;
 
-        Utf8toWStr(reservedStore->Pattern, wstr);
+        Utf8toWStr(reservedStore->Name, wstr);
 
         // DBC does not have clean entries, remove the junk.
         boost::algorithm::replace_all(wstr, "\\<", "");
@@ -9287,7 +9287,7 @@ void ObjectMgr::LoadProfanityNamesFromDBC()
     {
         std::wstring wstr;
 
-        Utf8toWStr(profanityStore->Pattern, wstr);
+        Utf8toWStr(profanityStore->Name, wstr);
 
         // DBC does not have clean entries, remove the junk.
         boost::algorithm::replace_all(wstr, "\\<", "");
@@ -9927,11 +9927,11 @@ int32 ObjectMgr::GetBaseReputationOf(FactionEntry const* factionEntry, uint8 rac
 
     for (int i = 0; i < 4; i++)
     {
-        if ((!factionEntry->BaseRepClassMask[i] ||
-                factionEntry->BaseRepClassMask[i] & classMask) &&
-                (!factionEntry->BaseRepRaceMask[i] ||
-                 factionEntry->BaseRepRaceMask[i] & raceMask))
-            return factionEntry->BaseRepValue[i];
+        if ((!factionEntry->ReputationClassMask[i] ||
+                factionEntry->ReputationClassMask[i] & classMask) &&
+                (!factionEntry->ReputationRaceMask[i] ||
+                 factionEntry->ReputationRaceMask[i] & raceMask))
+            return factionEntry->ReputationBase[i];
     }
 
     return 0;
@@ -9955,7 +9955,7 @@ SkillRangeType GetSkillRangeType(SkillRaceClassInfoEntry const* rcEntry)
         return SKILL_RANGE_MONO;
     }
 
-    switch (skill->categoryId)
+    switch (skill->CategoryID)
     {
         case SKILL_CATEGORY_ARMOR:
             return SKILL_RANGE_MONO;

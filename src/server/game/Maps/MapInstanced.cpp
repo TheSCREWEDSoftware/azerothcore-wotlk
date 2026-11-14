@@ -238,16 +238,8 @@ BattlegroundMap* MapInstanced::CreateBattleground(uint32 InstanceId, Battlegroun
 
     LOG_DEBUG("maps", "MapInstanced::CreateBattleground: map bg {} for {} created.", InstanceId, GetId());
 
-    PvPDifficultyEntry const* bracketEntry = GetBattlegroundBracketByLevel(bg->GetMapId(), bg->GetMinLevel());
-
-    uint8 spawnMode;
-
-    if (bracketEntry)
-        spawnMode = GetDifficultyFromDbc(bracketEntry->difficulty);
-    else
-        spawnMode = DIFFICULTY_NONE;
-
-    BattlegroundMap* map = new BattlegroundMap(GetId(), InstanceId, this, spawnMode);
+    // 6.x battlegrounds and arenas always use the default difficulty (PvPDifficulty.dbc has no difficulty column)
+    BattlegroundMap* map = new BattlegroundMap(GetId(), InstanceId, this, DIFFICULTY_NONE);
     ASSERT(map->IsBattlegroundOrArena());
     m_InstancedMaps[InstanceId] = map;
 

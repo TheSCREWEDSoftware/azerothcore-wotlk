@@ -688,8 +688,8 @@ void WorldSession::HandleSellItemOpcode(WorldPackets::Item::SellItem& packet)
                             return;
                         }
 
-                        uint32 dmultiplier = dcost->multiplier[ItemSubClassToDurabilityMultiplierId(pProto->Class, pProto->SubClass)];
-                        uint32 refund = uint32(std::ceil(LostDurability * dmultiplier * double(dQualitymodEntry->quality_mod)));
+                        uint32 dmultiplier = GetDurabilityCostMultiplier(dcost, pProto->Class, pProto->SubClass);
+                        uint32 refund = uint32(std::ceil(LostDurability * dmultiplier * double(dQualitymodEntry->QualityMod) * pItem->GetRepairCostMultiplier()));
 
                         if (!refund)
                             refund = 1;
@@ -1578,7 +1578,7 @@ void WorldSession::HandleSocketOpcode(WorldPackets::Item::SocketGems& packet)
                 {
                     if (SpellItemEnchantmentEntry const* enchantEntry = sSpellItemEnchantmentStore.LookupEntry(OldEnchants[j]))
                     {
-                        if (iGemProto->ItemId == enchantEntry->GemID)
+                        if (iGemProto->ItemId == enchantEntry->SRCItemID)
                         {
                             _player->SendEquipError(EQUIP_ERR_ITEM_UNIQUE_EQUIPPABLE_SOCKETED, itemTarget, nullptr);
                             return;
@@ -1607,7 +1607,7 @@ void WorldSession::HandleSocketOpcode(WorldPackets::Item::SocketGems& packet)
                     {
                         // existing gem
                         if (SpellItemEnchantmentEntry const* enchantEntry = sSpellItemEnchantmentStore.LookupEntry(OldEnchants[j]))
-                            if (ItemTemplate const* jProto = sObjectMgr->GetItemTemplate(enchantEntry->GemID))
+                            if (ItemTemplate const* jProto = sObjectMgr->GetItemTemplate(enchantEntry->SRCItemID))
                                 if (iGemProto->ItemLimitCategory == jProto->ItemLimitCategory)
                                     ++limit_newcount;
                     }

@@ -1085,10 +1085,10 @@ void World::SetInitialWorldSettings()
             if (mapEntry && !mapEntry->Instanceable())
             {
                 if (sMapMgr->GetMapUpdater()->activated())
-                    sMapMgr->GetMapUpdater()->schedule_map_preload(mapEntry->MapID);
+                    sMapMgr->GetMapUpdater()->schedule_map_preload(mapEntry->ID);
                 else
                 {
-                    Map* map = sMapMgr->CreateBaseMap(mapEntry->MapID);
+                    Map* map = sMapMgr->CreateBaseMap(mapEntry->ID);
 
                     if (map)
                     {
@@ -1147,7 +1147,7 @@ void World::DetectDBCLang()
     uint8 default_locale = TOTAL_LOCALES;
     for (uint8 i = default_locale - 1; i < TOTAL_LOCALES; --i) // -1 will be 255 due to uint8
     {
-        if (IsLocaleRegistered(LocaleConstant(i)) && race->name[i][0] != '\0') // check by race names
+        if (IsLocaleRegistered(LocaleConstant(i)) && race->Name_lang[0] != '\0') // check by race names
         {
             default_locale = i;
             _availableDbcLocaleMask |= (1 << i);
@@ -1222,7 +1222,18 @@ void World::Update(uint32 diff)
     {
         METRIC_TIMER("world_update_time", METRIC_TAG("type", "Update black market"));
         _timers[WUPDATE_BLACK_MARKET].Reset();
-        sBlackMarketMgr->Update();
+
+        // refresh the auctions every BlackMarket.UpdatePeriod hours (and on startup), otherwise update them
+        if (!_blackMarketTimer || _blackMarketTimer * _timers[WUPDATE_BLACK_MARKET].GetInterval() >= getIntConfig(CONFIG_BLACK_MARKET_UPDATE_PERIOD) * HOUR * IN_MILLISECONDS)
+        {
+            sBlackMarketMgr->RefreshAuctions();
+            _blackMarketTimer = 1;
+        }
+        else
+        {
+            ++_blackMarketTimer;
+            sBlackMarketMgr->Update();
+        }
     }
 
     {

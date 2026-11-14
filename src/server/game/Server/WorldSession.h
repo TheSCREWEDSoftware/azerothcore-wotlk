@@ -39,6 +39,7 @@
 #include <memory>
 #include <utility>
 
+class BlackMarketEntry;
 class CollectionMgr;
 class Creature;
 struct SpellCastRequest;
@@ -59,6 +60,7 @@ class WorldSocket;
 class AsynchPetSummon;
 struct AreaTableEntry;
 struct AuctionEntry;
+struct BlackMarketTemplate;
 struct DeclinedName;
 struct ItemTemplate;
 struct MovementInfo;
@@ -339,6 +341,18 @@ namespace WorldPackets
         class InstanceInfo;
         class InstanceLockResponse;
         class ResetInstances;
+    }
+
+    namespace LFG
+    {
+        class DFBootPlayerVote;
+        class DFGetJoinStatus;
+        class DFGetSystemInfo;
+        class DFJoin;
+        class DFLeave;
+        class DFProposalResponse;
+        class DFSetRoles;
+        class DFTeleport;
     }
 
     namespace Item
@@ -1569,17 +1583,14 @@ public:                                                 // opcodes handlers
     void HandleWhoIsOpcode(WorldPackets::Who::WhoIsRequest& packet);
     void HandleResetInstancesOpcode(WorldPackets::Instance::ResetInstances& packet);
     void HandleInstanceLockResponse(WorldPackets::Instance::InstanceLockResponse& packet);
-    void HandleLfgSetCommentOpcode(WorldPacket& recvData);
-    void HandleDFGetSystemInfo(WorldPacket& recvData);
-    void HandleLfgJoinOpcode(WorldPacket& recvData);
-    void HandleLfgLeaveOpcode(WorldPacket& recvData);
-    void HandleLfgSetRolesOpcode(WorldPacket& recvData);
-    void HandleLfgProposalResultOpcode(WorldPacket& recvData);
-    void HandleLfgSetBootVoteOpcode(WorldPacket& recvData);
-    void HandleLfgTeleportOpcode(WorldPacket& recvData);
-    void HandleLfrJoinOpcode(WorldPacket& recvData);
-    void HandleLfrLeaveOpcode(WorldPacket& recvData);
-    void HandleDFGetJoinStatus(WorldPacket& recvData);
+    void HandleDFGetSystemInfo(WorldPackets::LFG::DFGetSystemInfo& packet);
+    void HandleLfgJoinOpcode(WorldPackets::LFG::DFJoin& packet);
+    void HandleLfgLeaveOpcode(WorldPackets::LFG::DFLeave& packet);
+    void HandleLfgSetRolesOpcode(WorldPackets::LFG::DFSetRoles& packet);
+    void HandleLfgProposalResultOpcode(WorldPackets::LFG::DFProposalResponse& packet);
+    void HandleLfgSetBootVoteOpcode(WorldPackets::LFG::DFBootPlayerVote& packet);
+    void HandleLfgTeleportOpcode(WorldPackets::LFG::DFTeleport& packet);
+    void HandleDFGetJoinStatus(WorldPackets::LFG::DFGetJoinStatus& packet);
     void HandleSelfResOpcode(WorldPackets::Spells::SelfRes& packet);
     void HandleRequestPetInfo(WorldPackets::Pet::RequestPetInfo& packet);
     void HandleSocketGems(WorldPackets::Item::SocketGems& socketGems);
@@ -1662,7 +1673,6 @@ public:                                                 // opcodes handlers
     void HandleBattlenetRequestRealmListTicket(WorldPackets::Battlenet::RequestRealmListTicket& requestRealmListTicket);
     void Handle_Deprecated(WorldPacket& recvPacket);    // never used anymore by client
 
-
     void HandleCharEnum(PreparedQueryResult result);
     void HandlePlayerLoginFromDB(LoginQueryHolder const& holder);
     void HandlePlayerLoginToCharInWorld(Player* pCurrChar);
@@ -1687,13 +1697,11 @@ public:                                                 // opcodes handlers
 
     // new party stats
 
-
     // character view
 
     // repair
 
     // Knockback
-
 
     void AutoStoreLootItem(uint8 lootSlot);
     void HandleContinuePlayerLogin();
@@ -1701,29 +1709,14 @@ public:                                                 // opcodes handlers
 
     // GM Ticket opcodes
 
-
     void HandleSupportTicketSubmitComplaintOpcode(WorldPacket& recvData);
 
-
-
-
-
-
-
-
-
     void HandleMoveWorldportAck(); // for server-side calls
-
-
-
 
     void AcceptPartyInvite();
     void DeclinePartyInvite();
     // addon messages only go to clients that registered the prefix, unless they registered too many
     [[nodiscard]] bool IsAddonRegistered(std::string const& prefix) const;
-
-
-
 
     void SendActivateTaxiReply(ActivateTaxiReply reply);
 
@@ -1734,11 +1727,7 @@ public:                                                 // opcodes handlers
     void HandleDuelAccepted(ObjectGuid guid);
     void HandleDuelCancelled();
 
-
-
     // Bank
-
-
 
     // Cata Reforging
     void SendReforgeResult(bool success);
@@ -1748,31 +1737,19 @@ public:                                                 // opcodes handlers
     // Cata Void Storage
     void SendVoidStorageTransferResult(VoidTransferError result);
 
-
-
-
-
-
     void SendPlayerNotFoundNotice(std::string const& name);
     void SendPlayerAmbiguousNotice(std::string const& name);
     void SendWrongFactionNotice();
     void SendChatRestrictedNotice(ChatRestrictionType restriction);
-
-
-
-
 
     void HandleTutorialFlag (WorldPacket& recvData);
 
     //Pet
     void HandlePetActionHelper(Unit* pet, ObjectGuid guid1, uint32 spellid, uint16 flag, ObjectGuid guid2);
 
-
     void HandleCharRenameCallBack(std::shared_ptr<CharacterRenameInfo> renameInfo, PreparedQueryResult result);
 
-
     //Battleground
-
 
     // Battlefield
     void SendBfInvitePlayerToWar(uint32 battleId, uint32 zoneId, uint32 time);
@@ -1790,7 +1767,6 @@ public:                                                 // opcodes handlers
     void SendLfgUpdateStatus(lfg::LfgUpdateData const& updateData, bool party);
     void SendLfgRoleChosen(ObjectGuid guid, uint8 roles);
     void SendLfgRoleCheckUpdate(lfg::LfgRoleCheck const& pRoleCheck);
-    void SendLfgLfrList(bool update);
     void SendLfgJoinResult(lfg::LfgJoinResultData const& joinData);
     void SendLfgQueueStatus(lfg::LfgQueueStatusData const& queueData);
     void SendLfgPlayerReward(lfg::LfgPlayerRewardData const& lfgPlayerRewardData);
@@ -1802,22 +1778,19 @@ public:                                                 // opcodes handlers
 
     // Arena Team
 
-
     // Socket gem
 
-
-
-
     // Guild Bank
-
 
     // Refer-a-Friend
 
     // Calendar
 
     // Black Market
-    void SendBlackMarketHello(ObjectGuid npcGuid);
-    void SendBlackMarketItemsResult();
+    void SendBlackMarketOpenResult(ObjectGuid guid, Creature* auctioneer);
+    void SendBlackMarketBidOnItemResult(int32 result, int32 marketId, WorldPackets::Item::ItemInstance& item);
+    void SendBlackMarketWonNotification(BlackMarketEntry const* entry, Item const* item);
+    void SendBlackMarketOutbidNotification(BlackMarketTemplate const* templ);
 
     void SendCalendarRaidLockout(InstanceSave const* save, bool add);
     void SendCalendarRaidLockoutUpdated(InstanceSave const* save, bool isExtended);

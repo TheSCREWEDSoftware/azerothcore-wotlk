@@ -612,10 +612,10 @@ public:
                     me->SetStandState(UNIT_STAND_STATE_STAND);
                     break;
                 case EVENT_DRESSING_AXE:
-                    me->SetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID, THRALL_WEAPON_ITEM);
+                    me->SetVirtualItem(0, THRALL_WEAPON_ITEM);
                     break;
                 case EVENT_DRESSING_SHIELD:
-                    me->SetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID + 1, THRALL_SHIELD_ITEM);
+                    me->SetVirtualItem(1, THRALL_SHIELD_ITEM);
                     break;
                 case EVENT_DRESSING_TALK:
                     instance->SetData(DATA_ESCORT_PROGRESS, ENCOUNTER_PROGRESS_THRALL_ARMORED);
@@ -933,15 +933,15 @@ public:
 
             if (data < ENCOUNTER_PROGRESS_THRALL_ARMORED)
             {
-                me->SetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID, 0);
-                me->SetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID + 1, 0);
+                me->SetVirtualItem(0, 0);
+                me->SetVirtualItem(1, 0);
                 me->SetDisplayId(THRALL_MODEL_UNEQUIPPED);
             }
             else
             {
                 me->SetDisplayId(THRALL_MODEL_EQUIPPED);
-                me->SetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID, THRALL_WEAPON_ITEM);
-                me->SetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID + 1, THRALL_SHIELD_ITEM);
+                me->SetVirtualItem(0, THRALL_WEAPON_ITEM);
+                me->SetVirtualItem(1, THRALL_SHIELD_ITEM);
             }
 
             switch (data)

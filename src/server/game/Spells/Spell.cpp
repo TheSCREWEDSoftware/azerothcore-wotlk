@@ -5474,16 +5474,16 @@ void Spell::WriteAmmoToPacket(WorldPacket* data)
         uint32 nonRangedAmmoInventoryType = 0;
         for (uint8 i = 0; i < 3; ++i)
         {
-            if (uint32 item_id = unitCaster->GetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID + i))
+            if (uint32 item_id = unitCaster->GetVirtualItemId(i))
             {
                 if (ItemEntry const* itemEntry = sItemStore.LookupEntry(item_id))
                 {
-                    if (itemEntry->ClassID == ITEM_CLASS_WEAPON)
+                    if (itemEntry->Class == ITEM_CLASS_WEAPON)
                     {
-                        switch (itemEntry->SubclassID)
+                        switch (itemEntry->SubClass)
                         {
                             case ITEM_SUBCLASS_WEAPON_THROWN:
-                                ammoDisplayID = itemEntry->DisplayInfoID;
+                                ammoDisplayID = sDB2Manager.GetItemDisplayId(item_id, unitCaster->GetVirtualItemAppearanceMod(i));
                                 ammoInventoryType = itemEntry->InventoryType;
                                 break;
                             case ITEM_SUBCLASS_WEAPON_BOW:
@@ -5496,7 +5496,7 @@ void Spell::WriteAmmoToPacket(WorldPacket* data)
                                 ammoInventoryType = INVTYPE_AMMO;
                                 break;
                             default:
-                                nonRangedAmmoDisplayID = itemEntry->DisplayInfoID;
+                                nonRangedAmmoDisplayID = sDB2Manager.GetItemDisplayId(item_id, unitCaster->GetVirtualItemAppearanceMod(i));
                                 nonRangedAmmoInventoryType = itemEntry->InventoryType;
                                 break;
                         }
@@ -6506,7 +6506,7 @@ SpellCastResult Spell::CheckCast(bool strict, uint32* /*param1*/, uint32* /*para
             if (effInfo->ApplyAuraName == SPELL_AURA_MOD_SHAPESHIFT)
             {
                 SpellShapeshiftFormEntry const* shapeShiftEntry = sSpellShapeshiftFormStore.LookupEntry(effInfo->MiscValue);
-                if (shapeShiftEntry && (shapeShiftEntry->flags1 & SHAPESHIFT_FLAG_STANCE) == 0)
+                if (shapeShiftEntry && (shapeShiftEntry->Flags & SHAPESHIFT_FLAG_STANCE) == 0)
                     checkMask |= VEHICLE_SEAT_FLAG_UNCONTROLLED;
                 break;
             }
@@ -6521,7 +6521,7 @@ SpellCastResult Spell::CheckCast(bool strict, uint32* /*param1*/, uint32* /*para
         // All creatures should be able to cast as passengers freely, restriction and attribute are only for players
         VehicleSeatEntry const* vehicleSeat = vehicle->GetSeatForPassenger(unitCaster);
         if (!m_spellInfo->HasAttribute(SPELL_ATTR6_ALLOW_WHILE_RIDING_VEHICLE) && !m_spellInfo->HasAttribute(SPELL_ATTR0_ALLOW_WHILE_MOUNTED)
-                && (vehicleSeat->m_flags & checkMask) != checkMask && unitCaster->IsPlayer())
+                && (vehicleSeat->Flags & checkMask) != checkMask && unitCaster->IsPlayer())
             return SPELL_FAILED_DONT_REPORT;
     }
 
@@ -6856,7 +6856,7 @@ SpellCastResult Spell::CheckCast(bool strict, uint32* /*param1*/, uint32* /*para
                 {
                     uint32 glyphId = m_spellInfo->Effects[i].MiscValue;
                     if (GlyphPropertiesEntry const* gp = sGlyphPropertiesStore.LookupEntry(glyphId))
-                        if (unitCaster && unitCaster->HasAura(gp->SpellId))
+                        if (unitCaster && unitCaster->HasAura(gp->SpellID))
                             return SPELL_FAILED_UNIQUE_GLYPH;
                     break;
                 }
@@ -7476,7 +7476,7 @@ SpellCastResult Spell::CheckCast(bool strict, uint32* /*param1*/, uint32* /*para
                     {
                         Battlefield* Bf = sBattlefieldMgr->GetBattlefieldToZoneId(m_originalCaster->GetZoneId());
                         if (AreaTableEntry const* pArea = sAreaTableStore.LookupEntry(m_originalCaster->GetAreaId()))
-                            if ((pArea->flags & AREA_FLAG_NO_FLY_ZONE) || (Bf && !Bf->CanFlyIn()))
+                            if ((pArea->Flags[0] & AREA_FLAG_NO_FLY_ZONE) || (Bf && !Bf->CanFlyIn()))
                                 return SPELL_FAILED_NOT_HERE;
                     }
                     break;
@@ -8282,9 +8282,9 @@ SpellCastResult Spell::CheckItems(uint32* param1, uint32* param2)
                     // do not allow adding usable enchantments to items that have use effect already
                     if (enchantEntry)
                     {
-                        for (uint8 s = 0; s < MAX_SPELL_ITEM_ENCHANTMENT_EFFECTS; ++s)
+                        for (uint8 s = 0; s < MAX_ITEM_ENCHANTMENT_EFFECTS; ++s)
                         {
-                            switch (enchantEntry->type[s])
+                            switch (enchantEntry->Effect[s])
                             {
                                 case ITEM_ENCHANTMENT_TYPE_USE_SPELL:
                                     if (isItemUsable)
@@ -8310,7 +8310,7 @@ SpellCastResult Spell::CheckItems(uint32* param1, uint32* param2)
                     {
                         if (!enchantEntry)
                             return SPELL_FAILED_ERROR;
-                        if (enchantEntry->slot & ENCHANTMENT_CAN_SOULBOUND)
+                        if (enchantEntry->Flags & ENCHANTMENT_CAN_SOULBOUND)
                             return SPELL_FAILED_NOT_TRADEABLE;
                     }
                     break;
@@ -8327,7 +8327,7 @@ SpellCastResult Spell::CheckItems(uint32* param1, uint32* param2)
                         SpellItemEnchantmentEntry const* pEnchant = sSpellItemEnchantmentStore.LookupEntry(enchant_id);
                         if (!pEnchant)
                             return SPELL_FAILED_ERROR;
-                        if (pEnchant->slot & ENCHANTMENT_CAN_SOULBOUND)
+                        if (pEnchant->Flags & ENCHANTMENT_CAN_SOULBOUND)
                             return SPELL_FAILED_NOT_TRADEABLE;
                     }
 

@@ -123,7 +123,7 @@ void TransportMgr::GeneratePath(GameObjectTemplate const* goInfo, TransportTempl
     Movement::PointsArray splinePath, allPoints;
     bool mapChange = false;
     for (std::size_t i = 0; i < path.size(); ++i)
-        allPoints.push_back(G3D::Vector3(path[i]->x, path[i]->y, path[i]->z));
+        allPoints.push_back(G3D::Vector3(path[i]->Loc.X, path[i]->Loc.Y, path[i]->Loc.Z));
 
     // Add extra points to allow derivative calculations for all path nodes
     allPoints.insert(allPoints.begin(), allPoints.front().lerp(allPoints[1], -0.2f));
@@ -140,7 +140,7 @@ void TransportMgr::GeneratePath(GameObjectTemplate const* goInfo, TransportTempl
         if (!mapChange)
         {
             TaxiPathNodeEntry const* node_i = path[i];
-            if (i != path.size() - 1 && (node_i->actionFlag & 1 || node_i->mapid != path[i + 1]->mapid))
+            if (i != path.size() - 1 && (node_i->Flags & 1 || node_i->MapID != path[i + 1]->MapID))
             {
                 keyFrames.back().Teleport = true;
                 mapChange = true;
@@ -153,8 +153,8 @@ void TransportMgr::GeneratePath(GameObjectTemplate const* goInfo, TransportTempl
                 k.InitialOrientation = Position::NormalizeOrientation(std::atan2(h.y, h.x) + M_PI);
 
                 keyFrames.push_back(k);
-                splinePath.push_back(G3D::Vector3(node_i->x, node_i->y, node_i->z));
-                transport->mapsUsed.insert(k.Node->mapid);
+                splinePath.push_back(G3D::Vector3(node_i->Loc.X, node_i->Loc.Y, node_i->Loc.Z));
+                transport->mapsUsed.insert(k.Node->MapID);
             }
         }
         else
@@ -322,7 +322,7 @@ void TransportMgr::GeneratePath(GameObjectTemplate const* goInfo, TransportTempl
     float curPathTime = 0.0f;
     if (keyFrames[0].IsStopFrame())
     {
-        curPathTime = float(keyFrames[0].Node->delay);
+        curPathTime = float(keyFrames[0].Node->Delay);
         keyFrames[0].DepartureTime = uint32(curPathTime * IN_MILLISECONDS);
     }
 
@@ -333,7 +333,7 @@ void TransportMgr::GeneratePath(GameObjectTemplate const* goInfo, TransportTempl
         {
             keyFrames[i].ArriveTime = uint32(curPathTime * IN_MILLISECONDS);
             keyFrames[i - 1].NextArriveTime = keyFrames[i].ArriveTime;
-            curPathTime += float(keyFrames[i].Node->delay);
+            curPathTime += float(keyFrames[i].Node->Delay);
             keyFrames[i].DepartureTime = uint32(curPathTime * IN_MILLISECONDS);
         }
         else
@@ -385,10 +385,10 @@ MotionTransport* TransportMgr::CreateTransport(uint32 entry, ObjectGuid::LowType
 
     // ...at first waypoint
     TaxiPathNodeEntry const* startNode = tInfo->keyFrames.begin()->Node;
-    uint32 mapId = startNode->mapid;
-    float x = startNode->x;
-    float y = startNode->y;
-    float z = startNode->z;
+    uint32 mapId = startNode->MapID;
+    float x = startNode->Loc.X;
+    float y = startNode->Loc.Y;
+    float z = startNode->Loc.Z;
     float o = tInfo->keyFrames.begin()->InitialOrientation;
 
     // initialize the gameobject base
@@ -518,7 +518,7 @@ bool TransportAnimation::GetAnimNode(uint32 time, TransportAnimationEntry const*
             ASSERT(itr != Path.rbegin());
             --itr;
             next = itr->second;
-            percPos = float(time - curr->TimeSeg) / float(next->TimeSeg - curr->TimeSeg);
+            percPos = float(time - curr->TimeIndex) / float(next->TimeIndex - curr->TimeIndex);
             return true;
         }
 
@@ -538,13 +538,13 @@ void TransportAnimation::GetAnimRotation(uint32 time, G3D::Quat& curr, G3D::Quat
     for (TransportPathRotationContainer::const_reverse_iterator itr = Rotations.rbegin(); itr != Rotations.rend(); ++itr)
         if (time >= itr->first)
         {
-            uint32 currSeg = itr->second->TimeSeg, nextSeg;
+            uint32 currSeg = itr->second->TimeIndex, nextSeg;
             curr = G3D::Quat(itr->second->X, itr->second->Y, itr->second->Z, itr->second->W);
             if (itr != Rotations.rbegin())
             {
                 --itr;
                 next = G3D::Quat(itr->second->X, itr->second->Y, itr->second->Z, itr->second->W);
-                nextSeg = itr->second->TimeSeg;
+                nextSeg = itr->second->TimeIndex;
             }
             else
             {

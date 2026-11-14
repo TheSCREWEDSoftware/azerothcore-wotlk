@@ -435,11 +435,11 @@ public:
                     reflection->SetVisible(true);
 
                     Item* weapon = player->GetWeaponForAttack(BASE_ATTACK);
-                    reflection->SetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID, weapon ? weapon->GetEntry() : 0);
+                    reflection->SetVirtualItem(0, weapon ? weapon->GetEntry() : 0);
                     weapon = player->GetWeaponForAttack(OFF_ATTACK);
-                    reflection->SetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID + 1, weapon ? weapon->GetEntry() : 0);
+                    reflection->SetVirtualItem(1, weapon ? weapon->GetEntry() : 0);
                     weapon = player->GetWeaponForAttack(RANGED_ATTACK);
-                    reflection->SetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_ID + 2, weapon ? weapon->GetEntry() : 0);
+                    reflection->SetVirtualItem(2, weapon ? weapon->GetEntry() : 0);
                     player->CastSpell(reflection, SPELL_HOR_CLONE, true);
                     player->CastSpell(reflection, SPELL_HOR_CLONE_NAME, true);
                 });

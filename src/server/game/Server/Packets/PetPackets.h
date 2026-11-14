@@ -157,7 +157,6 @@ namespace WorldPackets
             std::vector<uint32> Spells;
         };
 
-
         struct PetRenameData
         {
             ObjectGuid PetGUID;

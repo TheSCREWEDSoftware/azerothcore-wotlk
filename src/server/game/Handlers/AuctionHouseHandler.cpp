@@ -76,7 +76,7 @@ void WorldSession::SendAuctionHello(ObjectGuid guid, Creature* unit)
     data.FlushBits();
 
     data.WriteGuidBytes(guid, { 3 });
-    data << uint32(ahEntry->houseId);
+    data << uint32(ahEntry->ID);
     data.WriteGuidBytes(guid, { 4, 2, 7, 1, 0, 6, 5 });
     SendPacket(&data);
 }

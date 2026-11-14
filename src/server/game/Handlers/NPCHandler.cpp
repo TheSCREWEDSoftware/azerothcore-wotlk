@@ -197,7 +197,7 @@ void WorldSession::HandleGossipHelloOpcode(WorldPacket& recvData)
     // The black market auctioneer opens the auction window instead of a gossip menu
     if (unit->HasNpcFlag(UNIT_NPC_FLAG_BLACK_MARKET))
     {
-        SendBlackMarketHello(guid);
+        SendBlackMarketOpenResult(guid, unit);
         return;
     }
 

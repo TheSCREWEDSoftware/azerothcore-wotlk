@@ -1066,15 +1066,17 @@ struct EntryPointData
 struct VoidStorageItem
 {
     VoidStorageItem() = default;
-    VoidStorageItem(uint64 id, uint32 entry, ObjectGuid const& creator, int32 randomPropertyId, uint32 suffixFactor)
+    VoidStorageItem(uint64 id, uint32 entry, ObjectGuid const& creator, int32 randomPropertyId, uint32 suffixFactor, uint32 upgradeId, std::vector<int32> bonuses)
         : ItemId(id), ItemEntry(entry), CreatorGuid(creator), ItemRandomPropertyId(randomPropertyId),
-        ItemSuffixFactor(suffixFactor) { }
+        ItemSuffixFactor(suffixFactor), ItemUpgradeId(upgradeId), BonusListIDs(std::move(bonuses)) { }
 
     uint64 ItemId = 0;
     uint32 ItemEntry = 0;
     ObjectGuid CreatorGuid;
     int32 ItemRandomPropertyId = 0;                         // < 0: ItemRandomSuffix.dbc, > 0: ItemRandomProperties.dbc
     uint32 ItemSuffixFactor = 0;
+    uint32 ItemUpgradeId = 0;                               // 6.x ItemUpgrade.db2 id
+    std::vector<int32> BonusListIDs;                        // 6.x ItemBonus.db2 bonus lists
 };
 
 struct TradeStatusInfo
@@ -1187,7 +1189,7 @@ public:
     void SendInstanceResetWarning(uint32 mapid, Difficulty difficulty, uint32 time, bool onEnterMap);
 
     bool CanInteractWithQuestGiver(Object* questGiver);
-    Creature* GetNPCIfCanInteractWith(ObjectGuid const& guid, uint32 npcflagmask);
+    Creature* GetNPCIfCanInteractWith(ObjectGuid const& guid, uint32 npcflagmask, uint32 npcflag2mask = UNIT_NPC_FLAG_2_NONE);
     [[nodiscard]] GameObject* GetGameObjectIfCanInteractWith(ObjectGuid const& guid, GameobjectTypes type) const;
 
     void ToggleAFK();
@@ -1373,7 +1375,7 @@ public:
     [[nodiscard]] InventoryResult CanUseAmmo(uint32 item) const;
     InventoryResult CanRollForItemInLFG(ItemTemplate const* item, WorldObject const* lootedObject) const;
     Item* StoreNewItem(ItemPosCountVec const& pos, uint32 item, bool update, int32 randomPropertyId = 0, bool refund = false);
-    Item* StoreNewItem(ItemPosCountVec const& pos, uint32 item, bool update, int32 randomPropertyId, AllowedLooterSet& allowedLooters, bool refund = false);
+    Item* StoreNewItem(ItemPosCountVec const& pos, uint32 item, bool update, int32 randomPropertyId, AllowedLooterSet& allowedLooters, bool refund = false, std::vector<int32> const& bonusListIDs = std::vector<int32>());
     Item* StoreItem(ItemPosCountVec const& pos, Item* pItem, bool update);
     Item* EquipNewItem(uint16 pos, uint32 item, bool update);
     Item* EquipItem(uint16 pos, Item* pItem, bool update);
@@ -2402,8 +2404,8 @@ public:
     void _RemoveAllItemMods();
     void _ApplyAllItemMods();
     void _ApplyAllLevelScaleItemMods(bool apply);
-    void _ApplyItemBonuses(ItemTemplate const* proto, uint8 slot, bool apply, bool only_level_scale = false);
-    void _ApplyWeaponDamage(uint8 slot, ItemTemplate const* proto, ScalingStatValuesEntry const* ssv, bool apply);
+    void _ApplyItemBonuses(Item* item, uint8 slot, bool apply);
+    void _ApplyWeaponDamage(uint8 slot, Item* item, bool apply);
     void _ApplyAmmoBonuses();
     bool EnchantmentFitsRequirements(uint32 enchantmentcondition, int8 slot);
     void ToggleMetaGemsActive(uint8 exceptslot, bool apply);
@@ -3199,7 +3201,6 @@ private:
     void RefundItem(Item* item);
 
     // know currencies are not removed at any point (0 displayed)
-    void AddKnownCurrency(uint32 itemId);
 
     void AdjustQuestReqItemCount(Quest const* quest, QuestStatusData& questStatusData);
 

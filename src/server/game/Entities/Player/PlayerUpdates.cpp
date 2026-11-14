@@ -480,13 +480,13 @@ void Player::UpdateLFGChannel()
         return;
 
     ChatChannelsEntry const* cce = sChatChannelsStore.LookupEntry(26); /*LookingForGroup*/
-    Channel* cLFG = cMgr->GetJoinChannel(cce->pattern[m_session->GetSessionDbcLocale()], cce->ChannelID);
+    Channel* cLFG = cMgr->GetJoinChannel(cce->Name_lang, cce->ID);
     if (!cLFG)
         return;
 
     Channel* cUsed = nullptr;
     for (Channel* channel : m_channels)
-        if (channel && channel->GetChannelId() == cce->ChannelID)
+        if (channel && channel->GetChannelId() == cce->ID)
         {
             cUsed = cLFG;
             break;
@@ -527,7 +527,7 @@ void Player::UpdateLocalChannels(uint32 newZone)
         return;
 
     std::string current_zone_name =
-        current_zone->area_name[GetSession()->GetSessionDbcLocale()];
+        current_zone->AreaName_lang;
 
     for (uint32 i = 0; i < sChatChannelsStore.GetNumRows(); ++i)
     {
@@ -551,9 +551,9 @@ void Player::UpdateLocalChannels(uint32 newZone)
 
             if (CanJoinConstantChannelInZone(channel, current_zone))
             {
-                if (!(channel->flags & CHANNEL_DBC_FLAG_GLOBAL))
+                if (!(channel->Flags & CHANNEL_DBC_FLAG_GLOBAL))
                 {
-                    if (channel->flags & CHANNEL_DBC_FLAG_CITY_ONLY &&
+                    if (channel->Flags & CHANNEL_DBC_FLAG_CITY_ONLY &&
                         usedChannel)
                         continue; // Already on the channel, as city channel
                                   // names are not changing
@@ -561,17 +561,17 @@ void Player::UpdateLocalChannels(uint32 newZone)
                     char        new_channel_name_buf[100];
                     std::string currentNameExt;
 
-                    if (channel->flags & CHANNEL_DBC_FLAG_CITY_ONLY)
+                    if (channel->Flags & CHANNEL_DBC_FLAG_CITY_ONLY)
                         currentNameExt = sObjectMgr->GetAcoreStringForDBCLocale(LANG_CHANNEL_CITY);
                     else
                         currentNameExt = current_zone_name;
 
                     snprintf(new_channel_name_buf, 100,
-                             channel->pattern[m_session->GetSessionDbcLocale()],
+                             channel->Name_lang,
                              currentNameExt.c_str());
 
                     joinChannel = cMgr->GetJoinChannel(new_channel_name_buf,
-                                                       channel->ChannelID);
+                                                       channel->ID);
                     if (usedChannel)
                     {
                         if (joinChannel != usedChannel)
@@ -586,8 +586,8 @@ void Player::UpdateLocalChannels(uint32 newZone)
                 }
                 else
                     joinChannel = cMgr->GetJoinChannel(
-                        channel->pattern[m_session->GetSessionDbcLocale()],
-                        channel->ChannelID);
+                        channel->Name_lang,
+                        channel->ID);
             }
             else
                 removeChannel = usedChannel;
@@ -636,9 +636,8 @@ void Player::UpdateRating(CombatRating cr)
 
     switch (cr)
     {
-    case CR_WEAPON_SKILL: // Implemented in Unit::RollMeleeOutcomeAgainst
-    case CR_DEFENSE_SKILL:
-        UpdateDefenseBonusesMod();
+    case CR_UNUSED_1:
+    case CR_DEFENSE_SKILL: // Removed in 4.0.1
         break;
     case CR_DODGE:
         UpdateDodgePercentage();
@@ -673,23 +672,21 @@ void Player::UpdateRating(CombatRating cr)
         if (affectStats)
             UpdateAllSpellCritChances();
         break;
-    case CR_HIT_TAKEN_MELEE:  // Deprecated since Cataclysm
-    case CR_HIT_TAKEN_RANGED:
-    case CR_HIT_TAKEN_SPELL:
+    case CR_MULTISTRIKE:  // WoD tertiary/secondary ratings, consumed where the effect is rolled
+    case CR_READINESS:
+    case CR_SPEED:
+    case CR_LIFESTEAL:
+    case CR_AVOIDANCE:
         break;
-    case CR_RESILIENCE_CRIT_TAKEN: // Unused in 4.3.4
+    case CR_RESILIENCE_CRIT_TAKEN:
         break;
     case CR_RESILIENCE_PLAYER_DAMAGE_TAKEN: // Implemented in Unit::ApplyResilience
-        break;
-    case CR_CRIT_TAKEN_SPELL: // Deprecated since Cataclysm
         break;
     case CR_HASTE_MELEE: // Implemented in Player::ApplyRatingMod
     case CR_HASTE_RANGED:
     case CR_HASTE_SPELL:
         break;
-    case CR_WEAPON_SKILL_MAINHAND: // Implemented in
-                                   // Unit::RollMeleeOutcomeAgainst
-    case CR_WEAPON_SKILL_OFFHAND:
+    case CR_UNUSED_2:
     case CR_WEAPON_SKILL_RANGED:
         break;
     case CR_EXPERTISE:
@@ -706,7 +703,11 @@ void Player::UpdateRating(CombatRating cr)
     case CR_MASTERY:
         UpdateMastery();
         break;
-    case CR_PVP_POWER: // 5.4.8, no stat behind it yet
+    case CR_UNUSED_3:
+    case CR_UNUSED_4:
+        break;
+    case CR_VERSATILITY_DAMAGE_DONE: // Implemented in Unit damage/healing done and taken calculations
+    case CR_VERSATILITY_DAMAGE_TAKEN:
         break;
     }
 }
@@ -1266,7 +1267,7 @@ void Player::UpdateArea(uint32 newArea)
     m_areaUpdateId = newArea;
 
     AreaTableEntry const* area = sAreaTableStore.LookupEntry(newArea);
-    pvpInfo.IsInFFAPvPArea     = area && (area->flags & AREA_FLAG_ARENA);
+    pvpInfo.IsInFFAPvPArea     = area && (area->Flags[0] & AREA_FLAG_ARENA);
     UpdateFFAPvPState(false);
 
     UpdateAreaDependentAuras(newArea);
@@ -1285,7 +1286,7 @@ void Player::UpdateArea(uint32 newArea)
     uint32 const areaRestFlag = (GetTeamId(true) == TEAM_ALLIANCE)
                                     ? AREA_FLAG_REST_ZONE_ALLIANCE
                                     : AREA_FLAG_REST_ZONE_HORDE;
-    if (area && area->flags & areaRestFlag)
+    if (area && area->Flags[0] & areaRestFlag)
         SetRestFlag(REST_FLAG_IN_FACTION_AREA);
     else
         RemoveRestFlag(REST_FLAG_IN_FACTION_AREA);
@@ -1374,7 +1375,7 @@ bool Player::UpdatePhasesForArea(uint32 areaId)
 
         // AreaTable.dbc field 2 is ParentAreaID (the 3.3.5a struct calls it zone).
         AreaTableEntry const* area = sAreaTableStore.LookupEntry(chainArea);
-        chainArea = area ? area->zone : 0;
+        chainArea = area ? area->ParentAreaID : 0;
     }
 
     std::vector<bool> granted(pending.size(), false);
@@ -1529,23 +1530,23 @@ void Player::UpdateZone(uint32 newZone, uint32 newArea, bool force)
 
     // in PvP, any not controlled zone (except zone->team == 6, default case)
     // in PvE, only opposition team capital
-    switch (zone->team)
+    switch (zone->FactionGroupMask)
     {
     case AREATEAM_ALLY:
         pvpInfo.IsInHostileArea =
             GetTeamId(true) != TEAM_ALLIANCE &&
-            (sWorld->IsPvPRealm() || zone->flags & AREA_FLAG_CAPITAL);
+            (sWorld->IsPvPRealm() || zone->Flags[0] & AREA_FLAG_CAPITAL);
         break;
     case AREATEAM_HORDE:
         pvpInfo.IsInHostileArea =
             GetTeamId(true) != TEAM_HORDE &&
-            (sWorld->IsPvPRealm() || zone->flags & AREA_FLAG_CAPITAL);
+            (sWorld->IsPvPRealm() || zone->Flags[0] & AREA_FLAG_CAPITAL);
         break;
     case AREATEAM_NONE:
         // overwrite for battlegrounds, maybe batter some zone flags but current
         // known not 100% fit to this
         pvpInfo.IsInHostileArea = sWorld->IsPvPRealm() || InBattleground() ||
-                                  zone->flags & AREA_FLAG_WINTERGRASP;
+                                  zone->Flags[0] & AREA_FLAG_WINTERGRASP;
         break;
     default: // 6 in fact
         pvpInfo.IsInHostileArea = false;
@@ -1555,7 +1556,7 @@ void Player::UpdateZone(uint32 newZone, uint32 newArea, bool force)
     // Treat players having a quest flagging for PvP as always in hostile area
     pvpInfo.IsHostile = pvpInfo.IsInHostileArea || HasPvPForcingQuest();
 
-    if (zone->flags & AREA_FLAG_CAPITAL) // Is in a capital city
+    if (zone->Flags[0] & AREA_FLAG_CAPITAL) // Is in a capital city
     {
         if (!pvpInfo.IsHostile || zone->IsSanctuary())
             SetRestFlag(REST_FLAG_IN_CITY);
@@ -1606,9 +1607,9 @@ void Player::UpdateEquipSpellsAtFormChange()
         if (!eff)
             continue;
 
-        for (uint32 y = 0; y < MAX_ITEM_SET_SPELLS; ++y)
+        for (ItemSetSpellEntry const* itemSetSpell : eff->SetBonuses)
         {
-            SpellInfo const* spellInfo = eff->spells[y];
+            SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(itemSetSpell->SpellID);
             if (!spellInfo)
                 continue;
 
