@@ -164,6 +164,23 @@ void AddSC_westfall();
 
 // The name of this function should match:
 // void Add${NameOfDirectory}Scripts()
+// Cataclysm content from TrinityCore master (6.x client has it too)
+void AddSC_blackrock_caverns();
+void AddSC_boss_alizabal();
+void AddSC_boss_argaloth();
+void AddSC_boss_ascendant_lord_obsidius();
+void AddSC_boss_beauty();
+void AddSC_boss_corla();
+void AddSC_boss_karsh_steelbender();
+void AddSC_boss_occuthar();
+void AddSC_boss_romogg_bonecrusher();
+void AddSC_instance_baradin_hold();
+void AddSC_instance_bastion_of_twilight();
+void AddSC_instance_blackrock_caverns();
+void AddSC_instance_blackwing_descent();
+void AddSC_instance_grim_batol();
+void AddSC_instance_throne_of_the_tides();
+
 void AddEasternKingdomsScripts()
 {
     AddSC_alterac_valley();                 //Alterac Valley
@@ -311,4 +328,21 @@ void AddEasternKingdomsScripts()
     AddSC_westfall();
     //AddSC_wetlands();
     //AddSC_burning_steppes();
+
+    // Cataclysm content from TrinityCore master
+    AddSC_blackrock_caverns();
+    AddSC_boss_alizabal();
+    AddSC_boss_argaloth();
+    AddSC_boss_ascendant_lord_obsidius();
+    AddSC_boss_beauty();
+    AddSC_boss_corla();
+    AddSC_boss_karsh_steelbender();
+    AddSC_boss_occuthar();
+    AddSC_boss_romogg_bonecrusher();
+    AddSC_instance_baradin_hold();
+    AddSC_instance_bastion_of_twilight();
+    AddSC_instance_blackrock_caverns();
+    AddSC_instance_blackwing_descent();
+    AddSC_instance_grim_batol();
+    AddSC_instance_throne_of_the_tides();
 }

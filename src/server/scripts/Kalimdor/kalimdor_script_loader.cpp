@@ -98,6 +98,26 @@ void AddSC_winterspring();
 
 // The name of this function should match:
 // void Add${NameOfDirectory}Scripts()
+// Cataclysm content from TrinityCore master (6.x client has it too)
+void AddSC_boss_alysrazor();
+void AddSC_boss_anraphet();
+void AddSC_boss_baleroc();
+void AddSC_boss_earthrager_ptah();
+void AddSC_boss_general_husam();
+void AddSC_boss_lockmaw();
+void AddSC_boss_temple_guardian_anhuur();
+void AddSC_firelands();
+void AddSC_halls_of_origination();
+void AddSC_instance_end_time();
+void AddSC_instance_firelands();
+void AddSC_instance_halls_of_origination();
+void AddSC_instance_hour_of_twilight();
+void AddSC_instance_lost_city_of_the_tolvir();
+void AddSC_instance_throne_of_the_four_winds();
+void AddSC_instance_vortex_pinnacle();
+void AddSC_instance_well_of_eternity();
+void AddSC_vortex_pinnacle();
+
 void AddKalimdorScripts()
 {
     AddSC_instance_blackfathom_deeps();     //Blackfathom Depths
@@ -179,4 +199,24 @@ void AddKalimdorScripts()
     AddSC_thunder_bluff();
     AddSC_ungoro_crater();
     AddSC_winterspring();
+
+    // Cataclysm content from TrinityCore master
+    AddSC_boss_alysrazor();
+    AddSC_boss_anraphet();
+    AddSC_boss_baleroc();
+    AddSC_boss_earthrager_ptah();
+    AddSC_boss_general_husam();
+    AddSC_boss_lockmaw();
+    AddSC_boss_temple_guardian_anhuur();
+    AddSC_firelands();
+    AddSC_halls_of_origination();
+    AddSC_instance_end_time();
+    AddSC_instance_firelands();
+    AddSC_instance_halls_of_origination();
+    AddSC_instance_hour_of_twilight();
+    AddSC_instance_lost_city_of_the_tolvir();
+    AddSC_instance_throne_of_the_four_winds();
+    AddSC_instance_vortex_pinnacle();
+    AddSC_instance_well_of_eternity();
+    AddSC_vortex_pinnacle();
 }
