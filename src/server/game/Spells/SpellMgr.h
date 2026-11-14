@@ -815,6 +815,8 @@ public:
     void LoadCreatureImmunities();
     void LoadSpellCooldownOverrides();
     void UnloadSpellInfoStore();
+    void LoadSpellInfoDifficultyVariants();
+    void SyncSpellInfoDifficultyVariantConditions();
     void UnloadSpellInfoImplicitTargetConditionLists();
     void LoadSpellInfoCustomAttributes();
     void LoadSpellInfoImmunities();
@@ -856,6 +858,8 @@ private:
     PetDefaultSpellsMap        mPetDefaultSpellsMap;           // only spells not listed in related mPetLevelupSpellMap entry
     SpellInfoMap               mSpellInfoMap;
     std::unordered_map<uint64 /*MAKE_PAIR64(spellId, difficulty)*/, SpellInfo*> mSpellDifficultyInfoMap;
+    // difficulty's own SpellEffect.dbc rows and the rows merged with the default ones
+    std::unordered_map<uint64 /*MAKE_PAIR64(spellId, difficulty)*/, std::pair<std::array<SpellEffectEntry const*, MAX_SPELL_EFFECTS>, std::array<SpellEffectEntry const*, MAX_SPELL_EFFECTS>>> mSpellDifficultyEffects;
     SpellCooldownOverrideMap   mSpellCooldownOverrideMap;
     TalentAdditionalSet        mTalentSpellAdditionalSet;
 };

@@ -1186,6 +1186,7 @@ void ConditionMgr::LoadConditions(bool isReload)
         LOG_INFO("server.loading", "Reloading `gossip_menu_option` Table for Conditions!");
         sObjectMgr->LoadGossipMenuItems();
         sSpellMgr->UnloadSpellInfoImplicitTargetConditionLists();
+        sSpellMgr->SyncSpellInfoDifficultyVariantConditions();   // 6.x difficulty variants share the lists
     }
 
     QueryResult result = WorldDatabase.Query("SELECT SourceTypeOrReferenceId, SourceGroup, SourceEntry, SourceId, ElseGroup, ConditionTypeOrReference, ConditionTarget, "
@@ -1439,6 +1440,8 @@ void ConditionMgr::LoadConditions(bool isReload)
         ConditionStore[cond->SourceType][cond->SourceEntry].push_back(cond);
         ++count;
     } while (result->NextRow());
+
+    sSpellMgr->SyncSpellInfoDifficultyVariantConditions();
 
     LOG_INFO("server.loading", ">> Loaded {} conditions in {} ms", count, GetMSTimeDiffToNow(oldMSTime));
     LOG_INFO("server.loading", " ");

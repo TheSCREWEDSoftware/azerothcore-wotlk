@@ -466,6 +466,9 @@ void World::SetInitialWorldSettings()
     LOG_INFO("server.loading", "Loading SpellInfo Immunity infos...");
     sSpellMgr->LoadSpellInfoImmunities();
 
+    LOG_INFO("server.loading", "Loading SpellInfo Difficulty Variants...");
+    sSpellMgr->LoadSpellInfoDifficultyVariants();
+
     LOG_INFO("server.loading", "Loading Player Totem models...");
     sObjectMgr->LoadPlayerTotemModels();
 

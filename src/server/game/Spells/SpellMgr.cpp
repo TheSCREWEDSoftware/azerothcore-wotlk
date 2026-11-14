@@ -622,6 +622,11 @@ SpellInfo const* SpellMgr::GetSpellForDifficultyFromSpell(SpellInfo const* spell
     }
 
     LOG_DEBUG("spells.aura", "SpellMgr::GetSpellForDifficultyFromSpell: Spell id for instance mode is {} (original {})", newSpell->Id, spell->Id);
+
+    // 6.x: the SpellEffect.dbc rows of the caster's map difficulty
+    if (caster && caster->FindMap())
+        return GetSpellInfo(newSpell->Id, caster->GetMap()->GetDifficultyID());
+
     return newSpell;
 }
 
@@ -3141,7 +3146,8 @@ void SpellMgr::LoadSpellInfoStore()
             if (!isSupported(merged))
                 continue;
 
-            mSpellDifficultyInfoMap[MAKE_PAIR64(spellEntry->ID, difficulty)] = new SpellInfo(spellEntry, merged, difficulty, spellVisuals);
+            // built by LoadSpellInfoDifficultyVariants once the default SpellInfo is fully loaded
+            mSpellDifficultyEffects[MAKE_PAIR64(spellEntry->ID, difficulty)] = { difficultyEffects, merged };
         }
     }
 
@@ -3222,6 +3228,54 @@ void SpellMgr::UnloadSpellInfoStore()
         delete spellInfo;
 
     mSpellDifficultyInfoMap.clear();
+    mSpellDifficultyEffects.clear();
+}
+
+// 6.x: a spell can have its own SpellEffect.dbc rows per difficulty. The variant is a copy of the
+// finished default SpellInfo (corrections, custom attributes, ranks, immunities) whose effects are
+// replaced where the difficulty has its own rows, so casts in that difficulty use those values
+// (TC master keeps one SpellInfo per difficulty the same way).
+void SpellMgr::LoadSpellInfoDifficultyVariants()
+{
+    uint32 oldMSTime = getMSTime();
+
+    for (auto const& [key, effectLists] : mSpellDifficultyEffects)
+    {
+        uint32 spellId = PAIR64_LOPART(key);
+        uint32 difficulty = PAIR64_HIPART(key);
+
+        SpellInfo const* base = GetSpellInfo(spellId);
+        if (!base || mSpellDifficultyInfoMap.count(key))
+            continue;
+
+        SpellInfo* variant = new SpellInfo(*base);
+        variant->DifficultyID = difficulty;
+        for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
+        {
+            if (effectLists.first[i])
+            {
+                std::list<Condition*>* conditions = variant->Effects[i].ImplicitTargetConditions;
+                variant->Effects[i] = SpellEffectInfo(effectLists.second[i], variant, i);
+                variant->Effects[i].ImplicitTargetConditions = conditions;
+            }
+
+            variant->Effects[i]._spellInfo = variant;
+        }
+
+        mSpellDifficultyInfoMap[key] = variant;
+    }
+
+    LOG_INFO("server.loading", ">> Loaded {} Spell Difficulty Variants in {} ms", mSpellDifficultyInfoMap.size(), GetMSTimeDiffToNow(oldMSTime));
+    LOG_INFO("server.loading", " ");
+}
+
+// Conditions are attached to the default SpellInfo; the variants share its lists
+void SpellMgr::SyncSpellInfoDifficultyVariantConditions()
+{
+    for (auto& [key, variant] : mSpellDifficultyInfoMap)
+        if (SpellInfo const* base = GetSpellInfo(PAIR64_LOPART(key)))
+            for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
+                variant->Effects[i].ImplicitTargetConditions = base->Effects[i].ImplicitTargetConditions;
 }
 
 SpellInfo const* SpellMgr::GetSpellInfo(uint32 spellId, uint32 difficulty) const

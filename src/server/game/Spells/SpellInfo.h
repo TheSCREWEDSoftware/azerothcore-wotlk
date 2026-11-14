@@ -271,6 +271,7 @@ private:
 
 class SpellEffectInfo
 {
+    friend class SpellMgr;                                  // re-points copied difficulty variants
     SpellInfo const* _spellInfo;
 public:
     uint8     EffectIndex;
