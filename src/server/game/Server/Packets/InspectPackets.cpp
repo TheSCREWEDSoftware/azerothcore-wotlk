@@ -64,7 +64,7 @@ WorldPackets::Inspect::InspectItemData::InspectItemData(::Item const* item, uint
     Index = index;
     Usable = true; /// @todo
 
-    for (uint8 i = 0; i < MAX_ENCHANTMENT_SLOT; ++i)
+    for (uint8 i = 0; i < MAX_CLIENT_INSPECTED_ENCHANTMENT_SLOT; ++i)
     {
         if (uint32 enchId = item->GetEnchantmentId(EnchantmentSlot(i)))
             Enchants.emplace_back(enchId, i);

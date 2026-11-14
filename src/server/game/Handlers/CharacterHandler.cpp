@@ -1191,8 +1191,8 @@ void WorldSession::HandlePlayerLoginFromDB(LoginQueryHolder const& holder)
     }
 
     // pussywizard: send instance welcome message as when entering the instance through a portal
-    if (MapDifficulty const* mapDiff = GetMapDifficultyData(pCurrChar->GetMap()->GetId(), pCurrChar->GetMap()->GetDifficulty()))
-        if (mapDiff->resetTime)
+    if (MapDifficultyEntry const* mapDiff = GetMapDifficultyData(pCurrChar->GetMap()->GetId(), pCurrChar->GetMap()->GetDifficulty()))
+        if (mapDiff->RaidDuration)
             if (time_t timeReset = sInstanceSaveMgr->GetResetTimeFor(pCurrChar->GetMap()->GetId(), pCurrChar->GetMap()->GetDifficulty()))
             {
                 uint32 timeleft = uint32(timeReset - GameTime::GetGameTime().count());
@@ -1474,8 +1474,8 @@ void WorldSession::HandlePlayerLoginToCharInWorld(Player* pCurrChar)
         group->SendUpdate();
 
     // pussywizard: send instance welcome message as when entering the instance through a portal
-    if (MapDifficulty const* mapDiff = GetMapDifficultyData(pCurrChar->GetMap()->GetId(), pCurrChar->GetMap()->GetDifficulty()))
-        if (mapDiff->resetTime)
+    if (MapDifficultyEntry const* mapDiff = GetMapDifficultyData(pCurrChar->GetMap()->GetId(), pCurrChar->GetMap()->GetDifficulty()))
+        if (mapDiff->RaidDuration)
             if (time_t timeReset = sInstanceSaveMgr->GetResetTimeFor(pCurrChar->GetMap()->GetId(), pCurrChar->GetMap()->GetDifficulty()))
             {
                 uint32 timeleft = uint32(timeReset - GameTime::GetGameTime().count());

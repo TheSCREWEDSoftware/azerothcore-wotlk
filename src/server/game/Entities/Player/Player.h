@@ -1493,8 +1493,6 @@ public:
     void AddEnchantmentDuration(Item* item, EnchantmentSlot slot, uint32 duration);
     void ApplyEnchantment(Item* item, EnchantmentSlot slot, bool apply, bool apply_dur = true, bool ignore_condition = false);
     void ApplyEnchantment(Item* item, bool apply);
-    // Cata Reforging: applies/removes the stat swap of the item's REFORGE_ENCHANTMENT_SLOT (an ItemReforge.dbc id)
-    void ApplyReforgeEnchantment(Item* item, bool apply);
     void UpdateSkillEnchantments(uint16 skill_id, uint16 curr_value, uint16 new_value);
     void SendEnchantmentDurations();
     void UpdateEnchantmentDurations();
@@ -2114,12 +2112,18 @@ public:
     void SetArenaTeamIdInvited(uint32 ArenaTeamId) { m_ArenaTeamIdInvited = ArenaTeamId; }
     uint32 GetArenaTeamIdInvited() { return m_ArenaTeamIdInvited; }
 
-    [[nodiscard]] Difficulty GetDifficulty(bool isRaid) const { return isRaid ? m_raidDifficulty : m_dungeonDifficulty; }
+    // 6.x: dungeon, raid (normal/heroic/mythic) and legacy raid (10/25) difficulties; old raids use the legacy one
+    [[nodiscard]] Difficulty GetDifficulty(MapEntry const* mapEntry) const;
     [[nodiscard]] Difficulty GetDungeonDifficulty() const { return m_dungeonDifficulty; }
     [[nodiscard]] Difficulty GetRaidDifficulty() const { return m_raidDifficulty; }
+    [[nodiscard]] Difficulty GetLegacyRaidDifficulty() const { return m_legacyRaidDifficulty; }
     [[nodiscard]] Difficulty GetStoredRaidDifficulty() const { return m_raidMapDifficulty; } // only for use in difficulty packet after exiting to raid map
     void SetDungeonDifficulty(Difficulty dungeon_difficulty) { m_dungeonDifficulty = dungeon_difficulty; }
     void SetRaidDifficulty(Difficulty raid_difficulty) { m_raidDifficulty = raid_difficulty; }
+    void SetLegacyRaidDifficulty(Difficulty raid_difficulty) { m_legacyRaidDifficulty = raid_difficulty; }
+    static Difficulty CheckLoadedDungeonDifficulty(Difficulty difficulty);
+    static Difficulty CheckLoadedRaidDifficulty(Difficulty difficulty);
+    static Difficulty CheckLoadedLegacyRaidDifficulty(Difficulty difficulty);
     void StoreRaidMapDifficulty() { m_raidMapDifficulty = GetMap()->GetDifficulty(); }
 
     bool UpdateSkill(uint32 skill_id, uint32 step);
@@ -2214,9 +2218,13 @@ public:
     void SendAutoRepeatCancel(Unit* target);
     void SendExplorationExperience(uint32 Area, uint32 Experience);
 
-    void SendDungeonDifficulty(bool IsInGroup);
-    void SendRaidDifficulty(bool IsInGroup, int32 forcedDifficulty = -1);
-    static void ResetInstances(ObjectGuid guid, uint8 method, bool isRaid);
+    void SendDungeonDifficulty(bool IsInGroup, int32 forcedDifficulty = -1);
+    void SendRaidDifficulty(bool IsInGroup, int32 forcedDifficulty = -1, bool legacy = false);
+    static void ResetInstances(ObjectGuid guid, uint8 method, bool isRaid, bool isLegacy = false);
+
+    // 6.x CMSG_SET_ADVANCED_COMBAT_LOGGING
+    [[nodiscard]] bool IsAdvancedCombatLoggingEnabled() const { return _advancedCombatLoggingEnabled; }
+    void SetAdvancedCombatLogging(bool enabled) { _advancedCombatLoggingEnabled = enabled; }
     void SendResetInstanceSuccess(uint32 MapId);
     void SendResetInstanceFailed(ResetFailedReason reason, uint32 MapId);
     void SendResetFailedNotify(uint32 mapid);
@@ -3058,7 +3066,9 @@ protected:
     std::array<ChatFloodThrottle, ChatFloodThrottle::MAX> m_chatFloodData;
     Difficulty m_dungeonDifficulty;
     Difficulty m_raidDifficulty;
+    Difficulty m_legacyRaidDifficulty;
     Difficulty m_raidMapDifficulty;
+    bool _advancedCombatLoggingEnabled;
 
     uint32 m_atLoginFlags;
 

@@ -17,6 +17,8 @@
 
 #include "Chat.h"
 #include "Common.h"
+#include "DatabaseEnv.h"
+#include "GameTime.h"
 #include "Language.h"
 #include "ObjectMgr.h"
 #include "Opcodes.h"
@@ -25,6 +27,7 @@
 #include "TicketMgr.h"
 #include "TicketPackets.h"
 #include "Util.h"
+#include "World.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
 
@@ -110,4 +113,20 @@ void WorldSession::HandleComplaint(WorldPackets::Ticket::Complaint& packet)
     result.ComplaintType = packet.ComplaintType;
     result.Result = 0;
     SendPacket(result.Write());
+
+    if (sWorld->getBoolConfig(CONFIG_LOGSPAMREPORTS))
+    {
+        bool const isChat = packet.ComplaintType == SUPPORT_SPAM_TYPE_CHAT;
+
+        CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_INS_SPAM_REPORT);
+        stmt->SetData(0, packet.ComplaintType);
+        stmt->SetData(1, uint32(packet.Offender.PlayerGuid.GetCounter()));
+        stmt->SetData(2, packet.Offender.RealmAddress);
+        stmt->SetData(3, isChat ? packet.Chat.Command : packet.MailID);
+        stmt->SetData(4, packet.Chat.ChannelID);
+        stmt->SetData(5, packet.Offender.TimeSinceOffence);
+        stmt->SetData(6, packet.Chat.MessageLog);
+        stmt->SetData(7, uint32(GameTime::GetGameTime().count()));
+        CharacterDatabase.Execute(stmt);
+    }
 }

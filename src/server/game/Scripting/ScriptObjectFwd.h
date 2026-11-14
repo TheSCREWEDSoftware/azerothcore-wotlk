@@ -112,7 +112,7 @@ struct ItemTemplate;
 struct Loot;
 struct LootItem;
 struct LootStoreItem;
-struct MapDifficulty;
+struct MapDifficultyEntry;
 struct MapEntry;
 struct MovementInfo;
 struct PvPDifficultyEntry;

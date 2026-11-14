@@ -4440,15 +4440,7 @@ void Player::AddEnchantmentDuration(Item* item, EnchantmentSlot slot, uint32 dur
 void Player::ApplyEnchantment(Item* item, bool apply)
 {
     for (uint32 slot = 0; slot < MAX_ENCHANTMENT_SLOT; ++slot)
-    {
-        // Apply reforge as last enchant
-        if (slot == REFORGE_ENCHANTMENT_SLOT)
-            continue;
-
         ApplyEnchantment(item, EnchantmentSlot(slot), apply);
-    }
-
-    ApplyEnchantment(item, REFORGE_ENCHANTMENT_SLOT, apply);
 }
 
 void Player::ApplyEnchantment(Item* item, EnchantmentSlot slot, bool apply, bool apply_dur, bool ignore_condition)
@@ -4463,12 +4455,9 @@ void Player::ApplyEnchantment(Item* item, EnchantmentSlot slot, bool apply, bool
     if (slot == TRANSMOGRIFY_ENCHANTMENT_SLOT)
         return;
 
-    // The reforge slot holds an ItemReforge.dbc id, not a SpellItemEnchantment.dbc id
+    // 6.x: reforging was removed (TC 6.x); the old slot may still hold an ItemReforge.dbc id from a 5.4.8 database
     if (slot == REFORGE_ENCHANTMENT_SLOT)
-    {
-        ApplyReforgeEnchantment(item, apply);
         return;
-    }
 
     uint32 enchant_id = item->GetEnchantmentId(slot);
     if (!enchant_id)
@@ -4828,161 +4817,6 @@ void Player::ApplyEnchantment(Item* item, EnchantmentSlot slot, bool apply, bool
     }
 }
 
-void Player::ApplyReforgeEnchantment(Item* item, bool apply)
-{
-    if (!item || item->IsBroken())
-        return;
-
-    ItemReforgeEntry const* reforge = sItemReforgeStore.LookupEntry(item->GetEnchantmentId(REFORGE_ENCHANTMENT_SLOT));
-    if (!reforge)
-        return;
-
-    float removeValue = float(item->GetReforgableStat(ItemModType(reforge->Source_stat))) * reforge->Source_multiplier;
-    float addValue = removeValue * reforge->Target_multiplier;
-
-    // Remove removeValue from the source stat and add addValue to the target stat, using the same
-    // modifiers _ApplyItemBonuses uses for each ItemModType (they take a signed delta plus apply).
-    for (uint8 pass = 0; pass < 2; ++pass)
-    {
-        uint32 const statType = pass == 0 ? reforge->Source_stat : reforge->Target_stat;
-        float const value = pass == 0 ? -removeValue : addValue;
-
-        switch (statType)
-        {
-            case ITEM_MOD_MANA:
-                HandleStatFlatModifier(UNIT_MOD_MANA, BASE_VALUE, value, apply);
-                break;
-            case ITEM_MOD_HEALTH:
-                HandleStatFlatModifier(UNIT_MOD_HEALTH, BASE_VALUE, value, apply);
-                break;
-            case ITEM_MOD_AGILITY:
-                HandleStatFlatModifier(UNIT_MOD_STAT_AGILITY, BASE_VALUE, value, apply);
-                UpdateStatBuffMod(STAT_AGILITY);
-                break;
-            case ITEM_MOD_STRENGTH:
-                HandleStatFlatModifier(UNIT_MOD_STAT_STRENGTH, BASE_VALUE, value, apply);
-                UpdateStatBuffMod(STAT_STRENGTH);
-                break;
-            case ITEM_MOD_INTELLECT:
-                HandleStatFlatModifier(UNIT_MOD_STAT_INTELLECT, BASE_VALUE, value, apply);
-                UpdateStatBuffMod(STAT_INTELLECT);
-                break;
-            case ITEM_MOD_SPIRIT:
-                HandleStatFlatModifier(UNIT_MOD_STAT_SPIRIT, BASE_VALUE, value, apply);
-                UpdateStatBuffMod(STAT_SPIRIT);
-                break;
-            case ITEM_MOD_STAMINA:
-                HandleStatFlatModifier(UNIT_MOD_STAT_STAMINA, BASE_VALUE, value, apply);
-                UpdateStatBuffMod(STAT_STAMINA);
-                break;
-            case ITEM_MOD_DEFENSE_SKILL_RATING:
-                ApplyRatingMod(CR_DEFENSE_SKILL, int32(value), apply);
-                break;
-            case ITEM_MOD_DODGE_RATING:
-                ApplyRatingMod(CR_DODGE, int32(value), apply);
-                break;
-            case ITEM_MOD_PARRY_RATING:
-                ApplyRatingMod(CR_PARRY, int32(value), apply);
-                break;
-            case ITEM_MOD_BLOCK_RATING:
-                ApplyRatingMod(CR_BLOCK, int32(value), apply);
-                break;
-            case ITEM_MOD_HIT_MELEE_RATING:
-                ApplyRatingMod(CR_HIT_MELEE, int32(value), apply);
-                break;
-            case ITEM_MOD_HIT_RANGED_RATING:
-                ApplyRatingMod(CR_HIT_RANGED, int32(value), apply);
-                break;
-            case ITEM_MOD_HIT_SPELL_RATING:
-                ApplyRatingMod(CR_HIT_SPELL, int32(value), apply);
-                break;
-            case ITEM_MOD_CRIT_MELEE_RATING:
-                ApplyRatingMod(CR_CRIT_MELEE, int32(value), apply);
-                break;
-            case ITEM_MOD_CRIT_RANGED_RATING:
-                ApplyRatingMod(CR_CRIT_RANGED, int32(value), apply);
-                break;
-            case ITEM_MOD_CRIT_SPELL_RATING:
-                ApplyRatingMod(CR_CRIT_SPELL, int32(value), apply);
-                break;
-            // Deprecated since Cataclysm
-            case ITEM_MOD_HIT_TAKEN_MELEE_RATING:
-            case ITEM_MOD_HIT_TAKEN_RANGED_RATING:
-            case ITEM_MOD_HIT_TAKEN_SPELL_RATING:
-            case ITEM_MOD_CRIT_TAKEN_MELEE_RATING:
-            case ITEM_MOD_CRIT_TAKEN_RANGED_RATING:
-            case ITEM_MOD_CRIT_TAKEN_SPELL_RATING:
-                break;
-            case ITEM_MOD_HASTE_MELEE_RATING:
-                ApplyRatingMod(CR_HASTE_MELEE, int32(value), apply);
-                break;
-            case ITEM_MOD_HASTE_RANGED_RATING:
-                ApplyRatingMod(CR_HASTE_RANGED, int32(value), apply);
-                break;
-            case ITEM_MOD_HASTE_SPELL_RATING:
-                ApplyRatingMod(CR_HASTE_SPELL, int32(value), apply);
-                break;
-            case ITEM_MOD_HIT_RATING:
-                ApplyRatingMod(CR_HIT_MELEE, int32(value), apply);
-                ApplyRatingMod(CR_HIT_RANGED, int32(value), apply);
-                ApplyRatingMod(CR_HIT_SPELL, int32(value), apply);
-                break;
-            case ITEM_MOD_CRIT_RATING:
-                ApplyRatingMod(CR_CRIT_MELEE, int32(value), apply);
-                ApplyRatingMod(CR_CRIT_RANGED, int32(value), apply);
-                ApplyRatingMod(CR_CRIT_SPELL, int32(value), apply);
-                break;
-            case ITEM_MOD_HIT_TAKEN_RATING: // Deprecated since Cataclysm
-                break;
-            case ITEM_MOD_CRIT_TAKEN_RATING:
-            case ITEM_MOD_RESILIENCE_RATING:
-                ApplyRatingMod(CR_RESILIENCE_PLAYER_DAMAGE_TAKEN, int32(value), apply);
-                break;
-            case ITEM_MOD_HASTE_RATING:
-                ApplyRatingMod(CR_HASTE_MELEE, int32(value), apply);
-                ApplyRatingMod(CR_HASTE_RANGED, int32(value), apply);
-                ApplyRatingMod(CR_HASTE_SPELL, int32(value), apply);
-                break;
-            case ITEM_MOD_EXPERTISE_RATING:
-                ApplyRatingMod(CR_EXPERTISE, int32(value), apply);
-                break;
-            case ITEM_MOD_ATTACK_POWER:
-                HandleStatFlatModifier(UNIT_MOD_ATTACK_POWER, TOTAL_VALUE, value, apply);
-                HandleStatFlatModifier(UNIT_MOD_ATTACK_POWER_RANGED, TOTAL_VALUE, value, apply);
-                break;
-            case ITEM_MOD_RANGED_ATTACK_POWER:
-                HandleStatFlatModifier(UNIT_MOD_ATTACK_POWER_RANGED, TOTAL_VALUE, value, apply);
-                break;
-            case ITEM_MOD_MANA_REGENERATION:
-                ApplyManaRegenBonus(int32(value), apply);
-                break;
-            case ITEM_MOD_ARMOR_PENETRATION_RATING:
-                ApplyRatingMod(CR_ARMOR_PENETRATION, int32(value), apply);
-                break;
-            case ITEM_MOD_SPELL_POWER:
-                ApplySpellPowerBonus(int32(value), apply);
-                break;
-            case ITEM_MOD_HEALTH_REGEN:
-                ApplyHealthRegenBonus(int32(value), apply);
-                break;
-            case ITEM_MOD_SPELL_PENETRATION:
-                ApplySpellPenetrationBonus(int32(value), apply);
-                break;
-            case ITEM_MOD_BLOCK_VALUE:
-                HandleBaseModFlatValue(SHIELD_BLOCK_VALUE, value, apply);
-                break;
-            case ITEM_MOD_MASTERY_RATING:
-                ApplyRatingMod(CR_MASTERY, int32(value), apply);
-                break;
-            case ITEM_MOD_EXTRA_ARMOR:
-                HandleStatFlatModifier(UNIT_MOD_ARMOR, BASE_VALUE, value, apply);
-                break;
-            default:
-                break;
-        }
-    }
-}
-
 void Player::UpdateSkillEnchantments(uint16 skill_id, uint16 curr_value, uint16 new_value)
 {
     for (uint8 i = 0; i < INVENTORY_SLOT_BAG_END; ++i)
@@ -5267,7 +5101,7 @@ bool Player::LoadFromDB(ObjectGuid playerGuid, CharacterDatabaseQueryHolder cons
     // 17          18          19          20   21           22        23        24         25         26          27           28                 29
     //"position_x, position_y, position_z, map, orientation, taximask, cinematic, totaltime, leveltime, rest_bonus, logout_time, is_logout_resting, resettalents_cost, "
     // 30                 31       32       33       34       35         36           37             38        39    40      41                 42         43
-    //"resettalents_time, trans_x, trans_y, trans_z, trans_o, transguid, extra_flags, stable_slots, at_login, zone, online, death_expire_time, taxi_path, instance_mode_mask, "
+    //"resettalents_time, trans_x, trans_y, trans_z, trans_o, transguid, extra_flags, stable_slots, at_login, zone, online, death_expire_time, taxi_path, dungeonDifficulty, "
     // 44           45                46                 47                    48          49          50              51           52               53              54
     //"arenaPoints, totalHonorPoints, todayHonorPoints, yesterdayHonorPoints, totalKills, todayKills, yesterdayKills, chosenTitle, knownCurrencies, watchedFaction, drunk, "
     // 55      56      57      58      59      60      61      62      63           64                 65                 66             67              68      69
@@ -5429,14 +5263,12 @@ bool Player::LoadFromDB(ObjectGuid playerGuid, CharacterDatabaseQueryHolder cons
     uint32 mapId = fields[20].Get<uint16>();
     uint32 instanceId = fields[63].Get<uint32>();
 
-    uint32 dungeonDiff = fields[43].Get<uint8>() & 0x0F;
-    if (dungeonDiff >= MAX_DUNGEON_DIFFICULTY)
-        dungeonDiff = DIFFICULTY_NORMAL;
-    uint32 raidDiff = (fields[43].Get<uint8>() >> 4) & 0x0F;
-    if (raidDiff >= MAX_RAID_DIFFICULTY)
-        raidDiff = DIFFICULTY_10_N;
-    SetDungeonDifficulty(Difficulty(dungeonDiff));          // may be changed in _LoadGroup
-    SetRaidDifficulty(Difficulty(raidDiff));                // may be changed in _LoadGroup
+    Difficulty dungeonDiff = CheckLoadedDungeonDifficulty(Difficulty(fields[43].Get<uint8>()));
+    Difficulty raidDiff = CheckLoadedRaidDifficulty(Difficulty(fields[76].Get<uint8>()));
+    Difficulty legacyRaidDiff = CheckLoadedLegacyRaidDifficulty(Difficulty(fields[77].Get<uint8>()));
+    SetDungeonDifficulty(dungeonDiff);                      // may be changed in _LoadGroup
+    SetRaidDifficulty(raidDiff);                            // may be changed in _LoadGroup
+    SetLegacyRaidDifficulty(legacyRaidDiff);                // may be changed in _LoadGroup
 
     std::string taxi_nodes = fields[42].Get<std::string>();
 
@@ -5465,10 +5297,10 @@ bool Player::LoadFromDB(ObjectGuid playerGuid, CharacterDatabaseQueryHolder cons
     Map* map = nullptr;
 
     // pussywizard: group changed difficulty when player was offline, teleport to the enterance of new difficulty
-    if (mapEntry && ((mapEntry->IsNonRaidDungeon() && dungeonDiff != GetDungeonDifficulty()) || (mapEntry->IsRaid() && raidDiff != GetRaidDifficulty())))
+    if (mapEntry && ((mapEntry->IsNonRaidDungeon() && dungeonDiff != GetDungeonDifficulty()) || (mapEntry->IsRaid() && (raidDiff != GetRaidDifficulty() || legacyRaidDiff != GetLegacyRaidDifficulty()))))
     {
         bool fixed = false;
-        if (uint32 destInstId = sInstanceSaveMgr->PlayerGetDestinationInstanceId(this, mapId, GetDifficulty(mapEntry->IsRaid())))
+        if (uint32 destInstId = sInstanceSaveMgr->PlayerGetDestinationInstanceId(this, mapId, GetDifficulty(mapEntry)))
         {
             instanceId = destInstId;
             if (AreaTriggerTeleport const* at = sObjectMgr->GetMapEntranceTrigger(mapId))
@@ -5608,7 +5440,7 @@ bool Player::LoadFromDB(ObjectGuid playerGuid, CharacterDatabaseQueryHolder cons
         // check whether player was unbound or is bound to another instance
         if (instanceId)
         {
-            InstanceSave* save = sInstanceSaveMgr->PlayerGetInstanceSave(GetGUID(), mapId, GetDifficulty(mapEntry->IsRaid()));
+            InstanceSave* save = sInstanceSaveMgr->PlayerGetInstanceSave(GetGUID(), mapId, GetDifficulty(mapEntry));
             if (!save || save->GetInstanceId() != instanceId)
                 instanceId = 0;
         }
@@ -7036,6 +6868,7 @@ void Player::_LoadGroup()
                 // the group leader may change the instance difficulty while the player is offline
                 SetDungeonDifficulty(group->GetDungeonDifficulty());
                 SetRaidDifficulty(group->GetRaidDifficulty());
+                SetLegacyRaidDifficulty(group->GetLegacyRaidDifficulty());
             }
         }
     }
@@ -7370,8 +7203,8 @@ bool Player::Satisfy(DungeonProgressionRequirements const* ar, uint32 target_map
             }
         }
 
-        Difficulty target_difficulty = GetDifficulty(mapEntry->IsRaid());
-        MapDifficulty const* mapDiff = GetDownscaledMapDifficultyData(target_map, target_difficulty);
+        Difficulty target_difficulty = GetDifficulty(mapEntry);
+        MapDifficultyEntry const* mapDiff = GetDownscaledMapDifficultyData(target_map, target_difficulty);
         if (LevelMin || LevelMax || ilvlRequirementNotMet
             || missingPlayerItems.size() || missingPlayerQuests.size() || missingPlayerAchievements.size()
             || missingLeaderItems.size() || missingLeaderQuests.size() || missingLeaderAchievements.size())
@@ -7399,7 +7232,7 @@ bool Player::Satisfy(DungeonProgressionRequirements const* ar, uint32 target_map
                     {
                         ChatHandler(GetSession()).PSendSysMessage("{}", missingLeaderQuests[0]->note);
                     }
-                    else if (mapDiff->hasErrorMessage)
+                    else if (mapDiff->HasMessage())
                     {
                         // if (missingAchievement) covered by this case
                         SendTransferAborted(target_map, TRANSFER_ABORT_DIFFICULTY, target_difficulty);
@@ -7480,7 +7313,7 @@ bool Player::Satisfy(DungeonProgressionRequirements const* ar, uint32 target_map
                     {
                         GetSession()->SendAreaTriggerMessage(LANG_ACCESS_REQUIREMENT_MAX_LEVEL, LevelMax);
                     }
-                    else if (mapDiff->hasErrorMessage && !errorAlreadyPrinted)
+                    else if (mapDiff->HasMessage() && !errorAlreadyPrinted)
                     {
                         SendTransferAborted(target_map, TRANSFER_ABORT_DIFFICULTY, target_difficulty);
                     }

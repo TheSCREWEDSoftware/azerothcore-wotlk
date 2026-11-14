@@ -639,3 +639,8 @@ WorldPacket const* WorldPackets::Misc::PlayObjectSound::Write()
 
     return &_worldPacket;
 }
+
+void WorldPackets::Misc::NeutralPlayerSelectFaction::Read()
+{
+    _worldPacket >> Faction;
+}

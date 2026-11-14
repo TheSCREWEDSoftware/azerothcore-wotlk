@@ -626,6 +626,25 @@ namespace WorldPackets
             G3D::Vector3 Position;
         };
 
+        // 6.x 19342: unhandled by TC 6.x, layouts from WowPacketParser V6_0_2
+        class CompleteMovie final : public ClientPacket
+        {
+        public:
+            CompleteMovie(WorldPacket&& packet) : ClientPacket(CMSG_COMPLETE_MOVIE, std::move(packet)) { }
+
+            void Read() override { }
+        };
+
+        class NeutralPlayerSelectFaction final : public ClientPacket
+        {
+        public:
+            NeutralPlayerSelectFaction(WorldPacket&& packet) : ClientPacket(CMSG_NEUTRAL_PLAYER_SELECT_FACTION, std::move(packet)) { }
+
+            void Read() override;
+
+            uint32 Faction = 0;                             // 0 = Horde, 1 = Alliance
+        };
+
         class CompleteCinematic final : public ClientPacket
         {
         public:

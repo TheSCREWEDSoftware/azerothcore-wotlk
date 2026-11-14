@@ -428,6 +428,8 @@ namespace WorldPackets
         class ObjectUpdateFailed;
         class ObjectUpdateRescued;
         class CompleteCinematic;
+        class NeutralPlayerSelectFaction;
+        class CompleteMovie;
         class NextCinematicCamera;
         class FarSight;
         class LoadCUFProfiles;
@@ -1566,6 +1568,8 @@ public:                                                 // opcodes handlers
     void HandleVoiceSessionEnable(WorldPackets::Voice::VoiceSessionEnable& packet);
     void HandleSetActiveVoiceChannel(WorldPackets::Voice::SetActiveVoiceChannel& packet);
     void HandleCompleteCinematic(WorldPackets::Misc::CompleteCinematic& packet);
+    void HandleSelectFactionOpcode(WorldPackets::Misc::NeutralPlayerSelectFaction& packet);
+    void HandleCompleteMovie(WorldPackets::Misc::CompleteMovie& packet);
     void HandleNextCinematicCamera(WorldPackets::Misc::NextCinematicCamera& packet);
     void HandleQueryPageText(WorldPackets::Query::QueryPageText& packet);
     void HandleTutorialFlag(WorldPackets::Misc::TutorialSetFlag& packet);
@@ -1758,7 +1762,6 @@ public:                                                 // opcodes handlers
     // Bank
 
     // Cata Reforging
-    void SendReforgeResult(bool success);
 
     // Cata Transmogrification
 

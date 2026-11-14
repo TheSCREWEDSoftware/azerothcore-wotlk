@@ -286,8 +286,10 @@ Player::Player(WorldSession* session): Unit(), m_mover(this), _cinematicMgr(*thi
     m_HomebindTimer = 0;
     m_InstanceValid = true;
     m_dungeonDifficulty = DIFFICULTY_NORMAL;
-    m_raidDifficulty = DIFFICULTY_10_N;
-    m_raidMapDifficulty = DIFFICULTY_10_N;
+    m_raidDifficulty = DIFFICULTY_NORMAL_RAID;
+    m_legacyRaidDifficulty = DIFFICULTY_10_N;
+    m_raidMapDifficulty = DIFFICULTY_NORMAL_RAID;
+    _advancedCombatLoggingEnabled = false;
 
     m_lastPotionId = 0;
 
@@ -15405,7 +15407,9 @@ void Player::_SaveCharacter(bool create, CharacterDatabaseTransaction trans)
         stmt->SetData(index++, (uint32)GetPlayerFlags());
         stmt->SetData(index++, (uint16)GetMapId());
         stmt->SetData(index++, (uint32)GetInstanceId());
-        stmt->SetData(index++, (uint8(GetDungeonDifficulty()) | uint8(GetRaidDifficulty()) << 4));
+        stmt->SetData(index++, uint8(GetDungeonDifficulty()));
+        stmt->SetData(index++, uint8(GetRaidDifficulty()));
+        stmt->SetData(index++, uint8(GetLegacyRaidDifficulty()));
         stmt->SetData(index++, finiteAlways(GetPositionX()));
         stmt->SetData(index++, finiteAlways(GetPositionY()));
         stmt->SetData(index++, finiteAlways(GetPositionZ()));
@@ -15543,7 +15547,9 @@ void Player::_SaveCharacter(bool create, CharacterDatabaseTransaction trans)
         {
             stmt->SetData(index++, (uint16)GetTeleportDest().GetMapId());
             stmt->SetData(index++, (uint32)0);
-            stmt->SetData(index++, (uint8(GetDungeonDifficulty()) | uint8(GetRaidDifficulty()) << 4));
+            stmt->SetData(index++, uint8(GetDungeonDifficulty()));
+        stmt->SetData(index++, uint8(GetRaidDifficulty()));
+        stmt->SetData(index++, uint8(GetLegacyRaidDifficulty()));
             stmt->SetData(index++, finiteAlways(GetTeleportDest().GetPositionX()));
             stmt->SetData(index++, finiteAlways(GetTeleportDest().GetPositionY()));
             stmt->SetData(index++, finiteAlways(GetTeleportDest().GetPositionZ()));
@@ -17032,4 +17038,49 @@ std::string Player::GetDebugInfo() const
 void Player::SendSystemMessage(std::string_view msg, bool escapeCharacters)
 {
     ChatHandler(GetSession()).SendSysMessage(msg, escapeCharacters);
+}
+
+// 6.x: old raids (MapDifficulty rows with legacy difficulties) use the legacy raid difficulty (TC 6.x)
+Difficulty Player::GetDifficulty(MapEntry const* mapEntry) const
+{
+    if (!mapEntry || !mapEntry->IsRaid())
+        return m_dungeonDifficulty;
+
+    Difficulty defaultDifficultyId = DIFFICULTY_NONE;
+    MapDifficultyEntry const* defaultDifficulty = GetDefaultMapDifficulty(mapEntry->ID, &defaultDifficultyId);
+    if (!defaultDifficulty)
+        return m_legacyRaidDifficulty;
+
+    DifficultyEntry const* difficulty = sDifficultyStore.LookupEntry(defaultDifficultyId);
+    if (!difficulty || difficulty->Flags & DIFFICULTY_FLAG_LEGACY)
+        return m_legacyRaidDifficulty;
+
+    return m_raidDifficulty;
+}
+
+Difficulty Player::CheckLoadedDungeonDifficulty(Difficulty difficulty)
+{
+    DifficultyEntry const* difficultyEntry = sDifficultyStore.LookupEntry(difficulty);
+    if (!difficultyEntry || difficultyEntry->InstanceType != MAP_INSTANCE || !(difficultyEntry->Flags & DIFFICULTY_FLAG_CAN_SELECT))
+        return DIFFICULTY_NORMAL;
+
+    return difficulty;
+}
+
+Difficulty Player::CheckLoadedRaidDifficulty(Difficulty difficulty)
+{
+    DifficultyEntry const* difficultyEntry = sDifficultyStore.LookupEntry(difficulty);
+    if (!difficultyEntry || difficultyEntry->InstanceType != MAP_RAID || !(difficultyEntry->Flags & DIFFICULTY_FLAG_CAN_SELECT) || (difficultyEntry->Flags & DIFFICULTY_FLAG_LEGACY))
+        return DIFFICULTY_NORMAL_RAID;
+
+    return difficulty;
+}
+
+Difficulty Player::CheckLoadedLegacyRaidDifficulty(Difficulty difficulty)
+{
+    DifficultyEntry const* difficultyEntry = sDifficultyStore.LookupEntry(difficulty);
+    if (!difficultyEntry || difficultyEntry->InstanceType != MAP_RAID || !(difficultyEntry->Flags & DIFFICULTY_FLAG_CAN_SELECT) || !(difficultyEntry->Flags & DIFFICULTY_FLAG_LEGACY))
+        return DIFFICULTY_10_N;
+
+    return difficulty;
 }

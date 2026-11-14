@@ -16,6 +16,7 @@
  */
 
 #include "InstanceSaveMgr.h"
+#include "CalendarPackets.h"
 #include "Common.h"
 #include "Config.h"
 #include "GameTime.h"
@@ -81,7 +82,7 @@ InstanceSave* InstanceSaveMgr::AddInstanceSave(uint32 mapId, uint32 instanceId, 
         return nullptr;
     }
 
-    if (difficulty >= (entry->IsRaid() ? MAX_RAID_DIFFICULTY : MAX_DUNGEON_DIFFICULTY))
+    if (!GetMapDifficultyData(mapId, difficulty))
     {
         LOG_ERROR("instance.save", "InstanceSaveMgr::AddInstanceSave: mapid = {}, instanceid = {}, wrong difficulty {}!", mapId, instanceId, difficulty);
         return nullptr;
@@ -317,7 +318,7 @@ void InstanceSaveMgr::LoadResetTimes()
             Difficulty difficulty = Difficulty(fields[1].Get<uint8>());
             uint64 resettime = fields[2].Get<uint32>();
 
-            MapDifficulty const* mapDiff = GetMapDifficultyData(mapid, difficulty);
+            MapDifficultyEntry const* mapDiff = GetMapDifficultyData(mapid, difficulty);
             if (!mapDiff)
             {
                 LOG_ERROR("instance.save", "InstanceSaveMgr::LoadResetTimes: invalid mapid({})/difficulty({}) pair in instance_reset!", mapid, difficulty);
@@ -331,17 +332,15 @@ void InstanceSaveMgr::LoadResetTimes()
 
     // calculate new global reset times for expired instances and those that have never been reset yet
     // add the global reset times to the priority queue
-    for (MapDifficultyMap::const_iterator itr = sMapDifficultyMap.begin(); itr != sMapDifficultyMap.end(); ++itr)
+    for (auto const& [mapid, difficulties] : sMapDifficultyMap)
+    for (auto const& [difficultyId, mapDiff] : difficulties)
     {
-        uint32 map_diff_pair = itr->first;
-        uint32 mapid = PAIR32_LOPART(map_diff_pair);
-        Difficulty difficulty = Difficulty(PAIR32_HIPART(map_diff_pair));
-        MapDifficulty const* mapDiff = &itr->second;
-        if (!mapDiff->resetTime)
+        Difficulty difficulty = Difficulty(difficultyId);
+        if (!mapDiff->RaidDuration)
             continue;
 
         // the reset_delay must be at least one day
-        uint32 period = uint32(((mapDiff->resetTime * sWorld->getRate(RATE_INSTANCE_RESET_TIME)) / DAY) * DAY);
+        uint32 period = uint32(((mapDiff->RaidDuration * sWorld->getRate(RATE_INSTANCE_RESET_TIME)) / DAY) * DAY);
         if (period < DAY)
             period = DAY;
 
@@ -536,7 +535,7 @@ void InstanceSaveMgr::MergeWithNewInstanceSaves(InstanceMapLoadRows const& loadR
             continue;
         }
 
-        if (row.difficulty >= (entry->IsRaid() ? MAX_RAID_DIFFICULTY : MAX_DUNGEON_DIFFICULTY))
+        if (!GetMapDifficultyData(row.mapId, Difficulty(row.difficulty)))
         {
             LOG_ERROR("instance.save", "InstanceSaveMgr::MergeWithNewInstanceSaves: mapid = {}, instanceid = {}, wrong difficulty {}!", row.mapId, row.instanceId, row.difficulty);
             continue;
@@ -651,13 +650,13 @@ void InstanceSaveMgr::Update()
     if (resetOccurred)
     {
         LOG_INFO("instance.save", "Instance ID reset occurred, sending updated calendar and raid info to all players!");
-        WorldPacket dummy;
 
         WorldSessionMgr::SessionMap const& sessionMap = sWorldSessionMgr->GetAllSessions();
         for (WorldSessionMgr::SessionMap::const_iterator itr = sessionMap.begin(); itr != sessionMap.end(); ++itr)
             if (Player* plr = itr->second->GetPlayer())
             {
-                itr->second->HandleCalendarGetCalendar(dummy);
+                WorldPackets::Calendar::CalendarGetCalendar getCalendar{ WorldPacket(CMSG_CALENDAR_GET) };
+                itr->second->HandleCalendarGetCalendar(getCalendar);
                 plr->SendRaidInfo();
             }
     }
@@ -726,8 +725,8 @@ void InstanceSaveMgr::_ResetOrWarnAll(uint32 mapid, Difficulty difficulty, bool 
 
     if (!warn)
     {
-        MapDifficulty const* mapDiff = GetMapDifficultyData(mapid, difficulty);
-        if (!mapDiff || !mapDiff->resetTime)
+        MapDifficultyEntry const* mapDiff = GetMapDifficultyData(mapid, difficulty);
+        if (!mapDiff || !mapDiff->RaidDuration)
         {
             LOG_ERROR("instance.save", "InstanceSaveMgr::ResetOrWarnAll: not valid difficulty or no reset delay for map {}", mapid);
             return;
@@ -736,7 +735,7 @@ void InstanceSaveMgr::_ResetOrWarnAll(uint32 mapid, Difficulty difficulty, bool 
         // calculate the next reset time
         uint32 diff = sWorld->getIntConfig(CONFIG_INSTANCE_RESET_TIME_HOUR) * HOUR;
 
-        uint32 period = uint32(((mapDiff->resetTime * sWorld->getRate(RATE_INSTANCE_RESET_TIME)) / DAY) * DAY);
+        uint32 period = uint32(((mapDiff->RaidDuration * sWorld->getRate(RATE_INSTANCE_RESET_TIME)) / DAY) * DAY);
         if (period < DAY)
             period = DAY;
 
@@ -915,7 +914,7 @@ InstancePlayerBind* InstanceSaveMgr::PlayerGetBoundInstance(ObjectGuid guid, uin
 {
     Difficulty difficulty_fixed = ( IsSharedDifficultyMap(mapid) ? Difficulty(difficulty % 2) : difficulty);
 
-    MapDifficulty const* mapDiff = GetDownscaledMapDifficultyData(mapid, difficulty_fixed);
+    MapDifficultyEntry const* mapDiff = GetDownscaledMapDifficultyData(mapid, difficulty_fixed);
     if (!mapDiff)
         return nullptr;
 

@@ -20,6 +20,7 @@
 #include "InstancePackets.h"
 #include "MapMgr.h"
 #include "Player.h"
+#include "MiscPackets.h"
 #include "CombatPackets.h"
 #include "RBAC.h"
 #include "ScriptMgr.h"
@@ -166,38 +167,36 @@ void Player::SendExplorationExperience(uint32 Area, uint32 Experience)
     SendDirectMessage(&data);
 }
 
-void Player::SendDungeonDifficulty(bool IsInGroup)
+void Player::SendDungeonDifficulty(bool /*IsInGroup*/, int32 forcedDifficulty)
 {
-    WorldPackets::Instance::SetDungeonDifficulty setDungeonDifficulty;
-    setDungeonDifficulty.Difficulty = GetDungeonDifficulty();
-    setDungeonDifficulty.IsInGroup = IsInGroup;
-    SendDirectMessage(setDungeonDifficulty.Write());
+    WorldPackets::Misc::DungeonDifficultySet dungeonDifficultySet;
+    dungeonDifficultySet.DifficultyID = forcedDifficulty == -1 ? GetDungeonDifficulty() : forcedDifficulty;
+    SendDirectMessage(dungeonDifficultySet.Write());
 }
 
-void Player::SendRaidDifficulty(bool IsInGroup, int32 forcedDifficulty)
+void Player::SendRaidDifficulty(bool /*IsInGroup*/, int32 forcedDifficulty, bool legacy)
 {
-    WorldPackets::Instance::SetRaidDifficulty setRaidDifficulty;
-    setRaidDifficulty.Difficulty = (forcedDifficulty == -1 ? GetRaidDifficulty() : forcedDifficulty);
-    setRaidDifficulty.IsInGroup = IsInGroup;
-    SendDirectMessage(setRaidDifficulty.Write());
+    WorldPackets::Misc::RaidDifficultySet raidDifficultySet;
+    raidDifficultySet.DifficultyID = forcedDifficulty == -1 ? (legacy ? GetLegacyRaidDifficulty() : GetRaidDifficulty()) : forcedDifficulty;
+    raidDifficultySet.Legacy = legacy;
+    SendDirectMessage(raidDifficultySet.Write());
 }
 
-void Player::SendResetFailedNotify(uint32 mapid)
+void Player::SendResetFailedNotify(uint32 /*mapid*/)
 {
     WorldPackets::Instance::ResetFailedNotify resetFailedNotify;
-    resetFailedNotify.MapId = mapid;
     SendDirectMessage(resetFailedNotify.Write());
 }
 
 /// Reset all solo instances and optionally send a message on success for each
-void Player::ResetInstances(ObjectGuid guid, uint8 method, bool isRaid)
+void Player::ResetInstances(ObjectGuid guid, uint8 method, bool isRaid, bool isLegacy)
 {
     switch (method)
     {
         case INSTANCE_RESET_ALL:
         {
             Player* p = ObjectAccessor::FindConnectedPlayer(guid);
-            if (!p || p->GetDifficulty(false) != DIFFICULTY_NORMAL)
+            if (!p || p->GetDungeonDifficulty() != DIFFICULTY_NORMAL)
                 break;
             std::vector<InstanceSave*> toUnbind;
             BoundInstancesMap const& m_boundInstances = sInstanceSaveMgr->PlayerGetBoundInstances(p->GetGUID(), Difficulty(DIFFICULTY_NORMAL));
@@ -235,7 +234,7 @@ void Player::ResetInstances(ObjectGuid guid, uint8 method, bool isRaid)
             if (!p)
                 break;
             std::vector<InstanceSave*> toUnbind;
-            BoundInstancesMap const& m_boundInstances = sInstanceSaveMgr->PlayerGetBoundInstances(p->GetGUID(), p->GetDifficulty(isRaid));
+            BoundInstancesMap const& m_boundInstances = sInstanceSaveMgr->PlayerGetBoundInstances(p->GetGUID(), isRaid ? (isLegacy ? p->GetLegacyRaidDifficulty() : p->GetRaidDifficulty()) : p->GetDungeonDifficulty());
             for (BoundInstancesMap::const_iterator itr = m_boundInstances.begin(); itr != m_boundInstances.end(); ++itr)
             {
                 InstanceSave* instanceSave = itr->second.save;
@@ -324,15 +323,15 @@ void Player::ResetInstances(ObjectGuid guid, uint8 method, bool isRaid)
 void Player::SendResetInstanceSuccess(uint32 MapId)
 {
     WorldPackets::Instance::InstanceReset instanceReset;
-    instanceReset.MapId = MapId;
+    instanceReset.MapID = MapId;
     SendDirectMessage(instanceReset.Write());
 }
 
 void Player::SendResetInstanceFailed(ResetFailedReason reason, uint32 MapId)
 {
     WorldPackets::Instance::InstanceResetFailed instanceResetFailed;
-    instanceResetFailed.Reason = reason;
-    instanceResetFailed.MapId = MapId;
+    instanceResetFailed.ResetFailedReason = reason;
+    instanceResetFailed.MapID = MapId;
     SendDirectMessage(instanceResetFailed.Write());
 }
 

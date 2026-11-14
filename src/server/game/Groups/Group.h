@@ -302,13 +302,15 @@ public:
     void RemoveUniqueGroupMemberFlag(GroupMemberFlags flag);
     [[nodiscard]] ObjectGuid GetTargetIcon(uint8 id) const { return id < TARGETICONCOUNT ? m_targetIcons[id] : ObjectGuid::Empty; }
 
-    Difficulty GetDifficulty(bool isRaid) const;
+    Difficulty GetDifficulty(MapEntry const* mapEntry) const;
     Difficulty GetDungeonDifficulty() const;
     Difficulty GetRaidDifficulty() const;
+    Difficulty GetLegacyRaidDifficulty() const { return m_legacyRaidDifficulty; }
     void SetDungeonDifficulty(Difficulty difficulty);
     void SetRaidDifficulty(Difficulty difficulty);
+    void SetLegacyRaidDifficulty(Difficulty difficulty);
     uint16 InInstance();
-    void ResetInstances(uint8 method, bool isRaid, Player* leader);
+    void ResetInstances(uint8 method, bool isRaid, Player* leader, bool isLegacy = false);
 
     // -no description-
     //void SendInit(WorldSession* session);
@@ -408,6 +410,7 @@ protected:
     GroupType           m_groupType;
     Difficulty          m_dungeonDifficulty;
     Difficulty          m_raidDifficulty;
+    Difficulty          m_legacyRaidDifficulty;
     Battlefield*        m_bfGroup;
     Battleground*       m_bgGroup;
     ObjectGuid          m_targetIcons[TARGETICONCOUNT];

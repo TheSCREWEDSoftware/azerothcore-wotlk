@@ -399,7 +399,7 @@ bool DisableMgr::IsDisabledFor(DisableType type, uint32 entry, Unit const* unit,
 
             Difficulty targetDifficulty;
             if (unit && unit->IsPlayer())
-                targetDifficulty = unit->ToPlayer()->GetDifficulty(mapEntry->IsRaid());
+                targetDifficulty = unit->ToPlayer()->GetDifficulty(mapEntry);
             else
                 targetDifficulty = Difficulty(flags);
 
