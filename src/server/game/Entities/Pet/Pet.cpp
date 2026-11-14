@@ -282,6 +282,7 @@ bool Pet::LoadPetFromDB(Player* owner, uint32 petEntry, uint32 petnumber, bool c
     owner->RegisterPhaseSummon(this);
 
     setPetType(petInfo->Type);
+    m_petSpecialization = petInfo->SpecializationId;
     SetFaction(owner->GetFaction());
     SetUInt32Value(UNIT_CREATED_BY_SPELL, petInfo->CreatedBySpellId);
 
@@ -620,6 +621,7 @@ void Pet::SavePetToDB(PetSaveMode mode)
         stmt->SetData(15, GameTime::GetGameTime().count());
         stmt->SetData(16, actionBar);
         stmt->SetData(17, callSlot);
+        stmt->SetData(18, m_petSpecialization);
 
         trans->Append(stmt);
         CharacterDatabase.CommitTransaction(trans);
@@ -1928,8 +1930,8 @@ bool Pet::learnSpell(uint32 spell_id)
 
     if (!m_loading)
     {
-        WorldPackets::Pet::PetLearnedSpell packet;
-        packet.SpellID = spell_id;
+        WorldPackets::Pet::PetLearnedSpells packet;
+        packet.Spells.push_back(spell_id);
         m_owner->SendDirectMessage(packet.Write());
         m_owner->PetSpellInitialize();
     }
@@ -1982,8 +1984,8 @@ bool Pet::unlearnSpell(uint32 spell_id, bool learn_prev, bool clear_ab)
     {
         if (!m_loading)
         {
-            WorldPackets::Pet::PetUnlearnedSpell packet;
-            packet.SpellID = spell_id;
+            WorldPackets::Pet::PetUnlearnedSpells packet;
+            packet.Spells.push_back(spell_id);
             m_owner->SendDirectMessage(packet.Write());
         }
 
@@ -2086,27 +2088,14 @@ bool Pet::resetTalents()
         return false;
     // Check pet talent type
     CreatureFamilyEntry const* pet_family = sCreatureFamilyStore.LookupEntry(ci->family);
-    if (!pet_family || pet_family->PetTalentType < 0)
+    if (!pet_family || int32(pet_family->PetTalentType) < 0)
         return false;
 
-    Player* player = owner->ToPlayer();
-
-    uint8 level = GetLevel();
-    uint32 talentPointsForLevel = GetMaxTalentPointsForLevel(level);
-
-    if (m_usedTalentCount == 0)
-    {
-        SetFreeTalentPoints(talentPointsForLevel);
+    // 6.x: pet talent trees were replaced by pet specializations, resetting talents clears the specialization
+    if (!m_petSpecialization)
         return false;
-    }
 
-    // 5.4.8: hunter pets have specializations instead of talent trees, so there are no
-    // talent spells to unlearn (sPetTalentSpells stays empty)
-
-    SetFreeTalentPoints(talentPointsForLevel);
-
-    if (!m_loading)
-        player->PetSpellInitialize();
+    SetSpecialization(0);
     return true;
 }
 
@@ -2126,75 +2115,22 @@ void Pet::resetTalentsForAllPetsOf(Player* owner, Pet* onlinePet /*= nullptr*/)
 
     PetStable* petStable = owner->GetPetStable();
     if (!petStable)
-    {
         return;
-    }
 
-    std::unordered_set<uint32> petIds;
+    // 6.x: offline pets lose their specialization
     if (petStable->CurrentPet)
-    {
-        petIds.insert(petStable->CurrentPet->PetNumber);
-    }
+        petStable->CurrentPet->SpecializationId = 0;
 
-    for (Optional<PetStable::PetInfo> const& stabledPet : petStable->StabledPets)
-    {
+    for (Optional<PetStable::PetInfo>& stabledPet : petStable->StabledPets)
         if (stabledPet)
-        {
-            petIds.insert(stabledPet->PetNumber);
-        }
-    }
+            stabledPet->SpecializationId = 0;
 
-    for (PetStable::PetInfo const& unslottedPet : petStable->UnslottedPets)
-    {
-        petIds.insert(unslottedPet.PetNumber);
-    }
+    for (PetStable::PetInfo& unslottedPet : petStable->UnslottedPets)
+        unslottedPet.SpecializationId = 0;
 
-    // now need only reset for offline pets (all pets except online case)
-    if (onlinePet)
-    {
-        petIds.erase(onlinePet->GetCharmInfo()->GetPetNumber());
-    }
-
-    // no offline pets
-    if (petIds.empty())
-    {
-        return;
-    }
-
-    bool need_comma = false;
-    std::ostringstream ss;
-    ss << "DELETE FROM pet_spell WHERE guid IN (";
-
-    for (uint32 id : petIds)
-    {
-        if (need_comma)
-        {
-            ss << ',';
-        }
-
-        ss << id;
-
-        need_comma = true;
-    }
-
-    ss << ") AND spell IN (";
-
-    need_comma = false;
-    for (uint32 spell : sPetTalentSpells)
-    {
-        if (need_comma)
-        {
-            ss << ',';
-        }
-
-        ss << spell;
-
-        need_comma = true;
-    }
-
-    ss << ')';
-
-    CharacterDatabase.Execute(ss.str().c_str());
+    CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_CHAR_PET_SPECIALIZATION_RESET);
+    stmt->SetData(0, owner->GetGUID().GetCounter());
+    CharacterDatabase.Execute(stmt);
 }
 
 void Pet::InitTalentForLevel()
@@ -2330,13 +2266,12 @@ void Pet::LearnPetPassives()
     if (!cFamily)
         return;
 
-    PetFamilySpellsStore::const_iterator petStore = sPetFamilySpellsStore.find(cFamily->ID);
-    if (petStore != sPetFamilySpellsStore.end())
+    if (PetFamilySpellsSet const* petStore = sSpellMgr->GetPetFamilySpells(cFamily->ID))
     {
         // For general hunter pets skill 270
         // Passive 01~10, Passive 00 (20782, not used), Ferocious Inspiration (34457)
         // Scale 01~03 (34902~34904, bonus from owner, not used)
-        for (uint32 spellId : petStore->second)
+        for (uint32 spellId : *petStore)
             addSpell(spellId, ACT_DECIDE, PETSPELL_NEW, PETSPELL_FAMILY);
     }
 }
@@ -2425,6 +2360,64 @@ void Pet::ClearCastWhenWillAvailable()
     m_tempoldTarget = ObjectGuid::Empty;
 }
 
+void Pet::LearnSpecializationSpells()
+{
+    if (std::vector<SpecializationSpellsEntry const*> const* specSpells = sDB2Manager.GetSpecializationSpells(m_petSpecialization))
+    {
+        for (SpecializationSpellsEntry const* specSpell : *specSpells)
+        {
+            SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(specSpell->SpellID);
+            if (!spellInfo || spellInfo->SpellLevel > GetLevel())
+                continue;
+
+            learnSpell(specSpell->SpellID);
+        }
+    }
+}
+
+void Pet::RemoveSpecializationSpells(bool clearActionBar)
+{
+    for (uint32 i = 0; i < MAX_SPECIALIZATIONS; ++i)
+    {
+        for (uint32 classIndex : { 0u, uint32(PET_SPEC_OVERRIDE_CLASS_INDEX) })
+        {
+            ChrSpecializationEntry const* specialization = sChrSpecializationByIndexStore[classIndex][i];
+            if (!specialization)
+                continue;
+
+            if (std::vector<SpecializationSpellsEntry const*> const* specSpells = sDB2Manager.GetSpecializationSpells(specialization->ID))
+                for (SpecializationSpellsEntry const* specSpell : *specSpells)
+                    unlearnSpell(specSpell->SpellID, false, clearActionBar);
+        }
+    }
+}
+
+void Pet::SetSpecialization(uint16 spec)
+{
+    if (m_petSpecialization == spec)
+        return;
+
+    // remove all the old spec's specalization spells, set the new spec, then add the new spec's spells
+    // clearActionBars is false because we'll be updating the pet actionbar later so we don't have to do it now
+    RemoveSpecializationSpells(false);
+    if (!sChrSpecializationStore.LookupEntry(spec))
+    {
+        m_petSpecialization = 0;
+        return;
+    }
+
+    m_petSpecialization = spec;
+    LearnSpecializationSpells();
+
+    // resend SMSG_PET_SPELLS_MESSAGE to remove old specialization spells from the pet action bar
+    CleanupActionBar();
+    GetOwner()->PetSpellInitialize();
+
+    WorldPackets::Pet::SetPetSpecialization setPetSpecialization;
+    setPetSpecialization.SpecID = m_petSpecialization;
+    GetOwner()->SendDirectMessage(setPetSpecialization.Write());
+}
+
 void Pet::FillPetInfo(PetStable::PetInfo* petInfo) const
 {
     petInfo->PetNumber = m_charmInfo->GetPetNumber();
@@ -2442,6 +2435,7 @@ void Pet::FillPetInfo(PetStable::PetInfo* petInfo) const
     petInfo->LastSaveTime = GameTime::GetGameTime().count();
     petInfo->CreatedBySpellId = GetUInt32Value(UNIT_CREATED_BY_SPELL);
     petInfo->Type = getPetType();
+    petInfo->SpecializationId = m_petSpecialization;
 }
 
 Player* Pet::GetOwner() const

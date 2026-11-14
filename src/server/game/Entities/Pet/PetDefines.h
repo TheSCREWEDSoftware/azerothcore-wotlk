@@ -27,6 +27,9 @@
 
 enum ReactStates : uint8;
 
+// ChrSpecialization ClassID used by the pet specializations of hunters with Beast Mastery's override
+#define PET_SPEC_OVERRIDE_CLASS_INDEX MAX_CLASSES
+
 enum PetType : uint8
 {
     SUMMON_PET                  = 0,
@@ -236,6 +239,7 @@ public:
         PetType Type = MAX_PET_TYPE;
         bool WasRenamed = false;
         uint8 CallSlot = PET_CALL_SLOT_NONE;                // Call Pet 1-5 slot of an active hunter pet
+        uint16 SpecializationId = 0;                        // 6.x pet specialization (ChrSpecialization.dbc)
     };
 
     Optional<PetInfo> CurrentPet;                                   // PET_SAVE_AS_CURRENT

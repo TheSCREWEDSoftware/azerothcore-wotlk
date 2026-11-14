@@ -551,6 +551,17 @@ enum PlayerFieldByteFlags
 };
 
 // aura vision flags (4.3.4 PLAYER_FIELD_BYTES2 byte 3, no update field in 5.4.8)
+enum PlayerFieldBytes2Offsets
+{
+    PLAYER_FIELD_BYTES_2_OFFSET_IGNORE_POWER_REGEN_PREDICTION_MASK  = 0,
+    PLAYER_FIELD_BYTES_2_OFFSET_AURA_VISION                         = 1,
+    PLAYER_FIELD_BYTES_2_OFFSET_OVERRIDE_SPELLS_ID                  = 2     // uint16!
+};
+
+static_assert((PLAYER_FIELD_BYTES_2_OFFSET_OVERRIDE_SPELLS_ID & 1) == 0, "PLAYER_FIELD_BYTES_2_OFFSET_OVERRIDE_SPELLS_ID must be aligned to 2 byte boundary");
+
+#define PLAYER_BYTES_2_OVERRIDE_SPELLS_UINT16_OFFSET (PLAYER_FIELD_BYTES_2_OFFSET_OVERRIDE_SPELLS_ID / 2)
+
 enum PlayerFieldByte2Flags
 {
     PLAYER_FIELD_BYTE2_NONE                 = 0x00,
@@ -2374,7 +2385,15 @@ public:
     [[nodiscard]] uint8 GetDrunkValue() const { return GetByteValue(PLAYER_BYTES_3, 1); }
 
     // 5.4.8 has no aura vision update field, the flags are only kept on the server.
-    void ApplyAuraVisionFlag(uint8 flag, bool apply) { if (apply) _auraVisionFlags |= flag; else _auraVisionFlags &= ~flag; }
+    void ApplyAuraVisionFlag(uint8 flag, bool apply)
+    {
+        if (apply)
+            _auraVisionFlags |= flag;
+        else
+            _auraVisionFlags &= ~flag;
+
+        SetByteValue(PLAYER_FIELD_BYTES2, PLAYER_FIELD_BYTES_2_OFFSET_AURA_VISION, _auraVisionFlags);
+    }
     [[nodiscard]] uint8 GetAuraVisionFlags() const { return _auraVisionFlags; }
     [[nodiscard]] int32 GetFakeDrunkValue() const { return GetInt32Value(PLAYER_FAKE_INEBRIATION); }
     void UpdateInvisibilityDrunkDetect();

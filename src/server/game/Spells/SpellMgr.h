@@ -594,6 +594,9 @@ typedef std::unordered_map<uint32, SpellLearnSkillNode> SpellLearnSkillMap;
 typedef std::multimap<uint32, SkillLineAbilityEntry const*> SkillLineAbilityMap;
 typedef std::pair<SkillLineAbilityMap::const_iterator, SkillLineAbilityMap::const_iterator> SkillLineAbilityMapBounds;
 
+typedef std::set<uint32> PetFamilySpellsSet;
+typedef std::map<uint32, PetFamilySpellsSet> PetFamilySpellsStore;
+
 typedef std::multimap<uint32, uint32> PetLevelupSpellSet;
 typedef std::map<uint32, PetLevelupSpellSet> PetLevelupSpellMap;
 
@@ -735,6 +738,7 @@ public:
     [[nodiscard]] std::vector<int32> const* GetSpellLinked(int32 spell_id) const;
 
     [[nodiscard]] PetLevelupSpellSet const* GetPetLevelupSpellList(uint32 petFamily) const;
+    [[nodiscard]] PetFamilySpellsSet const* GetPetFamilySpells(uint32 petFamily) const;
     [[nodiscard]] PetDefaultSpellsEntry const* GetPetDefaultSpellsEntry(int32 id) const;
 
     // Spell area
@@ -848,6 +852,7 @@ private:
     SpellAreaForAreaMap        mSpellAreaForAreaMap;
     SkillLineAbilityMap        mSkillLineAbilityMap;
     PetLevelupSpellMap         mPetLevelupSpellMap;
+    PetFamilySpellsStore       mPetFamilySpellsStore;          // 6.x: passive family spells learned on skill learn (no spell level)
     PetDefaultSpellsMap        mPetDefaultSpellsMap;           // only spells not listed in related mPetLevelupSpellMap entry
     SpellInfoMap               mSpellInfoMap;
     std::unordered_map<uint64 /*MAKE_PAIR64(spellId, difficulty)*/, SpellInfo*> mSpellDifficultyInfoMap;

@@ -131,6 +131,13 @@ public:
     void SetFreeTalentPoints(uint8 points) { SetByteValue(UNIT_FIELD_BYTES_1, UNIT_BYTES_1_OFFSET_PET_TALENTS, points); }
 
     uint32  m_usedTalentCount;
+    uint16  m_petSpecialization = 0;
+
+    // 6.x pet specializations
+    [[nodiscard]] uint16 GetSpecialization() const { return m_petSpecialization; }
+    void SetSpecialization(uint16 spec);
+    void LearnSpecializationSpells();
+    void RemoveSpecializationSpells(bool clearActionBar);
 
     uint64 GetAuraUpdateMaskForRaid() const { return m_auraRaidUpdateMask; }
     void SetAuraUpdateMaskForRaid(uint8 slot) { m_auraRaidUpdateMask |= (uint64(1) << slot); }

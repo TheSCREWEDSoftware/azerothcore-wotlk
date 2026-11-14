@@ -16646,6 +16646,7 @@ void Player::_LoadPetStable(uint8 petStableSlots, PreparedQueryResult result)
             petInfo.CreatedBySpellId = fields[14].Get<uint32>();
             petInfo.Type = PetType(fields[15].Get<uint8>());
             petInfo.CallSlot = fields[16].Get<uint8>();
+            petInfo.SpecializationId = fields[17].Get<uint16>();
             if (petInfo.Type != HUNTER_PET || petInfo.CallSlot >= PET_CALL_SLOT_COUNT
                 || (slot >= PET_SAVE_FIRST_STABLE_SLOT && slot <= PET_SAVE_LAST_STABLE_SLOT))
                 petInfo.CallSlot = PET_CALL_SLOT_NONE;

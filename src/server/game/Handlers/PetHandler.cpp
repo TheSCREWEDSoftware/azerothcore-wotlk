@@ -26,6 +26,8 @@
 #include "ObjectMgr.h"
 #include "Opcodes.h"
 #include "Pet.h"
+#include "SpellPackets.h"
+#include "QueryPackets.h"
 #include "PetPackets.h"
 #include "Player.h"
 #include "Spell.h"
@@ -55,14 +57,11 @@ void WorldSession::HandleDismissCritter(WorldPackets::Pet::DismissCritter& packe
     }
 }
 
-void WorldSession::HandlePetAction(WorldPacket& recvData)
+void WorldSession::HandlePetAction(WorldPackets::Pet::PetAction& packet)
 {
-    ObjectGuid guid1;
-    uint32 data;
-    ObjectGuid guid2;
-    recvData >> guid1;                                     //pet guid
-    recvData >> data;
-    recvData >> guid2;                                     //tag guid
+    ObjectGuid guid1 = packet.PetGUID;                      //pet guid
+    uint32 data = packet.Action;
+    ObjectGuid guid2 = packet.TargetGUID;                   //tag guid
 
     uint32 spellId = UNIT_ACTION_BUTTON_ACTION(data);
     uint8 flag = UNIT_ACTION_BUTTON_TYPE(data);             //delete = 0x07 CastSpell = C1
@@ -614,95 +613,44 @@ void WorldSession::HandlePetActionHelper(Unit* pet, ObjectGuid guid1, uint32 spe
     }
 }
 
-// 5.4.8 18414, from Project SkyFire (ReadPetNameQueryRequest, WorldSession::SendPetNameQuery)
-void WorldSession::HandlePetNameQuery(WorldPacket& recvData)
+void WorldSession::HandleQueryPetName(WorldPackets::Query::QueryPetName& packet)
 {
-    LOG_DEBUG("network.opcode", "HandlePetNameQuery. CMSG_PET_NAME_QUERY");
-
-    ObjectGuid petNumber;
-    ObjectGuid petGuid;
-
-    petNumber[0] = recvData.ReadBit();
-    petNumber[5] = recvData.ReadBit();
-    petGuid[1] = recvData.ReadBit();
-    petGuid[7] = recvData.ReadBit();
-    petNumber[7] = recvData.ReadBit();
-    petGuid[6] = recvData.ReadBit();
-    petGuid[4] = recvData.ReadBit();
-    petGuid[5] = recvData.ReadBit();
-    petGuid[0] = recvData.ReadBit();
-    petNumber[3] = recvData.ReadBit();
-    petNumber[6] = recvData.ReadBit();
-    petNumber[2] = recvData.ReadBit();
-    petGuid[3] = recvData.ReadBit();
-    petGuid[2] = recvData.ReadBit();
-    petNumber[1] = recvData.ReadBit();
-    petNumber[4] = recvData.ReadBit();
-
-    recvData.ReadByteSeq(petNumber[2]);
-    recvData.ReadByteSeq(petNumber[1]);
-    recvData.ReadByteSeq(petNumber[0]);
-    recvData.ReadByteSeq(petNumber[7]);
-    recvData.ReadByteSeq(petGuid[5]);
-    recvData.ReadByteSeq(petGuid[0]);
-    recvData.ReadByteSeq(petNumber[6]);
-    recvData.ReadByteSeq(petGuid[4]);
-    recvData.ReadByteSeq(petNumber[5]);
-    recvData.ReadByteSeq(petGuid[2]);
-    recvData.ReadByteSeq(petGuid[6]);
-    recvData.ReadByteSeq(petNumber[3]);
-    recvData.ReadByteSeq(petGuid[3]);
-    recvData.ReadByteSeq(petNumber[4]);
-    recvData.ReadByteSeq(petGuid[1]);
-    recvData.ReadByteSeq(petGuid[7]);
-
-    SendPetNameQuery(petGuid, petNumber.GetRawValue());
+    SendQueryPetNameResponse(packet.UnitGUID);
 }
 
-void WorldSession::SendPetNameQuery(ObjectGuid petguid, uint64 petnumber)
+void WorldSession::SendQueryPetNameResponse(ObjectGuid guid)
 {
-    Creature* pet = ObjectAccessor::GetCreatureOrPetOrVehicle(*_player, petguid);
-    if (!pet)
-    {
-        WorldPacket data(SMSG_PET_NAME_QUERY_RESPONSE, 1 + 8);
-        data.WriteBit(false);
-        data.FlushBits();
-        data << uint64(petnumber);
-        SendPacket(&data);
-        return;
-    }
+    WorldPackets::Query::QueryPetNameResponse response;
+    response.UnitGUID = guid;
 
-    std::string name;
-    if (pet->GetEntry() == NPC_WATER_ELEMENTAL_PERM)
+    if (Creature* pet = ObjectAccessor::GetCreatureOrPetOrVehicle(*_player, guid))
     {
-        // Use localized creature name for the mage pet
-        LocaleConstant loc_idx = GetSessionDbLocaleIndex();
-        if (loc_idx != DEFAULT_LOCALE)
-            name = pet->GetNameForLocaleIdx(loc_idx);
+        response.Allow = true;
+        response.Timestamp = pet->GetUInt32Value(UNIT_FIELD_PET_NAME_TIMESTAMP);
+
+        if (pet->GetEntry() == NPC_WATER_ELEMENTAL_PERM)
+        {
+            // Use localized creature name for the mage pet
+            LocaleConstant loc_idx = GetSessionDbLocaleIndex();
+            if (loc_idx != DEFAULT_LOCALE)
+                response.Name = pet->GetNameForLocaleIdx(loc_idx);
+            else
+                response.Name = pet->GetCreatureTemplate()->Name;
+        }
         else
-            name = pet->GetCreatureTemplate()->Name;
+            response.Name = pet->GetName();
+
+        if (Pet* playerPet = pet->ToPet())
+        {
+            if (DeclinedName const* names = playerPet->GetDeclinedNames())
+            {
+                response.HasDeclined = true;
+                response.DeclinedNames = *names;
+            }
+        }
     }
-    else
-        name = pet->GetName();
 
-    DeclinedName const* declinedNames = pet->IsPet() ? static_cast<Pet*>(pet)->GetDeclinedNames() : nullptr;
-
-    WorldPacket data(SMSG_PET_NAME_QUERY_RESPONSE, 1 + 5 + 1 + name.size() + 4 + 8);
-    data.WriteBit(true);                                    // has data
-    for (uint8 i = 0; i < MAX_DECLINED_NAME_CASES; ++i)
-        data.WriteBits(declinedNames ? declinedNames->name[i].size() : 0, 7);
-    data.WriteBit(false);                                   // unknown
-    data.WriteBits(name.size(), 8);
-    data.FlushBits();
-
-    if (declinedNames)
-        for (uint8 i = 0; i < MAX_DECLINED_NAME_CASES; ++i)
-            data.WriteString(declinedNames->name[i]);
-
-    data.WriteString(name);
-    data << uint32(pet->GetUInt32Value(UNIT_FIELD_PET_NAME_TIMESTAMP));
-    data << uint64(petnumber);
-    SendPacket(&data);
+    SendPacket(response.Write());
 }
 
 bool WorldSession::CheckStableMaster(ObjectGuid guid)
@@ -728,18 +676,12 @@ bool WorldSession::CheckStableMaster(ObjectGuid guid)
     return true;
 }
 
-void WorldSession::HandlePetSetAction(WorldPacket& recvData)
+void WorldSession::HandlePetSetAction(WorldPackets::Pet::PetSetAction& packet)
 {
-    LOG_DEBUG("network.opcode", "HandlePetSetAction. CMSG_PET_SET_ACTION");
-
-    // 5.4.8 18414, from Project SkyFire: one button per packet, a move arrives as two packets
-    uint32 position[2];
-    uint32 data[2];
-    recvData >> position[0];
-    recvData >> data[0];
-    ObjectGuid petguid;
-    recvData.ReadGuidMask(petguid, { 1, 0, 5, 3, 2, 7, 6, 4 });
-    recvData.ReadGuidBytes(petguid, { 5, 6, 7, 3, 2, 1, 4, 0 });
+    // one button per packet, a move arrives as two packets
+    uint32 position[2] = { packet.Index, 0 };
+    uint32 data[2] = { packet.Action, 0 };
+    ObjectGuid petguid = packet.PetGUID;
 
     Unit* checkPet = ObjectAccessor::GetUnit(*_player, petguid);
     if (!checkPet || checkPet != _player->GetFirstControlled())
@@ -854,27 +796,15 @@ void WorldSession::HandlePetSetAction(WorldPacket& recvData)
     }
 }
 
-void WorldSession::HandlePetRename(WorldPacket& recvData)
+void WorldSession::HandlePetRename(WorldPackets::Pet::PetRename& packet)
 {
-    LOG_DEBUG("network.opcode", "HandlePetRename. CMSG_PET_RENAME");
-
-    // 5.4.8 18414, from Project SkyFire: the pet is named by its number
-    uint32 petNumber;
-    std::string name;
+    // the pet is named by its number
+    uint32 petNumber = uint32(packet.RenameData.PetNumber);
+    std::string name = packet.RenameData.NewName;
+    bool isdeclined = packet.RenameData.DeclinedNames.has_value();
     DeclinedName declinedname;
-    std::array<uint32, MAX_DECLINED_NAME_CASES> declinedNameLengths = { };
-
-    recvData >> petNumber;
-    bool hasName = !recvData.ReadBit();
-    bool isdeclined = recvData.ReadBit();
     if (isdeclined)
-        for (uint32& length : declinedNameLengths)
-            length = recvData.ReadBits(7);
-    if (hasName)
-        name = recvData.ReadString(recvData.ReadBits(8));
-    if (isdeclined)
-        for (uint8 i = 0; i < MAX_DECLINED_NAME_CASES; ++i)
-            declinedname.name[i] = recvData.ReadString(declinedNameLengths[i]);
+        declinedname = *packet.RenameData.DeclinedNames;
 
     PetStable* petStable = _player->GetPetStable();
 
@@ -956,7 +886,7 @@ void WorldSession::HandlePetAbandon(WorldPackets::Pet::PetAbandon& packet)
         return;
 
     // pet/charmed
-    Creature* pet = ObjectAccessor::GetCreatureOrPetOrVehicle(*_player, packet.PetGUID);
+    Creature* pet = ObjectAccessor::GetCreatureOrPetOrVehicle(*_player, packet.Pet);
     if (pet && pet->ToPet() && pet->ToPet()->getPetType() == HUNTER_PET)
     {
         if (pet->IsPet())
@@ -1030,12 +960,10 @@ void WorldSession::HandlePetSpellAutocastOpcode(WorldPackets::Pet::PetSpellAutoc
     }
 }
 
-void WorldSession::HandlePetCastSpellOpcode(WorldPacket& recvPacket)
+void WorldSession::HandlePetCastSpellOpcode(WorldPackets::Spells::PetCastSpell& petCastSpell)
 {
-    LOG_DEBUG("network", "WORLD: CMSG_PET_CAST_SPELL");
-
-    // 5.4.8 18414, from Project SkyFire
-    SpellCastRequest request = WorldPackets::Spells::ReadPetCastSpell(recvPacket);
+    SpellCastRequest request = SpellCastRequest::FromPacket(petCastSpell.Cast);
+    request.petGuid = petCastSpell.PetGUID;
     ObjectGuid guid = request.petGuid;
     uint8  castCount = request.castCount;
     uint32 spellId = request.spellId;
@@ -1131,66 +1059,48 @@ void WorldSession::HandlePetCastSpellOpcode(WorldPacket& recvPacket)
         caster->AddUnitState(UNIT_STATE_FOLLOW);
 }
 
-// 5.4.8 18414, from Project SkyFire
 void WorldSession::SendPetNameInvalid(uint32 error, std::string const& name, DeclinedName* declinedName, uint32 petNumber)
 {
-    WorldPacket data(SMSG_PET_NAME_INVALID, 2 + 4 + name.size() + 1 + 4);
-    data.WriteBit(true);                                    // has pet number
-    data.WriteBits(name.size(), 8);
-    data.WriteBit(declinedName != nullptr);
-    data.FlushBits();
-
+    WorldPackets::Pet::PetNameInvalid petNameInvalid;
+    petNameInvalid.Result = error;
+    petNameInvalid.RenameData.NewName = name;
+    petNameInvalid.RenameData.PetNumber = int32(petNumber);
     if (declinedName)
-    {
-        for (uint32 i = 0; i < MAX_DECLINED_NAME_CASES; ++i)
-            data.WriteBits(declinedName->name[i].size(), 7);
-        data.FlushBits();
+        petNameInvalid.RenameData.DeclinedNames = *declinedName;
 
-        for (uint32 i = 0; i < MAX_DECLINED_NAME_CASES; ++i)
-            data.WriteString(declinedName->name[i]);
-    }
-
-    data.WriteString(name);
-    data << uint8(error);
-    data << uint32(petNumber);
-    SendPacket(&data);
+    SendPacket(petNameInvalid.Write());
 }
 
-void WorldSession::HandlePetLearnTalent(WorldPacket& recvData)
+void WorldSession::HandlePetSetSpecializationOpcode(WorldPackets::Pet::LearnPetSpecializationGroup& learnPetSpecializationGroup)
 {
-    LOG_DEBUG("network", "WORLD: CMSG_PET_LEARN_TALENT");
+    if (!_player->IsInWorld())
+        return;
 
-    ObjectGuid guid;
-    uint32 talent_id, requested_rank;
-    recvData >> guid >> talent_id >> requested_rank;
+    Pet* pet = ObjectAccessor::GetPet(*_player, learnPetSpecializationGroup.PetGUID);
 
-    _player->LearnPetTalent(guid, talent_id, requested_rank);
-    _player->SendTalentsInfoData(true);
-}
+    if (!pet || !pet->IsPet() || pet->getPetType() != HUNTER_PET ||
+        pet->GetOwnerGUID() != _player->GetGUID() || !pet->GetCharmInfo())
+        return;
 
-void WorldSession::HandleLearnPreviewTalentsPet(WorldPacket& recvData)
-{
-    LOG_DEBUG("network", "CMSG_LEARN_PREVIEW_TALENTS_PET");
-
-    ObjectGuid guid;
-    recvData >> guid;
-
-    uint32 talentsCount;
-    recvData >> talentsCount;
-
-    uint32 talentId, talentRank;
-
-    // Client has max 24 talents, rounded up : 30
-    uint32 const MaxTalentsCount = 30;
-
-    for (uint32 i = 0; i < talentsCount && i < MaxTalentsCount; ++i)
+    if (learnPetSpecializationGroup.SpecGroupIndex >= MAX_SPECIALIZATIONS)
     {
-        recvData >> talentId >> talentRank;
-
-        _player->LearnPetTalent(guid, talentId, talentRank);
+        LOG_DEBUG("network", "WORLD: HandlePetSetSpecializationOpcode - specialization index {} out of range", learnPetSpecializationGroup.SpecGroupIndex);
+        return;
     }
 
-    _player->SendTalentsInfoData(true);
+    uint32 specIndex = _player->HasAuraType(SPELL_AURA_OVERRIDE_PET_SPECS) ? PET_SPEC_OVERRIDE_CLASS_INDEX : 0;
+    ChrSpecializationEntry const* petSpec = sChrSpecializationByIndexStore[specIndex][learnPetSpecializationGroup.SpecGroupIndex];
+    if (!petSpec)
+    {
+        LOG_DEBUG("network", "WORLD: HandlePetSetSpecializationOpcode - specialization index {} not found", learnPetSpecializationGroup.SpecGroupIndex);
+        return;
+    }
 
-    recvData.rfinish();
+    if (_player->GetLevel() < MIN_SPECIALIZATION_LEVEL)
+    {
+        LOG_DEBUG("network", "WORLD: HandlePetSetSpecializationOpcode - player level too low for specializations");
+        return;
+    }
+
+    pet->SetSpecialization(petSpec->ID);
 }

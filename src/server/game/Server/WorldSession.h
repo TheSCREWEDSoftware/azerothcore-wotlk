@@ -1145,7 +1145,7 @@ public:
     void ApplyCastRequestResearchData(SpellCastRequest const& request);
 
     // Pet
-    void SendPetNameQuery(ObjectGuid guid, uint64 petnumber);
+    void SendQueryPetNameResponse(ObjectGuid guid);
     void SendStablePet(ObjectGuid guid);
     void SendStableResult(uint8 guid);
     void SendPetSlotUpdated(int32 petNumberA, int32 petSlotA, int32 petNumberB, int32 petSlotB);

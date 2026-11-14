@@ -1079,6 +1079,15 @@ std::vector<int32> const* SpellMgr::GetSpellLinked(int32 spell_id) const
     return itr != mSpellLinkedMap.end() ? &(itr->second) : nullptr;
 }
 
+PetFamilySpellsSet const* SpellMgr::GetPetFamilySpells(uint32 petFamily) const
+{
+    PetFamilySpellsStore::const_iterator itr = mPetFamilySpellsStore.find(petFamily);
+    if (itr != mPetFamilySpellsStore.end())
+        return &itr->second;
+
+    return nullptr;
+}
+
 PetLevelupSpellSet const* SpellMgr::GetPetLevelupSpellList(uint32 petFamily) const
 {
     PetLevelupSpellMap::const_iterator itr = mPetLevelupSpellMap.find(petFamily);
@@ -2693,6 +2702,7 @@ void SpellMgr::LoadPetLevelupSpellMap()
     uint32 oldMSTime = getMSTime();
 
     mPetLevelupSpellMap.clear();                                   // need for reload case
+    mPetFamilySpellsStore.clear();
 
     uint32 count = 0;
     uint32 family_count = 0;
@@ -2718,7 +2728,12 @@ void SpellMgr::LoadPetLevelupSpellMap()
                     continue;
 
                 if (!spell->SpellLevel)
+                {
+                    // 6.x: level-less passives are the family passives (TC SpellMgr::LoadPetFamilySpellsStore)
+                    if (spell->IsPassive())
+                        mPetFamilySpellsStore[creatureFamily->ID].insert(spell->Id);
                     continue;
+                }
 
                 PetLevelupSpellSet& spellSet = mPetLevelupSpellMap[creatureFamily->ID];
                 if (spellSet.empty())

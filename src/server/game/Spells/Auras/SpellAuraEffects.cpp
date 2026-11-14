@@ -433,7 +433,148 @@ pAuraEffectHandler AuraEffectHandler[TOTAL_AURAS] =
     &AuraEffect::HandleUnused,                                    //368 unused (4.3.4)
     &AuraEffect::HandleNULL,                                      //369 SPELL_AURA_ENABLE_POWER_BAR_TIMER
     &AuraEffect::HandleNULL,                                      //370 SPELL_AURA_SET_FAIR_FAR_CLIP
+    &AuraEffect::HandleNULL,                                      //371
+    &AuraEffect::HandleNULL,                                      //372
+    &AuraEffect::HandleNULL,                                      //373
+    &AuraEffect::HandleNULL,                                      //374 SPELL_AURA_MODIFY_FALL_DAMAGE_PCT
+    &AuraEffect::HandleNULL,                                      //375
+    &AuraEffect::HandleNULL,                                      //376 SPELL_AURA_MOD_CURRENCY_GAIN_FROM_SOURCE
+    &AuraEffect::HandleNULL,                                      //377 SPELL_AURA_CAST_WHILE_WALKING_2
+    &AuraEffect::HandleNULL,                                      //378
+    &AuraEffect::HandleNULL,                                      //379
+    &AuraEffect::HandleNoImmediateEffect,                         //380 SPELL_AURA_MOD_GLOBAL_COOLDOWN_BY_HASTE implemented in Spell::TriggerGlobalCooldown
+    &AuraEffect::HandleNULL,                                      //381
+    &AuraEffect::HandleNULL,                                      //382 SPELL_AURA_MOD_PET_STAT_PCT
+    &AuraEffect::HandleNULL,                                      //383 SPELL_AURA_IGNORE_SPELL_COOLDOWN
+    &AuraEffect::HandleNULL,                                      //384
+    &AuraEffect::HandleNULL,                                      //385 SPELL_AURA_CHANCE_OVERRIDE_AUTOATTACK_WITH_SPELL_ON_SELF
+    &AuraEffect::HandleNULL,                                      //386
+    &AuraEffect::HandleNULL,                                      //387
+    &AuraEffect::HandleNULL,                                      //388 SPELL_AURA_MOD_TAXI_FLIGHT_SPEED
+    &AuraEffect::HandleNULL,                                      //389
+    &AuraEffect::HandleNULL,                                      //390
+    &AuraEffect::HandleNULL,                                      //391
+    &AuraEffect::HandleNULL,                                      //392
+    &AuraEffect::HandleNULL,                                      //393
+    &AuraEffect::HandleNULL,                                      //394 SPELL_AURA_SHOW_CONFIRMATION_PROMPT (6.x HandleShowConfirmationPrompt not ported)
+    &AuraEffect::HandleNULL,                                      //395 SPELL_AURA_AREA_TRIGGER
+    &AuraEffect::HandleNoImmediateEffect,                         //396 SPELL_AURA_PROC_ON_POWER_AMOUNT_2 implemented in Unit::HandleAuraProcOnPowerAmount
+    &AuraEffect::HandleNULL,                                      //397
+    &AuraEffect::HandleNULL,                                      //398
+    &AuraEffect::HandleNULL,                                      //399
+    &AuraEffect::HandleAuraModSkill,                              //400 SPELL_AURA_MOD_SKILL_2
+    &AuraEffect::HandleNULL,                                      //401
+    &AuraEffect::HandleNULL,                                      //402 SPELL_AURA_MOD_POWER_DISPLAY (6.x HandleModPowerDisplay not ported)
+    &AuraEffect::HandleNoImmediateEffect,                         //403 SPELL_AURA_OVERRIDE_SPELL_VISUAL implemented in Unit::GetCastSpellXSpellVisualId
+    &AuraEffect::HandleNULL,                                      //404 SPELL_AURA_OVERRIDE_ATTACK_POWER_BY_SP_PCT (6.x HandleOverrideAttackPowerBySpellPower not ported)
+    &AuraEffect::HandleNULL,                                      //405 SPELL_AURA_MOD_RATING_PCT (6.x HandleModRatingPct not ported)
+    &AuraEffect::HandleNULL,                                      //406
+    &AuraEffect::HandleNULL,                                      //407 SPELL_AURA_MOD_FEAR_2
+    &AuraEffect::HandleNULL,                                      //408
+    &AuraEffect::HandleNULL,                                      //409
+    &AuraEffect::HandleNULL,                                      //410
+    &AuraEffect::HandleNoImmediateEffect,                         //411 SPELL_AURA_MOD_MAX_CHARGES implemented in SpellHistory::GetMaxCharges
+    &AuraEffect::HandleNULL,                                      //412
+    &AuraEffect::HandleNULL,                                      //413
+    &AuraEffect::HandleNULL,                                      //414
+    &AuraEffect::HandleNULL,                                      //415
+    &AuraEffect::HandleNoImmediateEffect,                         //416 SPELL_AURA_MOD_COOLDOWN_BY_HASTE_REGEN implemented in SpellHistory::StartCooldown
+    &AuraEffect::HandleNoImmediateEffect,                         //417 SPELL_AURA_MOD_GLOBAL_COOLDOWN_BY_HASTE_REGEN implemented in Spell::TriggerGlobalCooldown
+    &AuraEffect::HandleNULL,                                      //418 SPELL_AURA_MOD_MAX_POWER
+    &AuraEffect::HandleNULL,                                      //419 SPELL_AURA_MOD_BASE_MANA_PCT (6.x HandleAuraModIncreaseBaseManaPercent not ported)
+    &AuraEffect::HandleNULL,                                      //420 SPELL_AURA_MOD_BATTLE_PET_XP_PCT
+    &AuraEffect::HandleNULL,                                      //421 SPELL_AURA_MOD_ABSORB_EFFECTS_AMOUNT_PCT
+    &AuraEffect::HandleNULL,                                      //422
+    &AuraEffect::HandleNULL,                                      //423
+    &AuraEffect::HandleNULL,                                      //424
+    &AuraEffect::HandleNULL,                                      //425
+    &AuraEffect::HandleNULL,                                      //426
+    &AuraEffect::HandleNULL,                                      //427
+    &AuraEffect::HandleNULL,                                      //428
+    &AuraEffect::HandleNULL,                                      //429
+    &AuraEffect::HandleNULL,                                      //430
+    &AuraEffect::HandleNULL,                                      //431
+    &AuraEffect::HandleNULL,                                      //432
+    &AuraEffect::HandleNULL,                                      //433
+    &AuraEffect::HandleNULL,                                      //434
+    &AuraEffect::HandleNULL,                                      //435
+    &AuraEffect::HandleNULL,                                      //436
+    &AuraEffect::HandleNULL,                                      //437
+    &AuraEffect::HandleNULL,                                      //438
+    &AuraEffect::HandleNULL,                                      //439
+    &AuraEffect::HandleNULL,                                      //440 SPELL_AURA_MOD_MULTISTRIKE_DAMAGE
+    &AuraEffect::HandleNULL,                                      //441 SPELL_AURA_MOD_MULTISTRIKE_CHANCE
+    &AuraEffect::HandleNULL,                                      //442 SPELL_AURA_MOD_READINESS
+    &AuraEffect::HandleNULL,                                      //443 SPELL_AURA_MOD_LEECH
+    &AuraEffect::HandleNULL,                                      //444
+    &AuraEffect::HandleNULL,                                      //445
+    &AuraEffect::HandleNULL,                                      //446
+    &AuraEffect::HandleNoImmediateEffect,                         //447 SPELL_AURA_MOD_XP_FROM_CREATURE_TYPE implemented in KillRewarder::_RewardXP
+    &AuraEffect::HandleNULL,                                      //448
+    &AuraEffect::HandleNULL,                                      //449
+    &AuraEffect::HandleNULL,                                      //450
+    &AuraEffect::HandleOverridePetSpecs,                          //451 SPELL_AURA_OVERRIDE_PET_SPECS
+    &AuraEffect::HandleNULL,                                      //452
+    &AuraEffect::HandleNoImmediateEffect,                         //453 SPELL_AURA_CHARGE_RECOVERY_MOD implemented in SpellHistory::GetChargeRecoveryTime
+    &AuraEffect::HandleNoImmediateEffect,                         //454 SPELL_AURA_CHARGE_RECOVERY_MULTIPLIER implemented in SpellHistory::GetChargeRecoveryTime
+    &AuraEffect::HandleNULL,                                      //455
+    &AuraEffect::HandleNoImmediateEffect,                         //456 SPELL_AURA_CHARGE_RECOVERY_AFFECTED_BY_HASTE implemented in SpellHistory::GetChargeRecoveryTime
+    &AuraEffect::HandleNoImmediateEffect,                         //457 SPELL_AURA_CHARGE_RECOVERY_AFFECTED_BY_HASTE_REGEN implemented in SpellHistory::GetChargeRecoveryTime
+    &AuraEffect::HandleNULL,                                      //458 SPELL_AURA_IGNORE_DUAL_WIELD_HIT_PENALTY
+    &AuraEffect::HandleNULL,                                      //459 SPELL_AURA_IGNORE_MOVEMENT_FORCES
+    &AuraEffect::HandleNULL,                                      //460 SPELL_AURA_RESET_COOLDOWNS_ON_DUEL_START
+    &AuraEffect::HandleNULL,                                      //461
+    &AuraEffect::HandleNULL,                                      //462 SPELL_AURA_MOD_HEALING_AND_ABSORB_FROM_CASTER
+    &AuraEffect::HandleNULL,                                      //463 SPELL_AURA_CONVERT_CRIT_RATING_PCT_TO_PARRY_RATING used by Riposte
+    &AuraEffect::HandleNULL,                                      //464 SPELL_AURA_MOD_ATTACK_POWER_OF_BONUS_ARMOR
+    &AuraEffect::HandleNULL,                                      //465 SPELL_AURA_MOD_BONUS_ARMOR
+    &AuraEffect::HandleNULL,                                      //466 SPELL_AURA_MOD_BONUS_ARMOR_PCT
+    &AuraEffect::HandleNULL,                                      //467 SPELL_AURA_MOD_STAT_BONUS_PCT (6.x HandleModStatBonusPercent not ported)
+    &AuraEffect::HandleNULL,                                      //468 SPELL_AURA_TRIGGER_SPELL_ON_HEALTH_BELOW_PCT
+    &AuraEffect::HandleNULL,                                      //469 SPELL_AURA_SHOW_CONFIRMATION_PROMPT_WITH_DIFFICULTY (6.x HandleShowConfirmationPrompt not ported)
+    &AuraEffect::HandleNULL,                                      //470
+    &AuraEffect::HandleNULL,                                      //471 SPELL_AURA_MOD_VERSATILITY
+    &AuraEffect::HandleNULL,                                      //472
+    &AuraEffect::HandleNoImmediateEffect,                         //473 SPELL_AURA_PREVENT_DURABILITY_LOSS_FROM_COMBAT implemented in Player::DurabilityPointLossForEquipSlot
+    &AuraEffect::HandleNULL,                                      //474
+    &AuraEffect::HandleNULL,                                      //475 SPELL_AURA_ALLOW_USING_GAMEOBJECTS_WHILE_MOUNTED (6.x HandleAllowUsingGameobjectsWhileMounted not ported)
+    &AuraEffect::HandleNULL,                                      //476 SPELL_AURA_MOD_CURRENCY_GAIN_LOOTED
+    &AuraEffect::HandleNULL,                                      //477
+    &AuraEffect::HandleNULL,                                      //478
+    &AuraEffect::HandleNULL,                                      //479
+    &AuraEffect::HandleNULL,                                      //480
+    &AuraEffect::HandleNoImmediateEffect,                         //481 SPELL_AURA_CONVERT_CONSUMED_RUNE implemented in Spell::TakeRunePower
+    &AuraEffect::HandleNULL,                                      //482
+    &AuraEffect::HandleNULL,                                      //483
+    &AuraEffect::HandleNULL,                                      //484
+    &AuraEffect::HandleNULL,                                      //485
+    &AuraEffect::HandleNULL,                                      //486
+    &AuraEffect::HandleNULL,                                      //487
+    &AuraEffect::HandleNULL,                                      //488
+    &AuraEffect::HandleNULL,                                      //489
+    &AuraEffect::HandleNULL,                                      //490
 };
+
+void AuraEffect::HandleOverridePetSpecs(AuraApplication const* aurApp, uint8 mode, bool apply) const
+{
+    if (!(mode & AURA_EFFECT_HANDLE_REAL))
+        return;
+
+    Player* player = aurApp->GetTarget()->ToPlayer();
+    if (!player || player->getClass() != CLASS_HUNTER)
+        return;
+
+    Pet* pet = player->GetPet();
+    if (!pet)
+        return;
+
+    ChrSpecializationEntry const* currSpec = sChrSpecializationStore.LookupEntry(pet->GetSpecialization());
+    if (!currSpec)
+        return;
+
+    if (ChrSpecializationEntry const* newSpec = sChrSpecializationByIndexStore[apply ? PET_SPEC_OVERRIDE_CLASS_INDEX : 0][currSpec->OrderIndex])
+        pet->SetSpecialization(newSpec->ID);
+}
 
 AuraEffect::AuraEffect(Aura* base, uint8 effIndex, int32* baseAmount, Unit* caster):
     m_base(base), m_spellInfo(base->GetSpellInfo()),
@@ -5959,7 +6100,7 @@ void AuraEffect::HandleAuraOverrideSpells(AuraApplication const* aurApp, uint8 m
 
     if (apply)
     {
-        target->SetUInt32Value(PLAYER_FIELD_OVERRIDE_SPELLS_ID, overrideId);
+        target->SetUInt16Value(PLAYER_FIELD_BYTES2, PLAYER_BYTES_2_OVERRIDE_SPELLS_UINT16_OFFSET, overrideId);
         if (OverrideSpellDataEntry const* overrideSpells = sOverrideSpellDataStore.LookupEntry(overrideId))
             for (uint8 i = 0; i < MAX_OVERRIDE_SPELL; ++i)
                 if (uint32 spellId = overrideSpells->SpellID[i])
@@ -5967,7 +6108,7 @@ void AuraEffect::HandleAuraOverrideSpells(AuraApplication const* aurApp, uint8 m
     }
     else
     {
-        target->SetUInt32Value(PLAYER_FIELD_OVERRIDE_SPELLS_ID, 0);
+        target->SetUInt16Value(PLAYER_FIELD_BYTES2, PLAYER_BYTES_2_OVERRIDE_SPELLS_UINT16_OFFSET, 0);
         if (OverrideSpellDataEntry const* overrideSpells = sOverrideSpellDataStore.LookupEntry(overrideId))
             for (uint8 i = 0; i < MAX_OVERRIDE_SPELL; ++i)
                 if (uint32 spellId = overrideSpells->SpellID[i])
@@ -6751,7 +6892,7 @@ void AuraEffect::HandlePeriodicHealAurasTick(Unit* target, Unit* caster) const
         target->GetThreatMgr().ForwardThreatForAssistingMe(caster, threat, GetSpellInfo());
     }
 
-    bool haveCastItem = GetBase()->GetCastItemGUID();
+    bool haveCastItem = !GetBase()->GetCastItemGUID().IsEmpty();
 
     // Health Funnel
     // damage caster for heal amount

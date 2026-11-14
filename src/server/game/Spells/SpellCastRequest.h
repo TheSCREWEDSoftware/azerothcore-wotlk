@@ -27,6 +27,11 @@ class ByteBuffer;
 class SpellCastTargets;
 class WorldObject;
 
+namespace WorldPackets::Spells
+{
+    struct SpellCastRequest;
+}
+
 // The cast data the 5.4.8 cast, use item and pet cast requests carry
 struct SpellCastRequest
 {
@@ -56,13 +61,16 @@ struct SpellCastRequest
     ObjectGuid petGuid;
 
     void FillTargets(SpellCastTargets& targets, WorldObject* caster) const;
+
+    // the 6.x cast data (CMSG_CAST_SPELL, CMSG_USE_ITEM, CMSG_PET_CAST_SPELL)
+    static SpellCastRequest FromPacket(WorldPackets::Spells::SpellCastRequest const& cast);
 };
 
 namespace WorldPackets::Spells
 {
-    SpellCastRequest ReadCastSpell(ByteBuffer& recvPacket, WorldObject* caster);
-    SpellCastRequest ReadUseItem(ByteBuffer& recvPacket, WorldObject* caster);
-    SpellCastRequest ReadPetCastSpell(ByteBuffer& recvPacket);
+    ::SpellCastRequest ReadCastSpell(ByteBuffer& recvPacket, WorldObject* caster);
+    ::SpellCastRequest ReadUseItem(ByteBuffer& recvPacket, WorldObject* caster);
+    ::SpellCastRequest ReadPetCastSpell(ByteBuffer& recvPacket);
 }
 
 #endif

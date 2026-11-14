@@ -151,6 +151,7 @@ private:
 
 public:
     // aura effect apply/remove handlers
+    void HandleOverridePetSpecs(AuraApplication const* aurApp, uint8 mode, bool apply) const;
     void HandleNULL(AuraApplication const* /*aurApp*/, uint8 /*mode*/, bool /*apply*/) const
     {
         // not implemented
