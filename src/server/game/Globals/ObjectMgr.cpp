@@ -537,8 +537,8 @@ void ObjectMgr::LoadCreatureTemplates()
                          "PetSpellDataId, VehicleId, mingold, maxgold, AIName, MovementType, ctm.Ground, ctm.Swim, ctm.Flight, ctm.Rooted, "
 //                        47         48          49                         50           51              52            53             54                  55            56          57
                          "ctm.Chase, ctm.Random, ctm.InteractionPauseTimer, HoverHeight, HealthModifier, ManaModifier, ArmorModifier, ExperienceModifier, RacialLeader, movementId, RegenHealth, "
-//                       58                     59           60
-                         "CreatureImmunitiesId, flags_extra, ScriptName "
+//                       58                     59           60          61          62
+                         "CreatureImmunitiesId, flags_extra, ScriptName, femaleName, type_flags2 "
                          "FROM creature_template ct LEFT JOIN creature_template_movement ctm ON ct.entry = ctm.CreatureId ORDER BY entry DESC;");
 
     if (!result)
@@ -694,6 +694,8 @@ void ObjectMgr::LoadCreatureTemplate(Field* fields, bool triggerHook)
     creatureTemplate.CreatureImmunitiesId  = fields[58].Get<int32>();
     creatureTemplate.flags_extra           = fields[59].Get<uint32>();
     creatureTemplate.ScriptID              = GetScriptId(fields[60].Get<std::string>());
+    creatureTemplate.FemaleName            = fields[61].Get<std::string>();
+    creatureTemplate.type_flags2           = fields[62].Get<uint32>();
 
     // Warn about deprecated immunity flags that should be moved to `creature_immunities` table
     if (creatureTemplate.flags_extra & CREATURE_FLAG_EXTRA_NO_TAUNT)

@@ -101,10 +101,10 @@ void WorldSession::HandleCreatureQuery(WorldPackets::Query::QueryCreature& packe
         stats.Leader = creatureInfo->RacialLeader;
 
         stats.Name[0] = creatureInfo->Name;
-        // NameAlt (female name) and Flags[1] (type flags 2) arrive with the 6.x creature_template
+        stats.NameAlt[0] = creatureInfo->FemaleName;
 
         stats.Flags[0] = creatureInfo->type_flags;
-        stats.Flags[1] = 0;
+        stats.Flags[1] = creatureInfo->type_flags2;
 
         stats.CreatureType = creatureInfo->type;
         stats.CreatureFamily = creatureInfo->family;

@@ -224,6 +224,8 @@ struct CreatureTemplate
     uint32  family;                                         // enum CreatureFamily values (optional)
     uint32  type;                                           // enum CreatureType values
     uint32  type_flags;                                     // enum CreatureTypeFlags mask values
+    uint32  type_flags2;                                    // 6.x: second creature type flags word (TC 6.x)
+    std::string FemaleName;                                 // 6.x: name shown for female models (TC 6.x)
     uint32  lootid;
     uint32  pickpocketLootId;
     uint32  SkinLootId;
