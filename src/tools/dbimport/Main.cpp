@@ -122,7 +122,8 @@ bool StartDB()
     loader
         .AddDatabase(LoginDatabase, "Login")
         .AddDatabase(CharacterDatabase, "Character")
-        .AddDatabase(WorldDatabase, "World");
+        .AddDatabase(WorldDatabase, "World")
+        .AddDatabase(HotfixDatabase, "Hotfix");
 
     if (!loader.Load())
         return false;
@@ -136,6 +137,7 @@ void StopDB()
 {
     CharacterDatabase.Close();
     WorldDatabase.Close();
+    HotfixDatabase.Close();
     LoginDatabase.Close();
     MySQL::Library_End();
 }

@@ -1390,6 +1390,7 @@ void World::Update(uint32 diff)
         CharacterDatabase.KeepAlive();
         LoginDatabase.KeepAlive();
         WorldDatabase.KeepAlive();
+        HotfixDatabase.KeepAlive();
         sScriptMgr->OnModuleDatabasesKeepAlive();
     }
 

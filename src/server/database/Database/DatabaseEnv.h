@@ -24,6 +24,7 @@
 #include "Implementation/CharacterDatabase.h"
 #include "Implementation/LoginDatabase.h"
 #include "Implementation/WorldDatabase.h"
+#include "Implementation/HotfixDatabase.h"
 
 #include "PreparedStatement.h"
 #include "QueryCallback.h"
@@ -31,6 +32,8 @@
 
 /// Accessor to the world database
 AC_DATABASE_API extern DatabaseWorkerPool<WorldDatabaseConnection> WorldDatabase;
+/// Accessor to the hotfix database (6.x db2 overrides)
+AC_DATABASE_API extern DatabaseWorkerPool<HotfixDatabaseConnection> HotfixDatabase;
 /// Accessor to the character database
 AC_DATABASE_API extern DatabaseWorkerPool<CharacterDatabaseConnection> CharacterDatabase;
 /// Accessor to the realm/login database
