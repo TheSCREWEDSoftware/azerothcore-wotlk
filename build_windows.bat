@@ -46,7 +46,7 @@ if not exist "!BIN!\worldserver.exe" set "BIN=!BUILD!\bin"
 echo.
 echo Build done. Map extraction for this client (CASC storage) is not available yet:
 echo the extractors on this branch still read MPQ archives. Use extracted data from a
-echo TrinityCore %CLIENT_LABEL% install meanwhile.
+echo TrinityCore !CLIENT_LABEL! install meanwhile.
 goto :done
 
 :failpop
