@@ -181,7 +181,7 @@ enum EnchantmentSlot : uint8
     SOCK_ENCHANTMENT_SLOT_3         = 4,
     BONUS_ENCHANTMENT_SLOT          = 5,
     PRISMATIC_ENCHANTMENT_SLOT      = 6,                    // added at apply special permanent enchantment
-    // Slot 7 is reserved by the client.
+    USE_ENCHANTMENT_SLOT            = 7,                    // 6.x on use enchantments (engineering tinkers)
     REFORGE_ENCHANTMENT_SLOT        = 8,
     TRANSMOGRIFY_ENCHANTMENT_SLOT   = 9,
     MAX_INSPECTED_ENCHANTMENT_SLOT  = 10,

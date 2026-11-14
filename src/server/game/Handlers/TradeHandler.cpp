@@ -42,15 +42,20 @@ void WorldSession::SendTradeStatus(TradeStatusInfo const& info)
     packet.FailureForYou = info.IsTargetResult;             // used for: EQUIP_ERR_BAG_FULL, EQUIP_ERR_CANT_CARRY_MORE_OF_THIS, EQUIP_ERR_MISSING_REAGENT, EQUIP_ERR_ITEM_MAX_LIMIT_CATEGORY_COUNT_EXCEEDED
     packet.ItemID = info.ItemLimitedByLimitCategory;        // item limited by ItemLimitCategory.dbc
     packet.TradeSlot = info.Slot;
+    if (Player* trader = _player->GetTrader())
+    {
+        packet.PartnerAccount = trader->GetSession()->GetAccountGUID();
+        packet.PartnerIsSameBnetAccount = trader->GetSession()->GetBattlenetAccountId() == GetBattlenetAccountId();
+    }
     SendPacket(packet.Write());
 }
 
-void WorldSession::HandleIgnoreTradeOpcode(WorldPacket& /*recvPacket*/)
+void WorldSession::HandleIgnoreTradeOpcode(WorldPackets::Trade::IgnoreTrade& /*ignoreTrade*/)
 {
     _player->TradeCancel(true, TRADE_STATUS_PLAYER_IGNORED);
 }
 
-void WorldSession::HandleBusyTradeOpcode(WorldPacket& /*recvPacket*/)
+void WorldSession::HandleBusyTradeOpcode(WorldPackets::Trade::BusyTrade& /*busyTrade*/)
 {
     _player->TradeCancel(true, TRADE_STATUS_PLAYER_BUSY);
 }
@@ -72,7 +77,7 @@ void WorldSession::SendUpdateTrade(bool trader_data /*= true*/)
         if (!item)
             continue;
 
-        WorldPackets::Trade::TradeItem& tradeItem = tradeUpdated.Items.emplace_back();
+        WorldPackets::Trade::TradeUpdated::TradeItem& tradeItem = tradeUpdated.Items.emplace_back();
         tradeItem.Slot = i;
         tradeItem.EntryID = item->GetEntry();
         tradeItem.StackCount = item->GetCount();
@@ -82,11 +87,10 @@ void WorldSession::SendUpdateTrade(bool trader_data /*= true*/)
         if (item->IsWrapped())
             continue;
 
-        WorldPackets::Trade::UnwrappedTradeItem& unwrappedItem = tradeItem.Unwrapped.emplace();
-        unwrappedItem.RandomPropertiesID = item->GetItemRandomPropertyId();
-        unwrappedItem.RandomPropertiesSeed = item->GetItemSuffixFactor();
+        WorldPackets::Trade::TradeUpdated::UnwrappedTradeItem& unwrappedItem = tradeItem.Unwrapped.emplace();
+        unwrappedItem.Item.Initialize(item);
         unwrappedItem.EnchantID = item->GetEnchantmentId(PERM_ENCHANTMENT_SLOT);
-        unwrappedItem.ReforgeEnchantmentID = item->GetEnchantmentId(REFORGE_ENCHANTMENT_SLOT);
+        unwrappedItem.OnUseEnchantmentID = item->GetEnchantmentId(USE_ENCHANTMENT_SLOT);
         unwrappedItem.Creator = item->GetGuidValue(ITEM_FIELD_CREATOR);
         unwrappedItem.Charges = item->GetSpellCharges();
         unwrappedItem.Lock = item->GetTemplate()->LockID && item->IsLocked();
@@ -214,10 +218,9 @@ static void clearAcceptTradeMode(Item * *myItems, Item * *hisItems)
     }
 }
 
-void WorldSession::HandleAcceptTradeOpcode(WorldPacket& recvPacket)
+void WorldSession::HandleAcceptTradeOpcode(WorldPackets::Trade::AcceptTrade& acceptTrade)
 {
-    uint32 stateIndex;
-    recvPacket >> stateIndex;
+    uint32 stateIndex = acceptTrade.StateIndex;
 
     TradeData* my_trade = _player->m_trade;
     if (!my_trade)
@@ -671,7 +674,7 @@ void WorldSession::HandleAcceptTradeOpcode(WorldPacket& recvPacket)
     }
 }
 
-void WorldSession::HandleUnacceptTradeOpcode(WorldPacket& /*recvPacket*/)
+void WorldSession::HandleUnacceptTradeOpcode(WorldPackets::Trade::UnacceptTrade& /*unacceptTrade*/)
 {
     TradeData* my_trade = _player->GetTradeData();
     if (!my_trade)
@@ -680,7 +683,7 @@ void WorldSession::HandleUnacceptTradeOpcode(WorldPacket& /*recvPacket*/)
     my_trade->SetAccepted(false, true);
 }
 
-void WorldSession::HandleBeginTradeOpcode(WorldPacket& /*recvPacket*/)
+void WorldSession::HandleBeginTradeOpcode(WorldPackets::Trade::BeginTrade& /*beginTrade*/)
 {
     TradeData* my_trade = _player->GetTradeData();
     if (!my_trade)
@@ -702,33 +705,16 @@ void WorldSession::SendCancelTrade(TradeStatus status)
     SendTradeStatus(info);
 }
 
-void WorldSession::HandleCancelTradeOpcode(WorldPacket& /*recvPacket*/)
+void WorldSession::HandleCancelTradeOpcode(WorldPackets::Trade::CancelTrade& /*cancelTrade*/)
 {
     // sended also after LOGOUT COMPLETE
     if (_player)                                             // needed because STATUS_LOGGEDIN_OR_RECENTLY_LOGGOUT
         _player->TradeCancel(true);
 }
 
-void WorldSession::HandleInitiateTradeOpcode(WorldPacket& recvPacket)
+void WorldSession::HandleInitiateTradeOpcode(WorldPackets::Trade::InitiateTrade& initiateTrade)
 {
-    ObjectGuid ID;
-    ID[0] = recvPacket.ReadBit();
-    ID[3] = recvPacket.ReadBit();
-    ID[5] = recvPacket.ReadBit();
-    ID[1] = recvPacket.ReadBit();
-    ID[4] = recvPacket.ReadBit();
-    ID[6] = recvPacket.ReadBit();
-    ID[7] = recvPacket.ReadBit();
-    ID[2] = recvPacket.ReadBit();
-
-    recvPacket.ReadByteSeq(ID[7]);
-    recvPacket.ReadByteSeq(ID[4]);
-    recvPacket.ReadByteSeq(ID[3]);
-    recvPacket.ReadByteSeq(ID[5]);
-    recvPacket.ReadByteSeq(ID[1]);
-    recvPacket.ReadByteSeq(ID[2]);
-    recvPacket.ReadByteSeq(ID[6]);
-    recvPacket.ReadByteSeq(ID[0]);
+    ObjectGuid ID = initiateTrade.Guid;
 
     if (GetPlayer()->GetTradeData())
         return;
@@ -862,10 +848,13 @@ void WorldSession::HandleInitiateTradeOpcode(WorldPacket& recvPacket)
     pOther->GetSession()->SendTradeStatus(info);
 }
 
-void WorldSession::HandleSetTradeGoldOpcode(WorldPacket& recvPacket)
+void WorldSession::HandleSetTradeCurrencyOpcode(WorldPackets::Trade::SetTradeCurrency& /*setTradeCurrency*/)
 {
-    uint64 gold;
-    recvPacket >> gold;
+}
+
+void WorldSession::HandleSetTradeGoldOpcode(WorldPackets::Trade::SetTradeGold& setTradeGold)
+{
+    uint64 gold = setTradeGold.Coinage;
 
     TradeData* my_trade = _player->GetTradeData();
     if (!my_trade)
@@ -875,16 +864,12 @@ void WorldSession::HandleSetTradeGoldOpcode(WorldPacket& recvPacket)
     my_trade->SetMoney(std::min<uint64>(gold, MAX_MONEY_AMOUNT));
 }
 
-void WorldSession::HandleSetTradeItemOpcode(WorldPacket& recvPacket)
+void WorldSession::HandleSetTradeItemOpcode(WorldPackets::Trade::SetTradeItem& setTradeItem)
 {
     // send update
-    uint8 tradeSlot;
-    uint8 bag;
-    uint8 slot;
-
-    recvPacket >> slot;
-    recvPacket >> tradeSlot;
-    recvPacket >> bag;
+    uint8 tradeSlot = setTradeItem.TradeSlot;
+    uint8 bag = setTradeItem.PackSlot;
+    uint8 slot = setTradeItem.ItemSlotInPack;
 
     TradeData* my_trade = _player->GetTradeData();
     if (!my_trade)
@@ -942,10 +927,9 @@ void WorldSession::HandleSetTradeItemOpcode(WorldPacket& recvPacket)
     my_trade->SetItem(TradeSlots(tradeSlot), item);
 }
 
-void WorldSession::HandleClearTradeItemOpcode(WorldPacket& recvPacket)
+void WorldSession::HandleClearTradeItemOpcode(WorldPackets::Trade::ClearTradeItem& clearTradeItem)
 {
-    uint8 tradeSlot;
-    recvPacket >> tradeSlot;
+    uint8 tradeSlot = clearTradeItem.TradeSlot;
 
     TradeData* my_trade = _player->m_trade;
     if (!my_trade)
