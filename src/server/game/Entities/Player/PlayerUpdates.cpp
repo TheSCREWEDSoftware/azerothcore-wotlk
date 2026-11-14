@@ -708,7 +708,11 @@ void Player::UpdateRating(CombatRating cr)
     case CR_UNUSED_3:
     case CR_UNUSED_4:
         break;
-    case CR_VERSATILITY_DAMAGE_DONE: // Implemented in Unit damage/healing done and taken calculations
+    case CR_VERSATILITY_DAMAGE_DONE:
+        // The modifiers are applied in the Unit damage and healing bonus functions;
+        // the client shows the rating through PLAYER_VERSATILITY (TC 7.3.5)
+        SetUInt32Value(PLAYER_VERSATILITY, GetUInt32Value(PLAYER_FIELD_COMBAT_RATING_1 + uint32(CR_VERSATILITY_DAMAGE_DONE)));
+        break;
     case CR_VERSATILITY_DAMAGE_TAKEN:
         break;
     }

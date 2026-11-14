@@ -8117,6 +8117,10 @@ float Unit::SpellPctDamageModsDone(Unit* victim, SpellInfo const* spellProto, Da
     // Done total percent damage auras
     float DoneTotalMod = 1.0f;
 
+    // 6.x: versatility raises damage and healing done (TC 7.3.5)
+    if (Player* modOwner = GetSpellModOwner())
+        AddPct(DoneTotalMod, modOwner->GetRatingBonusValue(CR_VERSATILITY_DAMAGE_DONE) + modOwner->GetTotalAuraModifier(SPELL_AURA_MOD_VERSATILITY));
+
     DoneTotalMod *= GetTotalAuraMultiplier(SPELL_AURA_MOD_DAMAGE_PERCENT_DONE, [spellProto, this, damagetype](AuraEffect const* aurEff)
     {
         // prevent apply mods from weapon specific case to non weapon specific spells (Example: thunder clap and two-handed weapon specialization)
@@ -8603,6 +8607,13 @@ uint32 Unit::SpellDamageBonusTaken(Unit* caster, SpellInfo const* spellProto, ui
     TakenTotalMod *= GetTotalAuraMultiplierByMiscMask(SPELL_AURA_MOD_DAMAGE_PERCENT_TAKEN, spellProto->GetSchoolMask());
 
     TakenTotalMod = processDummyAuras(TakenTotalMod);
+
+    // 6.x: versatility lowers damage taken, with half of SPELL_AURA_MOD_VERSATILITY (TC 7.3.5)
+    if (Player* modOwner = GetSpellModOwner())
+    {
+        float versaBonus = modOwner->GetTotalAuraModifier(SPELL_AURA_MOD_VERSATILITY) / 2.0f;
+        AddPct(TakenTotalMod, -(modOwner->GetRatingBonusValue(CR_VERSATILITY_DAMAGE_TAKEN) + versaBonus));
+    }
 
     // From caster spells
     if (caster)
@@ -9181,6 +9192,10 @@ float Unit::SpellPctHealingModsDone(Unit* victim, SpellInfo const* spellProto, D
         return 1.0f;
 
     float DoneTotalMod = 1.0f;
+
+    // 6.x: versatility raises damage and healing done (TC 7.3.5)
+    if (Player* modOwner = GetSpellModOwner())
+        AddPct(DoneTotalMod, modOwner->GetRatingBonusValue(CR_VERSATILITY_DAMAGE_DONE) + modOwner->GetTotalAuraModifier(SPELL_AURA_MOD_VERSATILITY));
 
     // Healing done percent
     if (includeHealingDonePct)
@@ -9932,6 +9947,10 @@ uint32 Unit::MeleeDamageBonusDone(Unit* victim, uint32 pdamage, WeaponAttackType
     // Done total percent damage auras
     float DoneTotalMod = 1.0f;
 
+    // 6.x: versatility raises damage and healing done (TC 7.3.5)
+    if (Player* modOwner = GetSpellModOwner())
+        AddPct(DoneTotalMod, modOwner->GetRatingBonusValue(CR_VERSATILITY_DAMAGE_DONE) + modOwner->GetTotalAuraModifier(SPELL_AURA_MOD_VERSATILITY));
+
     // mods for SPELL_SCHOOL_MASK_NORMAL are already factored in base melee damage calculation
     if (!(damageSchoolMask & SPELL_SCHOOL_MASK_NORMAL))
     {
@@ -10127,6 +10146,13 @@ uint32 Unit::MeleeDamageBonusTaken(Unit* attacker, uint32 pdamage, WeaponAttackT
     else
     {
         TakenTotalMod *= GetTotalAuraMultiplier(SPELL_AURA_MOD_RANGED_DAMAGE_TAKEN_PCT);
+    }
+
+    // 6.x: versatility lowers damage taken, with half of SPELL_AURA_MOD_VERSATILITY (TC 7.3.5)
+    if (Player* modOwner = GetSpellModOwner())
+    {
+        float versaBonus = modOwner->GetTotalAuraModifier(SPELL_AURA_MOD_VERSATILITY) / 2.0f;
+        AddPct(TakenTotalMod, -(modOwner->GetRatingBonusValue(CR_VERSATILITY_DAMAGE_TAKEN) + versaBonus));
     }
 
     // No positive taken bonus, custom attr
