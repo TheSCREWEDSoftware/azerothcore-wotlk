@@ -830,7 +830,7 @@ public:
                 if (me->GetVehicleKit())
                     for (SeatMap::iterator itr = me->GetVehicleKit()->Seats.begin(); itr != me->GetVehicleKit()->Seats.end(); ++itr)
                         if (VehicleSeatEntry const* seatInfo = itr->second.SeatInfo)
-                            if (seatInfo->m_flags & VEHICLE_SEAT_FLAG_CAN_CONTROL)
+                            if (seatInfo->Flags & VEHICLE_SEAT_FLAG_CAN_CONTROL)
                                 if (Unit* passenger = ObjectAccessor::GetUnit(*me, itr->second.Passenger.Guid))
                                     if (!CanControlVehicle(passenger))
                                     {

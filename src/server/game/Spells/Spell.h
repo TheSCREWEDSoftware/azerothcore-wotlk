@@ -38,6 +38,15 @@ class SpellEvent;
 class ByteBuffer;
 class BasicEvent;
 
+namespace WorldPackets::Spells
+{
+    class CastFailed;
+    struct SpellAmmo;
+    struct SpellCastData;
+    struct SpellCastRequest;
+    struct SpellTargetData;
+}
+
 namespace Acore
 {
     enum class WorldObjectSpellAreaTargetSearchReason
@@ -160,11 +169,10 @@ public:
     SpellCastTargets();
     ~SpellCastTargets();
 
-    void Read(ByteBuffer& data, WorldObject* caster);
-    // 5.4.8 sends the targets as separate fields, no source or destination means the caster's position
+    // the client sends the targets as separate fields, no source or destination means the caster's position
     void Initialize(WorldObject* caster, uint32 targetMask, ObjectGuid objectTarget, ObjectGuid itemTarget,
         ObjectGuid srcTransport, Position const& srcPos, ObjectGuid dstTransport, Position const& dstPos, std::string const& targetString);
-    void Write(ByteBuffer& data);
+    void Write(WorldPackets::Spells::SpellTargetData& data);
 
     uint32 GetTargetMask() const { return m_targetMask; }
     void SetTargetMask(uint32 newMask) { m_targetMask = newMask; }
@@ -258,30 +266,6 @@ private:
     // Xinef: Save channel data
     SpellDestination m_dstChannel;
     ObjectGuid m_objectTargetGUIDChannel;
-};
-
-// 5.4.8 18414 SMSG_SPELL_EXECUTE_LOG payload, from Project SkyFire
-struct SpellLogEnergizeHelper
-{
-    ObjectGuid Guid;
-    uint32 Value = 0;
-    uint32 PowerType = 0;
-    float Multiplier = 0.0f;
-};
-
-struct SpellLogExtraAttacksHelper
-{
-    ObjectGuid Guid;
-    uint32 Count = 0;
-};
-
-struct SpellLogHelper
-{
-    std::vector<ObjectGuid> Targets;
-    std::vector<SpellLogEnergizeHelper> Energizes;
-    std::vector<SpellLogExtraAttacksHelper> ExtraAttacks;
-    std::vector<uint32> PetFeed;
-    std::vector<uint32> CreatedItems;
 };
 
 struct SpellValue
@@ -571,15 +555,16 @@ public:
     void setState(uint32 state) { m_spellState = state; }
 
     void DoCreateItem(uint8 effIndex, uint32 itemId);
-    void WriteSpellGoTargets(WorldPacket* data);
-    void WriteAmmoToPacket(WorldPacket* data);
+    void FillSpellCastData(WorldPackets::Spells::SpellCastData& castData, ObjectGuid casterUnitGuid, uint32 castFlags);
+    void UpdateSpellCastDataTargets(WorldPackets::Spells::SpellCastData& data);
+    void UpdateSpellCastDataAmmo(WorldPackets::Spells::SpellAmmo& ammo);
 
     bool CheckEffectTarget(Unit const* target, uint32 eff) const;
     bool CanAutoCast(Unit* target);
     void CheckSrc() { if (!m_targets.HasSrc()) m_targets.SetSrc(*m_caster); }
     void CheckDst() { if (!m_targets.HasDst()) m_targets.SetDst(*m_caster); }
 
-    static void WriteCastResultInfo(WorldPacket& data, Player* caster, SpellInfo const* spellInfo, uint8 castCount, SpellCastResult result, SpellCustomErrors customError);
+    static void WriteCastResultInfo(WorldPackets::Spells::CastFailed& packet, Player* caster, SpellInfo const* spellInfo, uint8 castCount, SpellCastResult result, SpellCustomErrors customError);
     static void SendCastResult(Player* caster, SpellInfo const* spellInfo, uint8 castCount, SpellCastResult result, SpellCustomErrors customError = SPELL_CUSTOM_ERROR_NONE);
     void SendCastResult(SpellCastResult result);
     void SendPetCastResult(SpellCastResult result);
@@ -591,7 +576,7 @@ public:
     void ExecuteLogEffectTakeTargetPower(uint8 effIndex, Unit* target, uint32 PowerType, uint32 powerTaken, float gainMultiplier);
     void ExecuteLogEffectExtraAttacks(uint8 effIndex, Unit* victim, uint32 attCount);
     void ExecuteLogEffectInterruptCast(uint8 effIndex, Unit* victim, uint32 spellId);
-    void ExecuteLogEffectDurabilityDamage(uint8 effIndex, Unit* victim, int32 itemId, int32 slot);
+    void ExecuteLogEffectDurabilityDamage(uint8 effIndex, Unit* victim, int32 itemId, int32 amount);
     void ExecuteLogEffectOpenLock(uint8 effIndex, Object* obj);
     void ExecuteLogEffectCreateItem(uint8 effIndex, uint32 entry);
     void ExecuteLogEffectDestroyItem(uint8 effIndex, uint32 entry);
@@ -885,7 +870,13 @@ public:
     // xinef:
     bool _spellTargetsSelected;
 
-    std::map<uint8, SpellLogHelper> m_effectExecuteData;
+    // SMSG_SPELL_EXECUTE_LOG data per effect (TC 6.x)
+    std::vector<SpellLogEffectPowerDrainParams> _powerDrainTargets[MAX_SPELL_EFFECTS];
+    std::vector<SpellLogEffectExtraAttacksParams> _extraAttacksTargets[MAX_SPELL_EFFECTS];
+    std::vector<SpellLogEffectDurabilityDamageParams> _durabilityDamageTargets[MAX_SPELL_EFFECTS];
+    std::vector<SpellLogEffectGenericVictimParams> _genericVictimTargets[MAX_SPELL_EFFECTS];
+    std::vector<SpellLogEffectTradeSkillItemParams> _tradeSkillTargets[MAX_SPELL_EFFECTS];
+    std::vector<SpellLogEffectFeedPetParams> _feedPetTargets[MAX_SPELL_EFFECTS];
 };
 
 namespace Acore

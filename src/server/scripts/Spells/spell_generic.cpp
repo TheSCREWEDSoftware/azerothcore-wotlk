@@ -2591,7 +2591,7 @@ class spell_gen_vehicle_scaling : public SpellScript
     {
         if (Vehicle* veh = GetCaster()->GetVehicle())
             if (VehicleSeatEntry const* seatEntry = veh->GetSeatForPassenger(GetCaster()))
-                if (seatEntry->m_flags & VEHICLE_SEAT_FLAG_CAN_CONTROL)
+                if (seatEntry->Flags & VEHICLE_SEAT_FLAG_CAN_CONTROL)
                     return SPELL_CAST_OK;
 
         return SPELL_FAILED_DONT_REPORT;

@@ -23,7 +23,6 @@
 #include "Position.h"
 #include <string>
 
-class ByteBuffer;
 class SpellCastTargets;
 class WorldObject;
 
@@ -32,7 +31,7 @@ namespace WorldPackets::Spells
     struct SpellCastRequest;
 }
 
-// The cast data the 5.4.8 cast, use item and pet cast requests carry
+// The cast data the cast, use item and pet cast requests carry
 struct SpellCastRequest
 {
     uint8 castCount = 0;
@@ -52,11 +51,6 @@ struct SpellCastRequest
     ArchData researchData;
     bool hasResearchData = false;
 
-    // CMSG_USE_ITEM
-    uint8 bagIndex = 0;
-    uint8 slot = 0;
-    ObjectGuid itemGuid;
-
     // CMSG_PET_CAST_SPELL
     ObjectGuid petGuid;
 
@@ -65,12 +59,5 @@ struct SpellCastRequest
     // the 6.x cast data (CMSG_CAST_SPELL, CMSG_USE_ITEM, CMSG_PET_CAST_SPELL)
     static SpellCastRequest FromPacket(WorldPackets::Spells::SpellCastRequest const& cast);
 };
-
-namespace WorldPackets::Spells
-{
-    ::SpellCastRequest ReadCastSpell(ByteBuffer& recvPacket, WorldObject* caster);
-    ::SpellCastRequest ReadUseItem(ByteBuffer& recvPacket, WorldObject* caster);
-    ::SpellCastRequest ReadPetCastSpell(ByteBuffer& recvPacket);
-}
 
 #endif

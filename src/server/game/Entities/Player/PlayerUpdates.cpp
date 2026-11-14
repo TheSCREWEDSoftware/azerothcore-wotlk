@@ -38,6 +38,7 @@
 #include "SkillDiscovery.h"
 #include "SpellAuraEffects.h"
 #include "SpellMgr.h"
+#include "SpellPackets.h"
 #include "UpdateFieldFlags.h"
 #include "Vehicle.h"
 #include "Weather.h"
@@ -1422,12 +1423,14 @@ bool Player::UpdatePhasesForArea(uint32 areaId)
 
 void Player::SendPhaseShift()
 {
-    WorldPackets::Misc::PhaseShiftChange phaseShift;
-    phaseShift.Client = GetGUID();
-    phaseShift.PhaseShiftFlags = IsUnphased() ? 0x8 /*Unphased*/ : 0x0;
-    phaseShift.Phases.assign(m_phases.begin(), m_phases.end());
-    phaseShift.VisibleMapIDs.assign(m_visibleMaps.begin(), m_visibleMaps.end());
-    phaseShift.UiMapPhaseIDs.assign(m_uiMapPhases.begin(), m_uiMapPhases.end());
+    // 6.x: the packet flags the player as unphased when it lists no phase (TC 6.x)
+    WorldPackets::Misc::PhaseShift phaseShift;
+    phaseShift.ClientGUID = GetGUID();
+    phaseShift.PersonalGUID = GetGUID();
+    if (!IsUnphased())
+        phaseShift.PhaseShifts.insert(m_phases.begin(), m_phases.end());
+    phaseShift.VisibleMapIDs.insert(m_visibleMaps.begin(), m_visibleMaps.end());
+    phaseShift.UiWorldMapAreaIDSwaps.insert(m_uiMapPhases.begin(), m_uiMapPhases.end());
     SendDirectMessage(phaseShift.Write());
 }
 
@@ -2458,7 +2461,7 @@ void Player::UpdateFallInformationIfNeed(MovementInfo const& minfo,
                                          uint16              opcode)
 {
     if (m_lastFallTime >= minfo.fallTime ||
-        m_lastFallZ <= minfo.pos.GetPositionZ() || opcode == MSG_MOVE_FALL_LAND)
+        m_lastFallZ <= minfo.pos.GetPositionZ() || opcode == CMSG_MOVE_FALL_LAND)
         SetFallInformation(minfo.fallTime, minfo.pos.GetPositionZ());
 }
 
@@ -2637,10 +2640,19 @@ void Player::ExecuteOrCancelSpellCastRequest(PendingSpellCastRequest* request, b
 
     if (WorldSession* session = GetSession())
     {
+        // replay the queued request through its 6.x packet
         if (request->isItem)
-            session->HandleUseItemOpcode(request->requestPacket);
+        {
+            WorldPackets::Spells::UseItem useItem(WorldPacket(request->requestPacket));
+            useItem.Read();
+            session->HandleUseItemOpcode(useItem);
+        }
         else
-            session->HandleCastSpellOpcode(request->requestPacket);
+        {
+            WorldPackets::Spells::CastSpell castSpell(WorldPacket(request->requestPacket));
+            castSpell.Read();
+            session->HandleCastSpellOpcode(castSpell);
+        }
     }
 }
 

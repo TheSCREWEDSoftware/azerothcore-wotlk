@@ -44,6 +44,7 @@
 #include "SpellAuraEffects.h"
 #include "SpellInfo.h"
 #include "SpellMgr.h"
+#include "CombatLogPackets.h"
 #include "SpellPackets.h"
 #include "SpellScript.h"
 #include "TemporarySummon.h"
@@ -162,59 +163,6 @@ SpellCastTargets::~SpellCastTargets()
 {
 }
 
-void SpellCastTargets::Read(ByteBuffer& data, WorldObject* caster)
-{
-    data >> m_targetMask;
-
-    if (m_targetMask == TARGET_FLAG_NONE)
-        return;
-
-    if (m_targetMask & (TARGET_FLAG_UNIT | TARGET_FLAG_UNIT_MINIPET | TARGET_FLAG_GAMEOBJECT | TARGET_FLAG_CORPSE_ENEMY | TARGET_FLAG_CORPSE_ALLY))
-        data >> m_objectTargetGUID.ReadAsPacked();
-
-    if (m_targetMask & (TARGET_FLAG_ITEM | TARGET_FLAG_TRADE_ITEM))
-        data >> m_itemTargetGUID.ReadAsPacked();
-
-    if (m_targetMask & TARGET_FLAG_SOURCE_LOCATION)
-    {
-        data >> m_src._transportGUID.ReadAsPacked();
-        if (m_src._transportGUID)
-            data >> m_src._transportOffset.PositionXYZStream();
-        else
-            data >> m_src._position.PositionXYZStream();
-    }
-    else
-    {
-        m_src._transportGUID = caster->GetTransGUID();
-        if (m_src._transportGUID)
-            m_src._transportOffset.Relocate(caster->GetTransOffsetX(), caster->GetTransOffsetY(), caster->GetTransOffsetZ(), caster->GetTransOffsetO());
-        else
-            m_src._position.Relocate(caster);
-    }
-
-    if (m_targetMask & TARGET_FLAG_DEST_LOCATION)
-    {
-        data >> m_dst._transportGUID.ReadAsPacked();
-        if (m_dst._transportGUID)
-            data >> m_dst._transportOffset.PositionXYZStream();
-        else
-            data >> m_dst._position.PositionXYZStream();
-    }
-    else
-    {
-        m_dst._transportGUID = caster->GetTransGUID();
-        if (m_dst._transportGUID)
-            m_dst._transportOffset.Relocate(caster->GetTransOffsetX(), caster->GetTransOffsetY(), caster->GetTransOffsetZ(), caster->GetTransOffsetO());
-        else
-            m_dst._position.Relocate(caster);
-    }
-
-    if (m_targetMask & TARGET_FLAG_STRING)
-        data >> m_strTarget;
-
-    Update(caster);
-}
-
 void SpellCastTargets::Initialize(WorldObject* caster, uint32 targetMask, ObjectGuid objectTarget, ObjectGuid itemTarget,
     ObjectGuid srcTransport, Position const& srcPos, ObjectGuid dstTransport, Position const& dstPos, std::string const& targetString)
 {
@@ -238,41 +186,38 @@ void SpellCastTargets::Initialize(WorldObject* caster, uint32 targetMask, Object
     Update(caster);
 }
 
-void SpellCastTargets::Write(ByteBuffer& data)
+void SpellCastTargets::Write(WorldPackets::Spells::SpellTargetData& data)
 {
-    data << uint32(m_targetMask);
+    data.Flags = m_targetMask;
 
     if (m_targetMask & (TARGET_FLAG_UNIT | TARGET_FLAG_CORPSE_ALLY | TARGET_FLAG_GAMEOBJECT | TARGET_FLAG_CORPSE_ENEMY | TARGET_FLAG_UNIT_MINIPET))
-        data << m_objectTargetGUID.WriteAsPacked();
+        data.Unit = m_objectTargetGUID;
 
-    if (m_targetMask & (TARGET_FLAG_ITEM | TARGET_FLAG_TRADE_ITEM))
-    {
-        if (m_itemTarget)
-            data << m_itemTarget->GetPackGUID();
-        else
-            data << uint8(0);
-    }
+    if (m_targetMask & (TARGET_FLAG_ITEM | TARGET_FLAG_TRADE_ITEM) && m_itemTarget)
+        data.Item = m_itemTarget->GetGUID();
 
     if (m_targetMask & TARGET_FLAG_SOURCE_LOCATION)
     {
-        data << m_src._transportGUID.WriteAsPacked(); // relative position guid here - transport for example
+        data.SrcLocation.emplace();
+        data.SrcLocation->Transport = m_src._transportGUID; // relative position guid here - transport for example
         if (m_src._transportGUID)
-            data << m_src._transportOffset.PositionXYZStream();
+            data.SrcLocation->Location = m_src._transportOffset;
         else
-            data << m_src._position.PositionXYZStream();
+            data.SrcLocation->Location = m_src._position;
     }
 
     if (m_targetMask & TARGET_FLAG_DEST_LOCATION)
     {
-        data << m_dst._transportGUID.WriteAsPacked(); // relative position guid here - transport for example
+        data.DstLocation.emplace();
+        data.DstLocation->Transport = m_dst._transportGUID; // relative position guid here - transport for example
         if (m_dst._transportGUID)
-            data << m_dst._transportOffset.PositionXYZStream();
+            data.DstLocation->Location = m_dst._transportOffset;
         else
-            data << m_dst._position.PositionXYZStream();
+            data.DstLocation->Location = m_dst._position;
     }
 
     if (m_targetMask & TARGET_FLAG_STRING)
-        data << m_strTarget;
+        data.Name = m_strTarget;
 }
 
 ObjectGuid SpellCastTargets::GetUnitTargetGUID() const
@@ -312,7 +257,6 @@ ObjectGuid SpellCastTargets::GetGOTargetGUID() const
 {
     switch (m_objectTargetGUID.GetHigh())
     {
-        case HighGuid::Transport:
         case HighGuid::Transport:
         case HighGuid::GameObject:
             return m_objectTargetGUID;
@@ -400,7 +344,7 @@ void SpellCastTargets::SetItemTarget(Item* item)
 
 void SpellCastTargets::SetTradeItemTarget(Player* caster)
 {
-    m_itemTargetGUID.Set(uint64(TRADE_SLOT_NONTRADED));
+    m_itemTargetGUID = ObjectGuid::TradeItem;               // 6.x: a fixed guid names the not traded slot (TC 6.x)
     m_itemTargetEntry = 0;
     m_targetMask |= TARGET_FLAG_TRADE_ITEM;
 
@@ -549,7 +493,7 @@ void SpellCastTargets::Update(WorldObject* caster)
         if (m_targetMask & TARGET_FLAG_ITEM)
             m_itemTarget = player->GetItemByGuid(m_itemTargetGUID);
         else if (m_targetMask & TARGET_FLAG_TRADE_ITEM)
-            if (m_itemTargetGUID.GetRawValue() == TRADE_SLOT_NONTRADED) // here it is not guid but slot. Also prevents hacking slots
+            if (m_itemTargetGUID == ObjectGuid::TradeItem) // the not traded slot, also prevents hacking slots
                 if (TradeData* pTrade = player->GetTradeData())
                     m_itemTarget = pTrade->GetTraderData()->GetItem(TRADE_SLOT_NONTRADED);
 
@@ -4793,9 +4737,9 @@ void Spell::finish(bool ok)
         unitCaster->AttackStop();
 }
 
-void Spell::WriteCastResultInfo(WorldPacket& packet, Player* caster, SpellInfo const* spellInfo, uint8 castCount, SpellCastResult result, SpellCustomErrors customError)
+void Spell::WriteCastResultInfo(WorldPackets::Spells::CastFailed& packet, Player* caster, SpellInfo const* spellInfo, uint8 castCount, SpellCastResult result, SpellCustomErrors customError)
 {
-    // the values the client formats into the error text; 5.4.8 sends up to two of them
+    // the values the client formats into the error text; 6.x sends up to two of them
     ByteBuffer data;
     switch (result)
     {
@@ -4896,25 +4840,13 @@ void Spell::WriteCastResultInfo(WorldPacket& packet, Player* caster, SpellInfo c
             break;
     }
 
-    // 5.4.8 18414 SMSG_CAST_FAILED / SMSG_PET_CAST_FAILED, from Project SkyFire: the second value
-    // comes before the first
-    std::optional<uint32> arg1;
-    std::optional<uint32> arg2;
+    packet.SpellID = int32(spellInfo->Id);
+    packet.Reason = int32(result);
+    packet.CastID = castCount;
     if (data.size() >= 4)
-        arg1 = data.read<uint32>();
+        packet.FailedArg1 = int32(data.read<uint32>());
     if (data.size() >= 8)
-        arg2 = data.read<uint32>();
-
-    packet << uint32(spellInfo->Id);
-    packet << uint32(result);
-    packet << uint8(castCount);
-    packet.WriteBit(!arg2);
-    packet.WriteBit(!arg1);
-    packet.FlushBits();
-    if (arg2)
-        packet << uint32(*arg2);
-    if (arg1)
-        packet << uint32(*arg1);
+        packet.FailedArg2 = int32(data.read<uint32>());
 }
 
 void Spell::SendCastResult(Player* caster, SpellInfo const* spellInfo, uint8 castCount, SpellCastResult result, SpellCustomErrors customError /*= SPELL_CUSTOM_ERROR_NONE*/)
@@ -4922,10 +4854,10 @@ void Spell::SendCastResult(Player* caster, SpellInfo const* spellInfo, uint8 cas
     if (result == SPELL_CAST_OK)
         return;
 
-    WorldPacket data(SMSG_CAST_FAILED, 1 + 4 + 1);
-    WriteCastResultInfo(data, caster, spellInfo, castCount, result, customError);
+    WorldPackets::Spells::CastFailed packet(SMSG_CAST_FAILED);
+    WriteCastResultInfo(packet, caster, spellInfo, castCount, result, customError);
 
-    caster->SendDirectMessage(&data);
+    caster->SendDirectMessage(packet.Write());
 }
 
 void Spell::SendCastResult(SpellCastResult result)
@@ -4967,10 +4899,10 @@ void Spell::SendPetCastResult(SpellCastResult result)
     if (!player)
         return;
 
-    WorldPacket data(SMSG_PET_CAST_FAILED, 1 + 4 + 1);
-    WriteCastResultInfo(data, player, m_spellInfo, m_cast_count, result, m_customError);
+    WorldPackets::Spells::CastFailed packet(SMSG_PET_CAST_FAILED);
+    WriteCastResultInfo(packet, player, m_spellInfo, m_cast_count, result, m_customError);
 
-    player->SendDirectMessage(&data);
+    player->SendDirectMessage(packet.Write());
 }
 
 void Spell::SendSpellStart()
@@ -5023,148 +4955,23 @@ void Spell::SendSpellStart()
         }
     }
 
-    // 5.4.8 18414, from Project SkyFire
-    ObjectGuid casterUnitGuid = realCasterGUID;
-    ObjectGuid casterGuid = m_CastItem ? m_CastItem->GetGUID() : casterUnitGuid;
-    ObjectGuid targetGuid = m_targets.GetObjectTargetGUID();
-    ObjectGuid itemTargetGuid = m_targets.GetItemTargetGUID();
-    ObjectGuid unkGuid;
-    bool hasDestLocation = m_targets.HasDst();
-    bool hasSourceLocation = m_targets.HasSrc();
-    bool hasTargetString = m_targets.GetTargetMask() & TARGET_FLAG_STRING;
-    bool hasTargetMask = m_targets.GetTargetMask() != 0;
-    bool hasElevation = castFlags & CAST_FLAG_ADJUST_MISSILE;
-    bool hasVisualChain = castFlags & CAST_FLAG_VISUAL_CHAIN;
-    bool hasAmmo = castFlags & CAST_FLAG_PROJECTILE;
-    Player* runePlayer = unitCaster ? unitCaster->ToPlayer() : nullptr;
-    uint8 runeCooldownPassedCount = (castFlags & CAST_FLAG_RUNE_LIST) && runePlayer ? MAX_RUNES : 0;
-    uint8 predictedPowerCount = (castFlags & CAST_FLAG_POWER_LEFT_SELF) && unitCaster ? 1 : 0;
-    ObjectGuid destTransportGuid = hasDestLocation ? m_targets.GetDst()->_transportGUID : ObjectGuid::Empty;
-    ObjectGuid srcTransportGuid = hasSourceLocation ? m_targets.GetSrc()->_transportGUID : ObjectGuid::Empty;
+    uint32 schoolImmunityMask = unitCaster ? unitCaster->GetSchoolImmunityMask() : 0;
+    uint32 mechanicImmunityMask = unitCaster ? unitCaster->GetMechanicImmunityMask() : 0;
+    if (schoolImmunityMask || mechanicImmunityMask)
+        castFlags |= CAST_FLAG_IMMUNITY;
 
-    WorldPacket data(SMSG_SPELL_START, 100);
-    data.WriteBits(0, 24);                                  // miss count
-    data.WriteGuidMask(casterGuid, { 5 });
-    data.WriteBit(true);
-    data.WriteBit(false);
-    data.WriteGuidMask(casterUnitGuid, { 4 });
-    data.WriteGuidMask(casterGuid, { 2 });
-    data.WriteBits(runeCooldownPassedCount, 3);
-    data.WriteGuidMask(casterUnitGuid, { 2, 6 });
-    data.WriteBits(0, 25);                                  // miss type count
-    data.WriteBits(0, 13);
-    data.WriteGuidMask(casterGuid, { 4 });
-    data.WriteBits(0, 24);                                  // hit count
-    data.WriteGuidMask(casterUnitGuid, { 7 });
-    data.WriteBit(hasSourceLocation);
-    data.WriteBits(predictedPowerCount, 21);
-    data.WriteGuidMask(itemTargetGuid, { 3, 0, 1, 7, 2, 6, 4, 5 });
-    data.WriteBit(!hasElevation);
-    data.WriteBit(!hasTargetString);
-    data.WriteBit(!hasAmmo);                                // ammo inventory type
-    data.WriteBit(hasDestLocation);
-    data.WriteBit(true);
-    data.WriteGuidMask(casterGuid, { 3 });
-    if (hasDestLocation)
-        data.WriteGuidMask(destTransportGuid, { 1, 6, 2, 7, 0, 3, 5, 4 });
-    data.WriteBit(!hasAmmo);                                // ammo display id
-    if (hasSourceLocation)
-        data.WriteGuidMask(srcTransportGuid, { 4, 3, 5, 1, 7, 0, 6, 2 });
-    data.WriteBit(false);
-    data.WriteGuidMask(casterGuid, { 6 });
-    data.WriteGuidMask(unkGuid, { 2, 1, 7, 6, 0, 5, 3, 4 });
-    data.WriteBit(!hasTargetMask);
-    if (hasTargetMask)
-        data.WriteBits(m_targets.GetTargetMask(), 20);
-    data.WriteGuidMask(casterGuid, { 1 });
-    data.WriteBit(true);                                    // no predicted heal
-    data.WriteBit(true);
-    data.WriteBit(true);                                    // no school immunities
-    data.WriteGuidMask(casterUnitGuid, { 5 });
-    data.WriteBit(false);
-    data.WriteBits(0, 20);                                  // extra target count
-    data.WriteGuidMask(targetGuid, { 1, 4, 6, 7, 5, 3, 0, 2 });
-    data.WriteGuidMask(casterGuid, { 0 });
-    data.WriteGuidMask(casterUnitGuid, { 3 });
-    data.WriteBit(true);
-    if (hasTargetString)
-        data.WriteBits(m_targets.GetTargetString().length(), 7);
-    data.WriteBit(true);                                    // no immunities
-    data.WriteGuidMask(casterUnitGuid, { 1 });
-    data.WriteBit(hasVisualChain);
-    data.WriteGuidMask(casterGuid, { 7 });
-    data.WriteBit(true);                                    // no predicted type
-    data.WriteGuidMask(casterUnitGuid, { 0 });
-    data.FlushBits();
+    WorldPackets::Spells::SpellStart packet;
+    WorldPackets::Spells::SpellCastData& castData = packet.Cast;
+    FillSpellCastData(castData, realCasterGUID, castFlags);
+    castData.CastTime = m_casttime;
 
-    data.WriteGuidBytes(itemTargetGuid, { 1, 7, 6, 0, 4, 2, 3, 5 });
-    data.WriteGuidBytes(targetGuid, { 4, 5, 1, 7, 6, 3, 2, 0 });
-    data << uint32(m_casttime);
-    data.WriteGuidBytes(unkGuid, { 4, 5, 3, 2, 1, 6, 7, 0 });
-
-    if (hasDestLocation)
+    if (castFlags & CAST_FLAG_IMMUNITY)
     {
-        Position const& pos = destTransportGuid ? m_targets.GetDst()->_transportOffset : m_targets.GetDst()->_position;
-        data.WriteGuidBytes(destTransportGuid, { 4, 0, 5, 7, 1, 2, 3 });
-        data << float(pos.GetPositionY());
-        data << float(pos.GetPositionZ());
-        data.WriteGuidBytes(destTransportGuid, { 6 });
-        data << float(pos.GetPositionX());
+        castData.Immunities.School = schoolImmunityMask;
+        castData.Immunities.Value = mechanicImmunityMask;
     }
 
-    if (hasSourceLocation)
-    {
-        Position const& pos = srcTransportGuid ? m_targets.GetSrc()->_transportOffset : m_targets.GetSrc()->_position;
-        data.WriteGuidBytes(srcTransportGuid, { 0, 5, 4, 7, 3, 6 });
-        data << float(pos.GetPositionX());
-        data.WriteGuidBytes(srcTransportGuid, { 2 });
-        data << float(pos.GetPositionZ());
-        data.WriteGuidBytes(srcTransportGuid, { 1 });
-        data << float(pos.GetPositionY());
-    }
-
-    data.WriteGuidBytes(casterGuid, { 4, 2 });
-
-    if (hasVisualChain)
-    {
-        data << uint32(0);
-        data << uint32(0);
-    }
-
-    if (predictedPowerCount)
-    {
-        // SPELL_START sends the power before its type
-        data << int32(unitCaster->GetPower(Powers(m_spellInfo->PowerType)));
-        data << uint8(m_spellInfo->PowerType);
-    }
-
-    data << uint32(castFlags);
-    data.WriteGuidBytes(casterGuid, { 5, 7, 1 });
-    data << uint8(m_cast_count);
-    data.WriteGuidBytes(casterUnitGuid, { 7, 0 });
-    data.WriteGuidBytes(casterGuid, { 6, 0 });
-    data.WriteGuidBytes(casterUnitGuid, { 1 });
-    if (hasAmmo)
-        data << uint8(0);                                   // ammo inventory type
-    data.WriteGuidBytes(casterUnitGuid, { 6, 3 });
-    data << uint32(m_spellInfo->Id);
-    if (hasAmmo)
-        data << uint32(0);                                  // ammo display id
-    data.WriteGuidBytes(casterUnitGuid, { 4, 5, 2 });
-    if (hasTargetString)
-        data.WriteString(m_targets.GetTargetString());
-    data.WriteGuidBytes(casterGuid, { 3 });
-    if (hasElevation)
-        data << float(m_targets.GetElevation());
-
-    for (uint8 i = 0; i < runeCooldownPassedCount; ++i)
-    {
-        // float casts ensure the division is performed on floats as we need float result
-        float baseCd = float(runePlayer->GetRuneBaseCooldown(i, true));
-        data << uint8((baseCd - float(runePlayer->GetRuneCooldown(i))) / baseCd * 255); // rune cooldown passed
-    }
-
-    m_caster->SendMessageToSet(&data, true);
+    m_caster->SendMessageToSet(packet.Write(), true);
 
     if (!m_spellInfo->IsChanneled() && unitCaster && unitCaster->IsPlayer() && unitCaster->ToPlayer()->NeedSendSpectatorData())
         ArenaSpectator::SendCommand_Spell(unitCaster->FindMap(), unitCaster->GetGUID(), "SPE", m_spellInfo->Id, m_timer);
@@ -5237,204 +5044,69 @@ void Spell::SendSpellGo()
         }
     }
 
-    // 5.4.8 18414, from Project SkyFire
-    // This function also fill data for channeled spells:
-    // m_needAliveTargetMask req for stop channelig if one target die
-    for (std::list<TargetInfo>::iterator ihit = m_UniqueTargetInfo.begin(); ihit != m_UniqueTargetInfo.end(); ++ihit)
+    WorldPackets::Spells::SpellGo packet;
+    WorldPackets::Spells::SpellCastData& castData = packet.Cast;
+    FillSpellCastData(castData, realCasterGUID, castFlags);
+    castData.CastTime = getMSTime();
+
+    UpdateSpellCastDataTargets(castData);
+
+    if (castFlags & CAST_FLAG_ADJUST_MISSILE)
     {
-        if ((*ihit).effectMask == 0)                  // No effect apply - all immuned add state
-            // possibly SPELL_MISS_IMMUNE2 for this??
-            ihit->missCondition = SPELL_MISS_IMMUNE2;
+        castData.MissileTrajectory.TravelTime = uint32(m_delayTrajectory ? m_delayTrajectory : m_delayMoment);
+        castData.MissileTrajectory.Pitch = m_targets.GetElevation();
     }
 
-    ObjectGuid casterUnitGuid = realCasterGUID;
-    ObjectGuid casterGuid = m_CastItem ? m_CastItem->GetGUID() : casterUnitGuid;
-    ObjectGuid targetGuid = m_targets.GetObjectTargetGUID();
-    ObjectGuid itemTargetGuid = m_targets.GetItemTargetGUID();
-    ObjectGuid unkGuid;
-    bool hasDestLocation = m_targets.HasDst();
-    bool hasSourceLocation = m_targets.HasSrc();
-    bool hasDestUnkByte = hasDestLocation;
-    bool hasTargetString = m_targets.GetTargetMask() & TARGET_FLAG_STRING;
-    bool hasTargetMask = m_targets.GetTargetMask() != 0;
-    bool hasElevation = castFlags & CAST_FLAG_ADJUST_MISSILE;
-    bool hasDelayTime = castFlags & CAST_FLAG_ADJUST_MISSILE;
-    bool hasVisualChain = castFlags & CAST_FLAG_VISUAL_CHAIN;
-    Player* runePlayer = unitCaster ? unitCaster->ToPlayer() : nullptr;
-    bool hasRunes = (castFlags & CAST_FLAG_RUNE_LIST) && runePlayer;
-    uint8 runeCooldownPassedCount = hasRunes ? MAX_RUNES : 0;
-    uint8 predictedPowerCount = (castFlags & CAST_FLAG_POWER_LEFT_SELF) && unitCaster ? 1 : 0;
-    ObjectGuid destTransportGuid = hasDestLocation ? m_targets.GetDst()->_transportGUID : ObjectGuid::Empty;
-    ObjectGuid srcTransportGuid = hasSourceLocation ? m_targets.GetSrc()->_transportGUID : ObjectGuid::Empty;
-
-    std::vector<TargetInfo const*> missTargets;
-    std::vector<ObjectGuid> hitTargets;
-    for (TargetInfo const& targetInfo : m_UniqueTargetInfo)
-    {
-        if (targetInfo.missCondition == SPELL_MISS_NONE)
-            hitTargets.push_back(targetInfo.targetGUID);
-        else
-            missTargets.push_back(&targetInfo);
-    }
-    for (GOTargetInfo const& targetInfo : m_UniqueGOTargetInfo)
-        hitTargets.push_back(targetInfo.targetGUID);         // Always hits
-
-    WorldPacket data(SMSG_SPELL_GO, 150);                    // guess size
-    data.WriteGuidMask(casterUnitGuid, { 2 });
-    data.WriteBit(true);                                    // no ammo display type
-    data.WriteBit(hasSourceLocation);
-    data.WriteGuidMask(casterGuid, { 2 });
-    if (hasSourceLocation)
-        data.WriteGuidMask(srcTransportGuid, { 3, 7, 4, 2, 0, 6, 1, 5 });
-    data.WriteGuidMask(casterGuid, { 6 });
-    data.WriteBit(!hasDestUnkByte);
-    data.WriteGuidMask(casterUnitGuid, { 7 });
-    data.WriteBits(0, 20);                                  // extra target count
-    data.WriteBits(missTargets.size(), 25);                 // miss type count
-    data.WriteBits(missTargets.size(), 24);                 // miss count
-    data.WriteGuidMask(casterUnitGuid, { 1 });
-    data.WriteGuidMask(casterGuid, { 0 });
-    data.WriteBits(0, 13);
-    for (TargetInfo const* targetInfo : missTargets)
-        data.WriteGuidMask(targetInfo->targetGUID, { 1, 3, 6, 4, 5, 2, 0, 7 });
-    data.WriteGuidMask(casterUnitGuid, { 5 });
-    data.WriteBit(false);
-    data.WriteBit(false);
-    data.WriteBit(!hasTargetString);
-    data.WriteGuidMask(itemTargetGuid, { 7, 2, 1, 3, 6, 0, 5, 4 });
-    data.WriteGuidMask(casterGuid, { 7 });
-    data.WriteGuidMask(targetGuid, { 0, 6, 5, 7, 4, 2, 3, 1 });
-    data.WriteBit(!hasRunes);                               // runes state before
-    data.WriteBits(predictedPowerCount, 21);
-    data.WriteGuidMask(casterGuid, { 1 });
-    data.WriteBit(true);                                    // no predicted type
-    data.WriteBit(!hasTargetMask);
-    data.WriteGuidMask(casterUnitGuid, { 3 });
-    if (hasTargetString)
-        data.WriteBits(m_targets.GetTargetString().length(), 7);
-    data.WriteBit(true);                                    // no predicted heal
-    data.WriteBit(false);                                   // power data
-    data.WriteBit(true);                                    // no immunities
-    data.WriteGuidMask(casterUnitGuid, { 6 });
-    data.WriteBit(false);
-    data.WriteBit(hasVisualChain);
-    data.WriteGuidMask(unkGuid, { 7, 6, 1, 2, 0, 5, 3, 4 });
-    data.WriteBit(!hasDelayTime);
-    data.WriteBit(true);                                    // no school immunities
-    data.WriteBits(runeCooldownPassedCount, 3);
-    data.WriteGuidMask(casterUnitGuid, { 0 });
-    for (TargetInfo const* targetInfo : missTargets)
-    {
-        data.WriteBits(targetInfo->missCondition, 4);
-        if (targetInfo->missCondition == SPELL_MISS_REFLECT)
-            data.WriteBits(targetInfo->reflectResult, 4);
-    }
-    if (hasTargetMask)
-        data.WriteBits(m_targets.GetTargetMask(), 20);
-    data.WriteBit(!hasElevation);
-    data.WriteBit(!hasRunes);                               // runes state after
-    data.WriteGuidMask(casterGuid, { 4 });
-    data.WriteBit(true);                                    // no ammo display id
-    data.WriteBit(hasDestLocation);
-    data.WriteGuidMask(casterGuid, { 5 });
-    data.WriteBits(hitTargets.size(), 24);
-    if (hasDestLocation)
-        data.WriteGuidMask(destTransportGuid, { 0, 3, 2, 1, 4, 5, 6, 7 });
-    data.WriteGuidMask(casterUnitGuid, { 4 });
-    for (ObjectGuid const& hitGuid : hitTargets)
-        data.WriteGuidMask(hitGuid, { 2, 7, 1, 6, 4, 5, 0, 3 });
-    data.WriteGuidMask(casterGuid, { 3 });
-    data.FlushBits();
-
-    data.WriteGuidBytes(targetGuid, { 5, 2, 1, 6, 0, 3, 4, 7 });
-    data.WriteGuidBytes(itemTargetGuid, { 5, 2, 0, 6, 7, 3, 1, 4 });
-    data.WriteGuidBytes(casterGuid, { 2 });
-    for (ObjectGuid const& hitGuid : hitTargets)
-        data.WriteGuidBytes(hitGuid, { 0, 6, 2, 7, 5, 4, 3, 1 });
-    data.WriteGuidBytes(unkGuid, { 6, 2, 7, 1, 4, 3, 5, 0 });
-    if (hasDelayTime)
-        data << uint32(m_delayTrajectory ? m_delayTrajectory : m_delayMoment);
-    data << uint32(GameTime::GetGameTimeMS().count());     // timestamp
-    for (TargetInfo const* targetInfo : missTargets)
-        data.WriteGuidBytes(targetInfo->targetGUID, { 4, 2, 0, 6, 7, 5, 1, 3 });
-
-    if (hasDestLocation)
-    {
-        Position const& pos = destTransportGuid ? m_targets.GetDst()->_transportOffset : m_targets.GetDst()->_position;
-        data << float(pos.GetPositionZ());
-        data << float(pos.GetPositionY());
-        data.WriteGuidBytes(destTransportGuid, { 4, 5, 7, 6, 1, 2 });
-        data << float(pos.GetPositionX());
-        data.WriteGuidBytes(destTransportGuid, { 0, 3 });
-    }
-
-    data.WriteGuidBytes(casterGuid, { 6 });
-    data.WriteGuidBytes(casterUnitGuid, { 7 });
-    data.WriteGuidBytes(casterGuid, { 1 });
-
-    if (hasVisualChain)
-    {
-        data << uint32(0);
-        data << uint32(0);
-    }
-
-    data << uint32(castFlags);
-
-    if (hasSourceLocation)
-    {
-        Position const& pos = srcTransportGuid ? m_targets.GetSrc()->_transportOffset : m_targets.GetSrc()->_position;
-        data.WriteGuidBytes(srcTransportGuid, { 2 });
-        data << float(pos.GetPositionY());
-        data << float(pos.GetPositionX());
-        data.WriteGuidBytes(srcTransportGuid, { 6, 5, 1, 7 });
-        data << float(pos.GetPositionZ());
-        data.WriteGuidBytes(srcTransportGuid, { 3, 0, 4 });
-    }
-
-    data.WriteGuidBytes(casterUnitGuid, { 6 });
-    data.WriteGuidBytes(casterGuid, { 4 });
-    data.WriteGuidBytes(casterUnitGuid, { 1 });
-
-    if (predictedPowerCount)
-    {
-        // SPELL_GO sends the power type before the power, unlike SPELL_START
-        data << uint8(m_spellInfo->PowerType);
-        data << int32(unitCaster->GetPower(Powers(m_spellInfo->PowerType)));
-    }
-
-    if (hasRunes)
-        data << uint8(runePlayer->GetRunesState());         // runes state after
-
-    for (uint8 i = 0; i < runeCooldownPassedCount; ++i)
-    {
-        // float casts ensure the division is performed on floats as we need float result
-        float baseCd = float(runePlayer->GetRuneBaseCooldown(i, true));
-        data << uint8((baseCd - float(runePlayer->GetRuneCooldown(i))) / baseCd * 255); // rune cooldown passed
-    }
-
-    if (hasRunes)
-        data << uint8(m_runesState);                        // runes state before
-
-    data.WriteGuidBytes(casterGuid, { 0 });
-    if (hasDestUnkByte)
-        data << uint8(0);
-    data << uint8(m_cast_count);                            // pending spell cast?
-    data.WriteGuidBytes(casterGuid, { 5 });
-    data.WriteGuidBytes(casterUnitGuid, { 2 });
-    data.WriteGuidBytes(casterGuid, { 3 });
-    data.WriteGuidBytes(casterUnitGuid, { 5 });
-    if (hasTargetString)
-        data.WriteString(m_targets.GetTargetString());
-    data << uint32(m_spellInfo->Id);
-    if (hasElevation)
-        data << float(m_targets.GetElevation());
-    data.WriteGuidBytes(casterUnitGuid, { 0, 3, 4 });
-    data.WriteGuidBytes(casterGuid, { 7 });
-
-    m_caster->SendMessageToSet(&data, true);
+    m_caster->SendMessageToSet(packet.Write(), true);
 }
 
-void Spell::WriteAmmoToPacket(WorldPacket* data)
+// the cast data SMSG_SPELL_START and SMSG_SPELL_GO share (TC 6.x)
+void Spell::FillSpellCastData(WorldPackets::Spells::SpellCastData& castData, ObjectGuid casterUnitGuid, uint32 castFlags)
+{
+    Unit* unitCaster = m_caster->ToUnit();
+
+    castData.CasterGUID = m_CastItem ? m_CastItem->GetGUID() : casterUnitGuid;
+    castData.CasterUnit = casterUnitGuid;
+    castData.CastID = m_cast_count;
+    castData.SpellID = int32(m_spellInfo->Id);
+    castData.SpellXSpellVisualID = m_spellInfo->GetSpellXSpellVisualId(unitCaster);
+    castData.CastFlags = castFlags;
+    castData.CastFlagsEx = 0;
+
+    m_targets.Write(castData.Target);
+
+    if ((castFlags & CAST_FLAG_POWER_LEFT_SELF) && unitCaster)
+    {
+        WorldPackets::Spells::SpellPowerData& powerData = castData.RemainingPower.emplace_back();
+        powerData.Type = int8(m_spellInfo->PowerType);
+        powerData.Cost = unitCaster->GetPower(Powers(m_spellInfo->PowerType));
+    }
+
+    if (castFlags & CAST_FLAG_RUNE_LIST)                   // rune cooldowns list
+    {
+        castData.RemainingRunes.emplace();
+        if (Player* player = m_caster->ToPlayer())
+        {
+            castData.RemainingRunes->Start = m_runesState;  // runes state before
+            castData.RemainingRunes->Count = player->GetRunesState(); // runes state after
+            for (uint8 i = 0; i < MAX_RUNES; ++i)
+            {
+                // float casts ensure the division is performed on floats as we need float result
+                float baseCd = float(player->GetRuneBaseCooldown(i, true));
+                castData.RemainingRunes->Cooldowns.push_back(uint8((baseCd - float(player->GetRuneCooldown(i))) / baseCd * 255)); // rune cooldown passed
+            }
+        }
+        else
+        {
+            castData.RemainingRunes->Cooldowns.assign(MAX_RUNES, 0);
+        }
+    }
+
+    if (castFlags & CAST_FLAG_PROJECTILE)
+        UpdateSpellCastDataAmmo(castData.Ammo);
+}
+
+void Spell::UpdateSpellCastDataAmmo(WorldPackets::Spells::SpellAmmo& ammo)
 {
     Unit* unitCaster = m_caster->ToUnit();
     uint32 ammoInventoryType = 0;
@@ -5515,265 +5187,165 @@ void Spell::WriteAmmoToPacket(WorldPacket* data)
         }
     }
 
-    *data << uint32(ammoDisplayID);
-    *data << uint32(ammoInventoryType);
+    ammo.DisplayID = int32(ammoDisplayID);
+    ammo.InventoryType = int8(ammoInventoryType);
 }
 
-/// Writes miss and hit targets for a SMSG_SPELL_GO packet
-void Spell::WriteSpellGoTargets(WorldPacket* data)
+/// Fills the hit and miss targets of a SMSG_SPELL_GO packet
+void Spell::UpdateSpellCastDataTargets(WorldPackets::Spells::SpellCastData& data)
 {
     // This function also fill data for channeled spells:
     // m_needAliveTargetMask req for stop channelig if one target die
-    for (std::list<TargetInfo>::iterator ihit = m_UniqueTargetInfo.begin(); ihit != m_UniqueTargetInfo.end(); ++ihit)
+    for (TargetInfo& targetInfo : m_UniqueTargetInfo)
     {
-        if ((*ihit).effectMask == 0)                  // No effect apply - all immuned add state
+        if (targetInfo.effectMask == 0)                     // No effect apply - all immuned add state
             // possibly SPELL_MISS_IMMUNE2 for this??
-            ihit->missCondition = SPELL_MISS_IMMUNE2;
-    }
+            targetInfo.missCondition = SPELL_MISS_IMMUNE2;
 
-    // Hit and miss target counts are both uint8, that limits us to 255 targets for each
-    // sending more than 255 targets crashes the client (since count sent would be wrong)
-    // Spells like 40647 (with a huge radius) can easily reach this limit (spell might need
-    // target conditions but we still need to limit the number of targets sent and keeping
-    // correct count for both hit and miss).
-
-    uint32 hit = 0;
-    std::size_t hitPos = data->wpos();
-    *data << (uint8)0; // placeholder
-    for (std::list<TargetInfo>::const_iterator ihit = m_UniqueTargetInfo.begin(); ihit != m_UniqueTargetInfo.end() && hit < 255; ++ihit)
-    {
-        if ((*ihit).missCondition == SPELL_MISS_NONE)       // Add only hits
+        if (targetInfo.missCondition == SPELL_MISS_NONE)    // hits
         {
-            *data << ihit->targetGUID;
+            data.HitTargets.push_back(targetInfo.targetGUID);
             // Xinef: No channeled spell checked, no anything
-            //m_channelTargetEffectMask |=ihit->effectMask;
-            ++hit;
+            //m_channelTargetEffectMask |= targetInfo.effectMask;
         }
-    }
-
-    for (std::list<GOTargetInfo>::const_iterator ighit = m_UniqueGOTargetInfo.begin(); ighit != m_UniqueGOTargetInfo.end() && hit < 255; ++ighit)
-    {
-        *data << ighit->targetGUID;                 // Always hits
-        ++hit;
-    }
-
-    uint32 miss = 0;
-    std::size_t missPos = data->wpos();
-    *data << (uint8)0; // placeholder
-    for (std::list<TargetInfo>::const_iterator ihit = m_UniqueTargetInfo.begin(); ihit != m_UniqueTargetInfo.end() && miss < 255; ++ihit)
-    {
-        if (ihit->missCondition != SPELL_MISS_NONE)        // Add only miss
+        else                                                // misses
         {
-            *data << ihit->targetGUID;
-            *data << uint8(ihit->missCondition);
-            if (ihit->missCondition == SPELL_MISS_REFLECT)
-                *data << uint8(ihit->reflectResult);
-            ++miss;
+            data.MissTargets.push_back(targetInfo.targetGUID);
+
+            WorldPackets::Spells::SpellMissStatus& missStatus = data.MissStatus.emplace_back();
+            missStatus.Reason = uint8(targetInfo.missCondition);
+            if (targetInfo.missCondition == SPELL_MISS_REFLECT)
+                missStatus.ReflectStatus = uint8(targetInfo.reflectResult);
         }
     }
-    // Reset m_needAliveTargetMask for non channeled spell
-    // Xinef: Why do we reset something that is not set??????
-    //if (!m_spellInfo->IsChanneled())
-    //    m_channelTargetEffectMask = 0;
 
-    data->put<uint8>(hitPos, (uint8)hit);
-    data->put<uint8>(missPos, (uint8)miss);
+    for (GOTargetInfo const& targetInfo : m_UniqueGOTargetInfo)
+        data.HitTargets.push_back(targetInfo.targetGUID);  // Always hits
 }
 
 void Spell::SendLogExecute()
 {
-    if (m_effectExecuteData.empty())
-        return;
+    WorldPackets::CombatLog::SpellExecuteLog spellExecuteLog;
+    spellExecuteLog.Caster = m_caster->GetGUID();
+    spellExecuteLog.SpellID = int32(m_spellInfo->Id);
 
-    // 5.4.8 18414, from Project SkyFire
-    ObjectGuid casterGuid = m_caster->GetGUID();
-    WorldPacket data(SMSG_SPELLLOGEXECUTE, 64);
-    data.WriteGuidMask(casterGuid, { 0, 6, 5, 7, 2 });
-    data.WriteBits(m_effectExecuteData.size(), 19);
-    data.WriteGuidMask(casterGuid, { 4 });
-
-    for (auto const& [effIndex, helper] : m_effectExecuteData)
+    for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
     {
-        data.WriteBits(helper.ExtraAttacks.size(), 21);
-        for (SpellLogExtraAttacksHelper const& extraAttack : helper.ExtraAttacks)
-            data.WriteGuidMask(extraAttack.Guid, { 5, 4, 2, 3, 1, 0, 6, 7 });
+        if (_powerDrainTargets[i].empty() && _extraAttacksTargets[i].empty() &&
+            _durabilityDamageTargets[i].empty() && _genericVictimTargets[i].empty() &&
+            _tradeSkillTargets[i].empty() && _feedPetTargets[i].empty())
+            continue;
 
-        data.WriteBits(helper.Energizes.size(), 20);
-        for (SpellLogEnergizeHelper const& energize : helper.Energizes)
-            data.WriteGuidMask(energize.Guid, { 0, 3, 1, 5, 6, 4, 7, 2 });
+        WorldPackets::CombatLog::SpellExecuteLog::SpellLogEffect& spellLogEffect = spellExecuteLog.Effects.emplace_back();
+        spellLogEffect.Effect = int32(m_spellInfo->Effects[i].Effect);
+        spellLogEffect.PowerDrainTargets = std::move(_powerDrainTargets[i]);
+        spellLogEffect.ExtraAttacksTargets = std::move(_extraAttacksTargets[i]);
+        spellLogEffect.DurabilityDamageTargets = std::move(_durabilityDamageTargets[i]);
+        spellLogEffect.GenericVictimTargets = std::move(_genericVictimTargets[i]);
+        spellLogEffect.TradeSkillTargets = std::move(_tradeSkillTargets[i]);
+        spellLogEffect.FeedPetTargets = std::move(_feedPetTargets[i]);
 
-        data.WriteBits(0, 21);                              // durability damage, not sent
-        data.WriteBits(helper.PetFeed.size(), 22);
-        data.WriteBits(helper.CreatedItems.size(), 22);
-
-        data.WriteBits(helper.Targets.size(), 24);
-        for (ObjectGuid const& target : helper.Targets)
-            data.WriteGuidMask(target, { 6, 5, 1, 0, 3, 4, 7, 2 });
+        _powerDrainTargets[i].clear();
+        _extraAttacksTargets[i].clear();
+        _durabilityDamageTargets[i].clear();
+        _genericVictimTargets[i].clear();
+        _tradeSkillTargets[i].clear();
+        _feedPetTargets[i].clear();
     }
 
-    data.WriteGuidMask(casterGuid, { 1, 3 });
-    data.WriteBit(false);                                   // spell cast log data
-    data.FlushBits();
-
-    for (auto const& [effIndex, helper] : m_effectExecuteData)
-    {
-        for (ObjectGuid const& target : helper.Targets)
-            data.WriteGuidBytes(target, { 7, 5, 1, 2, 6, 4, 0, 3 });
-
-        for (SpellLogEnergizeHelper const& energize : helper.Energizes)
-        {
-            data.WriteGuidBytes(energize.Guid, { 3, 7, 5, 2, 0 });
-            data << uint32(energize.PowerType);
-            data << uint32(energize.Value);
-            data.WriteGuidBytes(energize.Guid, { 4, 1 });
-            data << float(energize.Multiplier);
-            data.WriteGuidBytes(energize.Guid, { 6 });
-        }
-
-        for (SpellLogExtraAttacksHelper const& extraAttack : helper.ExtraAttacks)
-        {
-            data.WriteGuidBytes(extraAttack.Guid, { 0, 6, 4, 7, 2, 5, 3 });
-            data << uint32(extraAttack.Count);
-            data.WriteGuidBytes(extraAttack.Guid, { 1 });
-        }
-
-        for (uint32 entry : helper.PetFeed)
-            data << uint32(entry);
-
-        data << uint32(m_spellInfo->Effects[effIndex].Effect);
-
-        for (uint32 entry : helper.CreatedItems)
-            data << uint32(entry);
-    }
-
-    data << uint32(m_spellInfo->Id);
-    data.WriteGuidBytes(casterGuid, { 5, 7, 1, 6, 2, 0, 4, 3 });
-
-    m_caster->SendMessageToSet(&data, true);
-
-    m_effectExecuteData.clear();
+    if (!spellExecuteLog.Effects.empty())
+        m_caster->SendCombatLogMessage(&spellExecuteLog);
 }
 
 void Spell::ExecuteLogEffectTakeTargetPower(uint8 effIndex, Unit* target, uint32 PowerType, uint32 powerTaken, float gainMultiplier)
 {
     ASSERT(effIndex < MAX_SPELL_EFFECTS);
-    SpellLogEnergizeHelper energize;
-    energize.Guid = target->GetGUID();
-    energize.Value = powerTaken;
-    energize.PowerType = PowerType;
-    energize.Multiplier = gainMultiplier;
-    m_effectExecuteData[effIndex].Energizes.push_back(energize);
+    SpellLogEffectPowerDrainParams& params = _powerDrainTargets[effIndex].emplace_back();
+    params.Victim = target->GetGUID();
+    params.Points = powerTaken;
+    params.PowerType = PowerType;
+    params.Amplitude = gainMultiplier;
 }
 
 void Spell::ExecuteLogEffectExtraAttacks(uint8 effIndex, Unit* victim, uint32 attCount)
 {
     ASSERT(effIndex < MAX_SPELL_EFFECTS);
-    SpellLogExtraAttacksHelper extraAttacks;
-    extraAttacks.Guid = victim->GetGUID();
-    extraAttacks.Count = attCount;
-    m_effectExecuteData[effIndex].ExtraAttacks.push_back(extraAttacks);
+    SpellLogEffectExtraAttacksParams& params = _extraAttacksTargets[effIndex].emplace_back();
+    params.Victim = victim->GetGUID();
+    params.NumAttacks = attCount;
 }
 
 void Spell::ExecuteLogEffectInterruptCast(uint8 /*effIndex*/, Unit* victim, uint32 spellId)
 {
-    // 5.4.8 18414, from Project SkyFire: sent as its own SMSG_SPELLINTERRUPTLOG
-    ObjectGuid casterGuid = m_caster->GetGUID();
-    ObjectGuid targetGuid = victim->GetGUID();
-
-    WorldPacket data(SMSG_SPELLINTERRUPTLOG, 2 + 8 + 8 + 4 + 4);
-    data.WriteGuidMask(targetGuid, { 7, 2, 4, 6 });
-    data.WriteGuidMask(casterGuid, { 0, 2, 5, 1, 4 });
-    data.WriteGuidMask(targetGuid, { 0, 3 });
-    data.WriteGuidMask(casterGuid, { 7, 6 });
-    data.WriteGuidMask(targetGuid, { 1 });
-    data.WriteGuidMask(casterGuid, { 3 });
-    data.WriteGuidMask(targetGuid, { 5 });
-    data.FlushBits();
-
-    data.WriteGuidBytes(targetGuid, { 0 });
-    data.WriteGuidBytes(casterGuid, { 2 });
-    data << uint32(spellId);
-    data.WriteGuidBytes(casterGuid, { 1 });
-    data.WriteGuidBytes(targetGuid, { 2 });
-    data.WriteGuidBytes(casterGuid, { 3 });
-    data << uint32(m_spellInfo->Id);
-    data.WriteGuidBytes(targetGuid, { 4 });
-    data.WriteGuidBytes(casterGuid, { 4 });
-    data.WriteGuidBytes(targetGuid, { 3, 1 });
-    data.WriteGuidBytes(casterGuid, { 5, 6, 7 });
-    data.WriteGuidBytes(targetGuid, { 5, 6 });
-    data.WriteGuidBytes(casterGuid, { 0 });
-    data.WriteGuidBytes(targetGuid, { 7 });
-
-    m_caster->SendMessageToSet(&data, true);
+    WorldPackets::CombatLog::SpellInterruptLog data;
+    data.Caster = m_caster->GetGUID();
+    data.Victim = victim->GetGUID();
+    data.InterruptedSpellID = int32(m_spellInfo->Id);
+    data.SpellID = int32(spellId);
+    m_caster->SendMessageToSet(data.Write(), true);
 }
 
-void Spell::ExecuteLogEffectDurabilityDamage(uint8 effIndex, Unit* /*victim*/, int32 /*itemId*/, int32 /*slot*/)
+void Spell::ExecuteLogEffectDurabilityDamage(uint8 effIndex, Unit* victim, int32 itemId, int32 amount)
 {
     ASSERT(effIndex < MAX_SPELL_EFFECTS);
-    // The 5.4.8 execute log carries durability damage in a block that is not sent.
+    SpellLogEffectDurabilityDamageParams& params = _durabilityDamageTargets[effIndex].emplace_back();
+    params.Victim = victim->GetGUID();
+    params.ItemID = itemId;
+    params.Amount = amount;
 }
 
 void Spell::ExecuteLogEffectOpenLock(uint8 effIndex, Object* obj)
 {
     ASSERT(effIndex < MAX_SPELL_EFFECTS);
-    m_effectExecuteData[effIndex].Targets.push_back(obj->GetGUID());
+    _genericVictimTargets[effIndex].emplace_back().Victim = obj->GetGUID();
 }
 
 void Spell::ExecuteLogEffectCreateItem(uint8 effIndex, uint32 entry)
 {
     ASSERT(effIndex < MAX_SPELL_EFFECTS);
-    m_effectExecuteData[effIndex].CreatedItems.push_back(entry);
+    _tradeSkillTargets[effIndex].emplace_back().ItemID = int32(entry);
 }
 
 void Spell::ExecuteLogEffectDestroyItem(uint8 effIndex, uint32 entry)
 {
     ASSERT(effIndex < MAX_SPELL_EFFECTS);
-    m_effectExecuteData[effIndex].PetFeed.push_back(entry);
+    _feedPetTargets[effIndex].emplace_back().ItemID = int32(entry);
 }
 
 void Spell::ExecuteLogEffectSummonObject(uint8 effIndex, WorldObject* obj)
 {
     ASSERT(effIndex < MAX_SPELL_EFFECTS);
-    m_effectExecuteData[effIndex].Targets.push_back(obj->GetGUID());
+    _genericVictimTargets[effIndex].emplace_back().Victim = obj->GetGUID();
 }
 
 void Spell::ExecuteLogEffectUnsummonObject(uint8 effIndex, WorldObject* obj)
 {
     ASSERT(effIndex < MAX_SPELL_EFFECTS);
-    m_effectExecuteData[effIndex].Targets.push_back(obj->GetGUID());
+    _genericVictimTargets[effIndex].emplace_back().Victim = obj->GetGUID();
 }
 
 void Spell::ExecuteLogEffectResurrect(uint8 effIndex, Unit* target)
 {
     ASSERT(effIndex < MAX_SPELL_EFFECTS);
-    m_effectExecuteData[effIndex].Targets.push_back(target->GetGUID());
+    _genericVictimTargets[effIndex].emplace_back().Victim = target->GetGUID();
 }
 
 void Spell::SendInterrupted(uint8 result)
 {
-    // 5.4.8 18414, from Project SkyFire
-    ObjectGuid guid = m_caster->GetGUID();
-    WorldPacket data(SMSG_SPELL_FAILURE, (1 + 8 + 1 + 4 + 1));
-    data.WriteGuidMask(guid, { 7, 3, 6, 2, 1, 5, 0, 4 });
-    data.FlushBits();
-    data.WriteGuidBytes(guid, { 2, 6, 7, 0, 3, 1 });
-    data << uint8(m_cast_count);
-    data << uint32(m_spellInfo->Id);
-    data << uint8(result);
-    data.WriteGuidBytes(guid, { 4, 5 });
-    m_caster->SendMessageToSet(&data, true);
+    WorldPackets::Spells::SpellFailure failurePacket;
+    failurePacket.CasterUnit = m_caster->GetGUID();
+    failurePacket.CastID = m_cast_count;
+    failurePacket.SpellID = m_spellInfo->Id;
+    failurePacket.SpelXSpellVisualID = m_spellInfo->GetSpellXSpellVisualId(m_caster->ToUnit());
+    failurePacket.Reason = result;
+    m_caster->SendMessageToSet(failurePacket.Write(), true);
 
-    data.Initialize(SMSG_SPELL_FAILED_OTHER, (1 + 8 + 1 + 4 + 1));
-    data.WriteGuidMask(guid, { 7, 0, 5, 6, 1, 4, 3, 2 });
-    data.FlushBits();
-    data.WriteGuidBytes(guid, { 0, 1 });
-    data << uint8(result);
-    data.WriteGuidBytes(guid, { 7, 5, 6 });
-    data << uint32(m_spellInfo->Id);
-    data << uint8(m_cast_count);
-    data.WriteGuidBytes(guid, { 4, 2, 3 });
-    m_caster->SendMessageToSet(&data, true);
+    WorldPackets::Spells::SpellFailedOther failedPacket;
+    failedPacket.CasterUnit = m_caster->GetGUID();
+    failedPacket.CastID = m_cast_count;
+    failedPacket.SpellID = m_spellInfo->Id;
+    failedPacket.Reason = result;
+    m_caster->SendMessageToSet(failedPacket.Write(), true);
 }
 
 void Spell::SendChannelUpdate(uint32 time)
@@ -5788,16 +5360,10 @@ void Spell::SendChannelUpdate(uint32 time)
         unitCaster->SetUInt32Value(UNIT_CHANNEL_SPELL, 0);
     }
 
-    // 5.4.8 18414, from Project SkyFire
-    ObjectGuid casterGuid = m_caster->GetGUID();
-    WorldPacket data(SMSG_SPELL_CHANNEL_UPDATE, 1 + 8 + 4);
-    data.WriteGuidMask(casterGuid, { 0, 3, 4, 1, 5, 2, 6, 7 });
-    data.FlushBits();
-    data.WriteGuidBytes(casterGuid, { 4, 7, 1, 2, 6, 5 });
-    data << uint32(time);
-    data.WriteGuidBytes(casterGuid, { 0, 3 });
-
-    m_caster->SendMessageToSet(&data, true);
+    WorldPackets::Spells::SpellChannelUpdate spellChannelUpdate;
+    spellChannelUpdate.CasterGUID = m_caster->GetGUID();
+    spellChannelUpdate.TimeRemaining = int32(time);
+    m_caster->SendMessageToSet(spellChannelUpdate.Write(), true);
 }
 
 void Spell::SendChannelStart(uint32 duration)
@@ -5811,31 +5377,21 @@ void Spell::SendChannelStart(uint32 duration)
         if (m_UniqueTargetInfo.size() + m_UniqueGOTargetInfo.size() == 1)   // this is for TARGET_SELECT_CATEGORY_NEARBY
             channelTarget = !m_UniqueTargetInfo.empty() ? m_UniqueTargetInfo.front().targetGUID : m_UniqueGOTargetInfo.front().targetGUID;
 
-    // 5.4.8 18414, from Project SkyFire; no heal prediction block
-    ObjectGuid casterGuid = m_caster->GetGUID();
     uint32 schoolImmunityMask = unitCaster->GetSchoolImmunityMask();
     uint32 mechanicImmunityMask = unitCaster->GetMechanicImmunityMask();
-    bool hasImmunities = schoolImmunityMask || mechanicImmunityMask;
 
-    WorldPacket data(SMSG_SPELL_CHANNEL_START, (1 + 8 + 4 + 4 + 8));
-    data.WriteGuidMask(casterGuid, { 7, 5, 4, 1 });
-    data.WriteBit(false);                                   // heal prediction
-    data.WriteGuidMask(casterGuid, { 3, 2, 0, 6 });
-    data.WriteBit(hasImmunities);
-    data.FlushBits();
-
-    if (hasImmunities)
+    WorldPackets::Spells::SpellChannelStart spellChannelStart;
+    spellChannelStart.CasterGUID = m_caster->GetGUID();
+    spellChannelStart.SpellID = int32(m_spellInfo->Id);
+    spellChannelStart.ChannelDuration = duration;
+    if (schoolImmunityMask || mechanicImmunityMask)
     {
-        data << uint32(schoolImmunityMask);
-        data << uint32(mechanicImmunityMask);
+        spellChannelStart.InterruptImmunities.emplace();
+        spellChannelStart.InterruptImmunities->SchoolImmunities = int32(schoolImmunityMask);
+        spellChannelStart.InterruptImmunities->Immunities = int32(mechanicImmunityMask);
     }
 
-    data.WriteGuidBytes(casterGuid, { 6, 7, 3, 1, 0 });
-    data << uint32(duration);
-    data.WriteGuidBytes(casterGuid, { 5, 4, 2 });
-    data << uint32(m_spellInfo->Id);
-
-    m_caster->SendMessageToSet(&data, true);
+    m_caster->SendMessageToSet(spellChannelStart.Write(), true);
 
     if (unitCaster->IsPlayer() && unitCaster->ToPlayer()->NeedSendSpectatorData())
         ArenaSpectator::SendCommand_Spell(unitCaster->FindMap(), unitCaster->GetGUID(), "SPE", m_spellInfo->Id, -((int32)duration));
@@ -7043,7 +6599,8 @@ SpellCastResult Spell::CheckCast(bool strict, uint32* /*param1*/, uint32* /*para
                     if (m_targets.GetTargetMask() & TARGET_FLAG_TRADE_ITEM)
                     {
                         if (TradeData* pTrade = unitCaster->ToPlayer()->GetTradeData())
-                            pTempItem = pTrade->GetTraderData()->GetItem(TradeSlots(m_targets.GetItemTargetGUID().GetRawValue()));
+                            if (m_targets.GetItemTargetGUID() == ObjectGuid::TradeItem)
+                                pTempItem = pTrade->GetTraderData()->GetItem(TRADE_SLOT_NONTRADED);
                     }
                     else if (m_targets.GetTargetMask() & TARGET_FLAG_ITEM)
                         pTempItem = unitCaster->ToPlayer()->GetItemByGuid(m_targets.GetItemTargetGUID());
@@ -7539,8 +7096,7 @@ SpellCastResult Spell::CheckCast(bool strict, uint32* /*param1*/, uint32* /*para
         if (!my_trade)
             return SPELL_FAILED_NOT_TRADING;
 
-        TradeSlots slot = TradeSlots(m_targets.GetItemTargetGUID().GetRawValue());
-        if (slot != TRADE_SLOT_NONTRADED)
+        if (m_targets.GetItemTargetGUID() != ObjectGuid::TradeItem)
             return SPELL_FAILED_BAD_TARGETS;
 
         if (!IsTriggered())
@@ -8634,16 +8190,10 @@ void Spell::Delayed() // only called in DealDamage()
 
     LOG_DEBUG("spells", "Spell {} partially interrupted for ({}) ms at damage", m_spellInfo->Id, delaytime);
 
-    // 5.4.8 18414, from Project SkyFire
-    ObjectGuid guid = m_caster->GetGUID();
-    WorldPacket data(SMSG_SPELL_DELAYED, 1 + 8 + 4);
-    data.WriteGuidMask(guid, { 6, 7, 2, 0, 4, 3, 1, 5 });
-    data.FlushBits();
-    data.WriteGuidBytes(guid, { 2, 6, 1, 7, 0, 5, 3 });
-    data << uint32(delaytime);
-    data.WriteGuidBytes(guid, { 4 });
-
-    m_caster->SendMessageToSet(&data, true);
+    WorldPackets::Spells::SpellDelayed spellDelayed;
+    spellDelayed.Caster = m_caster->GetGUID();
+    spellDelayed.ActualDelay = delaytime;
+    m_caster->SendMessageToSet(spellDelayed.Write(), true);
 }
 
 void Spell::DelayedChannel()
@@ -9371,7 +8921,15 @@ void Spell::FinishTargetProcessing()
 
 void Spell::CheckEffectExecuteData()
 {
-    ASSERT(m_effectExecuteData.empty());
+    for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
+    {
+        ASSERT(_powerDrainTargets[i].empty());
+        ASSERT(_extraAttacksTargets[i].empty());
+        ASSERT(_durabilityDamageTargets[i].empty());
+        ASSERT(_genericVictimTargets[i].empty());
+        ASSERT(_tradeSkillTargets[i].empty());
+        ASSERT(_feedPetTargets[i].empty());
+    }
 }
 
 void Spell::LoadScripts()

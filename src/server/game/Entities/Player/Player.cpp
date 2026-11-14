@@ -11603,6 +11603,20 @@ void Player::AddSpellAndCategoryCooldowns(SpellInfo const* spellInfo, uint32 ite
             }
         }
 
+        // Apply SPELL_AURA_MOD_SPELL_CATEGORY_COOLDOWN modifiers (TC 6.x): they change every cooldown of a spell
+        // with that category, not only the category cooldown
+        if (cat)
+        {
+            if (int32 categoryModifier = GetTotalAuraModifierByMiscValue(SPELL_AURA_MOD_SPELL_CATEGORY_COOLDOWN, cat))
+            {
+                if (rec > 0)
+                    rec += categoryModifier;
+
+                if (catrec > 0)
+                    catrec += categoryModifier;
+            }
+        }
+
         // replace negative cooldowns by 0
         if (rec < 0) rec = 0;
         if (catrec < 0) catrec = 0;
@@ -12201,6 +12215,29 @@ void Player::SetGroup(Group* group, int8 subgroup)
     }
 
     UpdateObjectVisibility(false);
+}
+
+void Player::SendSpellCategoryCooldowns() const
+{
+    WorldPackets::Spells::CategoryCooldown cooldowns;
+
+    Unit::AuraEffectList const& categoryCooldownAuras = GetAuraEffectsByType(SPELL_AURA_MOD_SPELL_CATEGORY_COOLDOWN);
+    for (AuraEffect const* aurEff : categoryCooldownAuras)
+    {
+        uint32 categoryId = uint32(aurEff->GetMiscValue());
+        auto cItr = std::find_if(cooldowns.CategoryCooldowns.begin(), cooldowns.CategoryCooldowns.end(),
+            [categoryId](WorldPackets::Spells::CategoryCooldown::CategoryCooldownInfo const& cooldown)
+        {
+            return cooldown.Category == categoryId;
+        });
+
+        if (cItr == cooldowns.CategoryCooldowns.end())
+            cooldowns.CategoryCooldowns.emplace_back(categoryId, -aurEff->GetAmount());
+        else
+            cItr->ModCooldown -= aurEff->GetAmount();
+    }
+
+    SendDirectMessage(cooldowns.Write());
 }
 
 void Player::SendInitialPacketsBeforeAddToMap(bool firstLogin)

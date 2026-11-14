@@ -308,6 +308,7 @@ public:
     void HandleModPowerCostPCT(AuraApplication const* aurApp, uint8 mode, bool apply) const;
     void HandleModPowerCost(AuraApplication const* aurApp, uint8 mode, bool apply) const;
     void HandleArenaPreparation(AuraApplication const* aurApp, uint8 mode, bool apply) const;
+    void HandleModSpellCategoryCooldown(AuraApplication const* aurApp, uint8 mode, bool apply) const;
     void HandleNoReagentUseAura(AuraApplication const* aurApp, uint8 mode, bool apply) const;
     void HandleAuraRetainComboPoints(AuraApplication const* aurApp, uint8 mode, bool apply) const;
     //  others

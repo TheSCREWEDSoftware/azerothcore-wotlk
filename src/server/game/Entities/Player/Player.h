@@ -1972,6 +1972,7 @@ public:
     GlobalCooldownMgr& GetGlobalCooldownMgr() { return m_GlobalCooldownMgr; }
 
     void RemoveCategoryCooldown(uint32 cat);
+    void SendSpellCategoryCooldowns() const;
     void RemoveArenaSpellCooldowns(bool removeActivePetCooldowns = false);
     void RemoveAllSpellCooldown();
     void _LoadSpellCooldowns(PreparedQueryResult result);

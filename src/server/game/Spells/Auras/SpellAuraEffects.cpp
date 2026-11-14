@@ -403,7 +403,7 @@ pAuraEffectHandler AuraEffectHandler[TOTAL_AURAS] =
     &AuraEffect::HandleNULL,                                      //338 excluded
     &AuraEffect::HandleNULL,                                      //339 excluded
     &AuraEffect::HandleNULL,                                      //340 excluded
-    &AuraEffect::HandleNULL,                                      //341 excluded
+    &AuraEffect::HandleModSpellCategoryCooldown,                  //341 SPELL_AURA_MOD_SPELL_CATEGORY_COOLDOWN
     &AuraEffect::HandleNULL,                                      //342 excluded
     &AuraEffect::HandleNULL,                                      //343 excluded
     &AuraEffect::HandleNULL,                                      //344 excluded
@@ -7316,4 +7316,13 @@ void AuraEffect::HandleMastery(AuraApplication const* aurApp, uint8 mode, bool /
 
     if (Player* target = aurApp->GetTarget()->ToPlayer())
         target->UpdateMastery();
+}
+
+void AuraEffect::HandleModSpellCategoryCooldown(AuraApplication const* aurApp, uint8 mode, bool /*apply*/) const
+{
+    if (!(mode & AURA_EFFECT_HANDLE_REAL))
+        return;
+
+    if (Player* player = aurApp->GetTarget()->ToPlayer())
+        player->SendSpellCategoryCooldowns();
 }
