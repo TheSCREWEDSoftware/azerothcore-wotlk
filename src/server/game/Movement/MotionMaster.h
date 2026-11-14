@@ -20,6 +20,7 @@
 
 #include "Common.h"
 #include "ObjectGuid.h"
+#include "Optional.h"
 #include "PathGenerator.h"
 #include "Position.h"
 #include "SharedDefines.h"

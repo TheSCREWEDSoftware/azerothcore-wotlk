@@ -2713,6 +2713,8 @@ uint8 GameObject::GameobjectStateToInt(GOState* state) const
             case GO_STATE_ACTIVE_ALTERNATIVE:
                 m_state = 2;
                 return m_state;
+            default: // 6.x transport states are not saved
+                break;
         }
     }
 

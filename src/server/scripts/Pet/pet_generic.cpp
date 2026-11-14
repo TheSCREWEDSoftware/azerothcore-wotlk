@@ -151,6 +151,9 @@ static std::unordered_map<uint8, argentPonyBanner> argentBanners = {
 
 struct npc_pet_gen_argent_pony_bridle : public ScriptedAI
 {
+    using ScriptedAI::OnGossipHello;
+    using ScriptedAI::OnGossipSelect;
+
     npc_pet_gen_argent_pony_bridle(Creature* c) : ScriptedAI(c)
     {
         _state = ARGENT_PONY_STATE_NONE;
