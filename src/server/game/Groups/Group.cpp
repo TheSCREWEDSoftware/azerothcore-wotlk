@@ -35,6 +35,7 @@
 #include "ObjectMgr.h"
 #include "Opcodes.h"
 #include "PartyPackets.h"
+#include "Transport.h"
 #include "Player.h"
 #include "ScriptMgr.h"
 #include "SharedDefines.h"
@@ -887,13 +888,10 @@ void Group::ChangeLeader(ObjectGuid newLeaderGuid)
     m_leaderName = newLeader->GetName();
     ToggleGroupMemberFlag(slot, MEMBER_FLAG_ASSISTANT, false);
 
-    // 5.4.8 18414, from Project SkyFire
-    WorldPacket data(SMSG_GROUP_SET_LEADER, 1 + 1 + slot->name.size());
-    data << uint8(0);                                       // party index
-    data.WriteBits(slot->name.size(), 6);
-    data.FlushBits();
-    data.WriteString(slot->name);
-    BroadcastPacket(&data, true);
+    WorldPackets::Party::GroupNewLeader groupNewLeader;
+    groupNewLeader.Name = slot->name;
+    groupNewLeader.PartyIndex = 0;
+    BroadcastPacket(groupNewLeader.Write(), true);
 
     sScriptMgr->OnGroupChangeLeader(this, newLeaderGuid, oldLeaderGuid); // This hook should be executed at the end
 }
@@ -1027,7 +1025,7 @@ static WorldPackets::Loot::LootItemData BuildRollLootItem(Roll const& roll)
     return lootItem;
 }
 
-WorldPacket Group::BuildLootStartRoll(uint32 countDown, uint32 mapId, Roll const& r, uint8 voteMask)
+WorldPacket Group::BuildLootStartRoll(uint32 countDown, uint32 mapId, Roll const& r, uint8 voteMask) const
 {
     WorldPackets::Loot::StartLootRoll startLootRoll;
     startLootRoll.LootObj = r.lootedGUID;
@@ -1925,28 +1923,12 @@ void Group::SetTargetIcon(uint8 id, ObjectGuid whoGuid, ObjectGuid targetGuid, u
 
     m_targetIcons[id] = targetGuid;
 
-    // 5.4.8 18414, from Project SkyFire
-    WorldPacket data(SMSG_RAID_TARGET_UPDATE_SINGLE, 8 + 1 + 8 + 1 + 2);
-    data.WriteGuidMask(whoGuid, { 6 });
-    data.WriteGuidMask(targetGuid, { 4 });
-    data.WriteGuidMask(whoGuid, { 0, 7 });
-    data.WriteGuidMask(targetGuid, { 6 });
-    data.WriteGuidMask(whoGuid, { 5, 3, 4 });
-    data.WriteGuidMask(targetGuid, { 7, 2, 5, 1 });
-    data.WriteGuidMask(whoGuid, { 2, 1 });
-    data.WriteGuidMask(targetGuid, { 0, 3 });
-    data.FlushBits();
-
-    data.WriteGuidBytes(targetGuid, { 1 });
-    data << uint8(id);
-    data.WriteGuidBytes(whoGuid, { 0, 5, 3 });
-    data.WriteGuidBytes(targetGuid, { 7, 6 });
-    data.WriteGuidBytes(whoGuid, { 1 });
-    data.WriteGuidBytes(targetGuid, { 2, 4, 0, 3, 5 });
-    data.WriteGuidBytes(whoGuid, { 6 });
-    data << uint8(partyIndex);
-    data.WriteGuidBytes(whoGuid, { 4, 2, 7 });
-    BroadcastPacket(&data, true);
+    WorldPackets::Party::SendRaidTargetUpdateSingle updateSingle;
+    updateSingle.PartyIndex = int8(partyIndex);
+    updateSingle.Target = targetGuid;
+    updateSingle.ChangedBy = whoGuid;
+    updateSingle.Symbol = int8(id);
+    BroadcastPacket(updateSingle.Write(), true);
 }
 
 void Group::SendTargetIconList(WorldSession* session, uint8 partyIndex)
@@ -1954,31 +1936,13 @@ void Group::SendTargetIconList(WorldSession* session, uint8 partyIndex)
     if (!session)
         return;
 
-    // 5.4.8 18414, from Project SkyFire (which wrote the bits and bytes interleaved)
-    uint32 count = 0;
+    WorldPackets::Party::SendRaidTargetUpdateAll updateAll;
+    updateAll.PartyIndex = int8(partyIndex);
     for (uint8 i = 0; i < TARGETICONCOUNT; ++i)
         if (m_targetIcons[i])
-            ++count;
+            updateAll.TargetIcons.emplace(i, m_targetIcons[i]);
 
-    WorldPacket data(SMSG_RAID_TARGET_UPDATE_ALL, 4 + 1 + TARGETICONCOUNT * 9 + 1);
-    data.WriteBits(count, 25);
-    for (uint8 i = 0; i < TARGETICONCOUNT; ++i)
-        if (m_targetIcons[i])
-            data.WriteGuidMask(m_targetIcons[i], { 2, 1, 3, 7, 6, 4, 0, 5 });
-    data.FlushBits();
-
-    for (uint8 i = 0; i < TARGETICONCOUNT; ++i)
-    {
-        if (!m_targetIcons[i])
-            continue;
-
-        data.WriteGuidBytes(m_targetIcons[i], { 4, 7, 1, 0, 6, 5, 3 });
-        data << uint8(i);
-        data.WriteGuidBytes(m_targetIcons[i], { 2 });
-    }
-
-    data << uint8(partyIndex);
-    session->SendPacket(&data);
+    session->SendPacket(updateAll.Write());
 }
 
 void Group::SendUpdate()
@@ -1997,7 +1961,7 @@ void Group::SendUpdateToPlayer(ObjectGuid playerGUID, MemberSlot* slot)
 {
     Player* player = ObjectAccessor::FindConnectedPlayer(playerGUID);
 
-    if (!player || player->GetGroup() != this)
+    if (!player || !player->GetSession() || player->GetGroup() != this)
         return;
 
     // if MemberSlot wasn't provided
@@ -2012,60 +1976,61 @@ void Group::SendUpdateToPlayer(ObjectGuid playerGUID, MemberSlot* slot)
     }
 
     WorldPackets::Party::PartyUpdate partyUpdate;
-    partyUpdate.PartyFlags = uint8(m_groupType);
-    partyUpdate.Subgroup = slot->group;
-    partyUpdate.Flags = slot->flags;
-    partyUpdate.RolesAssigned = slot->roles;
-    if (isLFGGroup())
-    {
-        partyUpdate.LfgInfo.emplace();
-        partyUpdate.LfgInfo->MyLfgFlags = sLFGMgr->GetState(m_guid) == lfg::LFG_STATE_FINISHED_DUNGEON ? 2 : 0; // 2 = dungeon done
-        partyUpdate.LfgInfo->LfgSlot = sLFGMgr->GetDungeon(m_guid);
-    }
+
+    partyUpdate.PartyType = int8(m_groupType);
+    partyUpdate.PartyIndex = 0;
+    partyUpdate.PartyFlags = int8(IsCreated());
 
     partyUpdate.PartyGUID = m_guid;
-    partyUpdate.SequenceNum = m_counter++;              // increases every time this packet gets sent
-    partyUpdate.InstanceParty = isLFGGroup();
+    partyUpdate.LeaderGUID = m_leaderGuid;
 
-    // 5.4.8 lists every member, this player included, with its position in the sub group
-    int32 subGroupPosition = 0;
-    for (member_citerator citr = m_memberSlots.begin(); citr != m_memberSlots.end(); ++citr)
+    partyUpdate.SequenceNum = m_counter++;              // value increases every time this packet gets sent
+
+    partyUpdate.MyIndex = -1;
+    int32 index = 0;
+    for (member_citerator citr = m_memberSlots.begin(); citr != m_memberSlots.end(); ++citr, ++index)
     {
-        if (citr->group != slot->group)
-            continue;
+        if (slot->guid == citr->guid)
+            partyUpdate.MyIndex = index;
 
-        if (citr->guid == slot->guid)
-        {
-            partyUpdate.MyIndex = subGroupPosition;
-            break;
-        }
-
-        ++subGroupPosition;
-    }
-
-    for (member_citerator citr = m_memberSlots.begin(); citr != m_memberSlots.end(); ++citr)
-    {
         Player* member = ObjectAccessor::FindConnectedPlayer(citr->guid);
 
-        uint8 onlineState = (member && !member->GetSession()->PlayerLogout()) ? MEMBER_STATUS_ONLINE : MEMBER_STATUS_OFFLINE;
-        onlineState = onlineState | ((isBGGroup() || isBFGroup()) ? MEMBER_STATUS_PVP : 0);
+        WorldPackets::Party::GroupPlayerInfos& playerInfos = partyUpdate.PlayerList.emplace_back();
+        playerInfos.GUID = citr->guid;
+        playerInfos.Name = citr->name;
+        if (member)
+            playerInfos.Class = member->getClass();
+        else if (CharacterCacheEntry const* cache = sCharacterCache->GetCharacterCacheByGuid(citr->guid))
+            playerInfos.Class = cache->Class;
 
-        WorldPackets::Party::PartyPlayerInfo& playerInfo = partyUpdate.PlayerList.emplace_back();
-        playerInfo.Name = citr->name;
-        playerInfo.Guid = citr->guid;
-        playerInfo.Connected = onlineState;
-        playerInfo.Subgroup = citr->group;
-        playerInfo.Flags = citr->flags;                 // See enum GroupMemberFlags
-        playerInfo.RolesAssigned = citr->roles;         // Lfg Roles
+        playerInfos.Status = MEMBER_STATUS_OFFLINE;
+        if (member && member->GetSession() && !member->GetSession()->PlayerLogout())
+            playerInfos.Status = MEMBER_STATUS_ONLINE | ((isBGGroup() || isBFGroup()) ? MEMBER_STATUS_PVP : 0);
+
+        playerInfos.Subgroup = citr->group;             // groupid
+        playerInfos.Flags = citr->flags;                // See enum GroupMemberFlags
+        playerInfos.RolesAssigned = citr->roles;        // Lfg Roles
     }
 
-    partyUpdate.LeaderGUID = m_leaderGuid;
-    partyUpdate.LootSettings.LootMethod = uint8(m_lootMethod);
-    if (m_lootMethod == MASTER_LOOT)
-        partyUpdate.LootSettings.LootMaster = m_masterLooterGuid;
-    partyUpdate.LootSettings.LootThreshold = uint8(m_lootThreshold);
-    partyUpdate.DifficultySettings.DungeonDifficulty = uint8(m_dungeonDifficulty);
-    partyUpdate.DifficultySettings.RaidDifficulty = uint8(m_raidDifficulty);
+    if (GetMembersCount() > 1)
+    {
+        partyUpdate.LootSettings.emplace();
+        partyUpdate.LootSettings->Method = uint8(m_lootMethod);
+        partyUpdate.LootSettings->Threshold = uint8(m_lootThreshold);
+        partyUpdate.LootSettings->LootMaster = m_lootMethod == MASTER_LOOT ? m_masterLooterGuid : ObjectGuid::Empty;
+
+        partyUpdate.DifficultySettings.emplace();
+        partyUpdate.DifficultySettings->DungeonDifficultyID = m_dungeonDifficulty;
+        partyUpdate.DifficultySettings->RaidDifficultyID = m_raidDifficulty;
+        partyUpdate.DifficultySettings->LegacyRaidDifficultyID = m_legacyRaidDifficulty;
+    }
+
+    if (isLFGGroup())
+    {
+        partyUpdate.LfgInfos.emplace();
+        partyUpdate.LfgInfos->Slot = sLFGMgr->GetDungeon(m_guid);
+        partyUpdate.LfgInfos->MyPartialClear = sLFGMgr->GetState(m_guid) == lfg::LFG_STATE_FINISHED_DUNGEON ? 2 : 0; // 2 = dungeon done
+    }
 
     player->SendDirectMessage(partyUpdate.Write());
 }
@@ -2078,7 +2043,7 @@ void Group::UpdatePlayerOutOfRange(Player* player)
     if (player->GetGroupUpdateFlag() == GROUP_UPDATE_FLAG_NONE)
         return;
 
-    WorldPackets::Party::PartyMemberState packet;
+    WorldPackets::Party::PartyMemberStats packet;
     packet.Initialize(player);
     packet.Write();
 
@@ -2127,45 +2092,19 @@ bool Group::ReadyCheckAllResponded() const
 
 void Group::SendReadyCheckConfirm(ObjectGuid playerGuid, bool ready)
 {
-    // 5.4.8 18414, from Project SkyFire
-    ObjectGuid groupGuid = GetGUID();
-    WorldPacket data(SMSG_RAID_READY_CHECK_CONFIRM, 1 + 1 + 8 + 1 + 8);
-    data.WriteGuidMask(groupGuid, { 4 });
-    data.WriteGuidMask(playerGuid, { 5, 3 });
-    data.WriteBit(ready);
-    data.WriteGuidMask(groupGuid, { 2 });
-    data.WriteGuidMask(playerGuid, { 6 });
-    data.WriteGuidMask(groupGuid, { 3 });
-    data.WriteGuidMask(playerGuid, { 0, 1 });
-    data.WriteGuidMask(groupGuid, { 1, 5 });
-    data.WriteGuidMask(playerGuid, { 7, 4 });
-    data.WriteGuidMask(groupGuid, { 6 });
-    data.WriteGuidMask(playerGuid, { 2 });
-    data.WriteGuidMask(groupGuid, { 0, 7 });
-    data.FlushBits();
-
-    data.WriteGuidBytes(playerGuid, { 4, 2, 1 });
-    data.WriteGuidBytes(groupGuid, { 4, 2 });
-    data.WriteGuidBytes(playerGuid, { 0 });
-    data.WriteGuidBytes(groupGuid, { 5, 3 });
-    data.WriteGuidBytes(playerGuid, { 7 });
-    data.WriteGuidBytes(groupGuid, { 6, 1 });
-    data.WriteGuidBytes(playerGuid, { 6, 3, 5 });
-    data.WriteGuidBytes(groupGuid, { 0, 7 });
-    BroadcastPacket(&data, false);
+    WorldPackets::Party::ReadyCheckResponse response;
+    response.PartyGUID = GetGUID();
+    response.Player = playerGuid;
+    response.IsReady = ready;
+    BroadcastPacket(response.Write(), false);
 }
 
 void Group::SendReadyCheckCompleted()
 {
-    // 5.4.8 18414, from Project SkyFire
-    ObjectGuid groupGuid = GetGUID();
-    WorldPacket data(SMSG_RAID_READY_CHECK_COMPLETED, 1 + 8 + 1);
-    data.WriteGuidMask(groupGuid, { 4, 2, 5, 7, 1, 0, 3, 6 });
-    data.FlushBits();
-    data.WriteGuidBytes(groupGuid, { 6, 0, 3, 1, 5 });
-    data << uint8(0);                                       // party index
-    data.WriteGuidBytes(groupGuid, { 7, 2, 4 });
-    BroadcastPacket(&data, false);
+    WorldPackets::Party::ReadyCheckCompleted readyCheckCompleted;
+    readyCheckCompleted.PartyIndex = 0;
+    readyCheckCompleted.PartyGUID = GetGUID();
+    BroadcastPacket(readyCheckCompleted.Write(), false);
 }
 
 bool Group::SameSubGroup(Player const* member1, Player const* member2) const
@@ -2434,10 +2373,10 @@ GroupJoinBattlegroundResult Group::CanJoinBattlegroundQueue(Battleground const* 
 
 void Group::DoMinimapPing(ObjectGuid sourceGuid, float mapX, float mapY)
 {
-    WorldPackets::Misc::MinimapPing minimapPing;
-    minimapPing.SourceGuid = sourceGuid;
-    minimapPing.MapX = mapX;
-    minimapPing.MapY = mapY;
+    WorldPackets::Party::MinimapPing minimapPing;
+    minimapPing.Sender = sourceGuid;
+    minimapPing.PositionX = mapX;
+    minimapPing.PositionY = mapY;
 
     BroadcastPacket(minimapPing.Write(), true, -1, sourceGuid);
 }
@@ -3089,8 +3028,19 @@ void Group::SetRaidMarker(uint8 slot, Player* summoner, ObjectGuid markerGuid)
     // a new marker in the same slot replaces the old one
     ClearRaidMarker(slot);
 
-    m_raidMarkers[slot].SummonerGuid = summoner->GetGUID();
-    m_raidMarkers[slot].MarkerGuid = markerGuid;
+    RaidMarkerSlot& marker = m_raidMarkers[slot];
+    marker.SummonerGuid = summoner->GetGUID();
+    marker.MarkerGuid = markerGuid;
+    marker.MapId = summoner->GetMapId();
+    marker.Pos.Relocate(summoner);
+    marker.TransportGuid.Clear();
+    if (DynamicObject* dynObject = ObjectAccessor::GetDynamicObject(*summoner, markerGuid))
+    {
+        marker.Pos.Relocate(dynObject);
+        if (dynObject->GetTransport())
+            marker.TransportGuid = dynObject->GetTransport()->GetGUID();
+    }
+
     SendRaidMarkersChanged();
 }
 
@@ -3099,8 +3049,8 @@ void Group::ClearRaidMarker(uint8 slot)
     if (slot >= MAX_RAID_MARKERS || !m_raidMarkers[slot].MarkerGuid)
         return;
 
-    RaidMarker const marker = m_raidMarkers[slot];
-    m_raidMarkers[slot] = RaidMarker();
+    RaidMarkerSlot const marker = m_raidMarkers[slot];
+    m_raidMarkers[slot] = RaidMarkerSlot();
 
     if (Player* summoner = ObjectAccessor::FindPlayer(marker.SummonerGuid))
         if (DynamicObject* dynObject = ObjectAccessor::GetDynamicObject(*summoner, marker.MarkerGuid))
@@ -3111,11 +3061,11 @@ void Group::ClearRaidMarker(uint8 slot)
 
 void Group::OnRaidMarkerRemoved(ObjectGuid markerGuid)
 {
-    for (RaidMarker& marker : m_raidMarkers)
+    for (RaidMarkerSlot& marker : m_raidMarkers)
     {
         if (marker.MarkerGuid == markerGuid)
         {
-            marker = RaidMarker();
+            marker = RaidMarkerSlot();
             SendRaidMarkersChanged();
             return;
         }
@@ -3134,16 +3084,28 @@ uint32 Group::GetRaidMarkerMask() const
 
 void Group::SendRaidMarkersChanged(Player* player /*= nullptr*/, bool clear /*= false*/) const
 {
-    WorldPacket data(SMSG_RAID_MARKERS_CHANGED, 4);
-    data << uint32(clear ? 0 : GetRaidMarkerMask());
+    std::vector<::RaidMarker> markers;
+    if (!clear)
+    {
+        markers.reserve(MAX_RAID_MARKERS);
+        for (RaidMarkerSlot const& marker : m_raidMarkers)
+            if (marker.MarkerGuid)
+                markers.emplace_back(marker.MapId, marker.Pos.GetPositionX(), marker.Pos.GetPositionY(), marker.Pos.GetPositionZ(), marker.TransportGuid);
+    }
+
+    WorldPackets::Party::RaidMarkersChanged raidMarkersChanged;
+    raidMarkersChanged.ActiveMarkers = clear ? 0 : GetRaidMarkerMask();
+    for (::RaidMarker& marker : markers)
+        raidMarkersChanged.RaidMarkers.push_back(&marker);
+    raidMarkersChanged.Write();
 
     if (player)
     {
-        player->SendDirectMessage(&data);
+        player->SendDirectMessage(raidMarkersChanged.GetRawPacket());
         return;
     }
 
     for (MemberSlot const& member : m_memberSlots)
         if (Player* memberPlayer = ObjectAccessor::FindConnectedPlayer(member.guid))
-            memberPlayer->SendDirectMessage(&data);
+            memberPlayer->SendDirectMessage(raidMarkersChanged.GetRawPacket());
 }

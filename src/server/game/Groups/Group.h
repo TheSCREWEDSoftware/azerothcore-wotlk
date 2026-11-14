@@ -355,7 +355,7 @@ public:
     void MasterLoot(Loot* loot, WorldObject* pLootedObject);
     Rolls::iterator GetRoll(ObjectGuid Guid);
     Roll* GetRoll(ObjectGuid lootedGuid, uint8 itemSlot);
-    static WorldPacket BuildLootStartRoll(uint32 countDown, uint32 mapId, Roll const& r, uint8 voteMask);
+    WorldPacket BuildLootStartRoll(uint32 countDown, uint32 mapId, Roll const& r, uint8 voteMask) const;
     void CountTheRoll(Rolls::iterator roll);
     bool CountRollVote(ObjectGuid playerGUID, ObjectGuid Guid, uint8 Choise);
     void EndRoll(Loot* loot);
@@ -416,12 +416,15 @@ protected:
     ObjectGuid          m_targetIcons[TARGETICONCOUNT];
     bool                _readyCheckInProgress{false};
     std::set<ObjectGuid> _readyCheckResponded;
-    struct RaidMarker
+    struct RaidMarkerSlot
     {
         ObjectGuid SummonerGuid;
         ObjectGuid MarkerGuid;                              // the marker dynamic object
+        uint32 MapId = 0;
+        Position Pos;
+        ObjectGuid TransportGuid;
     };
-    std::array<RaidMarker, MAX_RAID_MARKERS> m_raidMarkers;
+    std::array<RaidMarkerSlot, MAX_RAID_MARKERS> m_raidMarkers;
     LootMethod          m_lootMethod;
     ItemQualities       m_lootThreshold;
     ObjectGuid          m_looterGuid;

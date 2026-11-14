@@ -22,6 +22,7 @@
 #include "GridNotifiers.h"
 #include "MiscPackets.h"
 #include "ObjectAccessor.h"
+#include "PartyPackets.h"
 #include "SpellMgr.h"
 #include "Totem.h"
 
@@ -132,10 +133,10 @@ void TotemAI::AttackStart(Unit* /*victim*/)
     // Sentry totem sends ping on attack
     if (me->GetEntry() == SENTRY_TOTEM_ENTRY && me->GetOwner()->IsPlayer())
     {
-        WorldPackets::Misc::MinimapPing packet;
-        packet.SourceGuid = me->GetGUID();
-        packet.MapX = me->GetPositionX();
-        packet.MapY = me->GetPositionY();
+        WorldPackets::Party::MinimapPing packet;
+        packet.Sender = me->GetGUID();
+        packet.PositionX = me->GetPositionX();
+        packet.PositionY = me->GetPositionY();
         me->GetOwner()->ToPlayer()->SendDirectMessage(packet.Write());
     }
 }
