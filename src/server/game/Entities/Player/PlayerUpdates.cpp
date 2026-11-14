@@ -34,6 +34,7 @@
 #include "MiscPackets.h"
 #include "OutdoorPvPMgr.h"
 #include "Pet.h"
+#include "Garrison.h"
 #include "Player.h"
 #include "ScriptMgr.h"
 #include "SkillDiscovery.h"
@@ -308,6 +309,9 @@ void Player::Update(uint32 p_time)
                 if (m_areaUpdateId != newarea)
                     UpdateArea(newarea);
             }
+
+            if (_garrison)
+                _garrison->CheckEnterOrLeave();
 
             m_zoneUpdateTimer = ZONE_UPDATE_INTERVAL;
         }

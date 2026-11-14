@@ -308,6 +308,36 @@ void Garrison::Leave() const
     }
 }
 
+// TC master moves the player between the parent continent and the garrison map with
+// server side area triggers (at_garrison_enter / at_garrison_exit). This core has no
+// area trigger entities, so the owner is checked against the town hall position of the
+// current site level on the zone update tick instead. The leave radius is larger than
+// the enter radius so the player is not moved back and forth at the edge.
+static constexpr float GARRISON_ENTER_RADIUS = 150.0f;
+static constexpr float GARRISON_LEAVE_RADIUS = 180.0f;
+
+void Garrison::CheckEnterOrLeave() const
+{
+    if (!_siteLevel || _owner->IsBeingTeleported() || _owner->IsInFlight())
+        return;
+
+    MapEntry const* map = sMapStore.LookupEntry(_siteLevel->MapID);
+    if (!map)
+        return;
+
+    float dist = _owner->GetExactDist2d(_siteLevel->TownHall.X, _siteLevel->TownHall.Y);
+    if (int32(_owner->GetMapId()) == map->ParentMapID)
+    {
+        if (dist < GARRISON_ENTER_RADIUS)
+            Enter();
+    }
+    else if (_owner->GetMapId() == _siteLevel->MapID)
+    {
+        if (dist > GARRISON_LEAVE_RADIUS)
+            Leave();
+    }
+}
+
 GarrisonFactionIndex Garrison::GetFaction() const
 {
     return _owner->GetTeam() == HORDE ? GARRISON_FACTION_INDEX_HORDE : GARRISON_FACTION_INDEX_ALLIANCE;

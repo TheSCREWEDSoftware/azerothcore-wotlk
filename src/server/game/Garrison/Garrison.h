@@ -125,6 +125,7 @@ public:
 
     void Enter() const;
     void Leave() const;
+    void CheckEnterOrLeave() const;
 
     GarrisonFactionIndex GetFaction() const;
 
