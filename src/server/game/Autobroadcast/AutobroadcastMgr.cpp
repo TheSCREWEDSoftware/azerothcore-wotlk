@@ -199,6 +199,6 @@ void AutobroadcastMgr::SendNotificationAnnouncement(uint8 textId)
         if (localizedMessage.empty())
             localizedMessage = ObjectMgr::GetLocaleString(_autobroadcasts[textId], DEFAULT_LOCALE);
 
-        player->SendDirectMessage(WorldPackets::Chat::PrintNotification(localizedMessage).Write());
+        player->SendDirectMessage(WorldPackets::Chat::PrintNotification(std::string(localizedMessage)).Write());
     });
 }

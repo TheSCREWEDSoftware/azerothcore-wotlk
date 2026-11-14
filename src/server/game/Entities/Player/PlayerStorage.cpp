@@ -3509,6 +3509,38 @@ Item* Player::GetItemByEntry(uint32 entry) const
     return nullptr;
 }
 
+std::vector<Item*> Player::GetItemListByEntry(uint32 entry, bool inBankAlso) const
+{
+    std::vector<Item*> itemList = std::vector<Item*>();
+
+    for (uint8 i = INVENTORY_SLOT_ITEM_START; i < INVENTORY_SLOT_ITEM_END; ++i)
+        if (Item* item = GetItemByPos(INVENTORY_SLOT_BAG_0, i))
+            if (item->GetEntry() == entry)
+                itemList.push_back(item);
+
+    for (uint8 i = INVENTORY_SLOT_BAG_START; i < INVENTORY_SLOT_BAG_END; ++i)
+        if (Bag* bag = GetBagByPos(i))
+            for (uint32 j = 0; j < bag->GetBagSize(); ++j)
+                if (Item* item = bag->GetItemByPos(j))
+                    if (item->GetEntry() == entry)
+                        itemList.push_back(item);
+
+    for (uint8 i = EQUIPMENT_SLOT_START; i < INVENTORY_SLOT_BAG_END; ++i)
+        if (Item* item = GetItemByPos(INVENTORY_SLOT_BAG_0, i))
+            if (item->GetEntry() == entry)
+                itemList.push_back(item);
+
+    if (inBankAlso)
+    {
+        for (uint8 i = BANK_SLOT_ITEM_START; i < BANK_SLOT_BAG_END; ++i)
+            if (Item* item = GetItemByPos(INVENTORY_SLOT_BAG_0, i))
+                if (item->GetEntry() == entry)
+                    itemList.push_back(item);
+    }
+
+    return itemList;
+}
+
 void Player::DestroyItemCount(Item* pItem, uint32& count, bool update)
 {
     if (!pItem)

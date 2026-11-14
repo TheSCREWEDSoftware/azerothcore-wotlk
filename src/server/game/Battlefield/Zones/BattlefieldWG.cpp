@@ -1045,8 +1045,8 @@ void BattlefieldWG::SendInitWorldStatesTo(Player* player)
 {
     WorldPackets::WorldState::InitWorldStates packet;
     packet.MapID = MapId;
-    packet.ZoneID = ZoneId;
-    packet.AreaID = player->GetAreaId();
+    packet.AreaID = ZoneId;
+    packet.SubareaID = player->GetAreaId();
     FillInitialWorldStates(packet);
 
     player->SendDirectMessage(packet.Write());

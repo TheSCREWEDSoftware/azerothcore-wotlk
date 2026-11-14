@@ -148,12 +148,13 @@ struct LinkValidator<LinkTags::item>
     {
         ItemLocale const* locale = sObjectMgr->GetItemLocale(data.Item->ItemId);
 
-        std::array<char const*, 16> const* randomSuffixes = nullptr;
+        // 6.x: the DB2 suffix names hold one string per client locale
+        LocalizedString const* randomSuffixes = nullptr;
 
         if (data.RandomProperty)
-            randomSuffixes = &data.RandomProperty->Name;
+            randomSuffixes = data.RandomProperty->Name;
         else if (data.RandomSuffix)
-            randomSuffixes = &data.RandomSuffix->Name;
+            randomSuffixes = data.RandomSuffix->Name;
 
         if (data.IsBuggedInspectLink) /* DBC lookup will have failed on the client, so the link should've arrived without suffix */
             randomSuffixes = nullptr;
@@ -175,7 +176,8 @@ struct LinkValidator<LinkTags::item>
                 uint8 last = (i <= LOCALE_ruRU) ? i : TOTAL_LOCALES - 1;
                 for (uint8 dbcLocale = first; dbcLocale <= last; ++dbcLocale)
                 {
-                    std::string_view randomSuffix((*randomSuffixes)[dbcLocale]);
+                    char const* suffix = randomSuffixes->Str[dbcLocale];
+                    std::string_view randomSuffix(suffix ? suffix : "");
                     if ((!randomSuffix.empty()) &&
                       (text.length() == (name.length() + 1 + randomSuffix.length())) &&
                       (text.substr(0, name.length()) == name) &&

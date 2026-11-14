@@ -143,7 +143,6 @@ WorldObject* ObjectAccessor::GetWorldObject(WorldObject const& p, ObjectGuid con
         case HighGuid::Player:
             return GetPlayer(p, guid);
         case HighGuid::Transport:
-        case HighGuid::Transport:
         case HighGuid::GameObject:
             return GetGameObject(p, guid);
         case HighGuid::Vehicle:
@@ -174,7 +173,6 @@ Object* ObjectAccessor::GetObjectByTypeMask(WorldObject const& p, ObjectGuid con
             if (typemask & TYPEMASK_PLAYER)
                 return GetPlayer(p, guid);
             break;
-        case HighGuid::Transport:
         case HighGuid::Transport:
         case HighGuid::GameObject:
             if (typemask & TYPEMASK_GAMEOBJECT)

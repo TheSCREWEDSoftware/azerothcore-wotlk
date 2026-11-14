@@ -1342,6 +1342,7 @@ public:
     uint32 GetItemCountWithLimitCategory(uint32 limitCategory, Item* skipItem = nullptr) const;
     [[nodiscard]] Item* GetItemByGuid(ObjectGuid guid) const;
     [[nodiscard]] Item* GetItemByEntry(uint32 entry) const;
+    [[nodiscard]] std::vector<Item*> GetItemListByEntry(uint32 entry, bool inBankAlso = false) const;
     [[nodiscard]] Item* GetItemByPos(uint16 pos) const;
     [[nodiscard]] Item* GetItemByPos(uint8 bag, uint8 slot) const;
     [[nodiscard]] Bag*  GetBagByPos(uint8 slot) const;

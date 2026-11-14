@@ -86,6 +86,8 @@ void PlayerTaxi::InitTaxiNodesForLevel(uint32 race, uint32 chrClass, uint8 level
     {
         case TEAM_ALLIANCE: SetTaximaskNode(100); break;
         case TEAM_HORDE:    SetTaximaskNode(99);  break;
+        default:                                            // 6.x neutral pandaren start on the Wandering Isle
+            break;
     }
 
     // level dependent taxi hubs

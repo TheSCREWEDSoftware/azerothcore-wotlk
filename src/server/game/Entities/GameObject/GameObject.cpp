@@ -21,11 +21,13 @@
 #include "CreatureAISelector.h"
 #include "DisableMgr.h"
 #include "GameObjectAI.h"
+#include "GameObjectPackets.h"
 #include "GameObjectModel.h"
 #include "GameTime.h"
 #include "GridNotifiersImpl.h"
 #include "Group.h"
 #include "GroupMgr.h"
+#include "MiscPackets.h"
 #include "ObjectMgr.h"
 #include "OutdoorPvPMgr.h"
 #include "PoolMgr.h"
@@ -728,8 +730,7 @@ void GameObject::Update(uint32 diff)
                                     {
                                         caster->ToPlayer()->RemoveGameObject(this, false);
 
-                                        WorldPacket data(SMSG_FISH_ESCAPED, 0);
-                                        caster->ToPlayer()->SendDirectMessage(&data);
+                                        caster->ToPlayer()->SendDirectMessage(WorldPackets::GameObject::FishEscaped().Write());
                                     }
                                     // can be deleted
                                     m_lootState = GO_JUST_DEACTIVATED;
@@ -1782,13 +1783,9 @@ void GameObject::Use(Unit* user)
 
                     if (info->goober.pageId)                    // show page...
                     {
-                        // 5.4.8 18414, from Project SkyFire
-                        ObjectGuid guid = GetGUID();
-                        WorldPacket data(SMSG_GAMEOBJECT_PAGETEXT, 1 + 8);
-                        data.WriteGuidMask(guid, { 0, 3, 2, 6, 5, 1, 7, 4 });
-                        data.FlushBits();
-                        data.WriteGuidBytes(guid, { 6, 2, 7, 0, 5, 3, 1, 4 });
-                        player->SendDirectMessage(&data);
+                        WorldPackets::GameObject::PageText data;
+                        data.GameObjectGUID = GetGUID();
+                        player->SendDirectMessage(data.Write());
                     }
                     else if (info->goober.gossipID)
                     {
@@ -1955,8 +1952,7 @@ void GameObject::Use(Unit* user)
                         {
                             SetLootState(GO_JUST_DEACTIVATED);
 
-                            WorldPacket data(SMSG_FISH_NOT_HOOKED, 0);
-                            player->SendDirectMessage(&data);
+                            player->SendDirectMessage(WorldPackets::GameObject::FishNotHooked().Write());
                             break;
                         }
                 }
@@ -2196,8 +2192,7 @@ void GameObject::Use(Unit* user)
                 // fallback, will always work
                 player->TeleportTo(GetMapId(), GetPositionX(), GetPositionY(), GetPositionZ(), GetOrientation(), TELE_TO_NOT_LEAVE_TRANSPORT | TELE_TO_NOT_LEAVE_COMBAT | TELE_TO_NOT_UNSUMMON_PET);
 
-                WorldPacket data(SMSG_ENABLE_BARBER_SHOP, 0);
-                player->SendDirectMessage(&data);
+                player->SendDirectMessage(WorldPackets::Misc::EnableBarberShop().Write());
 
                 player->SetStandState(UNIT_STAND_STATE_SIT_LOW_CHAIR + info->barberChair.chairheight);
                 return;
@@ -2239,41 +2234,20 @@ void GameObject::Use(Unit* user)
 
 void GameObject::PlayAnimKit(int32 animKit)
 {
-    ObjectGuid guid = GetGUID();
-    WorldPacket data(SMSG_GAME_OBJECT_ACTIVATE_ANIM_KIT, 1 + 8 + 4);
-    data.WriteBit(guid[5]);
-    data.WriteBit(guid[1]);
-    data.WriteBit(guid[0]);
-    data.WriteBit(guid[4]);
-    data.WriteBit(guid[7]);
-    data.WriteBit(guid[2]);
-    data.WriteBit(guid[3]);
-    data.WriteBit(guid[6]);
-    data.FlushBits();
-    data.WriteByteSeq(guid[5]);
-    data.WriteByteSeq(guid[1]);
-    data.WriteByteSeq(guid[0]);
-    data.WriteByteSeq(guid[3]);
-    data.WriteByteSeq(guid[4]);
-    data.WriteByteSeq(guid[6]);
-    data.WriteByteSeq(guid[2]);
-    data.WriteByteSeq(guid[7]);
-    data << int32(animKit);
-    SendMessageToSet(&data, true);
+    WorldPackets::GameObject::GameObjectActivateAnimKit activateAnimKit;
+    activateAnimKit.ObjectGUID = GetGUID();
+    activateAnimKit.AnimKitID = animKit;
+    activateAnimKit.Maintain = false;
+    SendMessageToSet(activateAnimKit.Write(), true);
 }
 
 void GameObject::SendCustomAnim(uint32 anim)
 {
-    // 5.4.8 18414, from Project SkyFire
-    ObjectGuid guid = GetGUID();
-    WorldPacket data(SMSG_GAMEOBJECT_CUSTOM_ANIM, 2 + 8 + 4);
-    data.WriteGuidMask(guid, { 4, 7, 1, 0, 5, 3, 2 });
-    data.WriteBit(false);                                   // play as despawn
-    data.WriteGuidMask(guid, { 6 });
-    data.FlushBits();
-    data << uint32(anim);
-    data.WriteGuidBytes(guid, { 5, 6, 7, 3, 4, 0, 2, 1 });
-    SendMessageToSet(&data, true);
+    WorldPackets::GameObject::GameObjectCustomAnim customAnim;
+    customAnim.ObjectGUID = GetGUID();
+    customAnim.CustomAnim = anim;
+    customAnim.PlayAsDespawn = false;
+    SendMessageToSet(customAnim.Write(), true);
 }
 
 bool GameObject::IsInRange2d(float x, float y, float radius) const
@@ -2461,54 +2435,13 @@ void GameObject::ModifyHealth(int32 change, Unit* attackerOrHealer /*= nullptr*/
     /// @todo: is there any packet for healing?
     if (player)
     {
-        // 5.4.8 18414, from Project SkyFire
-        ObjectGuid playerGuid = player->GetGUID();
-        ObjectGuid vehicleGuid = attackerOrHealer->GetGUID();
-        ObjectGuid objectGuid = GetGUID();
-
-        WorldPacket data(SMSG_DESTRUCTIBLE_BUILDING_DAMAGE, 3 + 8 + 8 + 8 + 4 + 4);
-        data.WriteGuidMask(vehicleGuid, { 2 });
-        data.WriteGuidMask(objectGuid, { 2 });
-        data.WriteGuidMask(playerGuid, { 7 });
-        data.WriteGuidMask(objectGuid, { 4 });
-        data.WriteGuidMask(playerGuid, { 3, 5 });
-        data.WriteGuidMask(objectGuid, { 0 });
-        data.WriteGuidMask(playerGuid, { 2, 6 });
-        data.WriteGuidMask(vehicleGuid, { 4 });
-        data.WriteGuidMask(objectGuid, { 5 });
-        data.WriteGuidMask(playerGuid, { 0, 1 });
-        data.WriteGuidMask(objectGuid, { 1 });
-        data.WriteGuidMask(vehicleGuid, { 0, 3, 6 });
-        data.WriteGuidMask(objectGuid, { 7 });
-        data.WriteGuidMask(vehicleGuid, { 7, 5 });
-        data.WriteGuidMask(objectGuid, { 6 });
-        data.WriteGuidMask(playerGuid, { 4 });
-        data.WriteGuidMask(vehicleGuid, { 1 });
-        data.WriteGuidMask(objectGuid, { 3 });
-        data.FlushBits();
-
-        data.WriteGuidBytes(vehicleGuid, { 2 });
-        data << uint32(spellId);
-        data.WriteGuidBytes(playerGuid, { 5, 6 });
-        data.WriteGuidBytes(objectGuid, { 7 });
-        data.WriteGuidBytes(playerGuid, { 1 });
-        data.WriteGuidBytes(objectGuid, { 1 });
-        data.WriteGuidBytes(playerGuid, { 2 });
-        data.WriteGuidBytes(vehicleGuid, { 7, 5 });
-        data.WriteGuidBytes(objectGuid, { 0, 2, 6 });
-        data.WriteGuidBytes(vehicleGuid, { 1, 6 });
-        data << int32(-change);                     // change  < 0 triggers SPELL_BUILDING_HEAL combat log event
-                                                    // change >= 0 triggers SPELL_BUILDING_DAMAGE event
-        data.WriteGuidBytes(objectGuid, { 5 });
-        data.WriteGuidBytes(playerGuid, { 0 });
-        data.WriteGuidBytes(vehicleGuid, { 0 });
-        data.WriteGuidBytes(playerGuid, { 7, 4 });
-        data.WriteGuidBytes(objectGuid, { 3 });
-        data.WriteGuidBytes(vehicleGuid, { 3 });
-        data.WriteGuidBytes(objectGuid, { 4 });
-        data.WriteGuidBytes(vehicleGuid, { 4 });
-        data.WriteGuidBytes(playerGuid, { 3 });
-        player->SendDirectMessage(&data);
+        WorldPackets::GameObject::DestructibleBuildingDamage packet;
+        packet.Caster = attackerOrHealer->GetGUID(); // todo: this can be a GameObject
+        packet.Target = GetGUID();
+        packet.Damage = -change;
+        packet.Owner = player->GetGUID();
+        packet.SpellID = spellId;
+        player->SendDirectMessage(packet.Write());
     }
 
     GameObjectDestructibleState newState = GetDestructibleState();

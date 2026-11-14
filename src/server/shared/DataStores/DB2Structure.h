@@ -616,7 +616,7 @@ struct HolidaysEntry
     uint32 HolidayDescriptionID;                                    // 40 HolidayDescriptions.dbc
     LocalizedString* TextureFilename;                               // 41
     uint32 Priority;                                                // 42
-    uint32 CalendarFilterType;                                      // 43 (-1 = Fishing Contest, 0 = Unk, 1 = Darkmoon Festival, 2 = Yearly holiday)
+    int32  CalendarFilterType;                                      // 43 (-1 = Fishing Contest, 0 = Unk, 1 = Darkmoon Festival, 2 = Yearly holiday)
     uint32 Flags;                                                   // 44 (0 = Darkmoon Faire, Fishing Contest and Wotlk Launch, rest is 1)
 };
 
