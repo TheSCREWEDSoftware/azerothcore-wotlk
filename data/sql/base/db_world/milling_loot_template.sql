@@ -1,7 +1,7 @@
 /*M!999999\- enable the sandbox mode */ 
 -- MariaDB dump 10.19  Distrib 10.11.14-MariaDB, for debian-linux-gnu (x86_64)
 --
--- Host: localhost    Database: acore_world_build
+-- Host: localhost    Database: acore_world_548
 -- ------------------------------------------------------
 -- Server version	10.11.14-MariaDB-0ubuntu0.24.04.1
 
@@ -93,7 +93,13 @@ INSERT INTO `milling_loot_template` VALUES
 (52985,11920,11920,100,0,1,0,1,1,'Azshara\'s Veil - Ashen Pigment, Burning Embers'),
 (52986,11919,11919,100,0,1,0,1,1,'Heartblossom - Ashen Pigment, Burning Embers'),
 (52987,11921,11921,100,0,1,0,1,1,'Twilight Jasmine - Ashen Pigment, Burning Embers'),
-(52988,11921,11921,100,0,1,0,1,1,'Whiptail - Ashen Pigment, Burning Embers');
+(52988,11921,11921,100,0,1,0,1,1,'Whiptail - Ashen Pigment, Burning Embers'),
+(72234,11919,11919,100,0,1,0,1,1,'SFDB 548'),
+(72235,11922,11922,100,0,1,0,1,1,'SFDB 548'),
+(72237,11923,11923,100,0,1,0,1,1,'SFDB 548'),
+(79010,11920,11920,100,0,1,0,1,1,'SFDB 548'),
+(79011,11921,11921,100,0,1,0,1,1,'SFDB 548'),
+(89639,11924,11924,100,0,1,0,1,1,'SFDB 548');
 /*!40000 ALTER TABLE `milling_loot_template` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -105,4 +111,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-11-14  1:20:29
+-- Dump completed on 2026-11-14  1:24:19

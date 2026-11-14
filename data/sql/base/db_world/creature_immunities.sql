@@ -1,7 +1,7 @@
 /*M!999999\- enable the sandbox mode */ 
 -- MariaDB dump 10.19  Distrib 10.11.14-MariaDB, for debian-linux-gnu (x86_64)
 --
--- Host: localhost    Database: acore_world_build
+-- Host: localhost    Database: acore_world_548
 -- ------------------------------------------------------
 -- Server version	10.11.14-MariaDB-0ubuntu0.24.04.1
 
@@ -715,7 +715,25 @@ INSERT INTO `creature_immunities` VALUES
 (1000209,0,0,2080374526,'','',0,0,'TDB 434 template immunity masks'),
 (1000210,0,0,3120561916,'','',0,0,'TDB 434 template immunity masks'),
 (1000211,0,0,4294967038,'','',0,0,'TDB 434 template immunity masks'),
-(1000212,0,0,4294967294,'','',0,0,'TDB 434 template immunity masks');
+(1000212,0,0,4294967294,'','',0,0,'TDB 434 template immunity masks'),
+(2000001,0,0,2,'','',0,0,'SFDB 548 template immunity masks'),
+(2000002,0,0,64,'','',0,0,'SFDB 548 template immunity masks'),
+(2000003,0,0,465395710,'','',0,0,'SFDB 548 template immunity masks'),
+(2000004,0,0,1090658342,'','',0,0,'SFDB 548 template immunity masks'),
+(2000005,0,0,1234599606,'','',0,0,'SFDB 548 template immunity masks'),
+(2000006,0,0,1268678142,'','',0,0,'SFDB 548 template immunity masks'),
+(2000007,0,0,1268678398,'','',0,0,'SFDB 548 template immunity masks'),
+(2000008,0,0,1268678654,'','',0,0,'SFDB 548 template immunity masks'),
+(2000009,0,0,1335787254,'','',0,0,'SFDB 548 template immunity masks'),
+(2000010,0,0,1335787262,'','',0,0,'SFDB 548 template immunity masks'),
+(2000011,0,0,1335787518,'','',0,0,'SFDB 548 template immunity masks'),
+(2000012,0,0,1539276542,'','',0,0,'SFDB 548 template immunity masks'),
+(2000013,0,0,1539276798,'','',0,0,'SFDB 548 template immunity masks'),
+(2000014,0,0,1570734078,'','',0,0,'SFDB 548 template immunity masks'),
+(2000015,0,0,1572241406,'','',0,0,'SFDB 548 template immunity masks'),
+(2000016,0,0,1572765694,'','',0,0,'SFDB 548 template immunity masks'),
+(2000017,0,0,1607958526,'','',0,0,'SFDB 548 template immunity masks'),
+(2000018,0,0,4292870142,'','',0,0,'SFDB 548 template immunity masks');
 /*!40000 ALTER TABLE `creature_immunities` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -727,4 +745,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-11-14  1:20:26
+-- Dump completed on 2026-11-14  1:24:16

@@ -1,7 +1,7 @@
 /*M!999999\- enable the sandbox mode */ 
 -- MariaDB dump 10.19  Distrib 10.11.14-MariaDB, for debian-linux-gnu (x86_64)
 --
--- Host: localhost    Database: acore_world_build
+-- Host: localhost    Database: acore_world_548
 -- ------------------------------------------------------
 -- Server version	10.11.14-MariaDB-0ubuntu0.24.04.1
 
@@ -21048,6 +21048,21 @@ INSERT INTO `creature_text` VALUES
 (53494,7,0,'Mortal filth... the master\'s keep is forbidden...',14,0,100,0,0,24444,0,0,'Baleroc'),
 (53494,8,0,'|TInterface\\Icons\\inv_sword_09.blp:20|t%s readies his |cFFFF0000Inferno Blade|r!',41,0,100,0,0,0,0,0,'Baleroc'),
 (53494,9,0,'|TInterface\\Icons\\spell_shadow_curse:20|t%s readies his |cFF551A8BDecimation Blade|r!',41,0,100,0,0,0,0,0,'Baleroc'),
+(53565,0,0,'Such skill for a new trainee.',12,0,100,511,0,0,0,0,'Aspiring Trainee'),
+(53565,0,1,'That target didn\'t stand a chance.',12,0,100,511,0,0,0,0,'Aspiring Trainee'),
+(53565,0,2,'One day you will have to teach me your secrets.',12,0,100,509,0,0,0,0,'Aspiring Trainee'),
+(53565,0,3,'You are bound for a great things, trainee.',12,0,100,508,0,0,0,0,'Aspiring Trainee'),
+(53565,0,4,'I must train harder so I can be like you.',12,0,100,1,0,0,0,0,'Aspiring Trainee'),
+(53565,0,5,'I hope the instructors saw that!',12,0,100,1,0,0,0,0,'Aspiring Trainee'),
+(53565,0,6,'I must work as hard as you.',12,0,100,1,0,0,0,0,'Aspiring Trainee'),
+(53565,0,7,'Your form is impeccable.',12,0,100,1,0,0,0,0,'Aspiring Trainee'),
+(53565,1,0,'My money\'s on Lam. Did you see him take down Chu during training last week?',12,0,100,1,0,0,0,0,'Aspiring Trainee'),
+(53565,2,0,'His stamina is nothing against Lam\'s strength.',12,0,100,0,0,0,0,0,'Aspiring Trainee'),
+(53565,3,0,'He has the legs of an ox! Have you ever been kicked by him in training?',12,0,100,1,0,0,0,0,'Aspiring Trainee'),
+(53565,4,0,'Raise you a keg of Stormshout Gold. It\'ll be your loss.',12,0,100,1,0,0,0,0,'Aspiring Trainee'),
+(53565,5,0,'That\'s where you\'re mistaken, friend. Zhou is as sturdy as an oak.',12,0,100,1,0,0,0,0,'Aspiring Trainee'),
+(53565,6,0,'Zhou has the stamina of three men, so he can out-stay most opponents.',12,0,100,0,0,0,0,0,'Aspiring Trainee'),
+(53565,7,0,'Four coppers on Zhou.',12,0,100,0,0,0,0,0,'Aspiring Trainee'),
 (53772,1,0,'I\'ll crush you underfoot!',14,0,100,0,0,24557,52239,0,'Lord Rhyolith - Concussive Stomp 1'),
 (53772,1,1,'Stomp now.',14,0,100,0,0,24556,52238,0,'Lord Rhyolith - Concussive Stomp 2'),
 (53772,6,0,'%s stumbles as his armor is shattered!',41,0,100,0,0,0,51766,0,'Lord Rhyolith - Announce Armor Shattered'),
@@ -21120,16 +21135,29 @@ INSERT INTO `creature_text` VALUES
 (54445,4,0,'You forced my hand.',14,0,100,0,0,25921,56575,0,'Echo of Jaina - Slay 1'),
 (54445,4,1,'I didn\'t want to do that.',14,0,100,0,0,25922,56576,0,'Echo of Jaina - Slay 2'),
 (54445,4,2,'I wish you\'d surrendered.',14,0,100,0,0,25923,56577,0,'Echo of Jaina - Slay 3'),
+(54567,0,0,'A challenge in compassion and humility. By helping Merchant Lorvo, it would seem you\'ve passed, $c. Master Shang would be pleased.',12,0,100,0,0,0,0,0,''),
+(54568,0,0,'Take that monkeybutt!',12,0,100,0,0,0,0,0,''),
+(54586,0,0,'That was a good match. Thank you.',12,0,100,511,0,0,0,0,'Huojin Trainee to 0'),
+(54586,0,1,'My skills are no match for yours. I admit defeat.',12,0,100,507,0,0,0,0,'Huojin Trainee to 0'),
+(54586,0,2,'Your skills are too great. I yield.',12,0,100,511,0,0,0,0,'Huojin Trainee to 0'),
+(54587,0,0,'That was a good match. Thank you.',12,0,100,1,0,0,0,0,'Tushui Trainee to 0'),
+(54587,0,1,'You fought well. I must learn more from you in the future.',12,0,100,1,0,0,0,0,'Tushui Trainee to 0'),
+(54587,0,2,'Thank you for reminding me that I must train more diligently.',12,0,100,1,0,0,0,0,'Tushui Trainee to 0'),
 (54601,0,0,'Hammer time!',12,0,100,70,0,0,53469,0,'Mola to Player'),
 (54601,0,1,'Whack some gnolls! Step right up and whack some gnolls!',12,0,100,70,0,0,53470,0,'Mola to Player'),
 (54601,0,2,'Hammer swingin\' fun! Who wants to swing a hammer?',12,0,100,70,0,0,53471,0,'Mola to Player'),
 (54601,0,3,'Swing a hammer, win a prize!',12,0,100,70,0,0,53472,0,'Mola to Player'),
 (54601,1,0,'Please stay out of the gaming area.',42,0,100,0,0,0,56891,0,'Mola to Player'),
+(54611,0,0,'A Challenger approaches',12,0,100,0,0,0,0,0,'Jaomin Ro SAY_0'),
+(54611,1,0,'Well fought. Master Shang will be pleased.',12,0,100,0,0,0,0,0,'Jaomin Ro SAY_1'),
+(54615,0,0,'Over here, $n! Your gyrocopter\'s ready to go!',12,0,100,3,0,0,0,0,'Nodd Codejack to Player'),
 (54751,0,0,'Mortals! I cannot follow you any further - accept my blessing and use the Hourglass of Time to defeat Murozond!',14,0,100,0,0,25943,53105,3,'Nozdormu'),
 (54751,1,0,'At last it has come to pass. The moment of my demise. The loop is closed. My future self will cause no more harm.',12,0,100,0,0,25944,55977,3,'Nozdormu'),
 (54751,2,0,'Still, in time, I will... fall to madness. And you, heroes... will vanquish me. The cycle will repeat. So it goes.',12,0,100,0,0,25945,55978,3,'Nozdormu'),
 (54751,3,0,'What matters is that Azeroth did not fall; that we survived to fight another day.',12,0,100,0,0,25946,55979,3,'Nozdormu'),
 (54751,4,0,'All that matters... is this moment.',12,0,100,0,0,25947,55980,3,'Nozdormu'),
+(54943,0,0,'Shhhh! Come quietly. She\'s practicing.',12,0,100,0,0,0,0,0,''),
+(54975,0,0,'I have to admit, that looked pretty fun!',12,0,100,0,0,27394,0,0,''),
 (55624,0,0,'I see you\'ve arrived. This is the eve of the sundering, when the collapse of the Well of Eternity fractured the continents of the world.',12,0,100,0,0,25961,55271,0,'Nozdormu to Player'),
 (55624,1,0,'Here, we will snatch up the Dragon Soul before it is lost to the mists of time.',12,0,100,0,0,25962,55304,0,'Nozdormu to Player'),
 (55624,2,0,'But first, you must bring down the protective wards of Azshara\'s Highborne lackeys. You will find them within the palace. I will scout on ahead.',12,0,100,0,0,25963,55305,0,'Nozdormu to Player'),
@@ -21184,7 +21212,38 @@ INSERT INTO `creature_text` VALUES
 (56173,9,2,'Your armor means nothing, your faith even less.',14,0,100,0,0,26355,55780,1,'Deathwing - Elementium Bolt 3'),
 (56173,10,0,'I AM DEATHWING, THE DESTROYER, THE END OF ALL THINGS, INEVITABLE, INDOMITABLE; I AM THE CATACLYSM!',14,0,100,0,0,26348,55785,1,'Deathwing - Slump'),
 (56173,11,0,'|TInterface\\Icons\\inv_stave_2h_deathwingraiddw_d_01.blp:20|t%s falls forward, get to |cFF04FC32Ysera\'s|r platform!',41,0,100,0,0,0,56720,1,'Deathwing - Announce Slump'),
-(56846,0,0,'|TInterface\\Icons\\ability_warrior_bloodnova.blp:20|tThe %s is injured and sprouts |cFFFE9A2EBlistering Tentacles|r!',41,0,100,0,0,0,54846,0,'Limbt Tentacle - Announce Blistering Tentacles');
+(56637,0,0,'Me gonna ook you in the dooker!',14,0,100,0,0,28796,0,0,'Ook-Ook YELL_AGGRO'),
+(56637,1,0,'Ook! Oooook!!',14,0,100,0,0,28797,0,0,'Ook-Ook YELL_DEATH'),
+(56637,2,0,'In the dooker!',14,0,100,0,0,28799,0,0,'Ook-Ook YELL_KILL'),
+(56637,3,0,'Get Ooking party started!',14,0,100,0,0,28800,0,0,'Ook-Ook YELL_SPELL1'),
+(56637,4,0,'Come on and get your Ook on!',14,0,100,0,0,28801,0,0,'Ook-Ook YELL_SPELL2'),
+(56637,5,0,'We gonna Ook all night!',14,0,100,0,0,28802,0,0,'Ook-Ook YELL_SPELL3'),
+(56846,0,0,'|TInterface\\Icons\\ability_warrior_bloodnova.blp:20|tThe %s is injured and sprouts |cFFFE9A2EBlistering Tentacles|r!',41,0,100,0,0,0,54846,0,'Limbt Tentacle - Announce Blistering Tentacles'),
+(59642,0,0,'Keep those creatures at bay while I meditate. We\'ll soon have the answers we seek.',12,0,100,0,0,27398,0,0,'Aysa Cloudsinger to Player'),
+(59642,1,0,'And so our path lays before us. Speak to Master Shang Xi, he will tell you what comes next.',12,0,100,0,0,27399,0,0,'Aysa Cloudsinger to Player'),
+(60176,0,0,'The fire spirit is upset. It\'s dangerous to enter the shrine now...',12,0,100,0,0,0,0,0,''),
+(60183,0,0,'I hope you\'re ready, $p. Jaomin Ro awaits you just over the bridge.',12,0,100,113,0,0,0,0,'Trainee Nim to Player'),
+(60244,0,0,'You\'re departing so soon?  I am envious of your prowess, $c. Good luck to you.',12,0,100,0,0,0,0,0,''),
+(60248,0,0,'Is that... is that Huo?',12,0,100,0,0,0,0,0,''),
+(60253,0,0,'It is! Well done, $p!',12,0,100,0,0,0,0,0,''),
+(64885,0,0,'Hello $n! The Lorewalker is beginning her lesson just down these stairs if you want to listen in.',12,0,100,0,0,0,0,0,''),
+(65469,0,0,'Such skill for a new trainee.',12,0,100,511,0,0,0,0,'Aspiring Trainee to Training Target'),
+(65469,0,1,'That target didn\'t stand a chance.',12,0,100,509,0,0,0,0,'Aspiring Trainee to Training Target'),
+(65469,0,2,'One day you will have to teach me your secrets.',12,0,100,509,0,0,0,0,'Aspiring Trainee to Training Target'),
+(65469,0,3,'You are bound for a great things, trainee.',12,0,100,508,0,0,0,0,'Aspiring Trainee to Training Target'),
+(65470,0,0,'That was a good match. Thank you.',12,0,100,1,0,0,0,0,'Huojin Trainee to 0'),
+(65470,0,1,'My skills are no match for yours. I admit defeat.',12,0,100,507,0,0,0,0,'Huojin Trainee to 0'),
+(65470,0,2,'Your skills are too great. I yield.',12,0,100,511,0,0,0,0,'Huojin Trainee to 0'),
+(65471,0,0,'That was a good match. Thank you.',12,0,100,1,0,0,0,0,'Tushui Trainee to 0'),
+(65471,0,1,'You fought well. I must learn more from you in the future.',12,0,100,1,0,0,0,0,'Tushui Trainee to 0'),
+(65471,0,2,'Thank you for reminding me that I must train more diligently.',12,0,100,1,0,0,0,0,'Tushui Trainee to 0'),
+(72057,0,0,'You will take my place on the eternal brazier.',14,0,100,0,0,38971,0,0,'ORDOS - SAY_AGGRO'),
+(72057,1,0,'The eternal fire will never be extinguished.',14,0,100,0,0,38972,0,0,'ORDOS - SAY_DEATH'),
+(72057,2,0,'Up in smoke.',14,0,100,0,0,38977,0,0,'ORDOS - SAY_SLAY'),
+(72057,3,0,'Your flesh will melt.',14,0,100,0,0,38978,0,0,'ORDOS - SAY_ANCIENT_FLAME'),
+(72057,4,0,'Your pain will be endless.',14,0,100,0,0,38979,0,0,'ORDOS - SAY_ETERNAL_AGONY'),
+(72057,5,0,'You will feel but a fraction of my agony.',14,0,100,0,0,38980,0,0,'ORDOS - SAY_POOL_OF_FIRE'),
+(72057,6,0,'Burn!',14,0,100,0,0,38981,0,0,'ORDOS - SAY_BURNING_SOUL');
 /*!40000 ALTER TABLE `creature_text` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -21196,4 +21255,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-11-14  1:20:27
+-- Dump completed on 2026-11-14  1:24:17
