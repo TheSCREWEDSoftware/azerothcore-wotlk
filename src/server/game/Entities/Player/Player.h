@@ -800,13 +800,6 @@ enum InstanceResetWarningType
     RAID_INSTANCE_EXPIRED           = 5
 };
 
-enum InstanceResetFailureReason : uint32
-{
-    INSTANCE_RESET_FAILED         = 0, // Cannot reset %s.  There are players still inside the instance.
-    INSTANCE_RESET_FAILED_OFFLINE = 1, // Cannot reset %s.  There are players offline in your party.
-    INSTANCE_RESET_FAILED_ZONING  = 2, // Cannot reset %s.  There are players in your party attempting to zone into an instance.
-};
-
 class InstanceSave;
 
 enum RestFlag
@@ -1088,7 +1081,7 @@ struct TradeStatusInfo
 {
     TradeStatusInfo() = default;
 
-    TradeStatus Status{TRADE_STATUS_BUSY};
+    TradeStatus Status{TRADE_STATUS_PLAYER_BUSY};
     ObjectGuid TraderGuid{};
     InventoryResult Result{EQUIP_ERR_OK};
     bool IsTargetResult{false};
@@ -1449,7 +1442,7 @@ public:
 
     [[nodiscard]] Player* GetTrader() const { return m_trade ? m_trade->GetTrader() : nullptr; }
     [[nodiscard]] TradeData* GetTradeData() const { return m_trade; }
-    void TradeCancel(bool sendback, TradeStatus status = TRADE_STATUS_TRADE_CANCELED);
+    void TradeCancel(bool sendback, TradeStatus status = TRADE_STATUS_CANCELLED);
 
     CinematicMgr& GetCinematicMgr() { return _cinematicMgr; }
     CinematicMgr const& GetCinematicMgr() const { return _cinematicMgr; }
@@ -2184,7 +2177,7 @@ public:
     void SendRaidDifficulty(bool IsInGroup, int32 forcedDifficulty = -1);
     static void ResetInstances(ObjectGuid guid, uint8 method, bool isRaid);
     void SendResetInstanceSuccess(uint32 MapId);
-    void SendResetInstanceFailed(InstanceResetFailureReason reason, uint32 MapId);
+    void SendResetInstanceFailed(ResetFailedReason reason, uint32 MapId);
     void SendResetFailedNotify(uint32 mapid);
 
     bool UpdatePosition(float x, float y, float z, float orientation, bool teleport = false) override;
@@ -2745,9 +2738,9 @@ public:
     [[nodiscard]] Seconds GetCreationTime() const { return m_creationTime; }
 
     [[nodiscard]] bool HasTitle(uint32 bitIndex) const;
-    bool HasTitle(CharTitlesEntry const* title) const { return HasTitle(title->bit_index); }
+    bool HasTitle(CharTitlesEntry const* title) const { return HasTitle(title->MaskID); }
     void SetTitle(CharTitlesEntry const* title, bool lost = false);
-    void SetCurrentTitle(CharTitlesEntry const* title, bool clear = false) { SetUInt32Value(PLAYER_CHOSEN_TITLE, clear ? 0 : title->bit_index); };
+    void SetCurrentTitle(CharTitlesEntry const* title, bool clear = false) { SetUInt32Value(PLAYER_CHOSEN_TITLE, clear ? 0 : title->MaskID); };
 
     //bool isActiveObject() const { return true; }
     bool CanSeeSpellClickOn(Creature const* creature) const;

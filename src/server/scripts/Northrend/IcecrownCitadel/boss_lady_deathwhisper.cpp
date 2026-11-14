@@ -283,7 +283,7 @@ public:
             events.SetPhase(PHASE_ONE);
             events.ScheduleEvent(EVENT_BERSERK, 10min);
             events.ScheduleEvent(EVENT_SPELL_DEATH_AND_DECAY, 10s);
-            if (GetDifficulty() != RAID_DIFFICULTY_10MAN_NORMAL)
+            if (GetDifficulty() != DIFFICULTY_10_N)
                 events.ScheduleEvent(EVENT_SPELL_DOMINATE_MIND_25, 30s);
             events.ScheduleEvent(EVENT_SPELL_SHADOW_BOLT, 2s, 0, PHASE_ONE);
             events.ScheduleEvent(EVENT_SUMMON_WAVE_P1, 5s, 0, PHASE_ONE);
@@ -441,9 +441,9 @@ public:
                 case EVENT_SPELL_SUMMON_SHADE:
                     {
                         uint8 count = 1;
-                        if (GetDifficulty() == RAID_DIFFICULTY_25MAN_NORMAL)
+                        if (GetDifficulty() == DIFFICULTY_25_N)
                             count = 2;
-                        else if (GetDifficulty() == RAID_DIFFICULTY_25MAN_HEROIC)
+                        else if (GetDifficulty() == DIFFICULTY_25_HC)
                             count = 3;
 
                         std::list<Unit*> targets;

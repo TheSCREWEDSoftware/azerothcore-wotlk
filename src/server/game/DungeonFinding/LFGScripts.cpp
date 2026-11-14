@@ -96,7 +96,7 @@ namespace lfg
     void LFGPlayerScript::OnPlayerBindToInstance(Player* player, Difficulty difficulty, uint32 mapId, bool /*permanent*/)
     {
         MapEntry const* mapEntry = sMapStore.LookupEntry(mapId);
-        if (mapEntry->IsDungeon() && difficulty > DUNGEON_DIFFICULTY_NORMAL)
+        if (mapEntry->IsDungeon() && difficulty > DIFFICULTY_NORMAL)
             sLFGMgr->InitializeLockedDungeons(player, player->GetGroup());
     }
 

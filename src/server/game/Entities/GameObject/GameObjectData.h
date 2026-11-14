@@ -211,7 +211,7 @@ struct GameObjectTemplate
             uint32 openTextID;                              //3 can be used to replace castBarCaption?
         } camera;
         //14 GAMEOBJECT_TYPE_MAPOBJECT - empty
-        //15 GAMEOBJECT_TYPE_MO_TRANSPORT
+        //15 GAMEOBJECT_TYPE_MAP_OBJ_TRANSPORT
         struct
         {
             uint32 taxiPathId;                              //0

@@ -490,6 +490,11 @@ struct FactionTemplateEntry
         return EnemyMask == 0 && FriendMask == 0;
     }
     bool IsContestedGuardFaction() const { return (Flags & FACTION_TEMPLATE_FLAG_CONTESTED_GUARD) != 0; }
+
+    // AzerothCore helpers
+    bool IsHostileToAlliancePlayers() const { return (EnemyMask & FACTION_MASK_ALLIANCE) != 0; }
+    bool IsHostileToHordePlayers() const { return (EnemyMask & FACTION_MASK_HORDE) != 0; }
+    bool FactionRespondsToCallForHelp() const { return (Flags & FACTION_TEMPLATE_FLAG_RESPOND_TO_CALL_FOR_HELP) != 0; }
 };
 
 struct GameObjectDisplayInfoEntry

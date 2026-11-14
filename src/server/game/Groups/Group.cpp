@@ -119,7 +119,7 @@ static bool ShouldMailRollWonItem(Group const* group, Roll const* roll, Inventor
 }
 
 Group::Group() : m_leaderName(""), m_groupType(GROUPTYPE_NORMAL),
-    m_dungeonDifficulty(DUNGEON_DIFFICULTY_NORMAL), m_raidDifficulty(RAID_DIFFICULTY_10MAN_NORMAL),
+    m_dungeonDifficulty(DIFFICULTY_NORMAL), m_raidDifficulty(DIFFICULTY_10_N),
     m_bfGroup(nullptr), m_bgGroup(nullptr), m_lootMethod(FREE_FOR_ALL), m_lootThreshold(ITEM_QUALITY_UNCOMMON),
     m_subGroupsCounts(nullptr), m_counter(0), m_maxEnchantingLevel(0), _difficultyChangePreventionTime(0),
     _difficultyChangePreventionType(DIFFICULTY_PREVENTION_CHANGE_NONE)
@@ -183,8 +183,8 @@ bool Group::Create(Player* leader)
     m_looterGuid = leaderGuid;
     m_masterLooterGuid.Clear();
 
-    m_dungeonDifficulty = DUNGEON_DIFFICULTY_NORMAL;
-    m_raidDifficulty = RAID_DIFFICULTY_10MAN_NORMAL;
+    m_dungeonDifficulty = DIFFICULTY_NORMAL;
+    m_raidDifficulty = DIFFICULTY_10_N;
 
     if (!isBGGroup() && !isBFGroup())
     {
@@ -263,13 +263,13 @@ bool Group::LoadGroupFromDB(Field* fields)
 
     uint32 diff = fields[13].Get<uint8>();
     if (diff >= MAX_DUNGEON_DIFFICULTY)
-        m_dungeonDifficulty = DUNGEON_DIFFICULTY_NORMAL;
+        m_dungeonDifficulty = DIFFICULTY_NORMAL;
     else
         m_dungeonDifficulty = Difficulty(diff);
 
     uint32 r_diff = fields[14].Get<uint8>();
     if (r_diff >= MAX_RAID_DIFFICULTY)
-        m_raidDifficulty = RAID_DIFFICULTY_10MAN_NORMAL;
+        m_raidDifficulty = DIFFICULTY_10_N;
     else
         m_raidDifficulty = Difficulty(r_diff);
 
@@ -2640,10 +2640,10 @@ void Group::ResetInstances(uint8 method, bool isRaid, Player* leader)
     {
         case INSTANCE_RESET_ALL:
             {
-                if (leader->GetDifficulty(false) != DUNGEON_DIFFICULTY_NORMAL)
+                if (leader->GetDifficulty(false) != DIFFICULTY_NORMAL)
                     break;
                 std::vector<InstanceSave*> toUnbind;
-                BoundInstancesMap const& m_boundInstances = sInstanceSaveMgr->PlayerGetBoundInstances(leader->GetGUID(), Difficulty(DUNGEON_DIFFICULTY_NORMAL));
+                BoundInstancesMap const& m_boundInstances = sInstanceSaveMgr->PlayerGetBoundInstances(leader->GetGUID(), Difficulty(DIFFICULTY_NORMAL));
                 for (BoundInstancesMap::const_iterator itr = m_boundInstances.begin(); itr != m_boundInstances.end(); ++itr)
                 {
                     InstanceSave* instanceSave = itr->second.save;

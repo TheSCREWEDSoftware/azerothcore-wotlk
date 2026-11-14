@@ -1334,7 +1334,7 @@ bool GameObject::hasInvolvedQuest(uint32 quest_id) const
 
 bool GameObject::IsTransport() const
 {
-    return GetGOInfo() && (GetGOInfo()->type == GAMEOBJECT_TYPE_TRANSPORT || GetGOInfo()->type == GAMEOBJECT_TYPE_MO_TRANSPORT);
+    return GetGOInfo() && (GetGOInfo()->type == GAMEOBJECT_TYPE_TRANSPORT || GetGOInfo()->type == GAMEOBJECT_TYPE_MAP_OBJ_TRANSPORT);
 }
 
 bool GameObject::IsDestructibleBuilding() const
@@ -2995,7 +2995,7 @@ void GameObject::BuildValuesUpdate(uint8 updateType, ByteBuffer* data, Player* t
                             }
                         // else it's ignored
                         break;
-                    case GAMEOBJECT_TYPE_MO_TRANSPORT:
+                    case GAMEOBJECT_TYPE_MAP_OBJ_TRANSPORT:
                         if (MotionTransport const* t = ToMotionTransport())
                             pathProgress = int16(float(t->GetPathProgress()) / float(t->GetPeriod()) * 65535.0f);
                         break;

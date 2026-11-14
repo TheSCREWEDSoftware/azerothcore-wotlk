@@ -404,9 +404,9 @@ struct ScriptedAI : public CreatureAI
     {
         switch (_difficulty)
         {
-            case DUNGEON_DIFFICULTY_NORMAL:
+            case DIFFICULTY_NORMAL:
                 return normal5;
-            case DUNGEON_DIFFICULTY_HEROIC:
+            case DIFFICULTY_HEROIC:
                 return heroic10;
             default:
                 break;
@@ -420,9 +420,9 @@ struct ScriptedAI : public CreatureAI
     {
         switch (_difficulty)
         {
-            case RAID_DIFFICULTY_10MAN_NORMAL:
+            case DIFFICULTY_10_N:
                 return normal10;
-            case RAID_DIFFICULTY_25MAN_NORMAL:
+            case DIFFICULTY_25_N:
                 return normal25;
             default:
                 break;
@@ -436,13 +436,13 @@ struct ScriptedAI : public CreatureAI
     {
         switch (_difficulty)
         {
-            case RAID_DIFFICULTY_10MAN_NORMAL:
+            case DIFFICULTY_10_N:
                 return normal10;
-            case RAID_DIFFICULTY_25MAN_NORMAL:
+            case DIFFICULTY_25_N:
                 return normal25;
-            case RAID_DIFFICULTY_10MAN_HEROIC:
+            case DIFFICULTY_10_HC:
                 return heroic10;
-            case RAID_DIFFICULTY_25MAN_HEROIC:
+            case DIFFICULTY_25_HC:
                 return heroic25;
             default:
                 break;

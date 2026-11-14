@@ -1144,13 +1144,13 @@ private:
     {
         switch (instance->GetDifficulty())
         {
-            case RAID_DIFFICULTY_10MAN_NORMAL:
+            case DIFFICULTY_10_N:
                 return GO_CRUSADERS_CACHE_10;
-            case RAID_DIFFICULTY_25MAN_NORMAL:
+            case DIFFICULTY_25_N:
                 return GO_CRUSADERS_CACHE_25;
-            case RAID_DIFFICULTY_10MAN_HEROIC:
+            case DIFFICULTY_10_HC:
                 return GO_CRUSADERS_CACHE_10_H;
-            case RAID_DIFFICULTY_25MAN_HEROIC:
+            case DIFFICULTY_25_HC:
                 return GO_CRUSADERS_CACHE_25_H;
             default:
                 return 0;
@@ -1202,7 +1202,7 @@ private:
 
     void DoCheckDedicatedInsanity()
     {
-        if (!_dedicatedInsanity || _attemptsLeft < MAX_ATTEMPTS || instance->GetDifficulty() != RAID_DIFFICULTY_10MAN_HEROIC)
+        if (!_dedicatedInsanity || _attemptsLeft < MAX_ATTEMPTS || instance->GetDifficulty() != DIFFICULTY_10_HC)
             return;
 
         for (auto const& itr : instance->GetPlayers())

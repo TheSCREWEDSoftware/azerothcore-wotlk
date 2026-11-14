@@ -158,7 +158,7 @@ namespace Movement
         bool final_angle         : 1;
 
         // Not part of the wire flags word in build 15595; SMSG_ON_MONSTER_MOVE sends this separately
-        // (see MovementPacketBuilder::WriteCommonMonsterMovePart).
+        // (see WorldPackets::Movement::MonsterMove).
         uint8 animId = 0;
     };
 #if defined( __GNUC__ )

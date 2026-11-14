@@ -28,6 +28,7 @@
 #include "BattlegroundMgr.h"
 #include "BanMgr.h"
 #include "CharacterPackets.h"
+#include "CollectionMgr.h"
 #include "Common.h"
 #include "DatabaseEnv.h"
 #include "GameTime.h"
@@ -157,6 +158,7 @@ WorldSession::WorldSession(uint32 id, std::string&& name, uint32 accountFlags, s
     _orderCounter(0),
     _headless(!sock)
 {
+    _collectionMgr = std::make_unique<CollectionMgr>(this);
     memset(m_Tutorials, 0, sizeof(m_Tutorials));
 
     m_Socket[CONNECTION_TYPE_REALM] = sock;
@@ -1676,6 +1678,36 @@ public:
     }
 };
 
+/// Account wide (Battle.net account) data from the login database
+class AccountInfoQueryHolder : public LoginDatabaseQueryHolder
+{
+public:
+    enum
+    {
+        GLOBAL_ACCOUNT_TOYS = 0,
+        GLOBAL_ACCOUNT_HEIRLOOMS,
+
+        MAX_QUERIES
+    };
+
+    AccountInfoQueryHolder() { SetSize(MAX_QUERIES); }
+
+    bool Initialize(uint32 battlenetAccountId)
+    {
+        bool ok = true;
+
+        LoginDatabasePreparedStatement* stmt = LoginDatabase.GetPreparedStatement(LOGIN_SEL_ACCOUNT_TOYS);
+        stmt->SetData(0, battlenetAccountId);
+        ok = SetPreparedQuery(GLOBAL_ACCOUNT_TOYS, stmt) && ok;
+
+        stmt = LoginDatabase.GetPreparedStatement(LOGIN_SEL_ACCOUNT_HEIRLOOMS);
+        stmt->SetData(0, battlenetAccountId);
+        ok = SetPreparedQuery(GLOBAL_ACCOUNT_HEIRLOOMS, stmt) && ok;
+
+        return ok;
+    }
+};
+
 void WorldSession::InitializeSession()
 {
     uint32 cacheVersion = sWorld->getIntConfig(CONFIG_CLIENTCACHE_VERSION);
@@ -1688,16 +1720,29 @@ void WorldSession::InitializeSession()
         return;
     }
 
-    AddQueryHolderCallback(CharacterDatabase.DelayQueryHolder(realmHolder)).AfterComplete([this, cacheVersion](SQLQueryHolderBase const& holder)
+    std::shared_ptr<AccountInfoQueryHolder> holder = std::make_shared<AccountInfoQueryHolder>();
+    if (!holder->Initialize(GetBattlenetAccountId()))
     {
-        InitializeSessionCallback(static_cast<AccountInfoQueryHolderPerRealm const&>(holder), cacheVersion);
+        SendAuthResponse(ERROR_INTERNAL, false);
+        return;
+    }
+
+    // per realm data from the characters database, then the account wide data from the login database
+    AddQueryHolderCallback(CharacterDatabase.DelayQueryHolder(realmHolder)).AfterComplete([this, realmHolder, holder, cacheVersion](SQLQueryHolderBase const& /*realmResult*/)
+    {
+        AddQueryHolderCallback(LoginDatabase.DelayQueryHolder(holder)).AfterComplete([this, realmHolder, cacheVersion](SQLQueryHolderBase const& loginResult)
+        {
+            InitializeSessionCallback(*realmHolder, static_cast<AccountInfoQueryHolder const&>(loginResult), cacheVersion);
+        });
     });
 }
 
-void WorldSession::InitializeSessionCallback(CharacterDatabaseQueryHolder const& realmHolder, uint32 clientCacheVersion)
+void WorldSession::InitializeSessionCallback(CharacterDatabaseQueryHolder const& realmHolder, LoginDatabaseQueryHolder const& holder, uint32 clientCacheVersion)
 {
     LoadAccountData(realmHolder.GetPreparedResult(AccountInfoQueryHolderPerRealm::GLOBAL_ACCOUNT_DATA), GLOBAL_CACHE_MASK);
     LoadTutorialsData(realmHolder.GetPreparedResult(AccountInfoQueryHolderPerRealm::TUTORIALS));
+    _collectionMgr->LoadAccountToys(holder.GetPreparedResult(AccountInfoQueryHolder::GLOBAL_ACCOUNT_TOYS));
+    _collectionMgr->LoadAccountHeirlooms(holder.GetPreparedResult(AccountInfoQueryHolder::GLOBAL_ACCOUNT_HEIRLOOMS));
 
     if (!sToCloud9Sidecar->ClusterModeEnabled())
     {

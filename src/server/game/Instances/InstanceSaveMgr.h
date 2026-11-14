@@ -148,7 +148,7 @@ public:
         Difficulty difficulty: 8;
         uint16 mapid{0};
 
-        InstResetEvent() :  difficulty(DUNGEON_DIFFICULTY_NORMAL) {}
+        InstResetEvent() :  difficulty(DIFFICULTY_NORMAL) {}
         InstResetEvent(uint8 t, uint32 _mapid, Difficulty d)
             : type(t), difficulty(d), mapid(_mapid) {}
     };

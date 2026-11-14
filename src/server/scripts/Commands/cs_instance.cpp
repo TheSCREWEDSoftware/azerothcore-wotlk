@@ -292,8 +292,8 @@ private:
             encounters = sObjectMgr->GetDungeonEncounterList(
                 map->GetId(),
                 !map->Is25ManRaid()
-                    ? RAID_DIFFICULTY_10MAN_NORMAL
-                    : RAID_DIFFICULTY_25MAN_NORMAL);
+                    ? DIFFICULTY_10_N
+                    : DIFFICULTY_25_N);
         }
         else
         {

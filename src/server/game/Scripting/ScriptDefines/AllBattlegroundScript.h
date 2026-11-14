@@ -48,7 +48,7 @@ enum AllBattlegroundHook
 };
 
 enum BattlegroundBracketId : uint8;
-enum BattlegroundTypeId : uint8;
+enum BattlegroundTypeId : uint32;
 enum TeamId : uint8;
 
 class BattlegroundQueue;

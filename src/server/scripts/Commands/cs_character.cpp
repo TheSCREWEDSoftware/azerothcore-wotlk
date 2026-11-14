@@ -312,16 +312,16 @@ public:
                     continue;
 
                 std::string activeStr = "";
-                if (target->GetUInt32Value(PLAYER_CHOSEN_TITLE) == titleInfo->bit_index)
+                if (target->GetUInt32Value(PLAYER_CHOSEN_TITLE) == titleInfo->MaskID)
                     activeStr = handler->GetAcoreString(LANG_ACTIVE);
 
                 std::string titleName = Acore::StringFormat(name, player->GetName());
 
                 // send title in "id (idx:idx) - [namedlink locale]" format
                 if (handler->GetSession())
-                    handler->PSendSysMessage(LANG_TITLE_LIST_CHAT, id, titleInfo->bit_index, id, titleName, localeNames[loc], knownStr, activeStr);
+                    handler->PSendSysMessage(LANG_TITLE_LIST_CHAT, id, titleInfo->MaskID, id, titleName, localeNames[loc], knownStr, activeStr);
                 else
-                    handler->PSendSysMessage(LANG_TITLE_LIST_CONSOLE, id, titleInfo->bit_index, name, localeNames[loc], knownStr, activeStr);
+                    handler->PSendSysMessage(LANG_TITLE_LIST_CONSOLE, id, titleInfo->MaskID, name, localeNames[loc], knownStr, activeStr);
             }
         }
 

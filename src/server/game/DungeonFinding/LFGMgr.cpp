@@ -503,7 +503,7 @@ namespace lfg
                 lockData = LFG_LOCKSTATUS_INSUFFICIENT_EXPANSION;
             else if (IsDungeonDisabled(dungeon->map, dungeon->difficulty))
                 lockData = LFG_LOCKSTATUS_RAID_LOCKED;
-            else if (dungeon->difficulty > DUNGEON_DIFFICULTY_NORMAL && (!mapEntry || !mapEntry->IsRaid()) && sInstanceSaveMgr->PlayerIsPermBoundToInstance(player->GetGUID(), dungeon->map, Difficulty(dungeon->difficulty)))
+            else if (dungeon->difficulty > DIFFICULTY_NORMAL && (!mapEntry || !mapEntry->IsRaid()) && sInstanceSaveMgr->PlayerIsPermBoundToInstance(player->GetGUID(), dungeon->map, Difficulty(dungeon->difficulty)))
                 lockData = LFG_LOCKSTATUS_RAID_LOCKED;
             else if ((dungeon->minlevel > level && !sWorld->getBoolConfig(CONFIG_DUNGEON_ACCESS_REQUIREMENTS_LFG_DBC_LEVEL_OVERRIDE)) || (sWorld->getBoolConfig(CONFIG_DUNGEON_ACCESS_REQUIREMENTS_LFG_DBC_LEVEL_OVERRIDE) && ar && ar->levelMin > 0 && ar->levelMin > level))
                 lockData = LFG_LOCKSTATUS_TOO_LOW_LEVEL;
@@ -1935,7 +1935,7 @@ namespace lfg
 
         if (randomDungeon)
             grp->AddLfgRandomInstanceFlag();
-        if (Difficulty(dungeon->difficulty) == DUNGEON_DIFFICULTY_HEROIC)
+        if (Difficulty(dungeon->difficulty) == DIFFICULTY_HEROIC)
             grp->AddLfgHeroicFlag();
 
         // Update group info
@@ -2425,7 +2425,7 @@ namespace lfg
             }
 
             // Xinef: Update achievements, set correct amount of randomly grouped players
-            if (dungeon->difficulty == DUNGEON_DIFFICULTY_HEROIC)
+            if (dungeon->difficulty == DIFFICULTY_HEROIC)
                 if (uint8 count = GetRandomPlayersCount(player->GetGUID()))
                     player->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_USE_LFD_TO_GROUP_WITH_PLAYERS, count);
 

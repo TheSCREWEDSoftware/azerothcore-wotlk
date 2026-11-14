@@ -47,12 +47,12 @@ void WorldSession::SendTradeStatus(TradeStatusInfo const& info)
 
 void WorldSession::HandleIgnoreTradeOpcode(WorldPacket& /*recvPacket*/)
 {
-    _player->TradeCancel(true, TRADE_STATUS_IGNORE_YOU);
+    _player->TradeCancel(true, TRADE_STATUS_PLAYER_IGNORED);
 }
 
 void WorldSession::HandleBusyTradeOpcode(WorldPacket& /*recvPacket*/)
 {
-    _player->TradeCancel(true, TRADE_STATUS_BUSY);
+    _player->TradeCancel(true, TRADE_STATUS_PLAYER_BUSY);
 }
 
 void WorldSession::SendUpdateTrade(bool trader_data /*= true*/)
@@ -246,7 +246,7 @@ void WorldSession::HandleAcceptTradeOpcode(WorldPacket& recvPacket)
 
     if (!_player->IsWithinDistInMap(trader, TRADE_DISTANCE, false))
     {
-        info.Status = TRADE_STATUS_TARGET_TO_FAR;
+        info.Status = TRADE_STATUS_TOO_FAR_AWAY;
         SendTradeStatus(info);
         my_trade->SetAccepted(false);
         return;
@@ -297,7 +297,7 @@ void WorldSession::HandleAcceptTradeOpcode(WorldPacket& recvPacket)
         {
             if (!item->CanBeTraded(false, true))
             {
-                info.Status = TRADE_STATUS_TRADE_CANCELED;
+                info.Status = TRADE_STATUS_CANCELLED;
                 SendTradeStatus(info);
                 return;
             }
@@ -315,7 +315,7 @@ void WorldSession::HandleAcceptTradeOpcode(WorldPacket& recvPacket)
         {
             if (!item->CanBeTraded(false, true))
             {
-                info.Status = TRADE_STATUS_TRADE_CANCELED;
+                info.Status = TRADE_STATUS_CANCELLED;
                 SendTradeStatus(info);
                 return;
             }
@@ -411,7 +411,7 @@ void WorldSession::HandleAcceptTradeOpcode(WorldPacket& recvPacket)
         }
 
         // inform partner client
-        info.Status = TRADE_STATUS_TRADE_ACCEPT;
+        info.Status = TRADE_STATUS_ACCEPTED;
         trader->GetSession()->SendTradeStatus(info);
 
         // test if item will fit in each inventory
@@ -660,13 +660,13 @@ void WorldSession::HandleAcceptTradeOpcode(WorldPacket& recvPacket)
             CharacterDatabase.CommitTransaction(trans);
         }
 
-        info.Status = TRADE_STATUS_TRADE_COMPLETE;
+        info.Status = TRADE_STATUS_COMPLETE;
         trader->GetSession()->SendTradeStatus(info);
         SendTradeStatus(info);
     }
     else
     {
-        info.Status = TRADE_STATUS_TRADE_ACCEPT;
+        info.Status = TRADE_STATUS_ACCEPTED;
         trader->GetSession()->SendTradeStatus(info);
     }
 }
@@ -736,28 +736,28 @@ void WorldSession::HandleInitiateTradeOpcode(WorldPacket& recvPacket)
     TradeStatusInfo info;
     if (!GetPlayer()->IsAlive())
     {
-        info.Status = TRADE_STATUS_YOU_DEAD;
+        info.Status = TRADE_STATUS_DEAD;
         SendTradeStatus(info);
         return;
     }
 
     if (GetPlayer()->HasUnitState(UNIT_STATE_STUNNED))
     {
-        info.Status = TRADE_STATUS_YOU_STUNNED;
+        info.Status = TRADE_STATUS_STUNNED;
         SendTradeStatus(info);
         return;
     }
 
     if (IsLoggingOut())
     {
-        info.Status = TRADE_STATUS_YOU_LOGOUT;
+        info.Status = TRADE_STATUS_LOGGING_OUT;
         SendTradeStatus(info);
         return;
     }
 
     if (GetPlayer()->IsInFlight())
     {
-        info.Status = TRADE_STATUS_TARGET_TO_FAR;
+        info.Status = TRADE_STATUS_TOO_FAR_AWAY;
         SendTradeStatus(info);
         return;
     }
@@ -772,7 +772,7 @@ void WorldSession::HandleInitiateTradeOpcode(WorldPacket& recvPacket)
 
     if (sWorld->getBoolConfig(CONFIG_TRIAL_RESTRICTION_TRADE) && IsTrialAccount())
     {
-        info.Status = TRADE_STATUS_TRIAL_ACCOUNT;
+        info.Status = TRADE_STATUS_RESTRICTED_ACCOUNT;
         SendTradeStatus(info);
         return;
     }
@@ -791,7 +791,7 @@ void WorldSession::HandleInitiateTradeOpcode(WorldPacket& recvPacket)
 
     if (pOther == GetPlayer() || pOther->m_trade)
     {
-        info.Status = TRADE_STATUS_BUSY;
+        info.Status = TRADE_STATUS_PLAYER_BUSY;
         SendTradeStatus(info);
         return;
     }
@@ -805,7 +805,7 @@ void WorldSession::HandleInitiateTradeOpcode(WorldPacket& recvPacket)
 
     if (pOther->IsInFlight())
     {
-        info.Status = TRADE_STATUS_TARGET_TO_FAR;
+        info.Status = TRADE_STATUS_TOO_FAR_AWAY;
         SendTradeStatus(info);
         return;
     }
@@ -819,14 +819,14 @@ void WorldSession::HandleInitiateTradeOpcode(WorldPacket& recvPacket)
 
     if (pOther->GetSession()->IsLoggingOut())
     {
-        info.Status = TRADE_STATUS_TARGET_LOGOUT;
+        info.Status = TRADE_STATUS_TARGET_LOGGING_OUT;
         SendTradeStatus(info);
         return;
     }
 
     if (sWorld->getBoolConfig(CONFIG_TRIAL_RESTRICTION_TRADE) && pOther->GetSession()->IsTrialAccount())
     {
-        info.Status = TRADE_STATUS_TRIAL_ACCOUNT;
+        info.Status = TRADE_STATUS_RESTRICTED_ACCOUNT;
         SendTradeStatus(info);
         return;
     }
@@ -841,7 +841,7 @@ void WorldSession::HandleInitiateTradeOpcode(WorldPacket& recvPacket)
 
     if (!pOther->IsWithinDistInMap(_player, TRADE_DISTANCE, false))
     {
-        info.Status = TRADE_STATUS_TARGET_TO_FAR;
+        info.Status = TRADE_STATUS_TOO_FAR_AWAY;
         SendTradeStatus(info);
         return;
     }
@@ -854,10 +854,10 @@ void WorldSession::HandleInitiateTradeOpcode(WorldPacket& recvPacket)
     pOther->m_trade = new TradeData(pOther, _player);
 
     // WorldPacket data(SMSG_TRADE_STATUS, 12);
-    // data << uint32(TRADE_STATUS_BEGIN_TRADE);
+    // data << uint32(TRADE_STATUS_PROPOSED);
     // data << _player->GetGUID();
     // pOther->SendDirectMessage(&data);
-    info.Status = TRADE_STATUS_BEGIN_TRADE;
+    info.Status = TRADE_STATUS_PROPOSED;
     info.TraderGuid = _player->GetGUID();
     pOther->GetSession()->SendTradeStatus(info);
 }
@@ -894,7 +894,7 @@ void WorldSession::HandleSetTradeItemOpcode(WorldPacket& recvPacket)
     // invalid slot number
     if (tradeSlot >= TRADE_SLOT_COUNT)
     {
-        info.Status = TRADE_STATUS_TRADE_CANCELED;
+        info.Status = TRADE_STATUS_CANCELLED;
         SendTradeStatus(info);
         return;
     }
@@ -903,7 +903,7 @@ void WorldSession::HandleSetTradeItemOpcode(WorldPacket& recvPacket)
     Item* item = _player->GetItemByPos(bag, slot);
     if (!item || (tradeSlot != TRADE_SLOT_NONTRADED && !item->CanBeTraded(false, true)))
     {
-        info.Status = TRADE_STATUS_TRADE_CANCELED;
+        info.Status = TRADE_STATUS_CANCELLED;
         SendTradeStatus(info);
         return;
     }
@@ -914,7 +914,7 @@ void WorldSession::HandleSetTradeItemOpcode(WorldPacket& recvPacket)
     if (my_trade->HasItem(iGUID))
     {
         // cheating attempt
-        info.Status = TRADE_STATUS_TRADE_CANCELED;
+        info.Status = TRADE_STATUS_CANCELLED;
         SendTradeStatus(info);
         return;
     }
@@ -924,7 +924,7 @@ void WorldSession::HandleSetTradeItemOpcode(WorldPacket& recvPacket)
     // PlayerScript Hook for checking traded items if we want to filter them in a custom module
     if (!sScriptMgr->OnPlayerCanSetTradeItem(_player, item, tradeSlot))
     {
-        // Do not send TRADE_STATUS_TRADE_CANCELED because it will cause double display of "Transaction canceled" notification
+        // Do not send TRADE_STATUS_CANCELLED because it will cause double display of "Transaction canceled" notification
         // On the trade initiator screen
         info.Status = TRADE_STATUS_FAILED;
         SendTradeStatus(info);

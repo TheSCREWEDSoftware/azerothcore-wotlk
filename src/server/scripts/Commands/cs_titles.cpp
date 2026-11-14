@@ -72,7 +72,7 @@ public:
         std::string titleNameStr = Acore::StringFormat(target->getGender() == GENDER_MALE ? titleInfo->nameMale[handler->GetSessionDbcLocale()] : titleInfo->nameFemale[handler->GetSessionDbcLocale()], target->GetName());
 
         target->SetTitle(titleInfo);
-        target->SetUInt32Value(PLAYER_CHOSEN_TITLE, titleInfo->bit_index);
+        target->SetUInt32Value(PLAYER_CHOSEN_TITLE, titleInfo->MaskID);
 
         handler->PSendSysMessage(LANG_TITLE_CURRENT_RES, uint32(titleId), titleNameStr, tNameLink);
 
@@ -162,7 +162,7 @@ public:
 
         for (uint32 i = 1; i < sCharTitlesStore.GetNumRows(); ++i)
             if (CharTitlesEntry const* tEntry = sCharTitlesStore.LookupEntry(i))
-                titles2 &= ~(uint64(1) << tEntry->bit_index);
+                titles2 &= ~(uint64(1) << tEntry->MaskID);
 
         mask &= ~titles2;                                     // remove non-existing titles
 

@@ -552,7 +552,7 @@ uint32 SpellMgr::GetSpellIdForDifficulty(uint32 spellId, WorldObject const* cast
 
     uint32 difficultyId = GetSpellDifficultyId(spellId);
     if (!difficultyId)
-        return spellId; //return source spell, it has only REGULAR_DIFFICULTY
+        return spellId; //return source spell, it has only DIFFICULTY_NONE
 
     SpellDifficultyEntry const* difficultyEntry = sSpellDifficultyStore.LookupEntry(difficultyId);
     if (!difficultyEntry)
@@ -561,7 +561,7 @@ uint32 SpellMgr::GetSpellIdForDifficulty(uint32 spellId, WorldObject const* cast
         return spellId; //return source spell
     }
 
-    if (difficultyEntry->SpellID[mode] <= 0 && mode > DUNGEON_DIFFICULTY_HEROIC)
+    if (difficultyEntry->SpellID[mode] <= 0 && mode > DIFFICULTY_HEROIC)
     {
         LOG_DEBUG("spells.aura", "SpellMgr::GetSpellIdForDifficulty: spell {} mode {} spell is nullptr, using mode {}", spellId, mode, mode - 2);
         mode -= 2;

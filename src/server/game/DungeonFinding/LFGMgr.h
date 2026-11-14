@@ -432,7 +432,7 @@ namespace lfg
         uint8 group{0};
         uint8 minlevel{0};
         uint8 maxlevel{0};
-        Difficulty difficulty{REGULAR_DIFFICULTY};
+        Difficulty difficulty{DIFFICULTY_NONE};
         bool seasonal{false};
         uint8 requiredTanks{LFG_TANKS_NEEDED};
         uint8 requiredHealers{LFG_HEALERS_NEEDED};

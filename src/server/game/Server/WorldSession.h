@@ -39,6 +39,7 @@
 #include <memory>
 #include <utility>
 
+class CollectionMgr;
 class Creature;
 struct SpellCastRequest;
 struct Signatures;
@@ -966,8 +967,6 @@ public:
     void ReadAddonsInfo(ByteBuffer& data);
     void SendAddonsInfo();
 
-    void ReadMovementInfo(WorldPacket& data, MovementInfo* mi,
-        WorldPackets::Movement::ExtraMovementStatusElement* extras = nullptr);
     void SanitizeMovementFlags(MovementInfo* mi);
     void WriteMovementInfo(WorldPacket* data, MovementInfo* mi);
     void SynchronizeMovement(MovementInfo& movementInfo);
@@ -1022,6 +1021,7 @@ public:
     uint32 GetAccountId() const { return _accountId; }
     /// 6.x: the Battle.net account of this game account (0 when not linked)
     uint32 GetBattlenetAccountId() const { return _battlenetAccountId; }
+    CollectionMgr* GetCollectionMgr() const { return _collectionMgr.get(); }
     void SetBattlenetAccountId(uint32 battlenetAccountId) { _battlenetAccountId = battlenetAccountId; }
     Player* GetPlayer() const { return _player; }
     std::string const& GetPlayerName() const;
@@ -1841,7 +1841,7 @@ public:                                                 // opcodes handlers
     void ProcessQueryCallbacks();
 
     void InitializeSession();
-    void InitializeSessionCallback(CharacterDatabaseQueryHolder const& realmHolder, uint32 clientCacheVersion);
+    void InitializeSessionCallback(CharacterDatabaseQueryHolder const& realmHolder, LoginDatabaseQueryHolder const& holder, uint32 clientCacheVersion);
 
     void SetPacketLogging(bool state);
 
@@ -1908,6 +1908,7 @@ private:
     std::shared_ptr<WorldSocket> m_Socket[MAX_CONNECTION_TYPES];
     ConnectToKey _instanceConnectKey;
     uint32 _battlenetAccountId = 0;
+    std::unique_ptr<CollectionMgr> _collectionMgr;
     std::string m_Address;
 
     AccountTypes _security;

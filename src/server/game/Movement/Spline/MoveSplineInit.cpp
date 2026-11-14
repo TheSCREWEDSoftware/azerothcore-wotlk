@@ -17,7 +17,7 @@
 
 #include "MoveSplineInit.h"
 #include "MoveSpline.h"
-#include "MovementPacketBuilder.h"
+#include "MovementPackets.h"
 #include "Opcodes.h"
 #include "Transport.h"
 #include "Unit.h"
@@ -36,7 +36,7 @@ namespace Movement
     {
         MoveSpline& move_spline = *unit->movespline;
 
-        bool transport = unit->HasUnitMovementFlag(MOVEMENTFLAG_ONTRANSPORT) && unit->GetTransGUID();
+        bool transport = unit->HasUnitMovementFlag(MOVEMENTFLAG_ONTRANSPORT) && !unit->GetTransGUID().IsEmpty();
         Location real_position;
         // there is a big chance that current position is unknown if current state is not finalized, need compute it
         // this also allows CalculatePath spline position and update map position in much greater intervals
@@ -111,11 +111,17 @@ namespace Movement
         unit->m_movementInfo.SetMovementFlags(moveFlags);
         move_spline.Initialize(args);
 
-        WorldPacket data(SMSG_ON_MONSTER_MOVE, 64);
-        Vector3 const transportOffset(unit->GetTransOffsetX(), unit->GetTransOffsetY(), unit->GetTransOffsetZ());
-        PacketBuilder::WriteMonsterMove(move_spline, data, unit->GetGUID(), transport ? unit->GetTransGUID() : ObjectGuid::Empty,
-            transportOffset, unit->GetTransSeat(), unit->GetVehicle() != nullptr, real_position);
-        unit->SendMessageToSet(&data, true);
+        WorldPackets::Movement::MonsterMove packet;
+        packet.MoverGUID = unit->GetGUID();
+        packet.Pos = real_position;
+        packet.InitializeSplineData(move_spline);
+        if (transport)
+        {
+            packet.SplineData.Move.TransportGUID = unit->GetTransGUID();
+            packet.SplineData.Move.VehicleSeat = unit->GetTransSeat();
+        }
+
+        unit->SendMessageToSet(packet.Write(), true);
 
         return move_spline.Duration();
     }
@@ -128,7 +134,7 @@ namespace Movement
         if (move_spline.Finalized())
             return;
 
-        bool transport = unit->HasUnitMovementFlag(MOVEMENTFLAG_ONTRANSPORT) && unit->GetTransGUID();
+        bool transport = unit->HasUnitMovementFlag(MOVEMENTFLAG_ONTRANSPORT) && !unit->GetTransGUID().IsEmpty();
         Location loc;
         if (move_spline.onTransport == transport)
             loc = move_spline.ComputePosition();
@@ -151,17 +157,24 @@ namespace Movement
         move_spline.onTransport = transport;
         move_spline.Initialize(args);
 
-        WorldPacket data(SMSG_ON_MONSTER_MOVE, 64);
-        Vector3 const transportOffset(unit->GetTransOffsetX(), unit->GetTransOffsetY(), unit->GetTransOffsetZ());
-        PacketBuilder::WriteStopMovement(args.splineId, data, unit->GetGUID(), transport ? unit->GetTransGUID() : ObjectGuid::Empty,
-            transportOffset, unit->GetTransSeat(), unit->GetVehicle() != nullptr, Vector3(loc.x, loc.y, loc.z));
-        unit->SendMessageToSet(&data, true);
+        WorldPackets::Movement::MonsterMove packet;
+        packet.MoverGUID = unit->GetGUID();
+        packet.Pos = loc;
+        packet.SplineData.ID = move_spline.GetId();
+
+        if (transport)
+        {
+            packet.SplineData.Move.TransportGUID = unit->GetTransGUID();
+            packet.SplineData.Move.VehicleSeat = unit->GetTransSeat();
+        }
+
+        unit->SendMessageToSet(packet.Write(), true);
     }
 
     MoveSplineInit::MoveSplineInit(Unit* m) : unit(m)
     {
         args.splineId = splineIdGen.NewId();
-        args.TransformForTransport = unit->HasUnitMovementFlag(MOVEMENTFLAG_ONTRANSPORT) && unit->GetTransGUID();
+        args.TransformForTransport = unit->HasUnitMovementFlag(MOVEMENTFLAG_ONTRANSPORT) && !unit->GetTransGUID().IsEmpty();
         // mix existing state into new
         args.walk = unit->m_movementInfo.HasMovementFlag(MOVEMENTFLAG_WALKING);
         args.flags.flying = unit->m_movementInfo.HasMovementFlag((MovementFlags)(MOVEMENTFLAG_CAN_FLY | MOVEMENTFLAG_DISABLE_GRAVITY));

@@ -276,4 +276,7 @@ uint8 GetClassExpansion(uint8 classId);
 SpellPowerEntry const* GetSpellPowerEntryBySpell(uint32 spellId);
 SpellEffectScalingEntry const* GetSpellEffectScaling(uint32 spellEffectId);
 
+// The 6.x db2 stores, many records the AzerothCore code reads moved there
+#include "DB2Stores.h"
+
 #endif

@@ -28,7 +28,7 @@
 #include "ScriptDefines/SessionScript.h"
 
 TestMap::TestMap()
-    : Map(0, 0, REGULAR_DIFFICULTY, nullptr)
+    : Map(0, 0, DIFFICULTY_NONE, nullptr)
 {
     _fakeMapEntry = {};
     _fakeMapEntry.map_type = MAP_COMMON;

@@ -213,10 +213,10 @@ void Player::ResetInstances(ObjectGuid guid, uint8 method, bool isRaid)
         case INSTANCE_RESET_ALL:
         {
             Player* p = ObjectAccessor::FindConnectedPlayer(guid);
-            if (!p || p->GetDifficulty(false) != DUNGEON_DIFFICULTY_NORMAL)
+            if (!p || p->GetDifficulty(false) != DIFFICULTY_NORMAL)
                 break;
             std::vector<InstanceSave*> toUnbind;
-            BoundInstancesMap const& m_boundInstances = sInstanceSaveMgr->PlayerGetBoundInstances(p->GetGUID(), Difficulty(DUNGEON_DIFFICULTY_NORMAL));
+            BoundInstancesMap const& m_boundInstances = sInstanceSaveMgr->PlayerGetBoundInstances(p->GetGUID(), Difficulty(DIFFICULTY_NORMAL));
             for (BoundInstancesMap::const_iterator itr = m_boundInstances.begin(); itr != m_boundInstances.end(); ++itr)
             {
                 InstanceSave* instanceSave = itr->second.save;
@@ -344,7 +344,7 @@ void Player::SendResetInstanceSuccess(uint32 MapId)
     SendDirectMessage(instanceReset.Write());
 }
 
-void Player::SendResetInstanceFailed(InstanceResetFailureReason reason, uint32 MapId)
+void Player::SendResetInstanceFailed(ResetFailedReason reason, uint32 MapId)
 {
     WorldPackets::Instance::InstanceResetFailed instanceResetFailed;
     instanceResetFailed.Reason = reason;

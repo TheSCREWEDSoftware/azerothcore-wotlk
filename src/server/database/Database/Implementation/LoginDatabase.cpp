@@ -198,6 +198,11 @@ void LoginDatabaseConnection::DoPrepareStatements()
     PrepareStatement(LOGIN_SEL_BNET_MAX_ACCOUNT_INDEX, "SELECT MAX(battlenet_index) FROM account WHERE battlenet_account = ?", CONNECTION_SYNCH);
     PrepareStatement(LOGIN_SEL_BNET_GAME_ACCOUNT_LIST, "SELECT a.username, a.expansion, ab.bandate, ab.unbandate, ab.banreason FROM account AS a LEFT JOIN account_banned AS ab ON a.id = ab.id AND ab.active = 1 INNER JOIN battlenet_accounts AS ba ON a.battlenet_account = ba.id WHERE ba.email = ? ORDER BY a.id", CONNECTION_SYNCH);
 
+    PrepareStatement(LOGIN_SEL_ACCOUNT_TOYS, "SELECT itemId, isFavourite FROM battlenet_account_toys WHERE accountId = ?", CONNECTION_ASYNC);
+    PrepareStatement(LOGIN_REP_ACCOUNT_TOYS, "REPLACE INTO battlenet_account_toys (accountId, itemId, isFavourite) VALUES (?, ?, ?)", CONNECTION_ASYNC);
+    PrepareStatement(LOGIN_SEL_ACCOUNT_HEIRLOOMS, "SELECT itemId, flags FROM battlenet_account_heirlooms WHERE accountId = ?", CONNECTION_ASYNC);
+    PrepareStatement(LOGIN_REP_ACCOUNT_HEIRLOOMS, "REPLACE INTO battlenet_account_heirlooms (accountId, itemId, flags) VALUES (?, ?, ?)", CONNECTION_ASYNC);
+
 #undef BnetGameAccountInfo
 #undef BnetAccountInfo
 }

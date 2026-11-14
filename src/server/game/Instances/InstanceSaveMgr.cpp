@@ -88,7 +88,7 @@ InstanceSave* InstanceSaveMgr::AddInstanceSave(uint32 mapId, uint32 instanceId, 
     }
 
     time_t resetTime, extendedResetTime;
-    if (entry->map_type == MAP_RAID || difficulty > DUNGEON_DIFFICULTY_NORMAL)
+    if (entry->map_type == MAP_RAID || difficulty > DIFFICULTY_NORMAL)
     {
         resetTime = GetResetTimeFor(mapId, difficulty);
         extendedResetTime = GetExtendedResetTimeFor(mapId, difficulty);
@@ -202,7 +202,7 @@ time_t InstanceSave::GetResetTimeForDB()
 {
     // only save the reset time for normal instances
     MapEntry const* entry = sMapStore.LookupEntry(GetMapId());
-    if (!entry || entry->map_type == MAP_RAID || GetDifficulty() == DUNGEON_DIFFICULTY_HEROIC)
+    if (!entry || entry->map_type == MAP_RAID || GetDifficulty() == DIFFICULTY_HEROIC)
         return 0;
     else
         return GetResetTime();
@@ -543,7 +543,7 @@ void InstanceSaveMgr::MergeWithNewInstanceSaves(InstanceMapLoadRows const& loadR
         }
 
         time_t extendedResetTime = 0;
-        if (entry->IsRaid() || row.difficulty > DUNGEON_DIFFICULTY_NORMAL)
+        if (entry->IsRaid() || row.difficulty > DIFFICULTY_NORMAL)
             extendedResetTime = GetExtendedResetTimeFor(row.mapId, Difficulty(row.difficulty));
 
         InstanceSave* save = new InstanceSave(row.mapId, row.instanceId, Difficulty(row.difficulty), row.resetTime, extendedResetTime);

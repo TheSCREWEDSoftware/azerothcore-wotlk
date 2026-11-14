@@ -99,7 +99,7 @@ public:
         uint32 transportEntry = 0;
         for (auto const& [entry, goTemplate] : *sObjectMgr->GetGameObjectTemplates())
         {
-            if (goTemplate.type == GAMEOBJECT_TYPE_MO_TRANSPORT && goTemplate.moTransport.mapID == transportMapId)
+            if (goTemplate.type == GAMEOBJECT_TYPE_MAP_OBJ_TRANSPORT && goTemplate.moTransport.mapID == transportMapId)
             {
                 transportEntry = entry;
                 break;

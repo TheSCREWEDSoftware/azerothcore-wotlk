@@ -4219,7 +4219,7 @@ void Player::SendSellError(SellResult msg, Creature* creature, ObjectGuid guid, 
     SendDirectMessage(&data);
 }
 
-void Player::TradeCancel(bool sendback, TradeStatus status /*= TRADE_STATUS_TRADE_CANCELED*/)
+void Player::TradeCancel(bool sendback, TradeStatus status /*= TRADE_STATUS_CANCELLED*/)
 {
     if (m_trade)
     {
@@ -5419,10 +5419,10 @@ bool Player::LoadFromDB(ObjectGuid playerGuid, CharacterDatabaseQueryHolder cons
 
     uint32 dungeonDiff = fields[43].Get<uint8>() & 0x0F;
     if (dungeonDiff >= MAX_DUNGEON_DIFFICULTY)
-        dungeonDiff = DUNGEON_DIFFICULTY_NORMAL;
+        dungeonDiff = DIFFICULTY_NORMAL;
     uint32 raidDiff = (fields[43].Get<uint8>() >> 4) & 0x0F;
     if (raidDiff >= MAX_RAID_DIFFICULTY)
-        raidDiff = RAID_DIFFICULTY_10MAN_NORMAL;
+        raidDiff = DIFFICULTY_10_N;
     SetDungeonDifficulty(Difficulty(dungeonDiff));          // may be changed in _LoadGroup
     SetRaidDifficulty(Difficulty(raidDiff));                // may be changed in _LoadGroup
 
@@ -6998,9 +6998,9 @@ void Player::SendRaidInfo()
 
                 // 4.3.4 sends heroic raids as their normal size plus a heroic flag
                 Difficulty difficulty = save->GetDifficulty();
-                bool heroic = difficulty == RAID_DIFFICULTY_10MAN_HEROIC || difficulty == RAID_DIFFICULTY_25MAN_HEROIC;
+                bool heroic = difficulty == DIFFICULTY_10_HC || difficulty == DIFFICULTY_25_HC;
                 if (heroic)
-                    difficulty = difficulty == RAID_DIFFICULTY_10MAN_HEROIC ? RAID_DIFFICULTY_10MAN_NORMAL : RAID_DIFFICULTY_25MAN_NORMAL;
+                    difficulty = difficulty == DIFFICULTY_10_HC ? DIFFICULTY_10_N : DIFFICULTY_25_N;
 
                 data << uint32(save->GetMapId());           // map id
                 data << uint32(difficulty);                 // difficulty

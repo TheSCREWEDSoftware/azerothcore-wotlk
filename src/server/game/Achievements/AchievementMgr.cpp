@@ -446,7 +446,7 @@ bool AchievementCriteriaData::Meets(uint32 criteria_id, Player const* source, Un
         case ACHIEVEMENT_CRITERIA_DATA_TYPE_S_KNOWN_TITLE:
         {
             if (CharTitlesEntry const* titleInfo = sCharTitlesStore.LookupEntry(known_title.title_id))
-                return source && source->HasTitle(titleInfo->bit_index);
+                return source && source->HasTitle(titleInfo->MaskID);
 
             return false;
         }
@@ -1192,7 +1192,7 @@ void AchievementMgr::UpdateAchievementCriteria(AchievementCriteriaTypes type, ui
                                 if (!achievIdForDungeon[j][2])
                                     break;                      // for
                             }
-                            else if (GetPlayer()->GetDungeonDifficulty() == DUNGEON_DIFFICULTY_NORMAL)
+                            else if (GetPlayer()->GetDungeonDifficulty() == DIFFICULTY_NORMAL)
                             {
                                 // dungeon in normal mode accepted
                                 if (!achievIdForDungeon[j][1])

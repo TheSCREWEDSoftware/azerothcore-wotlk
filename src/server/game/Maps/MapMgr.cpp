@@ -85,7 +85,7 @@ Map* MapMgr::CreateBaseMap(uint32 id)
             if (entry->Instanceable())
                 map = new MapInstanced(id);
             else
-                map = new Map(id, 0, REGULAR_DIFFICULTY);
+                map = new Map(id, 0, DIFFICULTY_NONE);
 
             i_maps[id] = map;
 

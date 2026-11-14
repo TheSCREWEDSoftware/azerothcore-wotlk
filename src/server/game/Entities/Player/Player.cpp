@@ -275,9 +275,9 @@ Player::Player(WorldSession* session): Unit(), m_mover(this), _cinematicMgr(*thi
 
     m_HomebindTimer = 0;
     m_InstanceValid = true;
-    m_dungeonDifficulty = DUNGEON_DIFFICULTY_NORMAL;
-    m_raidDifficulty = RAID_DIFFICULTY_10MAN_NORMAL;
-    m_raidMapDifficulty = RAID_DIFFICULTY_10MAN_NORMAL;
+    m_dungeonDifficulty = DIFFICULTY_NORMAL;
+    m_raidDifficulty = DIFFICULTY_10_N;
+    m_raidMapDifficulty = DIFFICULTY_10_N;
 
     m_lastPotionId = 0;
 
@@ -14323,8 +14323,8 @@ bool Player::HasTitle(uint32 bitIndex) const
 
 void Player::SetTitle(CharTitlesEntry const* title, bool lost)
 {
-    uint32 fieldIndexOffset = title->bit_index / 32;
-    uint32 flag = 1 << (title->bit_index % 32);
+    uint32 fieldIndexOffset = title->MaskID / 32;
+    uint32 flag = 1 << (title->MaskID % 32);
 
     if (lost)
     {
@@ -14332,7 +14332,7 @@ void Player::SetTitle(CharTitlesEntry const* title, bool lost)
             return;
 
         // Clear the current title if it is the one being removed.
-        if (title->bit_index == GetUInt32Value(PLAYER_CHOSEN_TITLE))
+        if (title->MaskID == GetUInt32Value(PLAYER_CHOSEN_TITLE))
         {
             SetCurrentTitle(nullptr, true);
         }
@@ -14348,7 +14348,7 @@ void Player::SetTitle(CharTitlesEntry const* title, bool lost)
     }
 
     WorldPacket data(SMSG_TITLE_EARNED, 4 + 4);
-    data << uint32(title->bit_index);
+    data << uint32(title->MaskID);
     data << uint32(lost ? 0 : 1);                           // 1 - earned, 0 - lost
     SendDirectMessage(&data);
 

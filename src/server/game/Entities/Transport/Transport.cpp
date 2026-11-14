@@ -124,7 +124,7 @@ bool MotionTransport::CreateMoTrans(ObjectGuid::LowType guidlow, uint32 entry, u
     SetEntry(goinfo->entry);
     SetDisplayId(goinfo->displayId);
     SetGoState(!goinfo->moTransport.canBeStopped ? GO_STATE_READY : GO_STATE_ACTIVE);
-    SetGoType(GAMEOBJECT_TYPE_MO_TRANSPORT);
+    SetGoType(GAMEOBJECT_TYPE_MAP_OBJ_TRANSPORT);
     SetGoAnimProgress(animprogress);
     SetName(goinfo->name);
 

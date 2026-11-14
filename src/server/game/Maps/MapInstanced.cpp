@@ -24,7 +24,7 @@
 #include "Player.h"
 #include "ScriptMgr.h"
 
-MapInstanced::MapInstanced(uint32 id) : Map(id, 0, DUNGEON_DIFFICULTY_NORMAL)
+MapInstanced::MapInstanced(uint32 id) : Map(id, 0, DIFFICULTY_NORMAL)
 {
     // initialize instanced maps list
     m_InstancedMaps.clear();
@@ -245,7 +245,7 @@ BattlegroundMap* MapInstanced::CreateBattleground(uint32 InstanceId, Battlegroun
     if (bracketEntry)
         spawnMode = GetDifficultyFromDbc(bracketEntry->difficulty);
     else
-        spawnMode = REGULAR_DIFFICULTY;
+        spawnMode = DIFFICULTY_NONE;
 
     BattlegroundMap* map = new BattlegroundMap(GetId(), InstanceId, this, spawnMode);
     ASSERT(map->IsBattlegroundOrArena());
