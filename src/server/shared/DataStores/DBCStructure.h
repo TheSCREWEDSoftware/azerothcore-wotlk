@@ -95,12 +95,12 @@ struct CriteriaTreeEntry
 {
     uint32 ID;                                              // 0
     uint32 CriteriaID;                                      // 1
-    uint32 Amount;                                          // 2 low half of a 64 bit amount
-    // 3 high half
-    uint32 Operator;                                        // 4
-    uint32 Parent;                                          // 5
-    uint32 Flags;                                           // 6
-    // 7 description
+    uint32 Amount;                                          // 2 low half of a 64 bit amount (high half dropped)
+    uint32 Operator;                                        // 3
+    uint32 Parent;                                          // 4
+    uint32 Flags;                                           // 5
+    // 6 description
+    uint32 OrderIndex;                                      // 7 low half of a 64 bit field (high half dropped)
 };
 
 enum CriteriaTreeOperator
@@ -752,8 +752,9 @@ struct AreaPOIEntry
     //char const* name;         // 17
     //char const* description;  // 18
     uint32 worldState;          // 19
-    //uint32 worldMapLink;      // 20
-    //uint32 portLocId;         // 21
+    //uint32 PlayerConditionID; // 20
+    //uint32 unk;               // 21
+    //uint32 portLocId;         // 22
 };
 
 struct AuctionHouseEntry
@@ -1756,8 +1757,7 @@ struct NameGenEntry
 struct NamesReservedEntry
 {
     //uint32         ID;                                    // 0
-    char const*      Pattern;                               // 1
-    //uint32         Language;                              // 2
+    char const*      Pattern;                               // 1 (5.4.8 has no Language column)
 };
 
 struct NamesProfanityEntry
@@ -1943,8 +1943,7 @@ struct SkillRaceClassInfoEntry
     int32 Flags;                                           // 4
     int32 Availability;                                    // 5
     int32 MinLevel;                                        // 6
-    int32 SkillTierID;                                     // 7
-    //uint32 SkillCostIndex;                                // 8
+    int32 SkillTierID;                                     // 7 (5.4.8 dropped SkillCostIndex)
 };
 
 #define MAX_SKILL_STEP 16
@@ -1981,8 +1980,7 @@ struct SkillLineAbilityEntry
 struct SkillTiersEntry
 {
     uint32 ID;                                              // 0
-    //uint32 Cost[MAX_SKILL_STEP];                          // 1-16
-    uint32 Value[MAX_SKILL_STEP];                           // 17-32
+    uint32 Value[MAX_SKILL_STEP];                           // 1-16 (5.4.8 dropped the Cost columns)
 };
 
 struct SoundEntriesEntry
@@ -2426,38 +2424,6 @@ struct SpellItemEnchantmentConditionEntry
     uint32  Value[3];                                       // 20-22    m_rt_operand[3]
     //uint32  unk5[2];                                      // 23-24
     //uint8   unk6[6];                                      // 25-30
-};
-
-struct SpellVisualEntry
-{
-    //uint32 Id;
-    //uint32 PrecastKit;
-    //uint32 CastingKit;
-    //uint32 ImpactKit;
-    //uint32 StateKit;
-    //uint32 StateDoneKit;
-    //uint32 ChannelKit;
-    uint32 HasMissile;
-    int32 MissileModel;
-    //uint32 MissilePathType;
-    //uint32 MissileDestinationAttachment;
-    //uint32 MissileSound;
-    //uint32 AnimEventSoundID;
-    //uint32 Flags;
-    //uint32 CasterImpactKit;
-    //uint32 TargetImpactKit;
-    //int32 MissileAttachment;
-    //uint32 MissileFollowGroundHeight;
-    //uint32 MissileFollowGroundDropSpeed;
-    //uint32 MissileFollowGroundApprach;
-    //uint32 MissileFollowGroundFlags;
-    //uint32 MissileMotionId;
-    //uint32 MissileTargetingKit;
-    //uint32 InstantAreaKit;
-    //uint32 ImpactAreaKit;
-    //uint32 PersistentAreaKit;
-    //DBCPosition3D MissileCastOffset;
-    //DBCPosition3D MissileImpactOffset;
 };
 
 struct StableSlotPricesEntry

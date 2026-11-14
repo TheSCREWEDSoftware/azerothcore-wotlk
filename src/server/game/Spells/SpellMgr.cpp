@@ -3565,19 +3565,8 @@ void SpellMgr::LoadSpellInfoCustomAttributes()
                 break;
         }
 
-        if (spellInfo->Speed > 0.0f)
-        {
-            if (SpellVisualEntry const* spellVisual = sSpellVisualStore.LookupEntry(spellInfo->SpellVisual[0]))
-            {
-                if (spellVisual->HasMissile)
-                {
-                    if (spellVisual->MissileModel == -4 || spellVisual->MissileModel == -5)
-                    {
-                        spellInfo->AttributesCu |= SPELL_ATTR0_CU_NEEDS_AMMO_DATA;
-                    }
-                }
-            }
-        }
+        // SPELL_ATTR0_CU_NEEDS_AMMO_DATA came from SpellVisual missile models -4/-5 (ammo); no 4.3.4 or 5.4.8
+        // visual uses them and 5.4.8's SpellVisual.db2 has no missile model column, so it is never set here.
 
         spellInfo->_InitializeExplicitTargetMask();
 
