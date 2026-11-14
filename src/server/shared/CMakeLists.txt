@@ -34,7 +34,10 @@ target_link_libraries(shared
   PRIVATE
     acore-core-interface
   PUBLIC
-    database)
+    database
+    proto
+    rapidjson
+    zlib)
 
 set_target_properties(shared
   PROPERTIES

@@ -63,7 +63,17 @@ enum ProxyHeaderAddressFamilyAndProtocol {
     PROXY_HEADER_ADDRESS_FAMILY_AND_PROTOCOL_TCP_V6 = 0x21,
 };
 
-template<class T>
+/**
+    @class Socket
+
+    Base async socket implementation
+
+    @tparam T derived class type (CRTP)
+    @tparam Stream stream type used for operations on socket: IoContextTcpSocket, or a wrapper with the same
+            calls (SslSocket for the Battle.net login): close, shutdown, async_read_some, async_write_some,
+            write_some, async_wait, set_option and remote_endpoint.
+*/
+template<class T, class Stream = IoContextTcpSocket>
 class Socket : public std::enable_shared_from_this<T>
 {
 public:
@@ -124,7 +134,7 @@ public:
         _readBuffer.Normalize();
         _readBuffer.EnsureFreeSpace();
         _socket.async_read_some(boost::asio::buffer(_readBuffer.GetWritePointer(), _readBuffer.GetRemainingSpace()),
-            std::bind(&Socket<T>::ReadHandlerInternal, this->shared_from_this(), std::placeholders::_1, std::placeholders::_2));
+            std::bind(&Socket<T, Stream>::ReadHandlerInternal, this->shared_from_this(), std::placeholders::_1, std::placeholders::_2));
     }
 
     void AsyncReadProxyHeader()
@@ -139,7 +149,7 @@ public:
         _readBuffer.Normalize();
         _readBuffer.EnsureFreeSpace();
         _socket.async_read_some(boost::asio::buffer(_readBuffer.GetWritePointer(), _readBuffer.GetRemainingSpace()),
-            std::bind(&Socket<T>::ProxyReadHeaderHandler, this->shared_from_this(), std::placeholders::_1, std::placeholders::_2));
+            std::bind(&Socket<T, Stream>::ProxyReadHeaderHandler, this->shared_from_this(), std::placeholders::_1, std::placeholders::_2));
     }
 
     void AsyncReadWithCallback(void (T::*callback)(boost::system::error_code, std::size_t))
@@ -203,6 +213,8 @@ protected:
     virtual void OnClose() { }
     virtual SocketReadCallbackResult ReadHandler() = 0;
 
+    Stream& underlying_stream() { return _socket; }
+
     bool AsyncProcessQueue()
     {
         if (_isWritingAsync)
@@ -212,7 +224,7 @@ protected:
 
 #ifdef AC_SOCKET_USE_IOCP
         MessageBuffer& buffer = _writeQueue.front();
-        _socket.async_write_some(boost::asio::buffer(buffer.GetReadPointer(), buffer.GetActiveSize()), std::bind(&Socket<T>::WriteHandler,
+        _socket.async_write_some(boost::asio::buffer(buffer.GetReadPointer(), buffer.GetActiveSize()), std::bind(&Socket<T, Stream>::WriteHandler,
             this->shared_from_this(), std::placeholders::_1, std::placeholders::_2));
 #else
         _socket.async_wait(boost::asio::socket_base::wait_write, [self = this->shared_from_this()](boost::system::error_code error)
@@ -443,7 +455,7 @@ private:
     }
 #endif
 
-    IoContextTcpSocket _socket;
+    Stream _socket;
 
     boost::asio::ip::address _remoteAddress;
     uint16 _remotePort;

@@ -24,6 +24,7 @@
 #include <array>
 #include <map>
 #include <memory> // NOTE: this import is NEEDED (even though some IDEs report it as unused)
+#include <unordered_set>
 #include <vector>
 
 namespace Acore::Asio
@@ -34,6 +35,12 @@ namespace Acore::Asio
 namespace boost::system
 {
     class error_code;
+}
+
+namespace bgs::protocol::game_utilities::v1
+{
+    class ClientResponse;
+    class GetAllValuesForAttributeResponse;
 }
 
 struct RealmBuildInfo
@@ -63,6 +70,14 @@ public:
 
     [[nodiscard]] RealmBuildInfo const* GetBuildInfo(uint32 build) const;
 
+    // Battle.net (6.x) realm list, see RealmListBnet.cpp
+    [[nodiscard]] std::unordered_set<std::string> const& GetSubRegions() const { return _subRegions; }
+    void WriteSubRegions(bgs::protocol::game_utilities::v1::GetAllValuesForAttributeResponse* response) const;
+    [[nodiscard]] std::vector<uint8> GetRealmEntryJSON(RealmHandle const& id, uint32 build) const;
+    [[nodiscard]] std::vector<uint8> GetRealmList(uint32 build, std::string const& subRegion) const;
+    uint32 JoinRealm(uint32 realmAddress, uint32 build, boost::asio::ip::address const& clientAddress, std::array<uint8, 32> const& clientSecret,
+        LocaleConstant locale, std::string const& os, std::string const& accountName, bgs::protocol::game_utilities::v1::ClientResponse* response) const;
+
 private:
     RealmList();
     ~RealmList() = default;
@@ -75,6 +90,7 @@ private:
 
     std::vector<RealmBuildInfo> _builds;
     RealmMap _realms;
+    std::unordered_set<std::string> _subRegions;
     uint32 _updateInterval{0};
     std::unique_ptr<boost::asio::steady_timer> _updateTimer;
     std::unique_ptr<Acore::Asio::Resolver> _resolver;

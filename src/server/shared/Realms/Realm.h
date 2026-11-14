@@ -39,13 +39,26 @@ struct AC_SHARED_API RealmHandle
 {
     RealmHandle()  = default;
     RealmHandle(uint32 index) : Realm(index) { }
+    RealmHandle(uint8 region, uint8 site, uint32 index) : Region(region), Site(site), Realm(index) { }
 
+    /// Battle.net realm address (region << 24 | site << 16 | realm), as the 6.x client sends it
+    static RealmHandle FromAddress(uint32 realmAddress)
+    {
+        return { uint8((realmAddress >> 24) & 0xFF), uint8((realmAddress >> 16) & 0xFF), realmAddress & 0xFFFF };
+    }
+
+    uint8 Region{0};   // `realmlist`.`Region`
+    uint8 Site{0};     // `realmlist`.`Battlegroup`
     uint32 Realm{0};   // primary key in `realmlist` table
 
     bool operator<(RealmHandle const& r) const
     {
         return Realm < r.Realm;
     }
+
+    [[nodiscard]] uint32 GetAddress() const { return (Region << 24) | (Site << 16) | uint16(Realm); }
+    [[nodiscard]] std::string GetAddressString() const;
+    [[nodiscard]] std::string GetSubRegionAddress() const;
 };
 
 /// Type of server, this is values from second column of Cfg_Configs.dbc
@@ -80,6 +93,9 @@ struct AC_SHARED_API Realm
     float PopulationLevel;
 
     [[nodiscard]] boost::asio::ip::tcp_endpoint GetAddressForClient(boost::asio::ip::address const& clientAddr) const;
+    [[nodiscard]] uint32 GetConfigId() const;
+
+    static uint32 const ConfigIdByType[MAX_CLIENT_REALM_TYPE];
 };
 
 #endif // Realm_h__

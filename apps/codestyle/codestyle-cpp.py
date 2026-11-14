@@ -53,6 +53,8 @@ def parsing_file(directory: str) -> None:
     print(" ")
     for root, _, files in os.walk(directory):
         for file in files:
+            if file.endswith(('.pb.h', '.pb.cc')):                         # Skip protoc generated code (src/server/proto)
+                continue
             if not file.endswith('.ico'):                                   # Skip .ico files that cannot be read
                 file_path = os.path.join(root, file)
                 file_name = file

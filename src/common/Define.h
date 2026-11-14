@@ -88,6 +88,12 @@
 #  define AC_SHARED_API AC_API_IMPORT
 #endif
 
+#ifdef ACORE_API_EXPORT_PROTO
+#  define AC_PROTO_API AC_API_EXPORT
+#else
+#  define AC_PROTO_API AC_API_IMPORT
+#endif
+
 #ifdef ACORE_API_EXPORT_GAME
 #  define AC_GAME_API AC_API_EXPORT
 #else

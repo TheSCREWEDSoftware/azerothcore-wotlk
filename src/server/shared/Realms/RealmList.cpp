@@ -198,8 +198,11 @@ void RealmList::UpdateRealms(boost::system::error_code const& error)
                 uint8 allowedSecurityLevel = fields[9].Get<uint8>();
                 float pop = fields[10].Get<float>();
                 uint32 build = fields[11].Get<uint32>();
+                uint8 region = fields[12].Get<uint8>();
+                uint8 battlegroup = fields[13].Get<uint8>();
 
-                RealmHandle id{ realmId };
+                RealmHandle id{ region, battlegroup, realmId };
+                _subRegions.insert(RealmHandle{ region, battlegroup, 0 }.GetAddressString());
 
                 UpdateRealm(id, build, name, externalAddress->address(), localAddress->address(), localSubmask->address(), port, icon, flag,
                     realmTimezone, (allowedSecurityLevel <= SEC_ADMINISTRATOR ? AccountTypes(allowedSecurityLevel) : SEC_ADMINISTRATOR), pop);
