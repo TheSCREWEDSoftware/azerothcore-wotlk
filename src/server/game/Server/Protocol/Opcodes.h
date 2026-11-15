@@ -1386,6 +1386,7 @@ enum OpcodeServer : uint16
     SMSG_PLAY_DANCE                                 = 0x4704,
     SMSG_STOP_DANCE                                 = 0x4637,
     SMSG_DANCE_QUERY_RESPONSE                       = 0x2F06,
+    SMSG_DB_REPLY                                   = 0x38A4,
     SMSG_INVALIDATE_DANCE                           = 0x0E27,
     SMSG_LEARNED_DANCE_MOVES                        = 0x0E05,
     SMSG_CALENDAR_EVENT_INVITE_NOTES                = 0x0E17,

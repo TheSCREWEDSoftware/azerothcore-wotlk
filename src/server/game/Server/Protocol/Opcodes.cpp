@@ -996,7 +996,7 @@ void OpcodeTable::Initialize()
     /*0x4407*/ DEFINE_HANDLER(CMSG_QUEST_GIVER_STATUS_QUERY,                                   STATUS_LOGGEDIN,   PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );
     /*0x720A*/ DEFINE_HANDLER(CMSG_REQUEST_CEMETERY_LIST,                                           STATUS_LOGGEDIN,   PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );
     /*0x3D54*/ DEFINE_HANDLER(CMSG_UNREGISTER_ALL_ADDON_PREFIXES,                                   STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleUnregisterAddonPrefixesOpcode     );
-    /*0x2401*/ DEFINE_HANDLER(CMSG_DB_QUERY_BULK,                                                   STATUS_LOGGEDIN,   PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );
+    /*0x2401*/ DEFINE_HANDLER(CMSG_DB_QUERY_BULK,                                                   STATUS_AUTHED,     PROCESS_INPLACE,        &WorldSession::HandleRequestHotfix                      );
     /*0x730E*/ DEFINE_HANDLER(CMSG_SAVE_CUF_PROFILES,                                               STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleSaveCUFProfiles                    );
     /*0x7102*/ DEFINE_HANDLER(CMSG_REQUEST_CATEGORY_COOLDOWNS,                                      STATUS_LOGGEDIN,   PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );
     /*0x0412*/ DEFINE_HANDLER(CMSG_LFG_LOCK_INFO_REQUEST,                                            STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleLfgGetLockInfoOpcode               );
@@ -1489,6 +1489,7 @@ void OpcodeTable::Initialize()
     /*0x0036*/ DEFINE_HANDLER(CMSG_SYNC_DANCE,                                                       STATUS_NEVER,      PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );
     /*0x4E07*/ DEFINE_HANDLER(CMSG_DANCE_QUERY,                                                      STATUS_NEVER,      PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );
     /*0x2F06*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_DANCE_QUERY_RESPONSE,                               STATUS_NEVER);
+    /*0x38A4*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_DB_REPLY,                                           STATUS_NEVER);
     /*0x0E27*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_INVALIDATE_DANCE,                                   STATUS_NEVER);
     /*0x0454*/ DEFINE_HANDLER(CMSG_DELETE_DANCE,                                                     STATUS_NEVER,      PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );
     /*0x0E05*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_LEARNED_DANCE_MOVES,                                STATUS_NEVER);

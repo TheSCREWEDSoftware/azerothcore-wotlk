@@ -762,6 +762,7 @@ public:
     void IncrementOrderCounter() { ++_orderCounter; }
 public:                                                 // opcodes handlers
     void Handle_NULL(WorldPacket& null);                // not used
+    void HandleRequestHotfix(WorldPacket& recvPacket);  // CMSG_DB_QUERY_BULK: Item.db2 / Item-sparse.db2 records
     void Handle_EarlyProccess(WorldPacket& recvPacket); // just mark packets processed in WorldSocket::OnRead
     void Handle_Deprecated(WorldPacket& recvPacket);    // never used anymore by client
 
