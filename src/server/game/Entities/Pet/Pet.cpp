@@ -121,7 +121,9 @@ void Pet::AddToWorld()
 
 void Pet::RemoveFromWorld()
 {
-    if (Unit* owner = GetOwner())
+    // look the owner up by guid: when the owner logs out (or is deleted) first, the cached owner pointer is already
+    // dangling once the pet goes through the map's remove list; stale entries are dropped by RefreshPhaseSummons
+    if (Player* owner = ObjectAccessor::FindPlayer(GetOwnerGUID()))
         owner->UnregisterPhaseSummon(this);
 
     ///- Remove the pet from the accessor
