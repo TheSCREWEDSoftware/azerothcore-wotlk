@@ -1187,10 +1187,13 @@ PacketSpoof.BanDuration = 86400
 #
 #    Warden.Enabled
 #        Description: Enable Warden anti-cheat system.
-#        Default:     1 - (Enabled)
-#                     0 - (Disabled)
+#                     The Windows Warden module and its client function offsets are the 3.3.5a
+#                     ones; a newer client crashes in the module when it initializes (as on
+#                     TrinityCore 4.3.4, where Warden is off by default too).
+#        Default:     0 - (Disabled)
+#                     1 - (Enabled)
 
-Warden.Enabled = 1
+Warden.Enabled = 0
 
 #
 #    Warden.NumMemChecks
