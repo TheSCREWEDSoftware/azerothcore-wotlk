@@ -60,6 +60,8 @@ namespace WorldPackets
     namespace Auth
     {
         class AuthSession;
+        class AuthContinuedSession;
+        class ConnectToFailed;
     }
 
     class ServerPacket;
@@ -101,6 +103,13 @@ public:
     void SetSendBufferSize(std::size_t sendBufferSize) { _sendBufferSize = sendBufferSize; }
 
     bool IsLoggingPackets() const { return _loggingPackets; }
+
+    ConnectionType GetConnectionType() const { return _type; }
+
+    /// links an authenticated instance connection to the session that asked for it (WorldSessionMgr thread)
+    void SetWorldSession(WorldSession* session);
+
+    void SendAuthResponseError(uint8 code);
     void SetPacketLogging(bool state) { _loggingPackets = state; }
 
 protected:
@@ -130,11 +139,16 @@ private:
     void HandleAuthSession(WorldPacket& recvPacket);
     void HandleAuthSessionCallback(std::shared_ptr<WorldPackets::Auth::AuthSession> authSession, PreparedQueryResult result);
     void LoadSessionPermissionsCallback(PreparedQueryResult result);
-    void SendAuthResponseError(uint8 code);
+    void HandleAuthContinuedSession(std::shared_ptr<WorldPackets::Auth::AuthContinuedSession> authSession);
+    void HandleAuthContinuedSessionCallback(std::shared_ptr<WorldPackets::Auth::AuthContinuedSession> authSession, PreparedQueryResult result);
+    void HandleConnectToFailed(WorldPackets::Auth::ConnectToFailed& connectToFailed);
 
     bool HandlePing(WorldPacket& recvPacket);
 
+    ConnectionType _type;
     std::array<uint8, 4> _authSeed;
+    std::array<uint8, 16> _encryptSeed;                 // instance connection ARC4 seeds, sent in SMSG_AUTH_CHALLENGE
+    std::array<uint8, 16> _decryptSeed;
     AuthCrypt _authCrypt;
 
     TimePoint _LastPingTime;

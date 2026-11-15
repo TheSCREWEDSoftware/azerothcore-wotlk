@@ -16,8 +16,11 @@
  */
 
 #include "AuthenticationPackets.h"
+#include "Random.h"
+#include "Realm.h"
 #include "World.h"
 #include "WorldSession.h"
+#include <boost/asio/ip/address.hpp>
 
 void WorldSession::SendAuthResponse(uint8 code, bool shortForm, uint32 queuePos)
 {
@@ -41,4 +44,23 @@ void WorldSession::SendClientCacheVersion(uint32 version)
     WorldPacket data(SMSG_CLIENTCACHE_VERSION, 4);
     data << uint32(version);
     SendPacket(&data);
+}
+
+void WorldSession::SendConnectToInstance(WorldPackets::Auth::ConnectToSerial serial)
+{
+    boost::system::error_code ignoredError;
+    boost::asio::ip::tcp::endpoint instanceAddress = realm.GetAddressForClient(boost::asio::ip::make_address(GetRemoteAddress(), ignoredError));
+    instanceAddress.port(uint16(sWorld->getIntConfig(CONFIG_PORT_INSTANCE)));
+
+    _instanceConnectKey.Fields.AccountId = GetAccountId();
+    _instanceConnectKey.Fields.ConnectionType = CONNECTION_TYPE_INSTANCE;
+    _instanceConnectKey.Fields.Key = urand(0, 0x7FFFFFFF);
+
+    WorldPackets::Auth::ConnectTo connectTo;
+    connectTo.Key = _instanceConnectKey.Raw;
+    connectTo.Serial = serial;
+    connectTo.Payload.Where = instanceAddress;
+    connectTo.Con = CONNECTION_TYPE_INSTANCE;
+
+    SendPacket(connectTo.Write());
 }

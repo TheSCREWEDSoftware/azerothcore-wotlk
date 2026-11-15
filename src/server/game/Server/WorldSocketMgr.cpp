@@ -16,7 +16,9 @@
  */
 
 #include "WorldSocketMgr.h"
+#include "AsyncAcceptor.h"
 #include "Config.h"
+#include "World.h"
 #include "NetworkThread.h"
 #include "ScriptMgr.h"
 #include "WorldSocket.h"
@@ -40,6 +42,11 @@ public:
 WorldSocketMgr::WorldSocketMgr() :
     BaseSocketMgr(), _socketSystemSendBufferSize(-1), _socketApplicationSendBufferSize(4096), _tcpNoDelay(true)
 {
+}
+
+WorldSocketMgr::~WorldSocketMgr()
+{
+    ASSERT(!_instanceAcceptor, "StopNetwork must be called prior to WorldSocketMgr destruction");
 }
 
 WorldSocketMgr& WorldSocketMgr::Instance()
@@ -68,7 +75,28 @@ bool WorldSocketMgr::StartWorldNetwork(Acore::Asio::IoContext& ioContext, std::s
     if (!BaseSocketMgr::StartNetwork(ioContext, bindIp, port, threadCount))
         return false;
 
+    uint16 instancePort = uint16(sWorld->getIntConfig(CONFIG_PORT_INSTANCE));
+    try
+    {
+        _instanceAcceptor = std::make_unique<AsyncAcceptor>(ioContext, bindIp, instancePort);
+    }
+    catch (boost::system::system_error const& err)
+    {
+        LOG_ERROR("network", "Exception caught in WorldSocketMgr::StartWorldNetwork ({}:{}): {}", bindIp, instancePort, err.what());
+        return false;
+    }
+
+    if (!_instanceAcceptor->Bind())
+    {
+        LOG_ERROR("network", "StartWorldNetwork failed to bind the instance socket acceptor ({}:{})", bindIp, instancePort);
+        _instanceAcceptor.reset();
+        return false;
+    }
+
+    _instanceAcceptor->SetSocketFactory([this]() { return GetSocketForAccept(); });
+
     _acceptor->AsyncAcceptWithCallback<&WorldSocketMgr::OnSocketAccept>();
+    _instanceAcceptor->AsyncAcceptWithCallback<&WorldSocketMgr::OnSocketAccept>();
 
     sScriptMgr->OnNetworkStart(ioContext);
     return true;
@@ -76,6 +104,12 @@ bool WorldSocketMgr::StartWorldNetwork(Acore::Asio::IoContext& ioContext, std::s
 
 void WorldSocketMgr::StopNetwork()
 {
+    if (_instanceAcceptor)
+    {
+        _instanceAcceptor->Close();
+        _instanceAcceptor.reset();
+    }
+
     BaseSocketMgr::StopNetwork();
 
     sScriptMgr->OnNetworkStop();

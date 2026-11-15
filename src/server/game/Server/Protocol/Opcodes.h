@@ -700,7 +700,8 @@ enum OpcodeClient : uint16
     CMSG_CALENDAR_COMPLAIN                          = 0x4C36,
     CMSG_CALENDAR_GET_NUM_PENDING                   = 0x4D05,
     CMSG_PLAY_DANCE                                 = 0x6914,
-    CMSG_LOAD_DANCES                                = 0x44D,
+    CMSG_AUTH_CONTINUED_SESSION                     = 0x44D, // instance connection authentication (CMSG_REDIRECTION_AUTH_PROOF)
+    CMSG_CONNECT_TO_FAILED                          = 0x2533,
     CMSG_STOP_DANCE                                 = 0x2907,
     CMSG_SYNC_DANCE                                 = 0x0036,
     CMSG_DANCE_QUERY                                = 0x4E07,
@@ -1482,6 +1483,8 @@ enum OpcodeServer : uint16
     SMSG_SOCKET_GEMS_RESULT                         = 0x6014,
     SMSG_REDIRECT_CLIENT                            = 0x50D, // uint32 ip, uint16 port, uint32 unk, uint8[20] hash (ip + port, seed=sessionkey)
     SMSG_SUSPEND_COMMS                              = 0x4140,
+    SMSG_RESUME_COMMS                               = 0x0140,
+    SMSG_CONNECT_TO                                 = 0x0942, // SMSG_REDIRECT_CLIENT
     SMSG_FORCE_SEND_QUEUED_PACKETS                  = 0x511,
     SMSG_SEND_ALL_COMBAT_LOG                        = 0x514,
     SMSG_OPEN_LFG_DUNGEON_FINDER                    = 0x2C37,
@@ -1680,6 +1683,17 @@ enum OpcodeMisc : uint16
 };
 
 /// Player state
+/// 4.3.4 keeps two world connections: the realm connection opened at login and the instance connection the client
+/// opens after SMSG_CONNECT_TO; every server opcode belongs to one of them (see OpcodeConnections.h)
+enum ConnectionType : uint8
+{
+    CONNECTION_TYPE_REALM       = 0,
+    CONNECTION_TYPE_INSTANCE    = 1,
+    MAX_CONNECTION_TYPES,
+
+    CONNECTION_TYPE_DEFAULT     = 0xFF
+};
+
 enum SessionStatus
 {
     STATUS_AUTHED = 0,                                      // Player authenticated (_player == nullptr, m_playerRecentlyLogout = false or will be reset before handler call, m_GUID have garbage)

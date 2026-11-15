@@ -500,9 +500,27 @@ struct PacketCounter
 };
 
 /// Player session in the World
+namespace WorldPackets::Auth
+{
+    enum class ConnectToSerial : uint32;
+}
+
 class WorldSession
 {
 public:
+    /// key of the 4.3.4 instance connection (SMSG_CONNECT_TO / CMSG_AUTH_CONTINUED_SESSION)
+    union ConnectToKey
+    {
+        struct
+        {
+            uint64 AccountId : 32;
+            uint64 ConnectionType : 1;
+            uint64 Key : 31;
+        } Fields;
+
+        uint64 Raw;
+    };
+
     WorldSession(uint32 id, std::string&& name, uint32 accountFlags, std::shared_ptr<WorldSocket> sock,
         AccountTypes sec, uint8 expansion, time_t mute_time, LocaleConstant locale, uint32 recruiter, bool isARecruiter,
         bool skipQueue, uint32 TotalTime);
@@ -539,6 +557,10 @@ public:
     bool ProcessMovementInfo(MovementInfo& movementInfo, Unit* mover, Player* plrMover, WorldPacket& recvData);
 
     void SendPacket(WorldPacket const* packet);
+    void SendConnectToInstance(WorldPackets::Auth::ConnectToSerial serial);
+    void AddInstanceConnection(std::shared_ptr<WorldSocket> sock) { m_InstanceSocket = std::move(sock); }
+    bool HasInstanceConnection() const { return m_InstanceSocket != nullptr; }
+    uint64 GetConnectToInstanceKey() const { return _instanceConnectKey.Raw; }
     void SendPetNameInvalid(uint32 error, std::string const& name, DeclinedName* declinedName);
     void SendPartyResult(PartyOperation operation, std::string const& member, PartyResult res, uint32 val = 0);
 
@@ -776,6 +798,8 @@ public:                                                 // opcodes handlers
 
     void HandleCharEnum(PreparedQueryResult result);
     void HandlePlayerLoginFromDB(LoginQueryHolder const& holder);
+    void HandleContinuePlayerLogin();
+    void AbortLogin(LoginFailureReason reason);
     void HandlePlayerLoginToCharInWorld(Player* pCurrChar);
     void HandlePlayerLoginToCharOutOfWorld(Player* pCurrChar);
     void HandleCharFactionOrRaceChange(WorldPacket& recvData);
@@ -1437,7 +1461,10 @@ private:
 
     ObjectGuid::LowType m_GUIDLow;                     // set logined or recently logout player (while m_playerRecentlyLogout set)
     Player* _player;
-    std::shared_ptr<WorldSocket> m_Socket;
+    std::shared_ptr<WorldSocket> m_Socket;              // realm connection
+    std::shared_ptr<WorldSocket> m_InstanceSocket;      // 4.3.4 instance connection, opened after SMSG_CONNECT_TO
+    ConnectToKey _instanceConnectKey;
+    ObjectGuid _playerLoadingGuid;                      // character waiting for the instance connection
     std::string m_Address;
 
     AccountTypes _security;

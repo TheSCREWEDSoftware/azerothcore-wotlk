@@ -176,7 +176,7 @@ void EncryptableAndCompressiblePacket::Compress(void* dst, uint32 *dst_size, voi
 }
 
 WorldSocket::WorldSocket(IoContextTcpSocket&& socket)
-    : Socket(std::move(socket)), _OverSpeedPings(0), _worldSession(nullptr), _authed(false),
+    : Socket(std::move(socket)), _type(CONNECTION_TYPE_REALM), _OverSpeedPings(0), _worldSession(nullptr), _authed(false),
       // Sessions created while PacketLogFile is configured log their packets. The file alone used
       // to do nothing until a GM command flipped the per-session flag; that command lives in the
       // Commands scripts, so harness runs (SCRIPTS=none) could never capture payloads. The packet
@@ -186,6 +186,8 @@ WorldSocket::WorldSocket(IoContextTcpSocket&& socket)
       _loggingPackets(sPacketLog->CanLogPacket())
 {
     Acore::Crypto::GetRandomBytes(_authSeed);
+    Acore::Crypto::GetRandomBytes(_encryptSeed);
+    Acore::Crypto::GetRandomBytes(_decryptSeed);
     _headerBuffer.Resize(/*sizeof(ClientPktHeader)*/ 2);
 }
 
@@ -405,7 +407,9 @@ bool WorldSocket::Update()
 void WorldSocket::HandleSendAuthSession()
 {
     WorldPackets::Auth::AuthChallenge packet;
-    packet.DosChallenge = Acore::Crypto::GetRandomBytes<32>();
+    // the client seeds the instance connection's ARC4 keys from the first 32 bytes
+    std::copy(_encryptSeed.begin(), _encryptSeed.end(), packet.DosChallenge.begin());
+    std::copy(_decryptSeed.begin(), _decryptSeed.end(), packet.DosChallenge.begin() + 16);
     packet.Challenge = _authSeed;
 
     SendPacketAndLogOpcode(*packet.Write());
@@ -627,6 +631,50 @@ WorldSocket::ReadDataHandlerResult WorldSocket::ReadDataHandler()
 
             LOG_ERROR("network", "WorldSocket::ReadDataHandler(): client {} sent malformed CMSG_AUTH_SESSION", GetRemoteIpAddress().to_string());
             return ReadDataHandlerResult::Error;
+        }
+        case CMSG_AUTH_CONTINUED_SESSION:
+        {
+            LogOpcodeText(opcode, sessionGuard);
+            if (_authed)
+            {
+                // locking just to safely log offending user is probably overkill but we are disconnecting him anyway
+                if (sessionGuard.try_lock() && _worldSession)
+                    LOG_ERROR("network", "WorldSocket::ProcessIncoming: received duplicate CMSG_AUTH_CONTINUED_SESSION from {}", _worldSession->GetPlayerInfo());
+                return ReadDataHandlerResult::Error;
+            }
+
+            std::shared_ptr<WorldPackets::Auth::AuthContinuedSession> authSession = std::make_shared<WorldPackets::Auth::AuthContinuedSession>(std::move(packet));
+            try
+            {
+                authSession->Read();
+            }
+            catch (ByteBufferException const&)
+            {
+                LOG_ERROR("network", "WorldSocket::ReadDataHandler(): client {} sent malformed CMSG_AUTH_CONTINUED_SESSION", GetRemoteIpAddress().to_string());
+                return ReadDataHandlerResult::Error;
+            }
+
+            HandleAuthContinuedSession(authSession);
+            return ReadDataHandlerResult::WaitingForQuery;
+        }
+        case CMSG_CONNECT_TO_FAILED:
+        {
+            sessionGuard.lock();
+            LogOpcodeText(opcode, sessionGuard);
+
+            WorldPackets::Auth::ConnectToFailed connectToFailed(std::move(packet));
+            try
+            {
+                connectToFailed.Read();
+            }
+            catch (ByteBufferException const&)
+            {
+                LOG_ERROR("network", "WorldSocket::ReadDataHandler(): client {} sent malformed CMSG_CONNECT_TO_FAILED", GetRemoteIpAddress().to_string());
+                return ReadDataHandlerResult::Error;
+            }
+
+            HandleConnectToFailed(connectToFailed);
+            return ReadDataHandlerResult::Ok;
         }
         case CMSG_KEEP_ALIVE: /// @todo: handle this packet in the same way of CMSG_TIME_SYNC_RESP
             sessionGuard.lock();
@@ -903,6 +951,100 @@ void WorldSocket::HandleAuthSessionCallback(std::shared_ptr<WorldPackets::Auth::
     sWorldSessionMgr->AddSession(_worldSession);
 
     AsyncRead();
+}
+
+void WorldSocket::SetWorldSession(WorldSession* session)
+{
+    std::lock_guard<std::mutex> sessionGuard(_worldSessionLock);
+    _worldSession = session;
+    _authed = true;
+}
+
+void WorldSocket::HandleAuthContinuedSession(std::shared_ptr<WorldPackets::Auth::AuthContinuedSession> authSession)
+{
+    WorldSession::ConnectToKey key;
+    key.Raw = authSession->Key;
+
+    _type = ConnectionType(key.Fields.ConnectionType);
+    if (_type != CONNECTION_TYPE_INSTANCE)
+    {
+        SendAuthResponseError(AUTH_UNKNOWN_ACCOUNT);
+        DelayedCloseSocket();
+        return;
+    }
+
+    uint32 accountId = uint32(key.Fields.AccountId);
+    LoginDatabasePreparedStatement* stmt = LoginDatabase.GetPreparedStatement(LOGIN_SEL_ACCOUNT_INFO_CONTINUED_SESSION);
+    stmt->SetData(0, accountId);
+
+    _queryProcessor.AddCallback(LoginDatabase.AsyncQuery(stmt).WithPreparedCallback(std::bind(&WorldSocket::HandleAuthContinuedSessionCallback, this, authSession, std::placeholders::_1)));
+}
+
+void WorldSocket::HandleAuthContinuedSessionCallback(std::shared_ptr<WorldPackets::Auth::AuthContinuedSession> authSession, PreparedQueryResult result)
+{
+    if (!result)
+    {
+        SendAuthResponseError(AUTH_UNKNOWN_ACCOUNT);
+        DelayedCloseSocket();
+        return;
+    }
+
+    WorldSession::ConnectToKey key;
+    key.Raw = authSession->Key;
+
+    uint32 accountId = uint32(key.Fields.AccountId);
+    Field* fields = result->Fetch();
+    std::string login = fields[0].Get<std::string>();
+    Utf8ToUpperOnlyLatin(login);
+    SessionKey sessionKey = fields[1].Get<Binary, SESSION_KEY_LENGTH>();
+
+    _authCrypt.Init(sessionKey, _encryptSeed, _decryptSeed);
+
+    Acore::Crypto::SHA1 sha;
+    sha.UpdateData(login);
+    sha.UpdateData(sessionKey);
+    sha.UpdateData(_authSeed);
+    sha.Finalize();
+
+    if (sha.GetDigest() != authSession->Digest)
+    {
+        SendAuthResponseError(AUTH_UNKNOWN_ACCOUNT);
+        LOG_ERROR("network", "WorldSocket::HandleAuthContinuedSession: Authentication failed for account: {} ('{}') address: {}", accountId, login, GetRemoteIpAddress().to_string());
+        DelayedCloseSocket();
+        return;
+    }
+
+    sWorldSessionMgr->AddInstanceSocket(std::static_pointer_cast<WorldSocket>(shared_from_this()), authSession->Key);
+    AsyncRead();
+}
+
+void WorldSocket::HandleConnectToFailed(WorldPackets::Auth::ConnectToFailed& connectToFailed)
+{
+    // called with _worldSessionLock held
+    if (!_worldSession || !_worldSession->PlayerLoading())
+        return;
+
+    switch (connectToFailed.Serial)
+    {
+        case WorldPackets::Auth::ConnectToSerial::WorldAttempt1:
+            _worldSession->SendConnectToInstance(WorldPackets::Auth::ConnectToSerial::WorldAttempt2);
+            break;
+        case WorldPackets::Auth::ConnectToSerial::WorldAttempt2:
+            _worldSession->SendConnectToInstance(WorldPackets::Auth::ConnectToSerial::WorldAttempt3);
+            break;
+        case WorldPackets::Auth::ConnectToSerial::WorldAttempt3:
+            _worldSession->SendConnectToInstance(WorldPackets::Auth::ConnectToSerial::WorldAttempt4);
+            break;
+        case WorldPackets::Auth::ConnectToSerial::WorldAttempt4:
+            _worldSession->SendConnectToInstance(WorldPackets::Auth::ConnectToSerial::WorldAttempt5);
+            break;
+        case WorldPackets::Auth::ConnectToSerial::WorldAttempt5:
+            LOG_ERROR("network", "{} failed to connect 5 times to world socket, aborting login", _worldSession->GetPlayerInfo());
+            _worldSession->AbortLogin(LoginFailureReason::NoWorld);
+            break;
+        default:
+            break;
+    }
 }
 
 void WorldSocket::SendAuthResponseError(uint8 code)

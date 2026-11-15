@@ -25,6 +25,7 @@
 
 #include "SocketMgr.h"
 
+class AsyncAcceptor;
 class WorldSocket;
 
 /// Manages all sockets connected to peers and network threads
@@ -47,6 +48,7 @@ public:
 
 protected:
     WorldSocketMgr();
+    ~WorldSocketMgr();
 
     NetworkThread<WorldSocket>* CreateThreads() const override;
 
@@ -56,6 +58,8 @@ protected:
     }
 
 private:
+    // 4.3.4: the instance connection (SMSG_CONNECT_TO) arrives on its own port, handled by the same network threads
+    std::unique_ptr<AsyncAcceptor> _instanceAcceptor;
     int32 _socketSystemSendBufferSize;
     int32 _socketApplicationSendBufferSize;
     bool _tcpNoDelay;

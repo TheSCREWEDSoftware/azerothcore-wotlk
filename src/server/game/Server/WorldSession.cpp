@@ -21,6 +21,7 @@
 
 #include "TC9Sidecar.h"
 #include "WorldSession.h"
+#include "OpcodeConnections.h"
 #include "AccountMgr.h"
 #include "BattlegroundMgr.h"
 #include "BanMgr.h"
@@ -156,6 +157,7 @@ WorldSession::WorldSession(uint32 id, std::string&& name, uint32 accountFlags, s
     _headless(!sock)
 {
     memset(m_Tutorials, 0, sizeof(m_Tutorials));
+    _instanceConnectKey.Raw = UI64LIT(0);
 
     _offlineTime = 0;
     _kicked = false;
@@ -188,6 +190,12 @@ WorldSession::~WorldSession()
     {
         m_Socket->CloseSocket();
         m_Socket = nullptr;
+    }
+
+    if (m_InstanceSocket)
+    {
+        m_InstanceSocket->CloseSocket();
+        m_InstanceSocket = nullptr;
     }
 
     delete _RBACData;
@@ -317,7 +325,10 @@ void WorldSession::SendPacket(WorldPacket const* packet)
 {
     sScriptMgr->OnPacketSent(this, *packet);
 
-    if (!m_Socket)
+    // 4.3.4: the client only handles some opcodes when they arrive on the instance connection; until that connection
+    // exists (character screen, loading) everything goes to the realm connection
+    std::shared_ptr<WorldSocket> const& socket = (m_InstanceSocket && IsInstanceConnectionOpcode(packet->GetOpcode())) ? m_InstanceSocket : m_Socket;
+    if (!socket)
         return;
 
 #if defined(ACORE_DEBUG)
@@ -361,7 +372,7 @@ void WorldSession::SendPacket(WorldPacket const* packet)
         return;
     }
 
-    m_Socket->SendPacketAndLogOpcode(*packet);
+    socket->SendPacketAndLogOpcode(*packet);
 }
 
 /// Add an incoming packet to the queue
@@ -632,7 +643,23 @@ bool WorldSession::Update(uint32 diff, PacketFilter& updater)
             if (GetPlayer() && _warden)
                 _warden->Update(diff);
 
+            // the instance connection does not outlive the realm connection
+            if (m_InstanceSocket)
+            {
+                m_InstanceSocket->CloseSocket();
+                m_InstanceSocket = nullptr;
+            }
+
             m_Socket = nullptr;
+        }
+
+        if (m_InstanceSocket && !m_InstanceSocket->IsOpen())
+        {
+            m_InstanceSocket = nullptr;
+
+            // losing the instance connection in game leaves the client unable to move or query anything
+            if (m_Socket && GetPlayer() && !PlayerLogout())
+                KickPlayer("WorldSession::Update instance connection closed");
         }
 
         if (!m_Socket)
@@ -882,6 +909,13 @@ void WorldSession::LogoutPlayer(bool save, bool redirecting)
         SendPacket(WorldPackets::Character::LogoutComplete().Write());
         LOG_DEBUG("network", "SESSION: Sent SMSG_LOGOUT_COMPLETE Message");
 
+        // back on the character screen the client only uses the realm connection; the next login opens a new one
+        if (m_InstanceSocket)
+        {
+            m_InstanceSocket->DelayedCloseSocket();
+            m_InstanceSocket = nullptr;
+        }
+
         //! Mark all characters of the account offline, unless a script running several per account handles it instead
         if (!redirecting && sScriptMgr->OnPlayerCanMarkAccountOffline(playerGuid, GetAccountId()))
         {
@@ -907,6 +941,9 @@ void WorldSession::KickPlayer(std::string const& reason, bool setKicked)
 
         m_Socket->CloseSocket();
     }
+
+    if (m_InstanceSocket)
+        m_InstanceSocket->CloseSocket();
 
     if (setKicked)
         SetKicked(true); // pussywizard: the session won't be left ingame for 60 seconds and to also kick offline session
@@ -1692,6 +1729,9 @@ void WorldSession::SetPacketLogging(bool state)
 {
     if (m_Socket)
         m_Socket->SetPacketLogging(state);
+
+    if (m_InstanceSocket)
+        m_InstanceSocket->SetPacketLogging(state);
 }
 
 std::unique_ptr<WorldPacket> WorldSession::NextQueuedPacket()

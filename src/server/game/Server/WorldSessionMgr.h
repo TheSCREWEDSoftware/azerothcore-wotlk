@@ -24,12 +24,14 @@
 #include "LockedQueue.h"
 #include "ObjectGuid.h"
 #include <list>
+#include <memory>
 #include <map>
 #include <unordered_map>
 
 class Player;
 class WorldPacket;
 class WorldSession;
+class WorldSocket;
 
 struct AccountPlayHistory
 {
@@ -55,6 +57,8 @@ public:
     void KickAll();
     void KickAllLess(AccountTypes sec);
     void AddSession(WorldSession* session);
+    /// queues an authenticated 4.3.4 instance connection to be linked to its session in the world thread
+    void AddInstanceSocket(std::weak_ptr<WorldSocket> sock, uint64 connectToKey);
 
     void AddQueuedPlayer(WorldSession* session);
     bool RemoveQueuedPlayer(WorldSession* session);
@@ -96,6 +100,8 @@ public:
 private:
     LockedQueue<WorldSession*> _addSessQueue;
     void AddSession_(WorldSession* session);
+    LockedQueue<std::pair<std::weak_ptr<WorldSocket>, uint64>> _linkSocketQueue;
+    void ProcessLinkInstanceSocket(std::pair<std::weak_ptr<WorldSocket>, uint64> linkInfo);
 
     SessionMap _sessions;
     SessionMap _offlineSessions;

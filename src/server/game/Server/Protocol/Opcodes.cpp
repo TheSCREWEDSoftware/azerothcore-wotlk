@@ -1483,7 +1483,8 @@ void OpcodeTable::Initialize()
     /*0x4904*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_NOTIFY_DANCE,                                       STATUS_NEVER);
     /*0x6914*/ DEFINE_HANDLER(CMSG_PLAY_DANCE,                                                       STATUS_NEVER,      PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );
     /*0x4704*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_PLAY_DANCE,                                         STATUS_NEVER);
-    /*0x044D*/ DEFINE_HANDLER(CMSG_LOAD_DANCES,                                                      STATUS_NEVER,      PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );
+    /*0x044D*/ DEFINE_HANDLER(CMSG_AUTH_CONTINUED_SESSION,                                           STATUS_NEVER,      PROCESS_INPLACE,        &WorldSession::Handle_EarlyProccess                     );
+    /*0x2533*/ DEFINE_HANDLER(CMSG_CONNECT_TO_FAILED,                                                STATUS_NEVER,      PROCESS_INPLACE,        &WorldSession::Handle_EarlyProccess                     );
     /*0x2907*/ DEFINE_HANDLER(CMSG_STOP_DANCE,                                                       STATUS_NEVER,      PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );
     /*0x4637*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_STOP_DANCE,                                         STATUS_NEVER);
     /*0x0036*/ DEFINE_HANDLER(CMSG_SYNC_DANCE,                                                       STATUS_NEVER,      PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );
@@ -1685,6 +1686,8 @@ void OpcodeTable::Initialize()
     /*0x050D*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_REDIRECT_CLIENT,                                    STATUS_NEVER);
     /*0x050E*/ DEFINE_HANDLER(CMSG_REDIRECTION_FAILED,                                               STATUS_NEVER,      PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );
     /*0x4140*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_SUSPEND_COMMS,                                      STATUS_NEVER);
+    /*0x0140*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_RESUME_COMMS,                                       STATUS_NEVER);
+    /*0x0942*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_CONNECT_TO,                                         STATUS_NEVER);
     /*0x0510*/ DEFINE_HANDLER(CMSG_SUSPEND_COMMS_ACK,                                                STATUS_NEVER,      PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );
     /*0x0511*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_FORCE_SEND_QUEUED_PACKETS,                          STATUS_NEVER);
     /*0x0512*/ DEFINE_HANDLER(CMSG_REDIRECTION_AUTH_PROOF,                                           STATUS_NEVER,      PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );

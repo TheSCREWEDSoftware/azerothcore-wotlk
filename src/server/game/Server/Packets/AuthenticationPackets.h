@@ -18,7 +18,9 @@
 #ifndef AuthenticationPackets_h__
 #define AuthenticationPackets_h__
 
+#include "BigNumber.h"
 #include "Packet.h"
+#include <boost/asio/ip/tcp.hpp>
 #include <array>
 #include <optional>
 
@@ -86,6 +88,82 @@ namespace WorldPackets
             std::optional<AuthSuccessInfo> SuccessInfo;
             std::optional<AuthWaitInfo> WaitInfo;
             uint8 Result;
+        };
+
+        /// CMSG_AUTH_CONTINUED_SESSION: authenticates the instance connection opened after SMSG_CONNECT_TO
+        class AuthContinuedSession final : public ClientPacket
+        {
+        public:
+            explicit AuthContinuedSession(WorldPacket&& packet) : ClientPacket(CMSG_AUTH_CONTINUED_SESSION, std::move(packet)) { }
+
+            void Read() override;
+
+            uint64 DosResponse = 0;
+            uint64 Key = 0;
+            std::array<uint8, 20> Digest = {};
+        };
+
+        /// SMSG_RESUME_COMMS: must be sent on the instance connection once it is linked to the session
+        class ResumeComms final : public ServerPacket
+        {
+        public:
+            ResumeComms() : ServerPacket(SMSG_RESUME_COMMS, 0) { }
+
+            WorldPacket const* Write() override { return &_worldPacket; }
+        };
+
+        enum class ConnectToSerial : uint32
+        {
+            None            = 0,
+            Realm           = 14,
+            WorldAttempt1   = 17,
+            WorldAttempt2   = 35,
+            WorldAttempt3   = 53,
+            WorldAttempt4   = 71,
+            WorldAttempt5   = 89
+        };
+
+        /// SMSG_CONNECT_TO: tells the client where to open the instance connection. The address block is RSA signed
+        /// with the key TCPP's client_launcher patches into the 15595 client.
+        class ConnectTo final : public ServerPacket
+        {
+            static std::string const Haiku;
+            static uint8 const PiDigits[142];
+
+            struct ConnectPayload
+            {
+                boost::asio::ip::tcp::endpoint Where;
+                uint32 Adler32 = 0;
+                uint8 XorMagic = 0x2A;
+            };
+
+        public:
+            ConnectTo();
+
+            WorldPacket const* Write() override;
+
+            uint64 Key = 0;
+            ConnectToSerial Serial = ConnectToSerial::None;
+            ConnectPayload Payload;
+            uint8 Con = 0;
+
+        private:
+            BigNumber p;
+            BigNumber q;
+            BigNumber dmp1;
+            BigNumber dmq1;
+            BigNumber iqmp;
+        };
+
+        class ConnectToFailed final : public ClientPacket
+        {
+        public:
+            explicit ConnectToFailed(WorldPacket&& packet) : ClientPacket(CMSG_CONNECT_TO_FAILED, std::move(packet)) { }
+
+            void Read() override;
+
+            ConnectToSerial Serial = ConnectToSerial::None;
+            uint8 Con = 0;
         };
     }
 }

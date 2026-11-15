@@ -100,6 +100,15 @@ RealmID = 1
 WorldServerPort = 8085
 
 #
+#    InstanceServerPort
+#        Description: TCP port of the 4.3.4 instance connection (SMSG_CONNECT_TO). The client opens it
+#                     at character login; both ports must be reachable. The original 15595 client
+#                     only accepts SMSG_CONNECT_TO when started through TCPP's client_launcher.
+#        Default:     8086
+
+InstanceServerPort = 8086
+
+#
 #    BindIP
 #        Description: Bind world server to IP/hostname
 #        Default:     "0.0.0.0" - (Bind to all IPs on the system)

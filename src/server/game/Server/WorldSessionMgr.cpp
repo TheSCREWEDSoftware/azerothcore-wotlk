@@ -24,6 +24,7 @@
 #include "World.h"
 #include "WorldSession.h"
 #include "WorldSessionMgr.h"
+#include "WorldSocket.h"
 
 WorldSessionMgr* WorldSessionMgr::Instance()
 {
@@ -131,6 +132,11 @@ void WorldSessionMgr::UpdateSessions(uint32 const diff)
         {
             AddSession_(sess);
         }
+
+        ///- Link authenticated instance connections to their sessions
+        std::pair<std::weak_ptr<WorldSocket>, uint64> linkInfo;
+        while (_linkSocketQueue.next(linkInfo))
+            ProcessLinkInstanceSocket(std::move(linkInfo));
     }
 
     ///- Then send an update signal to remaining ones
@@ -258,6 +264,33 @@ void WorldSessionMgr::KickAllLess(AccountTypes sec)
 void WorldSessionMgr::AddSession(WorldSession* session)
 {
     _addSessQueue.add(session);
+}
+
+void WorldSessionMgr::AddInstanceSocket(std::weak_ptr<WorldSocket> sock, uint64 connectToKey)
+{
+    _linkSocketQueue.add(std::make_pair(sock, connectToKey));
+}
+
+void WorldSessionMgr::ProcessLinkInstanceSocket(std::pair<std::weak_ptr<WorldSocket>, uint64> linkInfo)
+{
+    std::shared_ptr<WorldSocket> sock = linkInfo.first.lock();
+    if (!sock || !sock->IsOpen())
+        return;
+
+    WorldSession::ConnectToKey key;
+    key.Raw = linkInfo.second;
+
+    WorldSession* session = FindSession(uint32(key.Fields.AccountId));
+    if (!session || session->GetConnectToInstanceKey() != linkInfo.second)
+    {
+        sock->SendAuthResponseError(AUTH_SESSION_EXPIRED);
+        sock->DelayedCloseSocket();
+        return;
+    }
+
+    sock->SetWorldSession(session);
+    session->AddInstanceConnection(sock);
+    session->HandleContinuePlayerLogin();
 }
 
 void WorldSessionMgr::AddQueuedPlayer(WorldSession* session)

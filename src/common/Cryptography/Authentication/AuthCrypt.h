@@ -27,6 +27,8 @@ public:
     AuthCrypt() = default;
 
     void Init(SessionKey const& K);
+    /// 4.3.4 instance connection: the ARC4 keys are HMAC-SHA1(seed, K) with the seeds sent in SMSG_AUTH_CHALLENGE
+    void Init(SessionKey const& K, std::array<uint8, 16> const& serverEncryptSeed, std::array<uint8, 16> const& clientDecryptSeed);
     void DecryptRecv(uint8* data, std::size_t len);
     void EncryptSend(uint8* data, std::size_t len);
 
