@@ -24,7 +24,7 @@ if (TOOLS_BUILD MATCHES "-only")
   set(BUILD_TOOLS_USE_WHITELIST ON)
 
   if (TOOLS_BUILD STREQUAL "maps-only")
-    list(APPEND BUILD_TOOLS_WHITELIST map_extractor mmaps_generator vmap4_assembler vmap4_extractor)
+    list(APPEND BUILD_TOOLS_WHITELIST map_extractor mmaps_generator vmap4_assembler vmap4_extractor skyfire_launcher)
   endif()
 
   if (TOOLS_BUILD STREQUAL "db-only")
@@ -92,6 +92,14 @@ foreach(TOOL_NAME ${TOOLS_BUILD_LIST})
   ToolNameToVariable(${TOOL_NAME} TOOL_BUILD_VARIABLE)
 
   if (${TOOL_BUILD_VARIABLE} STREQUAL "disabled")
+    continue()
+  endif()
+
+  # skyfire_launcher is a Windows-only client tool with its own CMakeLists
+  if (TOOL_NAME STREQUAL "skyfire_launcher")
+    if (WIN32)
+      add_subdirectory(${TOOL_NAME})
+    endif()
     continue()
   endif()
 
