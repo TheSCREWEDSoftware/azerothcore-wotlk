@@ -24,7 +24,7 @@ if (TOOLS_BUILD MATCHES "-only")
   set(BUILD_TOOLS_USE_WHITELIST ON)
 
   if (TOOLS_BUILD STREQUAL "maps-only")
-    list(APPEND BUILD_TOOLS_WHITELIST map_extractor mmaps_generator vmap4_assembler vmap4_extractor)
+    list(APPEND BUILD_TOOLS_WHITELIST map_extractor mmaps_generator vmap4_assembler vmap4_extractor client_launcher client_patcher)
   endif()
 
   if (TOOLS_BUILD STREQUAL "db-only")
@@ -92,6 +92,15 @@ foreach(TOOL_NAME ${TOOLS_BUILD_LIST})
   ToolNameToVariable(${TOOL_NAME} TOOL_BUILD_VARIABLE)
 
   if (${TOOL_BUILD_VARIABLE} STREQUAL "disabled")
+    continue()
+  endif()
+
+  # TCPP's 4.3.4 client tools are Windows only and bring their own CMakeLists
+  # (client_patcher is a DLL, and both are named after the build's bitness)
+  if (TOOL_NAME MATCHES "^client_(launcher|patcher)$")
+    if (WIN32)
+      add_subdirectory(${TOOL_NAME})
+    endif()
     continue()
   endif()
 

@@ -55,4 +55,9 @@ if (BUILD_TOOLS_MAPS)
   add_subdirectory(StormLib)
 endif()
 
+# MinHook is used by client_patcher (Windows only), which hooks Battle.net.dll loading in the 4.3.4 client
+if (WIN32 AND BUILD_TOOLS_MAPS)
+  add_subdirectory(minhook)
+endif()
+
 add_subdirectory(libsidecar)
